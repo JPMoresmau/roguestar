@@ -22,8 +22,7 @@ doc :
 	${MAKE} -C haddock
 
 products/roguestar-engine : ${SRC_FILES}
-	ghc 	-package mtl \
-		-hidir products/ \
+	ghc 	-hidir products/ \
 		-odir products/ \
 		-isrc/:products/ \
 		--make src/Main.hs \

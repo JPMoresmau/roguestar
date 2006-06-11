@@ -1,5 +1,5 @@
 module Creature 
-    (runCreatureGenerationTest, dbNewCreature, creatureTests)
+    (runCreatureGenerationTest, creatureTests)
     where
 
 import Control.Monad.State
@@ -26,12 +26,15 @@ newCreature species = do (stats,attribs,name) <- generateCreatureData species
 -- |
 -- Adds a creature to the DB.
 --
+{-
 dbNewCreature :: Species -> DB ObjectRef
 dbNewCreature species = do newc <- newCreature species
 			   dbAddObjectThing (CreatureRef) (CreatureThing newc)
+-}
 
 creatureTests :: [TestCase]
-creatureTests = [testHitPointCalculation,testAlive,testDead]
+creatureTests = [testHitPointCalculation,testAlive,testDead,
+                 testEffectiveLevel,testMeleeAttackBonus]
 
 testHitPointCalculation :: TestCase
 testHitPointCalculation = do if (maxHitPoints exampleCreature1 == 23)
@@ -45,5 +48,19 @@ testAlive = do if (alive $ injure 24 exampleCreature1)
 
 testDead :: TestCase
 testDead = do if (dead $ injure 26 exampleCreature1)
-		 then return (Passed "testDead")
+                 then return (Passed "testDead")
 		 else return (Failed "testDead")
+
+testEffectiveLevel :: TestCase
+testEffectiveLevel = let effective_level = (creatureEffectiveLevel exampleCreature1)
+                         result_string = "testEffectiveLevel: (" ++ (show effective_level) ++ ")"
+                         in if effective_level == 13
+                            then return (Passed result_string)
+                            else return (Failed result_string)
+
+testMeleeAttackBonus :: TestCase
+testMeleeAttackBonus = let bonus = (creatureMeleeAttackBonus exampleCreature1)
+                           result_string = "testMeleeAttackBonus: (" ++ (show bonus) ++ ")"
+                           in if bonus == 2
+                              then return (Passed result_string)
+                              else return (Failed result_string)

@@ -4,7 +4,6 @@ module DB
      DB_BaseType,
      ObjectRef(..), 
      ObjectThing(..),
-     dbAddObjectThing,
      nextRandomInteger,
      dbNextRandomInteger)
     where
@@ -12,7 +11,7 @@ module DB
 import CreatureData
 import Control.Monad.State
 import System.Time
-import Data.Map as Map
+--import Data.Map as Map
 
 data ObjectRef = CreatureRef Integer
 		 deriving (Eq,Ord,Read,Show)
@@ -24,29 +23,29 @@ data ObjectThing = CreatureThing Creature
 -- Random access form of the roguestar database.
 --
 data DB_BaseType = DB_BaseType { random_number_generator_seed :: Integer,
-				 next_object_ref :: Integer,
-			         dbtable :: Map ObjectRef ObjectThing }
+				 next_object_ref :: Integer
+			         {- dbtable :: Map ObjectRef ObjectThing -} }
 
 -- |
 -- Serial form of the roguestar database.
 --
 data DB_Persistant_BaseType = DB_Persistant_BaseType { random_number_generator_seed_ :: Integer, 
-						       next_object_ref_ :: Integer,
-						       dbtable_ :: [(ObjectRef,ObjectThing)] }
+						       next_object_ref_ :: Integer
+						       {- dbtable_ :: [(ObjectRef,ObjectThing)] -} }
 			      deriving (Read,Show)
 
 toPersistant :: DB_BaseType -> DB_Persistant_BaseType
 toPersistant db = DB_Persistant_BaseType {
 					  random_number_generator_seed_ = random_number_generator_seed db,
-					  next_object_ref_ = next_object_ref db,
-					  dbtable_ = toList (dbtable db)
+					  next_object_ref_ = next_object_ref db
+					  {- dbtable_ = toList (dbtable db) -}
 					 }
 
 fromPersistant :: DB_Persistant_BaseType -> DB_BaseType
 fromPersistant persistant = DB_BaseType {
 					 random_number_generator_seed = random_number_generator_seed_ persistant,
-					 next_object_ref = next_object_ref_ persistant,
-					 dbtable = fromList (dbtable_ persistant)
+					 next_object_ref = next_object_ref_ persistant
+					 {- dbtable = fromList (dbtable_ persistant) -}
 					}
 
 fromPersistant_tupled :: (DB_Persistant_BaseType,String) -> (DB_BaseType,String)
@@ -66,8 +65,8 @@ type DB a = State DB_BaseType a
 initial_db :: IO DB_BaseType
 initial_db = do (TOD seconds picos) <- getClockTime
 		return DB_BaseType { random_number_generator_seed = seconds + picos,
-				     next_object_ref = 0,
-				     dbtable = (fromList [])
+				     next_object_ref = 0
+				     {- dbtable = (fromList []) -}
 				   }
 
 
@@ -86,11 +85,13 @@ dbNextObjectRef = do db <- get
 -- the second is an object appropriately encapsulated in an ObjectThing.  The object is added to the
 -- database under the resulting ObjectRef.
 --
+{-
 dbAddObjectThing :: (Integer -> ObjectRef) -> ObjectThing -> DB ObjectRef
 dbAddObjectThing mkobjref thing = do ref <- dbNextObjectRef
 				     db <- get
 				     put (db { dbtable=(insert (mkobjref ref) thing (dbtable db))})
 				     return (mkobjref ref)
+-}
 
 -- |
 -- Generates the next in a sequence of random Integers.
