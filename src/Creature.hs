@@ -26,11 +26,9 @@ newCreature species = do (stats,attribs,name) <- generateCreatureData species
 -- |
 -- Adds a creature to the DB.
 --
-{-
 dbNewCreature :: Species -> DB ObjectRef
 dbNewCreature species = do newc <- newCreature species
 			   dbAddObjectThing (CreatureRef) (CreatureThing newc)
--}
 
 creatureTests :: [TestCase]
 creatureTests = [testHitPointCalculation,testAlive,testDead,

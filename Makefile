@@ -1,16 +1,6 @@
-HS_FLAGS = -c -hidir products/ -odir products/ -isrc/:products/
-SRC_FILES =  src/Species.hs \
-	       	src/DB.hs \
-		src/Main.hs \
-		src/Tests.hs \
-		src/Dice.hs \
-		src/Creature.hs \
-		src/Alignment.hs \
-		src/PeriodicTable.hs \
-		src/Creature.hs \
-		src/CreatureData.hs
+HS_FLAGS = -hidir products/ -odir products/ -isrc/:products/ --make src/Main.hs -o products/roguestar-engine
 
-all : products/roguestar-engine
+default : ghc
 
 clean :
 	-rm -f products/*.o
@@ -21,11 +11,10 @@ clean :
 doc :
 	${MAKE} -C haddock
 
-products/roguestar-engine : ${SRC_FILES}
-	ghc 	-hidir products/ \
-		-odir products/ \
-		-isrc/:products/ \
-		--make src/Main.hs \
-		-o products/roguestar-engine
+ghc :
+	ghc 	-Wall ${HS_FLAGS}
 
-.PHONY : all clean
+ghc-release :
+	ghc	-O ${HS_FLAGS}
+
+.PHONY : default clean doc ghc ghc-release

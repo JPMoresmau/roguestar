@@ -1,5 +1,5 @@
 module PeriodicTable
-    (displayPeriodicTable)
+    (Element(..),displayPeriodicTable)
     where
 
 import Alignment
