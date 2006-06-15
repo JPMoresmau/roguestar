@@ -34,3 +34,14 @@ gridAt (ArbitraryReplacementGrid seed frequency rep_val weights grid) at =
 
 gridAt (SpecificPlacementGrid rep_map grid) at =
     findWithDefault (gridAt grid at) at rep_map
+
+-- |
+-- Generates a random grid.  The first Integer, smoothness,
+-- indicates the recursion depth for the generator.  The
+-- Integer list is the random integer stream used to generate
+-- the map.
+generateGrid :: [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
+generateGrid weights interps 0 seeds = 
+    CompletelyRandomGrid (head seeds) weights
+generateGrid weights interps n seeds = 
+    InterpolatedGrid (head seeds) interps $ generateGrid weights interps (n-1) (tail seeds)

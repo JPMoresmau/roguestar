@@ -1,4 +1,7 @@
 module TerrainData
+    (Biome(..),
+     TerrainPatch(..),
+     TerrainMap)
     where
 
 import PeriodicTable
@@ -62,11 +65,13 @@ terrainInterpRule (Rubble,x) = [(1,Rubble),(2,Sand),(2,Dirt),(5,x)]
 terrainInterpRule (DeepWater,DeepWater) = []
 terrainInterpRule (DeepWater,_) = [(3,Water)]
 terrainInterpRule (DeepForest,DeepForest) = []
+terrainInterpRule (DeepForest,Forest) = []
 terrainInterpRule (DeepForest,_) = [(5,Forest)]
 terrainInterpRule (Water,Water) = []
 terrainInterpRule (Water,DeepWater) = []
 terrainInterpRule (Water,_) = [(1,Sand)]
 terrainInterpRule (Sand,Deasert) = [(1,Grass),(1,Forest)]
+terrainInterpRule _ = []
 
 -- |
 -- A list of every TerrainPatch that might be created from the terrainFrequencies function.
@@ -78,3 +83,13 @@ terrainInterpMap :: Map (TerrainPatch,TerrainPatch) [(Integer,TerrainPatch)]
 terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b <- baseTerrainPatches]
 		       interps = map terrainInterpFn terrain_patch_pairs
 		       in fromList (zip terrain_patch_pairs interps)
+
+data TerrainMap = GeneratedTerrainMap (Grid TerrainPatch)
+                | SpecifiedTerrainMap TerrainPatch (Map (Integer,Integer) TerrainPatch)
+
+-- |
+-- Generates a random terrain map.  The first Integer, smoothness,
+-- indicates the recursion depth for the terrain generator.  The
+-- second integer is the random integer stream used to generate
+-- the map. 
+generateTerrain :: Biome -> Integer -> [Integer] -> TerrainMap
