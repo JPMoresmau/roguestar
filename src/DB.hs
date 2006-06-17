@@ -5,6 +5,7 @@ module DB
      ObjectRef(..), 
      ObjectThing(..),
      dbNextRandomInteger,
+     dbNextRandomIntegerStream,
      dbAddObjectThing)
     where
     
@@ -109,6 +110,6 @@ dbNextRandomInteger = do db <- get
 --
 dbNextRandomIntegerStream :: DB [Integer]
 dbNextRandomIntegerStream = do db <- get
-                               let (result,rngss) = splitAt 1 $ random_number_stream_stream db
-                                   in do put db { random_number_stream_stream=rngss }
-                                         return (result !! 0)
+                               let rngss = random_number_stream_stream db
+                                   in do put db { random_number_stream_stream=(tail rngss) }
+                                         return (head rngss)

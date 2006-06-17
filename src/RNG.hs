@@ -31,7 +31,7 @@ nextRandomSeed x = (x * 0x5DEECE66D + 0xB) `mod` (2^48)
 --
 randomIntegerStream :: Integer -> [Integer]
 randomIntegerStream x = let nri = nextRandomSeed x
-                            in (nri `quot` 2^24) : (randomIntegerStream nri)
+                            in (nri `quot` 24) : (randomIntegerStream nri)
 
 -- |
 -- A stream of random integer streams.  Good when you need to do

@@ -2,12 +2,10 @@ module Species
     (generateCreatureData)
     where
 
-import Dice
 import DB
 import Control.Monad
 import SpeciesData
 import Stats
-import AttributeData
 import Attribute
 
 --

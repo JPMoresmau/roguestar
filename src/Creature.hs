@@ -1,5 +1,7 @@
 module Creature 
-    (runCreatureGenerationTest, creatureTests)
+    (runCreatureGenerationTest, 
+     creatureTests,
+     dbNewCreature)
     where
 
 import Control.Monad.State

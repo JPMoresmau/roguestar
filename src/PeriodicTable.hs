@@ -1,5 +1,5 @@
 module PeriodicTable
-    (Element(..),displayPeriodicTable)
+    (Element(..),displayPeriodicTable,elementAlignment)
     where
 
 import Alignment
@@ -127,11 +127,11 @@ elementData Vitrium = Chromalite (Strong,Evil,Diplomatic) -- bright Chromalite
 -- to be used when deciding the value of the element in trade).
 --
 elementValue :: Element -> Integer
-elementValue elem = case (elementData elem) of
-					    Gas -> 1
-					    Fuel fuel_val -> fuel_val
-					    Metal val crit_val align -> (10*val + crit_val) + (elementAlignmentValue align)
-					    Chromalite align -> elementAlignmentValue (Just align)
+elementValue element = case (elementData element) of
+					          Gas -> 1
+					          Fuel fuel_val -> fuel_val
+					          Metal val crit_val align -> (10*val + crit_val) + (elementAlignmentValue align)
+					          Chromalite align -> elementAlignmentValue (Just align)
 
 elementStrengthValue :: AlignmentStrength -> Integer
 elementStrengthValue Weak = 1
@@ -161,11 +161,11 @@ elementAlignmentValue Nothing = elementStrengthValue Weak * elementEthicalValue 
 -- zero fuel points, indicating that they are not fuel.
 --
 elementFuelPoints :: Element -> Integer
-elementFuelPoints elem = case (elementData elem) of
-						 Gas -> 0
-						 Fuel fuel_value -> fuel_value
-						 Metal _ _ _ -> 0
-						 Chromalite _ -> 0
+elementFuelPoints element = case (elementData element) of
+						       Gas -> 0
+						       Fuel fuel_value -> fuel_value
+						       Metal _ _ _ -> 0
+						       Chromalite _ -> 0
 
 --
 -- Returns (the normal material points, the critical material poitns)
@@ -173,17 +173,18 @@ elementFuelPoints elem = case (elementData elem) of
 -- (0,0) indicating that they have no use as construction materials.
 --
 elementMaterialPoints2 :: Element -> (Integer,Integer)
-elementMaterialPoints2 elem = case (elementData elem) of
-						      Gas -> (0,0)
-						      Fuel _ -> (0,0)
-						      Metal norm crit _ -> (norm,crit)
-						      Chromalite _ -> (0,0)
+elementMaterialPoints2 element = case (elementData element) of
+						            Gas -> (0,0)
+						            Fuel _ -> (0,0)
+						            Metal norm crit _ -> (norm,crit)
+						            Chromalite _ -> (0,0)
 
 --
 -- Returns the material points for the specified element for normal
 -- material needs.
 --
-elementNormalMaterialPoints elem = fst (elementMaterialPoints2 elem)
+elementNormalMaterialPoints :: Element -> Integer
+elementNormalMaterialPoints element = fst (elementMaterialPoints2 element)
 
 --
 -- Returns the material points for the specified element for critical
@@ -192,19 +193,21 @@ elementNormalMaterialPoints elem = fst (elementMaterialPoints2 elem)
 -- component.  Normal needs represents 99% of needs, while critical
 -- needs represents those special components.
 --
-elementCriticalMaterialPoints elem = snd (elementMaterialPoints2 elem)
+elementCriticalMaterialPoints :: Element -> Integer
+elementCriticalMaterialPoints element = snd (elementMaterialPoints2 element)
 
 --
 -- Returns the alignment of this element.  All elements have alignment,
 -- but usually it is (Weak,Neutral,Indifferent), which is the closest
 -- thing in the game to a completely neutral alignment.
 --
-elementAlignment elem = case (elementData elem) of
-						Gas -> (Weak,Neutral,Indifferent)
-						Fuel _ -> (Weak,Neutral,Indifferent)
-						Metal _ _ (Just align) -> align
-						Metal _ _ Nothing -> (Weak,Neutral,Indifferent)
-						Chromalite align -> align
+elementAlignment :: Element -> Alignment
+elementAlignment element = case (elementData element) of
+                                                      Gas -> (Weak,Neutral,Indifferent)
+						      Fuel _ -> (Weak,Neutral,Indifferent)
+						      Metal _ _ (Just align) -> align
+                                                      Metal _ _ Nothing -> (Weak,Neutral,Indifferent)
+						      Chromalite align -> align
 
 --
 -- Displays the roguestar periodic table of elements.
@@ -221,5 +224,5 @@ displayPeriodicTable_ elems = mapM_ displayElement elems
 
 displayElement :: Element -> IO ()
 
-displayElement elem = do putStrLn ((show elem) ++ " " ++ (show (elementValue elem)) ++ " " ++ (show (elementFuelPoints elem)) ++ " " ++
-				  (show (elementNormalMaterialPoints elem)) ++ " " ++ (show (elementCriticalMaterialPoints elem)))
+displayElement element = do putStrLn ((show element) ++ " " ++ (show (elementValue element)) ++ " " ++ (show (elementFuelPoints element)) ++ " " ++
+				      (show (elementNormalMaterialPoints element)) ++ " " ++ (show (elementCriticalMaterialPoints element)))

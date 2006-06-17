@@ -9,12 +9,13 @@ import Tests
 -- Answers a result of rolling n s-sided dice, numbered 1 to s.
 --
 d :: Integer -> Integer -> DB Integer
-d 0 s = do return 0
-d 1 s = do roll <- dbNextRandomInteger
-	   return ((roll `mod` s) + 1)
-d n s | (n >= 2) = do roll <- d 1 s
-		      rolls <- d (n-1) s
-		      return (roll + rolls)
+d 0 _ = do return 0
+d 1 s | (s > 0)           = do roll <- dbNextRandomInteger
+	                       return ((roll `mod` s) + 1)
+d n s | (n >= 2 && s > 0) = do roll <- d 1 s
+		               rolls <- d (n-1) s
+		               return (roll + rolls)
+d _ _ = error "Rolled negative dice or negative sided dice."
 
 --
 -- Test one die roll.  This does not test that die rolls are "sufficiently" random,
@@ -31,11 +32,12 @@ testDieRoll n s = do db0 <- initial_db
 --
 -- Several dice related test cases.
 --
-testDice_ 0 = []
-testDice_ n | n > 0 = testDice_ (n-1) ++
-		       [ testDieRoll 1 10,
-			 testDieRoll 2 5,
-			 testDieRoll 0 3,
-			 testDieRoll 15 23 ]
+testDice_ :: [TestCase]
+testDice_ = 
+    [ testDieRoll 1 10,
+      testDieRoll 2 5,
+      testDieRoll 0 3,
+      testDieRoll 15 23 ]
 
-testDice = testDice_ 15
+testDice :: [TestCase]
+testDice = foldr1 (++) (replicate 4 testDice_)

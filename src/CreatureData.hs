@@ -11,7 +11,9 @@ module CreatureData
     creatureMeleeAttackBonus,
     creatureMeleeDamageBonus,
     creatureRangedAttackBonus,
-    creatureRangedDamageBonus)
+    creatureRangedDamageBonus,
+    creatureMeleeArmourClass,
+    creatureRangedArmourClass)
     where
 
 import StatsData
@@ -40,6 +42,7 @@ data CreatureAttribute = Male
 -- |
 -- An example creature used for test cases.
 --
+exampleCreature1 :: Creature
 exampleCreature1 = Creature 
 		   { creature_stats = Stats { str=2, con=5, dex=1, int=(-2), per=4, cha=(-1), mind=(-1) },
 		     creature_attribs = [Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Parry],
@@ -51,8 +54,8 @@ exampleCreature1 = Creature
 -- strength, constitution, dexterity, and mindfulness, or at least 6.
 --
 maxHitPoints :: Creature -> Integer
-maxHitPoints creature = let stats = creature_stats creature
-			    in max 6 (10 + (str stats) + (con stats) + (dex stats) + (mind stats)) + bonusHitPoints creature
+maxHitPoints creature = let sts = creature_stats creature
+			    in max 6 (10 + (str sts) + (con sts) + (dex sts) + (mind sts)) + bonusHitPoints creature
 
 bonusHitPoints :: Creature -> Integer
 bonusHitPoints creature = 2 * (count Toughness (creature_attribs creature))

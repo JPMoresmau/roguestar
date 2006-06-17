@@ -26,18 +26,18 @@ type Alignment = (AlignmentStrength,AlignmentEthic,AlignmentSchool)
 -- mindfulness.  Evil is associated with all of the mental alignments.)
 --
 modifierFromAlignment :: Alignment -> Stats -> Integer
-modifierFromAlignment (strength, ethic, schl) stats =
-    limitModifierByAlignmentStrength strength (modifierFromAlignmentEthic ethic stats + modifierFromAlignmentSchool schl stats)
+modifierFromAlignment (strength, ethic, schl) sts =
+    limitModifierByAlignmentStrength strength (modifierFromAlignmentEthic ethic sts + modifierFromAlignmentSchool schl sts)
 
 -- |
 -- Helpers for modifierFromAlignment
 --
 modifierFromAlignmentEthic :: AlignmentEthic -> Stats -> Integer
 
-modifierFromAlignmentEthic Lawful stats = max 0 (3*(str stats))
-modifierFromAlignmentEthic Neutral stats = max 0 (con stats)
-modifierFromAlignmentEthic Chaotic stats = max 0 (2*(dex stats))
-modifierFromAlignmentEthic Evil stats = max 0 $ (int stats) + (per stats) + (cha stats) + (mind stats)
+modifierFromAlignmentEthic Lawful sts = max 0 (3*(str sts))
+modifierFromAlignmentEthic Neutral sts = max 0 (con sts)
+modifierFromAlignmentEthic Chaotic sts = max 0 (2*(dex sts))
+modifierFromAlignmentEthic Evil sts = max 0 $ (int sts) + (per sts) + (cha sts) + (mind sts)
 
 modifierFromAlignmentSchool :: AlignmentSchool -> Stats -> Integer
 modifierFromAlignmentSchool Strategic = (max 0) . int
@@ -46,9 +46,9 @@ modifierFromAlignmentSchool Diplomatic = (max 0) . cha
 modifierFromAlignmentSchool Indifferent = (max 0) . mind
 
 limitModifierByAlignmentStrength :: AlignmentStrength -> Integer -> Integer
-limitModifierByAlignmentStrength Weak mod = min 1 (mod `quot` 3)
-limitModifierByAlignmentStrength Moderate mod = min 5 (mod `quot` 2)
-limitModifierByAlignmentStrength Strong mod = mod
+limitModifierByAlignmentStrength Weak stat = min 1 (stat `quot` 3)
+limitModifierByAlignmentStrength Moderate stat = min 5 (stat `quot` 2)
+limitModifierByAlignmentStrength Strong stat = stat
 
 -- |
 -- Answers true if the first specified alignment can make a smite attack against the second.
@@ -102,7 +102,7 @@ canLethalSmiteAlignment _ _ = False
 --
 smiteDamage :: Alignment -> Stats -> Alignment -> Integer
 
-smiteDamage align1 stats align2 = if (canLethalSmiteAlignment align1 align2) then (modifierFromAlignment align1 stats)^2
-				  else if (canMassiveSmiteAlignment align1 align2) then 2*(modifierFromAlignment align1 stats)
-				  else if (canSmiteAlignment align1 align2) then (modifierFromAlignment align1 stats)
-				  else 0
+smiteDamage align1 sts align2 = if (canLethalSmiteAlignment align1 align2) then (modifierFromAlignment align1 sts)^2
+                                else if (canMassiveSmiteAlignment align1 align2) then 2*(modifierFromAlignment align1 sts)
+				else if (canSmiteAlignment align1 align2) then (modifierFromAlignment align1 sts)
+				else 0
