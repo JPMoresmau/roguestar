@@ -60,6 +60,7 @@ canSmiteAlignment (_,_,Indifferent) _ = False -- indifferent alignments can't sm
 
 canSmiteAlignment (_,_,Strategic) (_,_,Tactical) = False -- strategic alignments don't tend to see individuals as threats
 canSmiteAlignment (_,_,Tactical) (_,_,Diplomatic) = False -- you can't kill an idea
+canSmiteAlignment (_,_,Diplomatic) (_,_,Strategic) = False -- you can't con an honest john
 
 canSmiteAlignment (Weak,_,_) (Moderate,_,_) = False  -- weaker alignments can't smite stronger alignments
 canSmiteAlignment (Weak,_,_) (Strong,_,_) = False
