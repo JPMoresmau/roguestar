@@ -113,3 +113,4 @@ dbNextRandomIntegerStream = do db <- get
                                let rngss = random_number_stream_stream db
                                    in do put db { random_number_stream_stream=(tail rngss) }
                                          return (head rngss)
+

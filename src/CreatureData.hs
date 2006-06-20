@@ -37,6 +37,8 @@ data CreatureAttribute = Male
 		       | ImprovedRangedCombat
                        | Parry
                        | Dodge
+		       | LevelPenalty
+		       | LevelBonus
 			 deriving (Eq, Enum, Show, Read)
 
 -- |
@@ -116,6 +118,8 @@ levelAdjustment ImprovedMeleeCombat = 1
 levelAdjustment ImprovedRangedCombat = 1
 levelAdjustment Parry = 1
 levelAdjustment Dodge = 1
+levelAdjustment LevelPenalty = 1
+levelAdjustment LevelBonus = (-1)
 levelAdjustment _ = 0
 
 -- |
@@ -179,3 +183,15 @@ creatureMeleeArmourClass creature = (dex $ creature_stats creature) +
 creatureRangedArmourClass :: Creature -> Integer
 creatureRangedArmourClass creature = (per $ creature_stats creature) + 
                                      2*(count Dodge (creature_attribs creature))
+
+-- |
+-- The number of actions per round that this creature gets.
+--
+creatureInitiative :: Creature -> Integer
+creatureInitiative creature = max 1 $
+			      (
+			       10 + 
+			       ((dex $ creature_stats creature) `quot` 2) + 
+			       ((per $ creature_stats creature) `quot` 2) +
+			       (count ImprovedInitiative (creature_attribs creature))
+			      )

@@ -85,11 +85,21 @@ terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b
 		       in fromList (zip terrain_patch_pairs interps)
 
 data TerrainMap = GeneratedTerrainMap (Grid TerrainPatch)
-                | SpecifiedTerrainMap TerrainPatch (Map (Integer,Integer) TerrainPatch)
 
 -- |
 -- Generates a random terrain map.  The first Integer, smoothness,
 -- indicates the recursion depth for the terrain generator.  The
 -- second integer is the random integer stream used to generate
 -- the map. 
-generateTerrain :: Biome -> Integer -> [Integer] -> TerrainMap
+--
+generateTerrain :: Biome -> Integer -> Ratio Integer -> [Integer] -> TerrainMap
+generateTerrain biome smooth _ rands = 
+    GeneratedTerrainMap $
+    generateGrid
+    (
+     generateGrid 
+     (terrainFrequencies biome) 
+     terrainInterpMap
+     smooth
+     rands
+    )

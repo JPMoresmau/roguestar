@@ -45,3 +45,10 @@ generateGrid weights interps 0 seeds =
     CompletelyRandomGrid (head seeds) weights
 generateGrid weights interps n seeds = 
     InterpolatedGrid (head seeds) interps $ generateGrid weights interps (n-1) (tail seeds)
+
+-- |
+-- Replaces a random portion of a certain element on a grid
+-- with a member of a random selection of elements.
+--
+
+-- arbitraryGridReplace
