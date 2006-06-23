@@ -13,7 +13,8 @@ module CreatureData
     creatureRangedAttackBonus,
     creatureRangedDamageBonus,
     creatureMeleeArmourClass,
-    creatureRangedArmourClass)
+    creatureRangedArmourClass,
+    creatureInitiative)
     where
 
 import StatsData
@@ -39,6 +40,7 @@ data CreatureAttribute = Male
                        | Dodge
 		       | LevelPenalty
 		       | LevelBonus
+		       | ImprovedInitiative
 			 deriving (Eq, Enum, Show, Read)
 
 -- |
@@ -120,6 +122,7 @@ levelAdjustment Parry = 1
 levelAdjustment Dodge = 1
 levelAdjustment LevelPenalty = 1
 levelAdjustment LevelBonus = (-1)
+levelAdjustment ImprovedInitiative = 1
 levelAdjustment _ = 0
 
 -- |

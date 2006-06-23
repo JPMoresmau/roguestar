@@ -18,6 +18,9 @@ program_name = "roguestar-engine"
 program_variant :: String
 program_variant = "standard"
 
+program_id_string :: String
+program_id_string = (program_name ++ " " ++ program_version_number ++ " (" ++ program_variant ++ ")")
+
 -- |
 -- Processes a single command line argument.
 --
@@ -28,7 +31,7 @@ runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ testDice 
 			  then putStrLn "All tests passed."
 			  else putStrLn "Error: a test failed."
 
-runByArgs "version" = do putStrLn (program_name ++ " " ++ program_version_number ++ " (" ++ program_variant ++ ")")
+runByArgs "version" = do putStrLn program_id_string
 
 runByArgs "test-character-generator" = do runCreatureGenerationTest
 
