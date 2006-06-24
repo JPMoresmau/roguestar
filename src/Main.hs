@@ -6,6 +6,7 @@ import List
 import Tests
 import Dice
 import Creature
+import InsidenessMap
 import PeriodicTable
 import Control.Monad
 
@@ -26,7 +27,10 @@ program_id_string = (program_name ++ " " ++ program_version_number ++ " (" ++ pr
 --
 runByArgs :: String -> IO ()
 
-runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ testDice ++ creatureTests)
+runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ 
+						   testDice ++ 
+						   creatureTests ++
+						   insidenessTests)
 		       if testsPassed
 			  then putStrLn "All tests passed."
 			  else putStrLn "Error: a test failed."
