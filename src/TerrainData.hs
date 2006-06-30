@@ -1,10 +1,17 @@
 module TerrainData
     (Biome(..),
      TerrainPatch(..),
-     TerrainMap)
+     TerrainMap,
+     generateTerrain,
+     generateExampleTerrain,
+     prettyPrintTerrain)
     where
 
+import Grids
+import Data.List as List
+import Data.Map as Map
 import PeriodicTable
+import RNG
 
 -- |
 -- Most automatically generated surface maps belong to a Biome, representing the kind of terrain
@@ -17,7 +24,7 @@ data Biome = RockBiome
            | TundraBiome
            | DeasertBiome
            | OceanBiome
-           | MountainsBiome
+           | MountainBiome
 	     deriving (Read,Show,Eq,Ord,Enum,Bounded)
 
 -- |
@@ -44,7 +51,7 @@ data TerrainPatch = RockFace
                   | DungeonExit
                     deriving (Read,Show,Eq,Ord)
 
-terrainFrequencies :: Biome -> [TerrainPatch]
+terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
 terrainFrequencies RockBiome = [(1,RockFace),(1,Rubble),(3,RockyGround),(1,Sand)]
 terrainFrequencies IcyRockBiome = [(1,RockFace),(2,Rubble),(3,RockyGround),(6,Ice)]
 terrainFrequencies GrasslandBiome = [(1,RockFace),(1,RockyGround),(1,Dirt),(2,Sand),(1,Forest),(1,Water),(10,Grass)]
@@ -55,7 +62,7 @@ terrainFrequencies OceanBiome = [(1,RockyGround),(3,Sand),(1,Grass),(1,Forest),(
 terrainFrequencies MountainBiome = [(6,RockFace),(3,RockyGround),(1,Rubble),(1,Sand),(1,Grass),(1,Forest),(1,Water)]
 
 terrainInterpFn :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
-terrainInterpFn (a,b) = let explicit_map = [(1,a),(1,b)] ++ (terrainInterp (a,b)) ++ (terrainInterp (b,a))
+terrainInterpFn (a,b) = [(1,a),(1,b)] ++ (terrainInterpRule (a,b)) ++ (terrainInterpRule (b,a))
 
 terrainInterpRule :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
 terrainInterpRule (RockFace,RockFace) = []
@@ -63,11 +70,12 @@ terrainInterpRule (RockFace,RockyGround) = [(3,RockFace),(1,Rubble),(3,RockyGrou
 terrainInterpRule (RockFace,x) = [(3,RockFace),(2,Rubble),(1,RockyGround),(1,Sand),(7,x)]
 terrainInterpRule (Rubble,x) = [(1,Rubble),(2,Sand),(2,Dirt),(5,x)]
 terrainInterpRule (DeepWater,DeepWater) = []
+terrainInterpRule (DeepWater,Water) = [(3,DeepWater)]
 terrainInterpRule (DeepWater,_) = [(3,Water)]
 terrainInterpRule (DeepForest,DeepForest) = []
-terrainInterpRule (DeepForest,Forest) = []
+terrainInterpRule (DeepForest,Forest) = [(3,DeepForest)]
 terrainInterpRule (DeepForest,_) = [(5,Forest)]
-terrainInterpRule (Water,Water) = []
+terrainInterpRule (Water,Water) = [(20,Water),(1,Sand)]
 terrainInterpRule (Water,DeepWater) = []
 terrainInterpRule (Water,_) = [(1,Sand)]
 terrainInterpRule (Sand,Deasert) = [(1,Grass),(1,Forest)]
@@ -77,29 +85,50 @@ terrainInterpRule _ = []
 -- A list of every TerrainPatch that might be created from the terrainFrequencies function.
 --
 baseTerrainPatches :: [TerrainPatch]
-baseTerrainPatches = nub $ map snd $ foldr (++) [] $ map terrainFrequencies [maxBound..minBound]
+baseTerrainPatches = nub $ List.map snd $ foldr (++) [] $ List.map terrainFrequencies [minBound..maxBound]
 
 terrainInterpMap :: Map (TerrainPatch,TerrainPatch) [(Integer,TerrainPatch)]
 terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b <- baseTerrainPatches]
-		       interps = map terrainInterpFn terrain_patch_pairs
+		       interps = List.map terrainInterpFn terrain_patch_pairs
 		       in fromList (zip terrain_patch_pairs interps)
 
-data TerrainMap = GeneratedTerrainMap (Grid TerrainPatch)
+type TerrainMap = Grid TerrainPatch
 
 -- |
--- Generates a random terrain map.  The first Integer, smoothness,
--- indicates the recursion depth for the terrain generator.  The
--- second integer is the random integer stream used to generate
--- the map. 
+-- Generates a random terrain map.  The Biome indicates determines what TerrainPatches
+-- are generated.  The second parameter is an Integer that indicates the smootheness of the
+-- generated terrain.  Finally, a random Integer stream is needed to provide the random data 
+-- to generate the terrain.
 --
-generateTerrain :: Biome -> Integer -> Ratio Integer -> [Integer] -> TerrainMap
-generateTerrain biome smooth _ rands = 
-    GeneratedTerrainMap $
-    generateGrid
-    (
-     generateGrid 
-     (terrainFrequencies biome) 
-     terrainInterpMap
-     smooth
-     rands
-    )
+generateTerrain :: Biome -> Integer -> [Integer] -> TerrainMap
+generateTerrain biome smooth rands = 
+    generateGrid (terrainFrequencies biome) 
+		 terrainInterpMap
+		 smooth
+		 rands
+
+terrainPatchToASCII :: TerrainPatch -> Char
+terrainPatchToASCII RockFace = '#'
+terrainPatchToASCII Rubble = '*'
+terrainPatchToASCII (Ore _) = '$'
+terrainPatchToASCII RockyGround = ':'
+terrainPatchToASCII Dirt = '.'
+terrainPatchToASCII Grass = ','
+terrainPatchToASCII Sand = '_'
+terrainPatchToASCII Deasert = '_'
+terrainPatchToASCII Forest = 'f'
+terrainPatchToASCII DeepForest = 'F'
+terrainPatchToASCII Water = '~'
+terrainPatchToASCII DeepWater = '~'
+terrainPatchToASCII Ice = '^'
+terrainPatchToASCII (DungeonEntrance _) = '>'
+terrainPatchToASCII DungeonExit = '<'
+
+generateExampleTerrain :: Integer -> TerrainMap
+generateExampleTerrain seed = generateTerrain ForestBiome 5 (randomIntegerStream seed)
+
+prettyPrintTerrain :: ((Integer,Integer),(Integer,Integer)) -> TerrainMap -> [String]
+prettyPrintTerrain ((left_bound,right_bound),(top_bound,bottom_bound)) terrain_map =
+    [[terrainPatchToASCII $ gridAt terrain_map (x,y) 
+      | x <- [left_bound..right_bound]]
+     | y <- [top_bound..bottom_bound]]

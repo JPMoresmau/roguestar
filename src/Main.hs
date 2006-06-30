@@ -2,6 +2,7 @@ module Main (main)
     where
 
 import System
+import System.Random
 import List
 import Tests
 import Dice
@@ -9,6 +10,7 @@ import Creature
 import InsidenessMap
 import PeriodicTable
 import Control.Monad
+import TerrainData
 
 program_version_number :: String
 program_version_number = "0.0.1"
@@ -39,6 +41,9 @@ runByArgs "version" = do putStrLn program_id_string
 
 runByArgs "test-character-generator" = do runCreatureGenerationTest
 
+runByArgs "test-terrain-generator" = do seed <- randomIO
+					mapM_ putStrLn $ prettyPrintTerrain ((460,500),(-1010,-990)) (generateExampleTerrain seed)
+
 runByArgs "periodic-table" = do displayPeriodicTable
 
 runByArgs "help" = do putStrLn "Commands:"
@@ -46,6 +51,7 @@ runByArgs "help" = do putStrLn "Commands:"
 		      putStrLn "periodic-table           - print the roguestar periodic table of the elements"
 		      putStrLn "tests                    - run most unit tests"
 		      putStrLn "test-character-generator - generate a random sample creature"
+		      putStrLn "test-terrain-generator   - display an example terrain map"
 		      putStrLn "version                  - print the version string"
 
 runByArgs invalidArgument = do putStrLn ("Error: unrecognized argument: " ++ invalidArgument)

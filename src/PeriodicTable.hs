@@ -64,7 +64,7 @@ data Element = HydrogenGas -- Gasses
 	     | Koomite -- brown Metachromalite
 	     | Zahovate -- gold Metachromalite
 	     | Vitrium -- dark Chromalite
-	       deriving (Eq,Enum,Show,Read)
+	       deriving (Eq,Enum,Ord,Show,Read)
 
 --
 -- Answers the type of an element.

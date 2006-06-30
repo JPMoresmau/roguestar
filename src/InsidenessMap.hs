@@ -13,6 +13,7 @@ module InsidenessMap
 import Data.Map as Map
 import Data.List as List
 import Tests
+import Data.Maybe
 
 data InsidenessMap a b c = 
     InsidenessMap
@@ -133,5 +134,12 @@ testChildrenCorrect = let (_,the_children,_) = unzip3 $ children "SomeEvenIntege
 			     then return (Passed "testChildrenCorrect")
 			     else return (Failed "testChildrenCorrect")
 
+testDelete :: TestCase
+testDelete = let deleted = InsidenessMap.delete 0 $ InsidenessMap.delete (-6) $ exampleInsidenessMap1
+		 in if ((length $ children "SomeEvenIntegers" deleted) == 2 &&
+			(isNothing $ parent 0 deleted))
+		 then return (Passed "testDelete")
+		 else return (Failed "testDelete")
+
 insidenessTests :: [TestCase]
-insidenessTests = [testParent,testChildren,testUserData,testChildrenCorrect]
+insidenessTests = [testParent,testChildren,testUserData,testChildrenCorrect,testDelete]
