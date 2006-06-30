@@ -29,7 +29,7 @@ check:
 	${MAKE} ghc-release
 	./products/roguestar-engine tests
 	${MAKE} clean
-	darcs whatsnew -l
+	-darcs whatsnew -l
 
 dist:
 	darcs dist
