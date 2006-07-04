@@ -1,4 +1,5 @@
 module HopList
+    (main)
     where
 
 import Data.List as List
@@ -24,7 +25,7 @@ data HopList a = HopStack { hop_up :: HopList a, hop_right :: HopList a }
 	       | HopElem [a]
 
 hopListFactor :: Integer
-hopListFactor = 16
+hopListFactor = 64
 
 toList :: HopList a -> [a]
 toList (HopElem xs) = xs
@@ -35,22 +36,27 @@ fromList :: [a] -> HopList a
 fromList xs = HopStack { hop_up=fromList_up (HopElem xs), hop_right=HopElem xs }
 
 fromList_up :: HopList a -> HopList a
-fromList_up param@(HopElem xs) = HopNode { hop_down=param, hop_right=fromList_up (HopElem (genericDrop hopListFactor xs)) }
-fromList_up param@(HopNode down right) = HopNode { hop_down=param, hop_right=fromList_up (head $ genericDrop hopListFactor $ hop_rights param) }
+fromList_up param@(HopElem xs) = seq param $ HopNode { hop_down=param, hop_right=fromList_up (HopElem (genericDrop hopListFactor xs)) }
+fromList_up param@(HopNode down right) = seq param $ HopNode { hop_down=param, hop_right=fromList_up ((hop_rights param) `genericIndex` hopListFactor) }
 fromList_up (HopStack up _) = up
 
 hop_rights :: HopList a -> [HopList a]
 hop_rights param = iterate hop_right param
 
-index :: Integer -> HopList a -> a
-index = index_ 1
+index :: HopList a -> Integer -> a
+index hl i = index_ hl 1 i
 
-index_ :: Integer -> Integer -> HopList a -> a
-index_ 1 i (HopElem xs) = xs `genericIndex` i
-index_ _ _ (HopElem _) = error "Depth of a HopElem is always 1"
-index_ depth i param@(HopNode _ _) = index_ (depth `div` hopListFactor) (i `mod` depth)  $ 
-				     hop_down $ head $ genericDrop (i `div` depth) $ hop_rights param
-index_ depth i param@(HopStack _ _) = let next_depth = depth * hopListFactor
+index_ :: HopList a -> Integer -> Integer -> a
+index_ (HopElem xs) 1 i = xs `genericIndex` i
+index_ (HopElem _) _ _ = error "Depth of a HopElem is always 1"
+index_ param@(HopNode _ _) depth i = index_ 
+                                     (hop_down $ head $ genericDrop (i `div` depth) $ hop_rights param)
+                                     (depth `div` hopListFactor) 
+                                     (i `mod` depth)
+index_ param@(HopStack _ _) depth i = let next_depth = depth * hopListFactor
 					  in if next_depth < i
-					     then index_ next_depth i $ hop_up param
-					     else index_ depth i $ hop_right param
+					     then index_ (hop_up param) next_depth i
+					     else index_ (hop_right param) depth i
+
+exampleHopList :: HopList Int
+exampleHopList = fromList [0,2..]
