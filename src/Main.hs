@@ -11,6 +11,7 @@ import InsidenessMap
 import PeriodicTable
 import Control.Monad
 import TerrainData
+import HopList
 
 program_version_number :: String
 program_version_number = "0.0.1"
@@ -32,7 +33,8 @@ runByArgs :: String -> IO ()
 runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ 
 						   testDice ++ 
 						   creatureTests ++
-						   insidenessTests)
+						   insidenessTests ++
+						   hopListTests)
 		       if testsPassed
 			  then putStrLn "All tests passed."
 			  else putStrLn "Error: a test failed."
@@ -42,7 +44,9 @@ runByArgs "version" = do putStrLn program_id_string
 runByArgs "test-character-generator" = do runCreatureGenerationTest
 
 runByArgs "test-terrain-generator" = do seed <- randomIO
-					mapM_ putStrLn $ prettyPrintTerrain ((460,500),(-1010,-990)) (generateExampleTerrain seed)
+					let example_terrain = generateExampleTerrain seed
+					    in do mapM_ putStrLn $ prettyPrintTerrain ((460,500),(-1010,-990)) example_terrain
+						  mapM_ putStrLn $ prettyPrintTerrain ((461,501),(-1009,-989)) example_terrain
 
 runByArgs "periodic-table" = do displayPeriodicTable
 

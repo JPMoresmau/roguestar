@@ -16,6 +16,7 @@ module RNG
     where
 
 import Data.List
+import HopList
 
 -- |
 -- Generates the next in a sequence of psuedo-random Integers.
@@ -44,19 +45,29 @@ randomIntegerStreamStream x = let nri1 = nextRandomSeed x
                                       (randomIntegerStreamStream (nri2 - 1)))
 
 -- |
+-- Maps integers in the range [-inf .. inf] to [0 .. inf]
+--
+bidirect :: Integer -> Integer
+bidirect n = if n >= 0
+	     then (2*n)
+	     else (2*(-n)-1)
+
+-- |
 -- An infinite (in both directions) sequence of random Integers, based
 -- on a seed.
 --
 randomIntegerLine :: Integer -> (Integer -> Integer)
-randomIntegerLine seed n = if n >= 0
-                           then (randomIntegerStream seed) `genericIndex` (2*n)
-                           else (randomIntegerStream seed) `genericIndex` (2*(-n)-1)
+randomIntegerLine seed = randomIntegerLine_ (fromList $ randomIntegerStream seed)
+
+randomIntegerLine_ :: HopList Integer -> (Integer -> Integer)
+randomIntegerLine_ rands n = rands `index` (bidirect n)
 
 -- |
 -- An infinite (in all directions) grid of random Integers, based
 -- on a seed.
 --
 randomIntegerGrid :: Integer -> ((Integer,Integer) -> Integer)
-randomIntegerGrid seed (x,y) = randomIntegerLine
-                               (randomIntegerLine seed x)
-                               y
+randomIntegerGrid seed = randomIntegerGrid_ $ fromList $ map (fromList . randomIntegerStream) $ randomIntegerStream seed
+
+randomIntegerGrid_ :: HopList (HopList Integer) -> ((Integer,Integer) -> Integer)
+randomIntegerGrid_ randss (x,y) = (randss `index` (bidirect y)) `index` (bidirect x)
