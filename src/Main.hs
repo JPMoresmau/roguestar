@@ -1,3 +1,23 @@
+--------------------------------------------------------------------------
+--  roguestar-engine: the space-adventure roleplaying game backend.       
+--  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
+--                                                                        
+--  This program is free software; you can redistribute it and/or modify  
+--  it under the terms of the GNU General Public License as published by  
+--  the Free Software Foundation; either version 2 of the License, or     
+--  (at your option) any later version.                                   
+--                                                                        
+--  This program is distributed in the hope that it will be useful,       
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of        
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         
+--  GNU General Public License for more details.                          
+--                                                                        
+--  You should have received a copy of the GNU General Public License along  
+--  with this program; if not, write to the Free Software Foundation, Inc.,  
+--  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           
+--                                                                        
+--------------------------------------------------------------------------
+
 module Main (main)
     where
 
@@ -45,8 +65,12 @@ runByArgs "test-character-generator" = do runCreatureGenerationTest
 
 runByArgs "test-terrain-generator" = do seed <- randomIO
 					let example_terrain = generateExampleTerrain seed
-					    in do mapM_ putStrLn $ prettyPrintTerrain ((460,500),(-1010,-990)) example_terrain
-						  mapM_ putStrLn $ prettyPrintTerrain ((461,501),(-1009,-989)) example_terrain
+					    in do putStrLn "Terrain Map of (-20..20),(-10..10)"
+                                                  mapM_ putStrLn $ prettyPrintTerrain ((-20,20),(-10,10)) example_terrain
+						  putStrLn "Terrain Map of (5460..5500),(-1010..-990)"
+                                                  mapM_ putStrLn $ prettyPrintTerrain ((5460,5500),(-1010,-990)) example_terrain
+						  putStrLn "Terrain Map of (5461..5501),(-1009..-989)"
+                                                  mapM_ putStrLn $ prettyPrintTerrain ((5461,5501),(-1009,-989)) example_terrain
 
 runByArgs "periodic-table" = do displayPeriodicTable
 

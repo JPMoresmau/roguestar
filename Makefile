@@ -34,4 +34,10 @@ check:
 dist:
 	darcs dist
 
-.PHONY : default clean doc ghc ghc-release check dist
+headache:
+	headache -c header/license-header.conf -h header/license-header src/*.hs
+
+headache-remove:
+	headache -c header/license-header.conf -h header/license-header -r src/*.hs
+
+.PHONY : default clean doc ghc ghc-release check dist headache headache-remove

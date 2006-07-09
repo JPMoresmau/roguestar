@@ -18,35 +18,22 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module Stats (generateStats) 
+module SegHopList
+    (SegHopList,SegHopList.fromList,SegHopList.index)
     where
 
-import Dice
-import StatsData
-import DB
+import SegmentList
+import HopList
+import Data.Array
 
+-- |
+-- A system that combines the benefits of the SegmentList and the HopList
+-- to access data arbitrarily far away in an infinite list quickly.
 --
--- Randomly generate 1 statistic.
---
-generate1Stat :: Integer -> Integer -> DB Integer
-generate1Stat average deviation = do dieRoll <- (deviation `d` 3)
-				     return (dieRoll + average - 2*deviation)
+type SegHopList a = HopList (Array Int a)
 
---
--- Randomly generate statistics.
---
-generateStats :: Stats -> Stats -> DB Stats
-generateStats averages deviations = do new_str <- generate1Stat (str averages) (str deviations)
-				       new_dex <- generate1Stat (dex averages) (dex deviations)
-				       new_con <- generate1Stat (con averages) (con deviations)
-				       new_int <- generate1Stat (int averages) (int deviations)
-				       new_per <- generate1Stat (per averages) (per deviations)
-				       new_cha <- generate1Stat (cha averages) (cha deviations)
-				       new_mind <- generate1Stat (mind averages) (mind deviations)
-				       return Stats { str = new_str,
-						      dex = new_dex,
-						      con = new_con,
-						      int = new_int,
-						      per = new_per,
-						      cha = new_cha,
-						      mind = new_mind }
+fromList :: [a] -> SegHopList a
+fromList xs = HopList.fromList (segmentList xs)
+
+index :: SegHopList a -> Integer -> a
+index shl i = (shl `HopList.index` (i `div` segmentSizeI)) ! ((fromInteger i) `mod` segmentSizei)

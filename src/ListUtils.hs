@@ -1,10 +1,102 @@
-module ListUtils (count)
+--------------------------------------------------------------------------
+--  roguestar-engine: the space-adventure roleplaying game backend.       
+--  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
+--                                                                        
+--  This program is free software; you can redistribute it and/or modify  
+--  it under the terms of the GNU General Public License as published by  
+--  the Free Software Foundation; either version 2 of the License, or     
+--  (at your option) any later version.                                   
+--                                                                        
+--  This program is distributed in the hope that it will be useful,       
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of        
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         
+--  GNU General Public License for more details.                          
+--                                                                        
+--  You should have received a copy of the GNU General Public License along  
+--  with this program; if not, write to the Free Software Foundation, Inc.,  
+--  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           
+--                                                                        
+--------------------------------------------------------------------------
+
+module ListUtils 
+    (count,
+     bidirect,
+     bidirectionalAccessor1D,
+     bidirectionalAccessor2D,
+     monodirect,
+     monodirectionalList1D,
+     monodirectionalList2D,
+     cachedAccessor1D,
+     cachedAccessor2D)
     where
 
 import Data.List
+import SegHopList
 
 -- |
 -- count 1 [2,5,1,4,1,1] is 3, because 1 occurs three times.
 --
 count :: Eq a => a -> [a] -> Integer
 count element lst = genericLength $ elemIndices element lst
+
+-- |
+-- Maps integers in the range [-inf .. inf] to [0 .. inf]
+--
+bidirect :: Integer -> Integer
+bidirect n = if n >= 0
+	     then (2*n)
+	     else (2*(-n)-1)
+
+-- |
+-- Inverse operation of bidirect.
+--
+monodirect :: Integer -> Integer
+monodirect n = if (even n)
+	       then n `div` 2
+	       else -(n `div` 2)
+
+-- |
+-- Accessor to reference a one-dimensional list as a bidirectional list.
+-- In other words, the indexes becomes:
+-- [0,-1,1,-2,2,-3,3,-4,4,-5,5 ...]
+--
+bidirectionalAccessor1D :: [a] -> (Integer -> a)
+bidirectionalAccessor1D xs = let sh_list = SegHopList.fromList xs
+				 in (\i -> sh_list `SegHopList.index` (bidirect i))
+
+-- |
+-- Accessor to reference a two-dimensional list as a bidirectional two-dimensional list.
+-- The outer list is considered to be the y-axis, and the inner list the x-axis, if 
+-- elements are references by (x,y)
+--
+bidirectionalAccessor2D :: [[a]] -> ((Integer,Integer) -> a)
+bidirectionalAccessor2D xss = let sh_lists = SegHopList.fromList $ map SegHopList.fromList xss
+				  in (\(x,y) -> (sh_lists `SegHopList.index` (bidirect y)) `SegHopList.index` (bidirect x))
+
+-- |
+-- Inverse operation of bidirectionalAccessor1D
+--
+monodirectionalList1D :: (Integer -> a) -> [a]
+monodirectionalList1D fn = map (fn . monodirect) [0..]
+
+-- |
+-- Inverse operation of bidirectionalAccessor2D
+--
+monodirectionalList2D :: ((Integer,Integer) -> a) -> [[a]]
+monodirectionalList2D fn = let zero_dot_dot = [0..]
+			       pairs = [[(monodirect x,monodirect y) | x <- zero_dot_dot] | y <- zero_dot_dot]
+			       in map (map fn) pairs
+
+-- |
+-- Combines monodirectionalList1D and bidirectionalAccessor1D to create a cached version
+-- of the original function.  If the original was a sufficiently expensive function for which
+-- the same value is queried many times, then the cached version may be faster, at the expense
+-- of memory.
+cachedAccessor1D :: (Integer -> a) -> (Integer -> a)
+cachedAccessor1D = bidirectionalAccessor1D . monodirectionalList1D
+
+-- |
+-- 2D version of cachedAccessor1D.
+--
+cachedAccessor2D :: ((Integer,Integer) -> a) -> ((Integer,Integer) -> a)
+cachedAccessor2D = bidirectionalAccessor2D . monodirectionalList2D

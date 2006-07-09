@@ -1,3 +1,23 @@
+--------------------------------------------------------------------------
+--  roguestar-engine: the space-adventure roleplaying game backend.       
+--  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
+--                                                                        
+--  This program is free software; you can redistribute it and/or modify  
+--  it under the terms of the GNU General Public License as published by  
+--  the Free Software Foundation; either version 2 of the License, or     
+--  (at your option) any later version.                                   
+--                                                                        
+--  This program is distributed in the hope that it will be useful,       
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of        
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         
+--  GNU General Public License for more details.                          
+--                                                                        
+--  You should have received a copy of the GNU General Public License along  
+--  with this program; if not, write to the Free Software Foundation, Inc.,  
+--  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           
+--                                                                        
+--------------------------------------------------------------------------
+
 module Grids
     (Grid,
      gridAt,
@@ -6,6 +26,7 @@ module Grids
 
 import RNG
 import RandomUtils
+import ListUtils
 import Data.Map as Map
 import Data.Ratio
 
@@ -13,6 +34,7 @@ data Grid a = CompletelyRandomGrid Integer ((Integer,Integer) -> Integer) [(Inte
             | InterpolatedGrid Integer ((Integer,Integer) -> Integer) (Map (a,a) [(Integer,a)]) (Grid a)
             | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) (Rational) a [(Integer,a)] (Grid a)
             | SpecificPlacementGrid (Map (Integer,Integer) a) (Grid a)
+	    | CachedGrid ((Integer,Integer) -> a) (Grid a)
 
 gridAt :: Ord a => Grid a -> (Integer,Integer) -> a
 gridAt (CompletelyRandomGrid _ seedfn weights) at = weightedPick (seedfn at) weights
@@ -41,15 +63,25 @@ gridAt (ArbitraryReplacementGrid _ seedfn frequency rep_val weights grid) at =
 gridAt (SpecificPlacementGrid rep_map grid) at =
     findWithDefault (gridAt grid at) at rep_map
 
+gridAt (CachedGrid map_fn _) at = map_fn at
+
+cachedGridOf :: Ord a => Grid a -> Grid a
+cachedGridOf already_cached_grid@(CachedGrid _ _) = already_cached_grid
+cachedGridOf any_other_grid = CachedGrid (cachedAccessor2D (gridAt any_other_grid)) any_other_grid
+
 -- |
 -- Generates a random grid.  The first Integer, smoothness,
 -- indicates the recursion depth for the generator.  The
 -- Integer list is the random integer stream used to generate
 -- the map.
-generateGrid :: [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
+--generateGrid :: (Ord a) => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
+--generateGrid weights interps n seeds = let generated_grid = generateGrid_ weights interps n seeds
+--					   in CachedGrid (cachedAccessor2D (gridAt generated_grid)) generated_grid
+
+generateGrid :: Ord a => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
 generateGrid weights _ 0 seeds = let seed = head seeds
-				     in CompletelyRandomGrid seed (randomIntegerGrid seed) weights
+				      in CompletelyRandomGrid seed (randomIntegerGrid seed) weights
 generateGrid weights interps n seeds = let seed = head seeds
-					   in InterpolatedGrid seed (randomIntegerGrid seed) interps $ 
-					      generateGrid weights interps (n-1) (tail seeds)
+					    in cachedGridOf $ InterpolatedGrid seed (randomIntegerGrid seed) interps $ 
+					       generateGrid weights interps (n-1) (tail seeds)
 

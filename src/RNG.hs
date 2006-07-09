@@ -1,3 +1,23 @@
+--------------------------------------------------------------------------
+--  roguestar-engine: the space-adventure roleplaying game backend.       
+--  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
+--                                                                        
+--  This program is free software; you can redistribute it and/or modify  
+--  it under the terms of the GNU General Public License as published by  
+--  the Free Software Foundation; either version 2 of the License, or     
+--  (at your option) any later version.                                   
+--                                                                        
+--  This program is distributed in the hope that it will be useful,       
+--  but WITHOUT ANY WARRANTY; without even the implied warranty of        
+--  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         
+--  GNU General Public License for more details.                          
+--                                                                        
+--  You should have received a copy of the GNU General Public License along  
+--  with this program; if not, write to the Free Software Foundation, Inc.,  
+--  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           
+--                                                                        
+--------------------------------------------------------------------------
+
 -- |
 -- Why do we need our own random number generation facilities?  Simply
 -- because we can't guarantee that the system's random number generator
@@ -16,7 +36,7 @@ module RNG
     where
 
 import Data.List
-import HopList
+import ListUtils
 
 -- |
 -- Generates the next in a sequence of psuedo-random Integers.
@@ -45,29 +65,15 @@ randomIntegerStreamStream x = let nri1 = nextRandomSeed x
                                       (randomIntegerStreamStream (nri2 - 1)))
 
 -- |
--- Maps integers in the range [-inf .. inf] to [0 .. inf]
---
-bidirect :: Integer -> Integer
-bidirect n = if n >= 0
-	     then (2*n)
-	     else (2*(-n)-1)
-
--- |
 -- An infinite (in both directions) sequence of random Integers, based
 -- on a seed.
 --
 randomIntegerLine :: Integer -> (Integer -> Integer)
-randomIntegerLine seed = randomIntegerLine_ (fromList $ randomIntegerStream seed)
-
-randomIntegerLine_ :: HopList Integer -> (Integer -> Integer)
-randomIntegerLine_ rands n = rands `index` (bidirect n)
+randomIntegerLine seed = bidirectionalAccessor1D $ randomIntegerStream seed
 
 -- |
 -- An infinite (in all directions) grid of random Integers, based
 -- on a seed.
 --
 randomIntegerGrid :: Integer -> ((Integer,Integer) -> Integer)
-randomIntegerGrid seed = randomIntegerGrid_ $ fromList $ map (fromList . randomIntegerStream) $ randomIntegerStream seed
-
-randomIntegerGrid_ :: HopList (HopList Integer) -> ((Integer,Integer) -> Integer)
-randomIntegerGrid_ randss (x,y) = (randss `index` (bidirect y)) `index` (bidirect x)
+randomIntegerGrid seed = bidirectionalAccessor2D $ map randomIntegerStream $ randomIntegerStream seed

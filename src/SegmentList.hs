@@ -18,35 +18,38 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module Stats (generateStats) 
+module SegmentList
+    (segmentSizei,segmentSizeI,segmentList,segmentIndex)
     where
 
-import Dice
-import StatsData
-import DB
+import Data.List
+import Data.Array
 
---
--- Randomly generate 1 statistic.
---
-generate1Stat :: Integer -> Integer -> DB Integer
-generate1Stat average deviation = do dieRoll <- (deviation `d` 3)
-				     return (dieRoll + average - 2*deviation)
+segmentSizei :: Int
+segmentSizei = 100
 
+segmentSizeI :: Integer
+segmentSizeI = toInteger segmentSizei
+
+-- |
+-- Constructs a list in which chunks of sequential elements are held together
+-- in an array, to improve access time.  This is only intended for
+-- use in an infinite list (otherwise just pack the entire thing
+-- in one array).
+-- 
+segmentList :: [a] -> [Array Int a]
+segmentList xs = let (firstGroup,restGroups) = seqSplitAt segmentSizei xs
+		     in (listArray (0,segmentSizei-1) firstGroup) :
+			    (segmentList restGroups)
+
+seqSplitAt :: Int -> [a] -> ([a],[a])
+seqSplitAt 0 xs = ([],xs)
+seqSplitAt i (x:xs) = let rest = (seqSplitAt (i-1) xs)
+			in seq x $ (x : (fst rest),snd rest)
+seqSplitAt i [] = error ("Tried to access " ++ (show i) ++ "'th element of []")
+
+-- |
+-- Retrieve an element from a segment list by index.
 --
--- Randomly generate statistics.
---
-generateStats :: Stats -> Stats -> DB Stats
-generateStats averages deviations = do new_str <- generate1Stat (str averages) (str deviations)
-				       new_dex <- generate1Stat (dex averages) (dex deviations)
-				       new_con <- generate1Stat (con averages) (con deviations)
-				       new_int <- generate1Stat (int averages) (int deviations)
-				       new_per <- generate1Stat (per averages) (per deviations)
-				       new_cha <- generate1Stat (cha averages) (cha deviations)
-				       new_mind <- generate1Stat (mind averages) (mind deviations)
-				       return Stats { str = new_str,
-						      dex = new_dex,
-						      con = new_con,
-						      int = new_int,
-						      per = new_per,
-						      cha = new_cha,
-						      mind = new_mind }
+segmentIndex :: [Array Int a] -> Integer -> a
+segmentIndex xss i = (xss `genericIndex` (i `div` segmentSizeI)) ! ((fromInteger i) `mod` segmentSizei)
