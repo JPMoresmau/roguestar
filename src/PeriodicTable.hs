@@ -208,9 +208,9 @@ elementNormalMaterialPoints element = fst (elementMaterialPoints2 element)
 
 --
 -- Returns the material points for the specified element for critical
--- material needs.  Distinction: a spaceship might be made of 99%
+-- material needs.  Distinction: a spaceship might be made of 95%
 -- titanium, but need a small amount of zirconium for a critical
--- component.  Normal needs represents 99% of needs, while critical
+-- component.  Normal needs represents 95% of needs, while critical
 -- needs represents those special components.
 --
 elementCriticalMaterialPoints :: Element -> Integer

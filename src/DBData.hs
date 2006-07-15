@@ -18,58 +18,30 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module StatsData
-    (Stats(..),
-     stats,
-     modStr,
-     modDex,
-     modCon,
-     modInt,
-     modPer,
-     modCha,
-     modMind)
+module DBData
+    (CreatureRef(..),
+     PlaneRef(..),
+     DBRef(..),
+     DBReference(..),
+     DBLocation(..))
     where
 
--- |
--- Represents the seven roguestar creature statistics:
--- Strength (str)
--- Dexterity (dex)
--- Constitution (con)
--- Intelligence (int)
--- Perception (per)
--- Charisma (cha)
--- Mindfulness (min)
---
+data DBReference = DBCreatureRef CreatureRef
+		 | DBPlaneRef PlaneRef
+		 deriving (Eq,Ord,Read,Show)
 
-data Stats = Stats {str, dex, con, int, per, cha, mind :: Integer} deriving (Show, Read)
+data DBLocation = DBCoordinateLocation (Integer,Integer)
+		deriving (Read,Show)
 
--- |
--- Used to generate a Stats object with all the same stats (i.e. stats 1 => Stats 1 1 1 1 1 1 1)
---
+newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)
+newtype PlaneRef = PlaneRef Integer deriving (Eq,Ord,Read,Show)
 
-stats :: Integer -> Stats
-stats x = (Stats {str=x, dex=x, con=x, int=x, per=x, cha=x, mind=x})
+class DBRef a where
+    toDBReference :: (DBRef a) => a -> DBReference
 
--- |
--- Functions to modify a single stat in a Stats block.
---
-modStr :: Integer -> Stats -> Stats
-modStr x st = st { str = x }
+instance DBRef CreatureRef where
+    toDBReference x = DBCreatureRef x
 
-modDex :: Integer -> Stats -> Stats
-modDex x st = st { dex = x }
+instance DBRef PlaneRef where
+    toDBReference x = DBPlaneRef x
 
-modCon :: Integer -> Stats -> Stats
-modCon x st = st { con = x }
-
-modInt :: Integer -> Stats -> Stats
-modInt x st = st { int = x }
-
-modPer :: Integer -> Stats -> Stats
-modPer x st = st { per = x }
-
-modCha :: Integer -> Stats -> Stats
-modCha x st = st { cha = x }
-
-modMind :: Integer -> Stats -> Stats
-modMind x st = st { mind = x }

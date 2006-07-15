@@ -32,9 +32,45 @@ import Data.Ratio
 
 data Grid a = CompletelyRandomGrid Integer ((Integer,Integer) -> Integer) [(Integer,a)]
             | InterpolatedGrid Integer ((Integer,Integer) -> Integer) (Map (a,a) [(Integer,a)]) (Grid a)
-            | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) (Rational) a [(Integer,a)] (Grid a)
+            | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) Rational a [(Integer,a)] (Grid a)
             | SpecificPlacementGrid (Map (Integer,Integer) a) (Grid a)
 	    | CachedGrid ((Integer,Integer) -> a) (Grid a)
+
+data Grid_Persistant a = CompletelyRandomGrid_Persistant Integer [(Integer,a)]
+		       | InterpolatedGrid_Persistant Integer [((a,a),[(Integer,a)])] (Grid_Persistant a)
+		       | ArbitraryReplacementGrid_Persistant Integer Rational a [(Integer,a)] (Grid_Persistant a)
+		       | SpecificPlacementGrid_Persistant [((Integer,Integer),a)] (Grid_Persistant a)
+		       deriving (Read,Show)
+
+toPersistant :: (Grid a) -> (Grid_Persistant a)
+toPersistant (CompletelyRandomGrid x _ prob_list) = 
+    CompletelyRandomGrid_Persistant x prob_list
+toPersistant (InterpolatedGrid x _ prob_map grid) = 
+    InterpolatedGrid_Persistant x (toList prob_map) (toPersistant grid)
+toPersistant (ArbitraryReplacementGrid x _ fraction val prob_list grid) = 
+    ArbitraryReplacementGrid_Persistant x fraction val prob_list $ toPersistant grid
+toPersistant (SpecificPlacementGrid placement_map grid) = 
+    SpecificPlacementGrid_Persistant (toList placement_map) (toPersistant grid)
+toPersistant (CachedGrid _ grid) = toPersistant grid
+
+fromPersistant :: (Ord a) => (Grid_Persistant a) -> (Grid a)
+fromPersistant (CompletelyRandomGrid_Persistant x prob_list) = 
+    cachedGridOf $ CompletelyRandomGrid x (randomIntegerGrid x) prob_list
+fromPersistant (InterpolatedGrid_Persistant x prob_map grid) =
+    cachedGridOf $ InterpolatedGrid x (randomIntegerGrid x) (fromList prob_map) (fromPersistant grid)
+fromPersistant (ArbitraryReplacementGrid_Persistant x fraction val prob_list grid) =
+    cachedGridOf $ ArbitraryReplacementGrid x (randomIntegerGrid x) fraction val prob_list (fromPersistant grid)
+fromPersistant (SpecificPlacementGrid_Persistant placement_map grid) =
+    cachedGridOf $ SpecificPlacementGrid (fromList placement_map) (fromPersistant grid)
+
+fromPersistant_tupled :: (Ord a) => (Grid_Persistant a,String) -> (Grid a,String)
+fromPersistant_tupled (x,y) = (fromPersistant x,y)
+
+instance (Show a) => Show (Grid a) where
+    show grid = show $ toPersistant grid
+
+instance (Ord a, Read a) => Read (Grid a) where
+    readsPrec n = \x -> Prelude.map fromPersistant_tupled (readsPrec n x)
 
 gridAt :: Ord a => Grid a -> (Integer,Integer) -> a
 gridAt (CompletelyRandomGrid _ seedfn weights) at = weightedPick (seedfn at) weights

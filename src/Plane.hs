@@ -18,58 +18,19 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module StatsData
-    (Stats(..),
-     stats,
-     modStr,
-     modDex,
-     modCon,
-     modInt,
-     modPer,
-     modCha,
-     modMind)
+module Plane
+    ()
     where
 
--- |
--- Represents the seven roguestar creature statistics:
--- Strength (str)
--- Dexterity (dex)
--- Constitution (con)
--- Intelligence (int)
--- Perception (per)
--- Charisma (cha)
--- Mindfulness (min)
---
+dbGetInstancedPlane :: ObjectRef -> DB InstancedPlane
+dbGetInstancedPlane ref = do instanced <- dbModPlane dbGetInstancedPlane_
 
-data Stats = Stats {str, dex, con, int, per, cha, mind :: Integer} deriving (Show, Read)
+dbGetInstancedPlane_ :: Plane -> DB Plane
+dbGetInstancedPlane_ (Right instanced_plane) = return instanced_plane
+dbGetInstancedPlane_ (Left uninstanced_plane) =
+    do rns <- dbGetNextRandomIntegerStream
+       return $ InstancedPlane 
+		  {
+		   plane_terrain = generateTerrain (plane_tg_data uninstanced_plane) rns
+		  }
 
--- |
--- Used to generate a Stats object with all the same stats (i.e. stats 1 => Stats 1 1 1 1 1 1 1)
---
-
-stats :: Integer -> Stats
-stats x = (Stats {str=x, dex=x, con=x, int=x, per=x, cha=x, mind=x})
-
--- |
--- Functions to modify a single stat in a Stats block.
---
-modStr :: Integer -> Stats -> Stats
-modStr x st = st { str = x }
-
-modDex :: Integer -> Stats -> Stats
-modDex x st = st { dex = x }
-
-modCon :: Integer -> Stats -> Stats
-modCon x st = st { con = x }
-
-modInt :: Integer -> Stats -> Stats
-modInt x st = st { int = x }
-
-modPer :: Integer -> Stats -> Stats
-modPer x st = st { per = x }
-
-modCha :: Integer -> Stats -> Stats
-modCha x st = st { cha = x }
-
-modMind :: Integer -> Stats -> Stats
-modMind x st = st { mind = x }

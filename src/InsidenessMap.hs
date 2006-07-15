@@ -19,7 +19,8 @@
 --------------------------------------------------------------------------
 
 module InsidenessMap
-    (InsidenessMap.empty,
+    (InsidenessMap,
+     InsidenessMap.empty,
      InsidenessMap.insert,
      InsidenessMap.delete,
      parent,
@@ -39,6 +40,12 @@ data InsidenessMap a b c =
     InsidenessMap
     (Map a [b])
     (Map b (a,c))
+
+instance (Ord a,Ord b,Show a,Show b,Show c) => Show (InsidenessMap a b c) where
+    show imap = show $ InsidenessMap.toList imap
+
+instance (Ord a,Ord b,Read a,Read b,Read c) => Read (InsidenessMap a b c) where
+    readsPrec n = \v -> Prelude.map (\(x,y) -> (InsidenessMap.fromList x,y)) (readsPrec n v)
 
 empty :: InsidenessMap a b c
 empty = InsidenessMap (Map.empty) (Map.empty)

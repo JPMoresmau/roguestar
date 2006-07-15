@@ -18,58 +18,21 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module StatsData
-    (Stats(..),
-     stats,
-     modStr,
-     modDex,
-     modCon,
-     modInt,
-     modPer,
-     modCha,
-     modMind)
+module PlaneData
+    (Plane(..),
+     UninstancedPlane(..),
+     InstancedPlane(..))
     where
 
--- |
--- Represents the seven roguestar creature statistics:
--- Strength (str)
--- Dexterity (dex)
--- Constitution (con)
--- Intelligence (int)
--- Perception (per)
--- Charisma (cha)
--- Mindfulness (min)
---
+import TerrainData
 
-data Stats = Stats {str, dex, con, int, per, cha, mind :: Integer} deriving (Show, Read)
+data UninstancedPlane = UninstancedPlane
+    { plane_tg_data :: TerrainGenerationData }
+    deriving (Read,Show)
 
--- |
--- Used to generate a Stats object with all the same stats (i.e. stats 1 => Stats 1 1 1 1 1 1 1)
---
+data InstancedPlane = InstancedPlane
+    { plane_terrain :: TerrainMap }
+    deriving (Read,Show)
 
-stats :: Integer -> Stats
-stats x = (Stats {str=x, dex=x, con=x, int=x, per=x, cha=x, mind=x})
-
--- |
--- Functions to modify a single stat in a Stats block.
---
-modStr :: Integer -> Stats -> Stats
-modStr x st = st { str = x }
-
-modDex :: Integer -> Stats -> Stats
-modDex x st = st { dex = x }
-
-modCon :: Integer -> Stats -> Stats
-modCon x st = st { con = x }
-
-modInt :: Integer -> Stats -> Stats
-modInt x st = st { int = x }
-
-modPer :: Integer -> Stats -> Stats
-modPer x st = st { per = x }
-
-modCha :: Integer -> Stats -> Stats
-modCha x st = st { cha = x }
-
-modMind :: Integer -> Stats -> Stats
-modMind x st = st { mind = x }
+data Plane = Either UninstancedPlane InstancedPlane
+	     deriving (Read,Show)

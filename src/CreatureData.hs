@@ -20,21 +20,21 @@
 
 module CreatureData 
     (Creature(..),
-    CreatureAttribute(..),
-    exampleCreature1,
-    maxHitPoints,
-    injure,
-    hitPoints,
-    alive,
-    dead,
-    creatureEffectiveLevel,
-    creatureMeleeAttackBonus,
-    creatureMeleeDamageBonus,
-    creatureRangedAttackBonus,
-    creatureRangedDamageBonus,
-    creatureMeleeArmourClass,
-    creatureRangedArmourClass,
-    creatureInitiative)
+     CreatureAttribute(..),
+     exampleCreature1,
+     maxHitPoints,
+     injure,
+     hitPoints,
+     alive,
+     dead,
+     creatureEffectiveLevel,
+     creatureMeleeAttackBonus,
+     creatureMeleeDamageBonus,
+     creatureRangedAttackBonus,
+     creatureRangedDamageBonus,
+     creatureMeleeArmourClass,
+     creatureRangedArmourClass,
+     creatureSpeed)
     where
 
 import StatsData
@@ -56,8 +56,8 @@ data CreatureAttribute = Male
 		       | Toughness
 		       | ImprovedMeleeCombat
 		       | ImprovedRangedCombat
-                       | Parry
-                       | Dodge
+                       | Evasion
+		       | Speed
 		       | LevelPenalty
 		       | LevelBonus
 		       | ImprovedInitiative
@@ -69,7 +69,7 @@ data CreatureAttribute = Male
 exampleCreature1 :: Creature
 exampleCreature1 = Creature 
 		   { creature_stats = Stats { str=2, con=5, dex=1, int=(-2), per=4, cha=(-1), mind=(-1) },
-		     creature_attribs = [Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Parry],
+		     creature_attribs = [Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Evasion],
 		     creature_name = "Example-Creature-1",
 		     creature_damage = 0 }
 
@@ -81,6 +81,9 @@ maxHitPoints :: Creature -> Integer
 maxHitPoints creature = let sts = creature_stats creature
 			    in max 6 (10 + (str sts) + (con sts) + (dex sts) + (mind sts)) + bonusHitPoints creature
 
+-- |
+-- The bonus hit points this creature gets for having the toughness attribute.
+--
 bonusHitPoints :: Creature -> Integer
 bonusHitPoints creature = 2 * (count Toughness (creature_attribs creature))
 
@@ -138,8 +141,7 @@ levelAdjustment :: CreatureAttribute -> Integer
 levelAdjustment Toughness = 1
 levelAdjustment ImprovedMeleeCombat = 1
 levelAdjustment ImprovedRangedCombat = 1
-levelAdjustment Parry = 1
-levelAdjustment Dodge = 1
+levelAdjustment Evasion = 1
 levelAdjustment LevelPenalty = 1
 levelAdjustment LevelBonus = (-1)
 levelAdjustment ImprovedInitiative = 1
@@ -197,7 +199,7 @@ bonusRangedCombatPoints creature = count ImprovedRangedCombat (creature_attribs 
 --
 creatureMeleeArmourClass :: Creature -> Integer
 creatureMeleeArmourClass creature = (dex $ creature_stats creature) + 
-                                    2*(count Parry (creature_attribs creature))
+                                    (count Evasion (creature_attribs creature))
 
 -- |
 -- The ranged armour class for the creature.  The higher a creature's armour
@@ -205,16 +207,15 @@ creatureMeleeArmourClass creature = (dex $ creature_stats creature) +
 --
 creatureRangedArmourClass :: Creature -> Integer
 creatureRangedArmourClass creature = (per $ creature_stats creature) + 
-                                     2*(count Dodge (creature_attribs creature))
+                                     (count Evasion (creature_attribs creature))
 
 -- |
 -- The number of actions per round that this creature gets.
 --
-creatureInitiative :: Creature -> Integer
-creatureInitiative creature = max 1 $
-			      (
-			       10 + 
-			       ((dex $ creature_stats creature) `quot` 2) + 
-			       ((per $ creature_stats creature) `quot` 2) +
-			       (count ImprovedInitiative (creature_attribs creature))
-			      )
+creatureSpeed :: Creature -> Integer
+creatureSpeed creature = max 1 $
+			 (
+			  10 + 
+			  (((dex $ creature_stats creature) + (mind $ creature_stats creature)) `quot` 2) +
+			  (count Speed (creature_attribs creature))
+			 )

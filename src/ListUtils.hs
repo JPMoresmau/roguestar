@@ -19,7 +19,8 @@
 --------------------------------------------------------------------------
 
 module ListUtils 
-    (count,
+    (listByFrequency,
+     count,
      bidirect,
      bidirectionalAccessor1D,
      bidirectionalAccessor2D,
@@ -32,6 +33,18 @@ module ListUtils
 
 import Data.List
 import SegHopList
+
+-- |
+-- Converts a list of elements to an infinite list of those same elements such
+-- that the frequency of an element of the result is related to how early
+-- that element occurs in the parameter.  Each subsequent element in the parameter
+-- occurs half as often (and first occurs twice as late) as the one before.
+-- [a,b,c,d] becomes (cycle [a,b,a,c,a,b,a,d])
+--
+listByFrequency :: [a] -> [a]
+listByFrequency (x:[]) = repeat x
+listByFrequency (x:xs) = x : (intersperse x $ listByFrequency xs)
+listByFrequency [] = error "Can't do anything with an empty list."
 
 -- |
 -- count 1 [2,5,1,4,1,1] is 3, because 1 occurs three times.

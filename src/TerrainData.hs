@@ -22,6 +22,7 @@ module TerrainData
     (Biome(..),
      TerrainPatch(..),
      TerrainMap,
+     TerrainGenerationData,
      generateTerrain,
      generateExampleTerrain,
      prettyPrintTerrain)
@@ -71,6 +72,11 @@ data TerrainPatch = RockFace
                   | DungeonExit
                     deriving (Read,Show,Eq,Ord)
 
+data TerrainGenerationData = TerrainGenerationData
+			   { tg_smootheness :: Integer,
+			     tg_biome :: Biome }
+			   deriving (Read,Show)
+
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
 terrainFrequencies RockBiome = [(1,RockFace),(1,Rubble),(3,RockyGround),(1,Sand)]
 terrainFrequencies IcyRockBiome = [(1,RockFace),(2,Rubble),(3,RockyGround),(6,Ice)]
@@ -95,6 +101,9 @@ terrainInterpRule (DeepWater,_) = [(3,Water)]
 terrainInterpRule (DeepForest,DeepForest) = []
 terrainInterpRule (DeepForest,Forest) = [(3,DeepForest)]
 terrainInterpRule (DeepForest,_) = [(5,Forest)]
+terrainInterpRule (Forest,DeepForest) = []
+terrainInterpRule (Forest,Forest) = []
+terrainInterpRule (Forest,_) = [(1,Grass)]
 terrainInterpRule (Water,Water) = [(20,Water),(1,Sand)]
 terrainInterpRule (Water,DeepWater) = []
 terrainInterpRule (Water,_) = [(1,Sand)]
@@ -120,11 +129,11 @@ type TerrainMap = Grid TerrainPatch
 -- generated terrain.  Finally, a random Integer stream is needed to provide the random data 
 -- to generate the terrain.
 --
-generateTerrain :: Biome -> Integer -> [Integer] -> TerrainMap
-generateTerrain biome smooth rands = 
-    generateGrid (terrainFrequencies biome) 
+generateTerrain :: TerrainGenerationData -> [Integer] -> TerrainMap
+generateTerrain tg rands = 
+    generateGrid (terrainFrequencies (tg_biome tg))
 		 terrainInterpMap
-		 smooth
+		 (tg_smootheness tg)
 		 rands
 
 terrainPatchToASCII :: TerrainPatch -> Char
@@ -144,8 +153,13 @@ terrainPatchToASCII Ice = '^'
 terrainPatchToASCII (DungeonEntrance _) = '>'
 terrainPatchToASCII DungeonExit = '<'
 
+exampleTerrainGenerator :: TerrainGenerationData
+exampleTerrainGenerator = TerrainGenerationData
+			  { tg_smootheness = 5,
+			    tg_biome = ForestBiome }
+
 generateExampleTerrain :: Integer -> TerrainMap
-generateExampleTerrain seed = generateTerrain ForestBiome 5 (randomIntegerStream seed)
+generateExampleTerrain seed = generateTerrain exampleTerrainGenerator (randomIntegerStream seed)
 
 prettyPrintTerrain :: ((Integer,Integer),(Integer,Integer)) -> TerrainMap -> [String]
 prettyPrintTerrain ((left_bound,right_bound),(top_bound,bottom_bound)) terrain_map =

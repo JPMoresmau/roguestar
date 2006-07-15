@@ -30,6 +30,7 @@ import DB
 import SpeciesData
 import Species
 import Tests
+import DBData
 
 runCreatureGenerationTest :: IO ()
 runCreatureGenerationTest = do db0 <- initial_db
@@ -48,9 +49,9 @@ newCreature species = do (stats,attribs,name) <- generateCreatureData species
 -- |
 -- Adds a creature to the DB.
 --
-dbNewCreature :: Species -> DB ObjectRef
+dbNewCreature :: Species -> DB CreatureRef
 dbNewCreature species = do newc <- newCreature species
-			   dbAddObjectThing (CreatureRef) (CreatureThing newc)
+			   dbAddCreature newc
 
 creatureTests :: [TestCase]
 creatureTests = [testHitPointCalculation,testAlive,testDead,
