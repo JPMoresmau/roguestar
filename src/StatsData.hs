@@ -20,14 +20,10 @@
 
 module StatsData
     (Stats(..),
+     Statistic(..),
      stats,
-     modStr,
-     modDex,
-     modCon,
-     modInt,
-     modPer,
-     modCha,
-     modMind)
+     getStatistic,
+     setStatistic)
     where
 
 -- |
@@ -43,6 +39,33 @@ module StatsData
 
 data Stats = Stats {str, dex, con, int, per, cha, mind :: Integer} deriving (Show, Read)
 
+data Statistic = Strength
+	       | Dexterity
+	       | Constitution
+	       | Intelligence
+	       | Perception
+	       | Charisma
+	       | Mindfulness
+	       deriving (Eq,Read,Show)
+
+getStatistic :: Statistic -> Stats -> Integer
+getStatistic Strength = str
+getStatistic Dexterity = dex
+getStatistic Constitution = con
+getStatistic Intelligence = int
+getStatistic Perception = per
+getStatistic Charisma = cha
+getStatistic Mindfulness = mind
+
+setStatistic :: Statistic -> Integer -> Stats -> Stats
+setStatistic Strength = setStr
+setStatistic Dexterity = setDex
+setStatistic Constitution = setCon
+setStatistic Intelligence = setInt
+setStatistic Perception = setPer
+setStatistic Charisma = setCha
+setStatistic Mindfulness = setMind
+
 -- |
 -- Used to generate a Stats object with all the same stats (i.e. stats 1 => Stats 1 1 1 1 1 1 1)
 --
@@ -53,23 +76,23 @@ stats x = (Stats {str=x, dex=x, con=x, int=x, per=x, cha=x, mind=x})
 -- |
 -- Functions to modify a single stat in a Stats block.
 --
-modStr :: Integer -> Stats -> Stats
-modStr x st = st { str = x }
+setStr :: Integer -> Stats -> Stats
+setStr x st = st { str = x }
 
-modDex :: Integer -> Stats -> Stats
-modDex x st = st { dex = x }
+setDex :: Integer -> Stats -> Stats
+setDex x st = st { dex = x }
 
-modCon :: Integer -> Stats -> Stats
-modCon x st = st { con = x }
+setCon :: Integer -> Stats -> Stats
+setCon x st = st { con = x }
 
-modInt :: Integer -> Stats -> Stats
-modInt x st = st { int = x }
+setInt :: Integer -> Stats -> Stats
+setInt x st = st { int = x }
 
-modPer :: Integer -> Stats -> Stats
-modPer x st = st { per = x }
+setPer :: Integer -> Stats -> Stats
+setPer x st = st { per = x }
 
-modCha :: Integer -> Stats -> Stats
-modCha x st = st { cha = x }
+setCha :: Integer -> Stats -> Stats
+setCha x st = st { cha = x }
 
-modMind :: Integer -> Stats -> Stats
-modMind x st = st { mind = x }
+setMind :: Integer -> Stats -> Stats
+setMind x st = st { mind = x }

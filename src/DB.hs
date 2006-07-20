@@ -20,7 +20,10 @@
 
 module DB
     (DB,
-     initial_db,
+     dbState,
+     dbSetState,
+     DBState(..),
+     initialDB,
      DB_BaseType,
      dbAddCreature,
      dbAddPlane,
@@ -39,10 +42,15 @@ import RNG
 import Data.Map as Map
 import InsidenessMap
 
+data DBState = DBRaceSelectionState
+	     | DBClassSelectionState Creature
+	     deriving (Read,Show)
+
 -- |
 -- Random access form of the roguestar database.
 --
-data DB_BaseType = DB_BaseType { random_number_stream_stream :: [[Integer]],
+data DB_BaseType = DB_BaseType { db_state :: DBState,
+				 random_number_stream_stream :: [[Integer]],
 				 next_object_ref :: Integer,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
@@ -51,7 +59,8 @@ data DB_BaseType = DB_BaseType { random_number_stream_stream :: [[Integer]],
 -- |
 -- Serial form of the roguestar database.
 --
-data DB_Persistant_BaseType = DB_Persistant_BaseType { random_number_generator_seed_ :: Integer,
+data DB_Persistant_BaseType = DB_Persistant_BaseType { db_state_ :: DBState,
+						       random_number_generator_seed_ :: Integer,
                                                        next_object_ref_ :: Integer,
 						       db_creatures_ :: [(CreatureRef,Creature)],
 						       db_planes_ :: [(PlaneRef,Plane)],
@@ -60,6 +69,7 @@ data DB_Persistant_BaseType = DB_Persistant_BaseType { random_number_generator_s
 
 toPersistant :: DB_BaseType -> DB_Persistant_BaseType
 toPersistant db = DB_Persistant_BaseType {
+					  db_state_ = db_state db,
 					  random_number_generator_seed_ = (random_number_stream_stream db) !! 0 !! 0,
 					  next_object_ref_ = next_object_ref db,
 					  db_creatures_ = Map.toList $ db_creatures db,
@@ -69,6 +79,7 @@ toPersistant db = DB_Persistant_BaseType {
 
 fromPersistant :: DB_Persistant_BaseType -> DB_BaseType
 fromPersistant persistant = DB_BaseType {
+					 db_state = db_state_ persistant,
 					 random_number_stream_stream = randomIntegerStreamStream $ random_number_generator_seed_ persistant,
 					 next_object_ref = next_object_ref_ persistant,
 					 db_creatures = Map.fromList $ db_creatures_ persistant,
@@ -90,14 +101,32 @@ type DB a = State DB_BaseType a
 -- |
 -- Generates an initial DB state.
 --
-initial_db :: IO DB_BaseType
-initial_db = do (TOD seconds picos) <- getClockTime
-		return DB_BaseType { random_number_stream_stream = randomIntegerStreamStream (seconds + picos),
-				     next_object_ref = 0,
-				     db_creatures = Map.fromList [],
-				     db_planes = Map.fromList [],
-				     db_inside = InsidenessMap.fromList []
-				   }
+initialDB :: IO DB_BaseType
+initialDB = do (TOD seconds picos) <- getClockTime
+	       return DB_BaseType { db_state = DBRaceSelectionState,
+				    random_number_stream_stream = randomIntegerStreamStream (seconds + picos),
+				    next_object_ref = 0,
+				    db_creatures = Map.fromList [],
+				    db_planes = Map.fromList [],
+				    db_inside = InsidenessMap.fromList []
+				  }
+
+dbQueryComposable :: (DB_BaseType -> a) -> DB a
+dbQueryComposable fn = do db <- get
+			  return $ fn db
+
+-- |
+-- Returns the DBState of the database.
+--
+dbState :: DB DBState
+dbState = dbQueryComposable db_state
+
+-- |
+-- Sets the DBState of the database.
+--
+dbSetState :: DBState -> DB ()
+dbSetState state = do db0 <- get
+		      put $ db0 { db_state = state }
 
 -- |
 -- Gets the next ObjectRef integer, after incrementing it.

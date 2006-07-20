@@ -42,7 +42,7 @@ d _ _ = error "Rolled negative dice or negative sided dice."
 -- only the results fall within possible ranges.
 --
 testDieRoll :: Integer -> Integer -> TestCase
-testDieRoll n s = do db0 <- initial_db
+testDieRoll n s = do db0 <- initialDB
 		     let dieRoll = evalState (n `d` s) db0
 			 testStr = ("testDice " ++ show n ++ "d" ++ show s ++ "(" ++ show dieRoll ++ ")")
 			 in return (if dieRoll >= n && dieRoll <= n*s

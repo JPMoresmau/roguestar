@@ -20,7 +20,9 @@
 
 module CreatureData 
     (Creature(..),
+     CreatureGender(..),
      CreatureAttribute(..),
+     applyCreatureAttribute,
      exampleCreature1,
      maxHitPoints,
      injure,
@@ -34,12 +36,17 @@ module CreatureData
      creatureRangedDamageBonus,
      creatureMeleeArmourClass,
      creatureRangedArmourClass,
-     creatureSpeed)
+     creatureSpeed,
+     creatureGender,
+     characterClassLevels)
     where
 
+import CharacterData
+import Alignment
 import StatsData
 import ListUtils (count)
 import Ratio
+import Data.Maybe
 
 data Creature = Creature { creature_stats :: Stats, 
 			   creature_attribs :: [CreatureAttribute],
@@ -47,21 +54,39 @@ data Creature = Creature { creature_stats :: Stats,
 			   creature_damage :: Integer }
 		deriving (Read,Show)
 
---
+data CreatureGender = Male | Female | Neuter deriving (Eq,Read,Show)
+
+-- |
 -- A creature's attributes.
 --
-data CreatureAttribute = Male 
-		       | Female 
-		       | Neuter 
+data CreatureAttribute = Gender CreatureGender
 		       | Toughness
+		       | DamageReduction
 		       | ImprovedMeleeCombat
 		       | ImprovedRangedCombat
                        | Evasion
 		       | Speed
 		       | LevelPenalty
 		       | LevelBonus
-		       | ImprovedInitiative
-			 deriving (Eq, Enum, Show, Read)
+		       | DoesNotNegotiate
+		       | DoesNotValueMoney
+		       | HideInForest
+		       | HideInWater
+		       | NoKillPenalty
+		       | WaterSurvival
+		       | NegotiateSkill
+		       | LeadershipSkill
+		       | HideSkill
+		       | SpotSkill
+		       | PilotSkill
+		       | EngineeringSkill
+		       | ScienceSkill
+		       | CalmBeastAbility
+		       | HardStatBonus Statistic
+		       | SoftStatBonus Statistic
+		       | AlignmentBonus AlignmentSchool
+		       | CharacterLevel CharacterClass
+			 deriving (Eq, Show, Read)
 
 -- |
 -- An example creature used for test cases.
@@ -69,7 +94,7 @@ data CreatureAttribute = Male
 exampleCreature1 :: Creature
 exampleCreature1 = Creature 
 		   { creature_stats = Stats { str=2, con=5, dex=1, int=(-2), per=4, cha=(-1), mind=(-1) },
-		     creature_attribs = [Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Evasion],
+		     creature_attribs = [Gender Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Evasion],
 		     creature_name = "Example-Creature-1",
 		     creature_damage = 0 }
 
@@ -114,13 +139,11 @@ dead = not . alive
 
 -- |
 -- The creature's effective level.
--- Levels are balanced against ability scores (Stats).  A +1 to
--- any ability score is considered equal in value to a single level.
--- So the first factor in computing a creature's effective level
--- is to take the sum of all of its ability scores.
--- Next add any any CreatureAttributes that count toward level adjustment.
--- Some (such as Male or Female) don't count for anything, while others may
--- count for multiple levels.
+--
+-- This sums all of the attributes that the character has and weights them according
+-- to the levelAdjustment function.  The theory is that levelAdjustment indicates the
+-- power of any attribute, with a single +1 bonus to any ability score having a
+-- value of 1.  (This implies that every ability score should have the same value.)
 --
 -- It is possible for a creature to have a negative effective level,
 -- especially if its ability scores are poor.
@@ -131,6 +154,14 @@ creatureEffectiveLevel creature = let the_stats = creature_stats creature
                                              (int the_stats) + (per the_stats) + (cha the_stats) +
                                              (mind the_stats) +
                                              (sum $ map levelAdjustment (creature_attribs creature))
+
+-- |
+-- Answers the number of levels a Creature has taken in a particular CharacterClass.
+-- These are not proportional to the value of creatureEffectiveLevel, taking a level
+-- in a CharacterClass sometimes increases it's effective level by more than one.
+--
+characterClassLevels :: CharacterClass -> Creature -> Integer
+characterClassLevels character_class creature = count (CharacterLevel character_class) (creature_attribs creature)
 
 -- |
 -- The amount by which a creature's effective level should be adjusted
@@ -144,8 +175,64 @@ levelAdjustment ImprovedRangedCombat = 1
 levelAdjustment Evasion = 1
 levelAdjustment LevelPenalty = 1
 levelAdjustment LevelBonus = (-1)
-levelAdjustment ImprovedInitiative = 1
-levelAdjustment _ = 0
+levelAdjustment Speed = 1
+levelAdjustment NoKillPenalty = 0
+levelAdjustment WaterSurvival = 2
+levelAdjustment HideInForest = 4
+levelAdjustment HideInWater = 4
+levelAdjustment DoesNotValueMoney = 0
+levelAdjustment DoesNotNegotiate = 0
+levelAdjustment (Gender {}) = 0
+levelAdjustment DamageReduction = 1
+levelAdjustment SoftStatBonus {} = 0
+levelAdjustment HardStatBonus {} = 1
+levelAdjustment AlignmentBonus {} = 0
+levelAdjustment LeadershipSkill = 1
+levelAdjustment NegotiateSkill = 1
+levelAdjustment HideSkill = 1
+levelAdjustment SpotSkill = 1
+levelAdjustment PilotSkill = 1
+levelAdjustment EngineeringSkill = 1
+levelAdjustment ScienceSkill = 1
+levelAdjustment CalmBeastAbility = 1
+levelAdjustment CharacterLevel {} = 0
+
+-- |
+-- Adds a CreatureAttribute to a Creature.  The CreatureAttribute stacks with or replaces any other
+-- related attributes already applied to the creature, depending on the type of attribute.
+-- Includes some transparent special handling for some CreatureAttributes 
+-- (specifically, Hard___Bonus and Soft___Bonus).
+--
+applyCreatureAttribute :: CreatureAttribute -> Creature -> Creature
+applyCreatureAttribute (HardStatBonus statistic) = incCreatureStat statistic 
+applyCreatureAttribute (SoftStatBonus statistic) = softIncCreatureStat statistic 
+applyCreatureAttribute attrib = putCreatureAttribute attrib
+
+-- |
+-- applyCreatureAttribute with no special handling.
+--
+putCreatureAttribute :: CreatureAttribute -> Creature -> Creature
+putCreatureAttribute attrib creature = creature { creature_attribs = (attrib : (creature_attribs creature))}
+
+-- |
+-- Strip all instances of a CreatureAttribute from a Creature.
+--
+stripCreatureAttribute :: CreatureAttribute -> Creature -> Creature
+stripCreatureAttribute attrib creature = 
+    creature { creature_attribs = filter (\x -> x /= attrib) $ creature_attribs creature }
+
+incCreatureStat :: Statistic -> Creature -> Creature
+incCreatureStat statistic creature = 
+    let sts = creature_stats creature
+	in creature { creature_stats = setStatistic statistic (succ $ getStatistic statistic sts) sts }
+
+softIncCreatureStat :: Statistic -> Creature -> Creature
+softIncCreatureStat statistic creature =
+    let sts = creature_stats creature
+	num = count (SoftStatBonus statistic) $ creature_attribs creature
+	in if (getStatistic statistic sts < num)
+	   then incCreatureStat statistic $ stripCreatureAttribute (SoftStatBonus statistic) creature
+	   else putCreatureAttribute (SoftStatBonus statistic) creature
 
 -- |
 -- The melee attack bonus for the creature.
@@ -180,15 +267,13 @@ creatureRangedDamageBonus :: Creature -> Integer
 creatureRangedDamageBonus creature = (bonusRangedCombatPoints creature)
 
 -- |
--- The bonus to any action that a Creature takes in melee combat, specifically
--- attack and damage rolls.  (And to a lesser extend, armour class).
+-- The bonus to melee attack and damage rolls.
 --
 bonusMeleeCombatPoints :: Creature -> Integer
 bonusMeleeCombatPoints creature = count ImprovedMeleeCombat (creature_attribs creature)
 
 -- |
--- The bonux to any action that a Creature takes in ranged combat, specifically
--- attack and damage rools.  (And to a lesser extent, armour class).
+-- The bonux to ranged attack and damage rolls.
 --
 bonusRangedCombatPoints :: Creature -> Integer
 bonusRangedCombatPoints creature = count ImprovedRangedCombat (creature_attribs creature)
@@ -219,3 +304,14 @@ creatureSpeed creature = max 1 $
 			  (((dex $ creature_stats creature) + (mind $ creature_stats creature)) `quot` 2) +
 			  (count Speed (creature_attribs creature))
 			 )
+
+genderOf :: CreatureAttribute -> Maybe CreatureGender
+genderOf attrib = case attrib of
+			      Gender gender -> Just gender
+			      _ -> Nothing
+
+-- |
+-- Answers the gender of this creature.
+--
+creatureGender :: Creature -> CreatureGender
+creatureGender creature = fromMaybe Neuter $ listToMaybe $ mapMaybe genderOf $ creature_attribs creature

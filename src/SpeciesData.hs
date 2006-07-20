@@ -34,13 +34,13 @@ import AttributeData
 -- Makes the creature male x percent of the time (female otherwise).
 --
 percentMale :: Integer -> AttributeGenerator CreatureAttribute
-percentMale x = AttributeSometimes Male x $ Just (AttributeAlways Female)
+percentMale x = AttributeSometimes (Gender Male) x $ Just (AttributeAlways (Gender Female))
 
 --
 -- Makes the creature female x percent of the time (male otherwise).
 --
 percentFemale :: Integer -> AttributeGenerator CreatureAttribute
-percentFemale x = AttributeSometimes Female x $ Just (AttributeAlways Male)
+percentFemale x = AttributeSometimes (Gender Female) x $ Just (AttributeAlways (Gender Male))
 
 data Species = Species { averages :: Stats, 
                          distributions :: Stats,

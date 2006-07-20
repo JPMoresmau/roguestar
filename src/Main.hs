@@ -21,6 +21,7 @@
 module Main (main)
     where
 
+import DB
 import System
 import System.Random
 import List
@@ -32,6 +33,7 @@ import PeriodicTable
 import Control.Monad
 import TerrainData
 import HopList
+import Protocol
 
 program_version_number :: String
 program_version_number = "0.0.1"
@@ -74,10 +76,14 @@ runByArgs "test-terrain-generator" = do seed <- randomIO
 
 runByArgs "periodic-table" = do displayPeriodicTable
 
+runByArgs "begin" = do db0 <- initialDB
+		       mainLoop db0
+
 runByArgs "help" = do putStrLn "Commands:"
+		      putStrLn "begin                    - begin a protocol session (used by GUI clients and experts)"
 		      putStrLn "help                     - print this message"
 		      putStrLn "periodic-table           - print the roguestar periodic table of the elements"
-		      putStrLn "tests                    - run most unit tests"
+		      putStrLn "tests                    - run unit tests"
 		      putStrLn "test-character-generator - generate a random sample creature"
 		      putStrLn "test-terrain-generator   - display an example terrain map"
 		      putStrLn "version                  - print the version string"

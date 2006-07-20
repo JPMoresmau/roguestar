@@ -20,9 +20,9 @@
 
 module Alignment
     (Alignment,
-     AlignmentEthic(Lawful,Neutral,Chaotic,Evil),
-     AlignmentSchool(Strategic,Tactical,Diplomatic,Indifferent),
-     AlignmentStrength(Strong,Moderate,Weak),
+     AlignmentEthic(..),
+     AlignmentSchool(..),
+     AlignmentStrength(..),
      modifierFromAlignment, canSmiteAlignment,
      canMassiveSmiteAlignment, canLethalSmiteAlignment,
      smiteDamage
@@ -34,9 +34,9 @@ import StatsData
 -- The alignment system.
 -- 
 
-data AlignmentEthic = Lawful | Neutral | Chaotic | Evil
-data AlignmentSchool = Strategic | Tactical | Diplomatic | Indifferent
-data AlignmentStrength = Strong | Moderate |  Weak
+data AlignmentEthic = Lawful | Neutral | Chaotic | Evil deriving (Eq,Read,Show)
+data AlignmentSchool = Strategic | Tactical | Diplomatic | Indifferent deriving (Eq,Read,Show)
+data AlignmentStrength = Strong | Moderate |  Weak deriving (Eq,Read,Show)
 type Alignment = (AlignmentStrength,AlignmentEthic,AlignmentSchool)
 
 -- |

@@ -20,10 +20,11 @@
 
 module AttributeData
     (AttributeGenerator(..),
-    percent_attribute)
+    percentAttribute,
+    multipleAttribute)
     where
 
---
+-- |
 -- Used to randomly generate attributes for an entity.
 -- AttributeAlways is a generator that always creates the specified attribute.
 -- (AttributeSometimes attrib x $ otherwise) is a generator that generates
@@ -35,8 +36,17 @@ data AttributeGenerator a = AttributeAlways a
                           | AttributeSometimes a Integer (Maybe (AttributeGenerator a))
                             deriving (Show, Read)
 
+-- |
+-- Grants the entity the specified attribute x percent of the time, otherwise nothing
 --
--- Grants the creature the specified attribute x percent of the time, otherwise nothing
+percentAttribute :: a -> Integer -> AttributeGenerator a
+percentAttribute attr x = AttributeSometimes attr x $ Nothing
+
+-- |
+-- Grants the entity the specified attribute between minimum and maximum instances of the
+-- attribute, on average the average of the two (as a binomial distribution).
 --
-percent_attribute :: a -> Integer -> AttributeGenerator a
-percent_attribute attr x = AttributeSometimes attr x $ Nothing
+multipleAttribute :: a -> (Int,Int) -> [AttributeGenerator a]
+multipleAttribute attr (mini,maxi) | mini >= 0 && maxi >= mini = 
+    (replicate mini $ AttributeAlways attr) ++ (replicate (maxi-mini) $ percentAttribute attr 50)
+multipleAttribute _ _ = error "maximum < minimum badness"

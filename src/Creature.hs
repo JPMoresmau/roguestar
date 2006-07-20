@@ -19,7 +19,8 @@
 --------------------------------------------------------------------------
 
 module Creature 
-    (runCreatureGenerationTest, 
+    (dbGenerateInitialPlayerCreature,
+     runCreatureGenerationTest, 
      creatureTests,
      dbNewCreature)
     where
@@ -33,11 +34,11 @@ import Tests
 import DBData
 
 runCreatureGenerationTest :: IO ()
-runCreatureGenerationTest = do db0 <- initial_db
+runCreatureGenerationTest = do db0 <- initialDB
 			       putStrLn $ show $ evalState (generateCreatureData exampleSpecies) db0
 
 -- |
--- Generates a new random creature from the specified species.
+-- Generates a new Creature from the specified species.
 --
 newCreature :: Species -> DB Creature
 newCreature species = do (stats,attribs,name) <- generateCreatureData species
@@ -47,7 +48,15 @@ newCreature species = do (stats,attribs,name) <- generateCreatureData species
 					     creature_damage=0 })
 
 -- |
--- Adds a creature to the DB.
+-- During DBRaceSelectionState, generates a new Creature for the player character and sets it into the 
+-- database's DBClassSelectionState.
+--
+dbGenerateInitialPlayerCreature :: Species -> DB ()
+dbGenerateInitialPlayerCreature species = do newc <- newCreature species
+					     dbSetState (DBClassSelectionState newc)
+
+-- |
+-- Generates a new Creature from the specified Species and adds it to the database.
 --
 dbNewCreature :: Species -> DB CreatureRef
 dbNewCreature species = do newc <- newCreature species
