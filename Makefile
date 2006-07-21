@@ -1,0 +1,42 @@
+HS_FLAGS = 	-hidir products/ \
+		-odir products/ \
+		-isrc/:products \
+		-Wall \
+		-Werror \
+		-fno-warn-type-defaults \
+		--make src/Main.hs \
+		-o products/roguestar-gl
+
+default : ghc
+
+clean :
+	-rm -f products/*.o 2> /dev/null
+	-rm -f products/*.hi 2> /dev/null
+	-rm -f products/roguestar-gl 2> /dev/null
+	${MAKE} -C haddock clean
+
+doc :
+	${MAKE} -C haddock
+
+ghc :
+	ghc 	${HS_FLAGS}
+
+ghc-release :
+	ghc	-O ${HS_FLAGS}
+
+check:
+	${MAKE} clean
+	${MAKE} ghc-release
+	${MAKE} clean
+	-darcs whatsnew -ls
+
+dist:
+	darcs dist
+
+headache:
+	headache -c header/license-header.conf -h header/license-header src/*.hs
+
+headache-remove:
+	headache -c header/license-header.conf -h header/license-header -r src/*.hs
+
+.PHONY : default clean doc ghc ghc-release check dist headache headache-remove
