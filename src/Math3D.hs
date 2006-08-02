@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------
---  roguestar-engine: the space-adventure roleplaying game backend.       
+--  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
 --                                                                        
 --  This program is free software; you can redistribute it and/or modify  
