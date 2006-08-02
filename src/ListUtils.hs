@@ -18,24 +18,47 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module Translation
-    (Language(..),
-     translator,
-     tr)
+module ListUtils
+    (doubles,
+     loopedDoubles,
+     consecutives,
+     loopedConsecutives)
     where
 
-data Language = English
-	      deriving (Eq,Enum,Show)
+-- |
+-- Converts a list of length two into a list of tuple pairs.
+--
+pairify :: [a] -> (a,a)
+pairify (m:n:[]) = (m,n)
+pairify _ = error "pairify only works on lists of length two"
 
 -- |
--- If the string corresponds to a language for which a translation exists,
--- answers the language, otherwise Nothing.
+-- Effectively consecutives 2
 --
-translator :: String -> Maybe Language
-translator "en" = Just English
-translator _ = Nothing
+doubles :: [a] -> [(a,a)]
+doubles = (map pairify) . (consecutives 2)
 
-tr :: Language -> [String] -> String
+loopedDoubles :: [a] -> [(a,a)]
+loopedDoubles = (map pairify) . (loopedConsecutives 2)
 
-tr English ["window-title"] = "RogueStar - OpenGL"
-tr _ args = unwords args
+-- |
+-- Answers a list containing every sequence of n consecutive
+-- elements in the parameter, non-circular.
+--
+-- consecutives 3 [1,2,3,4] = [[1,2,3],[2,3,4]]
+--
+consecutives :: Int -> [a] -> [[a]]
+consecutives n elems = let taken = take n elems
+			   in if (length taken == n)
+			      then (taken : (consecutives n $ tail elems))
+			      else []
+
+-- |
+-- Answers a list containing every sequence of n consecutive
+-- elements in the parameter, in a circular way so that the first
+-- element of the list is considered subsequent to the first.
+--
+-- consecutives 3 [1,2,3,4] = [[1,2,3],[2,3,4],[3,4,1],[4,1,2]]
+--
+loopedConsecutives :: Int -> [a] -> [[a]]
+loopedConsecutives n elems = consecutives n $ take (n + length elems - 1) $ cycle elems
