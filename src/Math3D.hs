@@ -24,6 +24,9 @@ module Math3D
      Vector3D(..),
      point3d,
      point2d,
+     points2d,
+     points3d,
+     points3d_2,
      vector3d,
      crossProduct,
      vectorAdd,
@@ -31,16 +34,27 @@ module Math3D
      vectorToFrom,
      vectorNormalize,
      vectorAverage,
-     normal,
+     planeNormal,
      newell,
      Xyz(..),
      XYZ,
      vectorString,
+     matrixAdd,
+     matrixMultiply,
      transform,
+     aMByNMatrix,
      translationMatrix,
      rotationMatrix,
+     scaleMatrix,
      translate,
-     rotate)
+     rotate,
+     scale,
+     translates,
+     rotates,
+     scales,
+     Matrix,
+     rowMajorForm,
+     colMajorForm)
     where
 
 import Data.List
@@ -85,30 +99,38 @@ point2d = uncurry Point2D
 vector3d :: (Float,Float,Float) -> Vector3D
 vector3d = uncurry3d Vector3D
 
+points2d :: [(Float,Float)] -> [Point2D]
+points2d = map point2d
+
+points3d :: [(Float,Float,Float)] -> [Point3D]
+points3d = map point3d
+
+points3d_2 :: [((Float,Float,Float),(Float,Float,Float))] -> [(Point3D,Point3D)]
+points3d_2 = map (\(l,r) -> (point3d l,point3d r))
+
 -- |
 -- Checks that the given vector is valid (no NaNs, etc)
 -- before returning the vector unchanged.
 --
-vector3Dassert :: String -> Vector3D -> Vector3D
-vector3Dassert _ vector = vector
---vector3Dassert msg vector@(Vector3D x y z) =
---    if any isNaN [x,y,z]
---    then error ("vector3Dassert: isNan; " ++ msg)
---    else vector
+aValidVector :: String -> Vector3D -> Vector3D
+aValidVector msg vector@(Vector3D x y z) =
+    if any isNaN [x,y,z]
+    then error ("aValidVector failed: isNan; " ++ msg)
+    else vector
 
 -- |
 -- Checks that the given vector is not zero.
 --
-vector3Dassert_notZero :: String -> Vector3D -> Vector3D
---vector3Dassert_notZero msg (Vector3D 0 0 0) = error ("vector3Dassert_notZero; " ++ msg)
-vector3Dassert_notZero _ vector = vector
+aNonZeroVector :: String -> Vector3D -> Vector3D
+aNonZeroVector msg (Vector3D 0 0 0) = error ("aNonZeroVector failed; " ++ msg)
+aNonZeroVector _ vector = vector
 
 -- |
 -- The cross product of two vectors.
 --
 crossProduct :: Vector3D -> Vector3D -> Vector3D
 crossProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
-    vector3Dassert "crossProduct" $
+    aNonZeroVector "in crossProduct" $
     Vector3D (ay*bz - az*by) (az*bx - az*bz) (ax*by - ay*bx)
 
 -- |
@@ -116,7 +138,7 @@ crossProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 --
 vectorAdd :: Vector3D -> Vector3D -> Vector3D
 vectorAdd (Vector3D ax ay az) (Vector3D bx by bz) = 
-    vector3Dassert "vectorAdd" $
+    aValidVector "in vectorAdd" $
     Vector3D (ax+bx) (ay+by) (az+bz)
 
 -- |
@@ -141,10 +163,9 @@ vectorLength (Vector3D x y z) = sqrt (x*x + y*y + z*z)
 -- Answers the same vector normalized to a length of 1.
 --
 vectorNormalize :: Vector3D -> Vector3D
---vectorNormalize (Vector3D 0.0 0.0 0.0) = error "vectorNormalize: no zero vectors, please"
 vectorNormalize v@(Vector3D x y z) = 
     let l = vectorLength v
-	in vector3Dassert "vectorNormalize" $
+	in seq (aNonZeroVector "in vectorNormalize" v) $
 	   Vector3D (x/l) (y/l) (z/l)
 
 -- |
@@ -153,16 +174,16 @@ vectorNormalize v@(Vector3D x y z) =
 --
 vectorAverage :: [Vector3D] -> Vector3D
 vectorAverage vects = vectorNormalize $
-		      vector3Dassert_notZero "vectorAverage" $
+		      aNonZeroVector "in vectorAverage" $
 		      vectorSum $ map vectorNormalize vects
 
 -- |
 -- The normal vector taken from three points.
 --
-normal :: Point3D -> Point3D -> Point3D -> Vector3D
-normal a b c = vectorSum [((a `vectorToFrom` b) `crossProduct` (c `vectorToFrom` b)),
-			  ((b `vectorToFrom` c) `crossProduct` (a `vectorToFrom` c)),
-			  ((c `vectorToFrom` a) `crossProduct` (b `vectorToFrom` a))]
+planeNormal :: Point3D -> Point3D -> Point3D -> Vector3D
+planeNormal a b c = vectorSum [((a `vectorToFrom` b) `crossProduct` (c `vectorToFrom` b)),
+			       ((b `vectorToFrom` c) `crossProduct` (a `vectorToFrom` c)),
+			       ((c `vectorToFrom` a) `crossProduct` (b `vectorToFrom` a))]
 
 -- |
 -- The normal vector taken from an arbitrary number of points.
@@ -181,13 +202,13 @@ newell_ (Point3D x0 y0 z0,Point3D x1 y1 z1) =
 -- A basic Matrix data structure.
 -- rows - the number of rows in the matrix;
 -- cols - the number of columns in the matrix;
--- cols_outer - the matrix data, where the outer list represents columns (natural form)
--- rows_outer - the matrix data, where the outer list represents rows (transposed form)
+-- row_major - the matrix data, where the outer list represents columns (natural form)
+-- col_major - the matrix data, where the outer list represents rows (transposed form)
 --
-data Matrix a = Matrix { rows, cols :: Int, cols_outer, rows_outer :: [[a]] }
+data Matrix a = Matrix { rows, cols :: Int, row_major, col_major :: [[a]] }
 
 instance (Show a) => Show (Matrix a) where
-    show m = show $ cols_outer m
+    show m = show $ row_major m
 
 -- |
 -- Constructs a matrix from list form.  The outer list represents columns, the inner list represents
@@ -200,32 +221,43 @@ matrix dats = let row_lengths = map length dats
 		  in (if all (== row_length) row_lengths
 		      then Matrix { rows=length row_lengths, --the number of rows is the length of each column
 				    cols=row_length, --the number of columns is the length of each row
-				    cols_outer=dats,
-				    rows_outer=transpose dats }
+				    row_major=dats,
+				    col_major=transpose dats }
 		      else error "row lengths do not match")
+
+rowMajorForm :: Matrix a -> [[a]]
+rowMajorForm mat = row_major mat
+
+colMajorForm :: Matrix a -> [[a]]
+colMajorForm mat = col_major mat
+
+aMByNMatrix :: String -> Int -> Int -> Matrix a -> Matrix a
+aMByNMatrix msg m n mat = if (m == rows mat && n == cols mat)
+			  then mat
+			  else error ("aMByNMatrix: not a " ++ show m ++ " by " ++ show n ++ " matrix; " ++ msg)
 
 -- |
 -- Adds two matrices.
 --
 matrixAdd :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matrixAdd m n = let new_cols_outer = (if and [rows m == rows n,cols m == cols n]
-				      then map ((map (uncurry (+))).(uncurry zip)) $ zip (cols_outer m) (cols_outer n)
+matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
+				      then map ((map (uncurry (+))).(uncurry zip)) $ zip (row_major m) (row_major n)
 				      else error "matrixAdd: dimension mismatch")
-		    in Matrix { rows=rows m,cols=cols m,cols_outer=new_cols_outer,rows_outer=transpose new_cols_outer }
+		    in Matrix { rows=rows m,cols=cols m,row_major=new_row_major,col_major=transpose new_row_major }
 
 -- |
 -- Multiply two matrices.
 --
 matrixMultiply :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matrixMultiply m n = let m_data = cols_outer m
-			 n_data = rows_outer n
-			 new_cols_outer = (if (cols m) == (rows n)
-					   then [[sum $ map (uncurry (*)) $ zip m' n' | n' <- n_data] | m' <- m_data] 
-					   else error "matrixMultiply: dimension mismatch")
+matrixMultiply m n = let m_data = row_major m
+			 n_data = col_major n
+			 new_row_major = (if (cols m) == (rows n)
+					  then [[sum $ map (uncurry (*)) $ zip m' n' | n' <- n_data] | m' <- m_data] 
+					  else error "matrixMultiply: dimension mismatch")
 			 in Matrix { rows=rows m,
 				     cols=cols n,
-				     cols_outer = new_cols_outer,
-				     rows_outer = transpose new_cols_outer }
+				     row_major = new_row_major,
+				     col_major = transpose new_row_major }
 
 class Homogenous a where
     toHomogenous :: a -> Matrix Float
@@ -245,9 +277,9 @@ instance Homogenous Point3D where
     fromHomogenous m = uncurry3d Point3D $ genericFromHomogenous m
 
 genericFromHomogenous :: Matrix Float -> (Float,Float,Float)
-genericFromHomogenous m = let x = (cols_outer m) !! 0 !! 0
-			      y = (cols_outer m) !! 1 !! 0
-			      z = (cols_outer m) !! 2 !! 0
+genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
+			      y = (row_major m) !! 1 !! 0
+			      z = (row_major m) !! 2 !! 0
 			      in (x,y,z)
 
 transform :: (Homogenous a, Homogenous b) => Matrix Float -> a -> b
@@ -273,8 +305,26 @@ rotationMatrix vector radians = let s = sin radians
 					       [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
 					       [0,            0,              0,            1]]
 
+scaleMatrix :: Vector3D -> Matrix Float
+scaleMatrix (Vector3D x y z) = matrix [[x, 0, 0, 0],
+				       [0, y, 0, 0],
+				       [0, 0, z, 0],
+				       [0, 0, 0, 1]]
+
 translate :: (Homogenous a,Homogenous b) => Vector3D -> a -> b
 translate vector = transform $ translationMatrix vector
 
 rotate :: (Homogenous a,Homogenous b) => Vector3D -> Float -> a -> b
 rotate vector radians = transform $ rotationMatrix vector radians
+
+scale :: (Homogenous a,Homogenous b) => Vector3D -> a -> b
+scale vector = transform $ scaleMatrix vector
+
+translates :: (Homogenous a,Homogenous b) => Vector3D -> [a] -> [b]
+translates vector = map (translate vector)
+
+rotates :: (Homogenous a,Homogenous b) => Vector3D -> Float -> [a] -> [b]
+rotates vector radians = map (rotate vector radians)
+
+scales :: (Homogenous a,Homogenous b) => Vector3D -> [a] -> [b]
+scales vector = map (scale vector)

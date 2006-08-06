@@ -25,19 +25,22 @@ module Main
 import Data.Maybe
 import Translation
 import Graphics.UI.GLUT
-import Graphics.Rendering.OpenGL.GL
-import Graphics.Rendering.OpenGL.GLU
+--import Graphics.Rendering.OpenGL.GL
+--import Graphics.Rendering.OpenGL.GLU
+--import Model
+import StarflightBackground
+import AscensionClassStarship
 
 default_window_size :: Size
 default_window_size = Size 640 480
 
 display_mode :: [DisplayMode]
-display_mode = [RGBMode,
+display_mode = [RGBAMode,
 		WithDepthBuffer,
 		DoubleBuffered]
 
 timer_callback_millis :: Int
-timer_callback_millis = 100
+timer_callback_millis = 30
 
 languageFromArgs :: [String] -> Language
 languageFromArgs [] = English
@@ -61,28 +64,37 @@ roguestarReshapeCallback (Size width height) = do matrixMode $= Projection
 						  postRedisplay Nothing
 
 roguestarDisplayCallback :: IO ()
+roguestarDisplayCallback = do renderStarflightFlyby 0.0 ascension_class_starship
+			      swapBuffers
+
+{-
+roguestarDisplayCallback :: IO ()
 roguestarDisplayCallback = do clearColor $= Color4 0 0 0 0
 			      clear [ColorBuffer,DepthBuffer]
+			      depthFunc $= Just Lequal
+			      depthMask $= Enabled
+			      lighting $= Enabled
+			      shadeModel $= Smooth
+			      lightModelAmbient $= (Color4 0 0 0 0)
+			      (light $ Light 0) $= Enabled
+			      (ambient $ Light 0) $= (Color4 0 0 0 0)
+			      (specular $ Light 0) $= (Color4 0 0 0 0)
+			      (diffuse $ Light 0) $= (Color4 1 1 1 0)
+			      (position $ Light 0) $= (Vertex4 3 3 3 0)
 			      matrixMode $= Projection
 			      loadIdentity
 			      (Size width height) <- get windowSize
-			      perspective 45.0 ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) 0.1 3.0
+			      perspective 90.0 ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) 0.1 20.0
 			      matrixMode $= Modelview 0
 			      loadIdentity
-			      lookAt (Vertex3 1 1 1) (Vertex3 0 0 0) (Vector3 0 1 0)
-			      renderDumbSquare
+			      lookAt (Vertex3 0 3 3) (Vertex3 0 0 0) (Vector3 0 1 0)
+			      renderGoblet
 			      swapBuffers
+-}
 
 roguestarTimerCallback :: Window -> IO ()
 roguestarTimerCallback window = do addTimerCallback timer_callback_millis (roguestarTimerCallback window)
 				   postRedisplay $ Just window
 
-renderDumbSquare :: IO ()
-renderDumbSquare = do renderPrimitive Polygon renderDumbSquare_
-
-renderDumbSquare_ :: IO ()
-renderDumbSquare_ = do color $ (Color3 1.0 1.0 1.0 :: Color3 GLclampf)
-		       vertex $ (Vertex3 (-0.5) 0 (-0.5) :: Vertex3 GLdouble)
-		       vertex $ (Vertex3 (-0.5) 0 0.5 :: Vertex3 GLdouble)
-		       vertex $ (Vertex3 0.5 0 0.5 :: Vertex3 GLdouble)
-		       vertex $ (Vertex3 0.5 0 (-0.5) :: Vertex3 GLdouble)
+--renderGoblet :: IO ()
+--renderGoblet = toOpenGL goblet

@@ -19,90 +19,110 @@
 --------------------------------------------------------------------------
 
 module Model
-    (Color,
+    (Model.Color,
      Point3D,
      Point2D,
      Vector3D,
-     Model(Triangle,Union),
+     Model(Union),
+     rgbColor,
      flatTriangle,
+     toTriangles,
      strip,
-     toPOV)
+     toPOV,
+     toOpenGL,
+     frame,
+     sor,
+     transformation,
+     goblet)
     where
 
 import Data.Maybe
+import Data.List
 import ListUtils
 import Math3D
 import Data.Ratio
+import Graphics.Rendering.OpenGL.GL
 
 data RGB = RGB { red, green, blue :: Float }
 	 deriving (Read,Show)
-data Color = Color { rgb :: RGB, alpha :: Maybe Float, lum :: Maybe RGB }
+data Color = Color { rgb :: Model.RGB, alpha :: Maybe Float, shine :: Maybe Float, lum :: Maybe Model.RGB }
 	   deriving (Read,Show)
 
 instance Xyz RGB where
-    toXYZ rgb = (red rgb,green rgb,blue rgb)
+    toXYZ c = (red c,green c,blue c)
 
-data Model = Triangle Color (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
-	   | Strip Color [((Point3D,Vector3D),(Point3D,Vector3D))]
+data Model = Triangle Model.Color (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
+	   | Strip Model.Color [((Point3D,Vector3D),(Point3D,Vector3D))]
 	   | Union [Model]
-	   deriving (Read,Show)
+	   | Transformation (Math3D.Matrix Float) Model
+	   deriving (Show)
 
-rgbColor :: (Float,Float,Float) -> Color
-rgbColor (r,g,b) = Color { rgb=RGB r g b, alpha=Nothing, lum=Nothing }
+rgbColor :: (Float,Float,Float) -> Model.Color
+rgbColor (r,g,b) = Model.Color { rgb=Model.RGB r g b, alpha=Nothing, shine=Nothing, lum=Nothing }
 
 -- |
 -- A boring triangle with a single color and an automatically calculated normal vector.
 --
-flatTriangle :: Color -> Point3D -> Point3D -> Point3D -> Model
+flatTriangle :: Model.Color -> Point3D -> Point3D -> Point3D -> Model
 flatTriangle c p1 p2 p3 = 
-    let n = normal p1 p2 p3
+    let n = planeNormal p1 p2 p3
 	in Triangle c (p1,n) (p2,n) (p3,n)
+
+-- |
+-- Generates normal vectors for initial, final, and each interior edge of a quadralateral strip.
+--
+quadStripToNormals :: [(Point3D,Point3D)] -> [Vector3D]
+quadStripToNormals pts = let flat_normals = quadStripToFlatNormals pts
+			     smooth_normals = quadStripToSmoothNormals pts
+			     first_normal = head $ flat_normals
+			     last_normal = last $ flat_normals
+			     in [first_normal] ++ smooth_normals ++ [last_normal]
 
 -- |
 -- Generates a normal for each interior edge in a quadralateral strip.
 -- If there are n vertex pairs, there will be n-2 normals.
 --
-quadStripToSmootheNormals :: [(Point3D,Point3D)] -> [Vector3D]
-quadStripToSmootheNormals pts = map vectorAverage $ consecutives 2 $ quadStripToFlatNormals pts
+quadStripToSmoothNormals :: [(Point3D,Point3D)] -> [Vector3D]
+quadStripToSmoothNormals pts = map vectorAverage $ consecutives 2 $ quadStripToFlatNormals pts
 
 -- |
 -- Generates a normal for each face in a quadralateral strip.  If there are n vertex pairs,
 -- there will be n-1 normals.
 --
 quadStripToFlatNormals :: [(Point3D,Point3D)] -> [Vector3D]
-quadStripToFlatNormals [(pl0,pr0)] = []
-quadStripToFlatNormals ((pl0,pr0):(pl1,pr1):pts) = (newell [pl0,pr0,pr1,pl1]):(quadStripToFlatNormals ((pl1,pr1):pts))
+quadStripToFlatNormals [] = []
+quadStripToFlatNormals [(_,_)] = []
+quadStripToFlatNormals ((pl0,pr0):(pl1,pr1):pts) = (vectorNormalize $ newell [pl0,pr0,pr1,pl1]):(quadStripToFlatNormals ((pl1,pr1):pts))
 
 -- |
 -- Generates a strip of polygons.  A sequence of quadrilaterals are threaded through
 -- two polylines, as GL_QUAD_STRIP.  Normals are automatically calculated.
 --
-strip :: Color -> [(XYZ,XYZ)] -> Model
-strip c rawpts = let pts = map (\x -> (point3d $ fst x,point3d $ snd x)) rawpts
-		     smoothe_normals = quadStripToSmootheNormals pts
-		     flat_normals = quadStripToFlatNormals pts
-		     first_normal = head $ flat_normals
-		     last_normal = last $ flat_normals
-		     all_normals = [first_normal] ++ smoothe_normals ++ [last_normal]
-		     (pts_l,pts_r) = unzip pts
-		     result = zip (zip pts_l all_normals) (zip pts_r all_normals)
-		     in Strip c result
+strip :: Model.Color -> [(Point3D,Point3D)] -> Model
+strip c pts = let normals = quadStripToNormals pts
+		  (pts_l,pts_r) = unzip pts
+		  result = zip (zip pts_l normals) (zip pts_r normals)
+		  in Strip c result
 
 -- |
 -- Converts the specified Model into a Model built entirely of triangles.
 --
+-- Implementation note: careful, this is mutually-recursive with modelTransform
+--
 toTriangles :: Model -> Model
 toTriangles triangle@(Triangle {}) = triangle
-toTriangles (Strip color pts) = 
-    let quadToTriangles double = [(Triangle color 
+toTriangles (Strip c pts) = 
+    let quadToTriangles double = [(Triangle c 
 				   (fst $ fst $ fst double,snd $ fst $ fst double)
 				   (fst $ fst $ snd double,snd $ fst $ snd double)
 				   (fst $ snd $ fst double,snd $ snd $ fst double)),
-				  (Triangle color
+				  (Triangle c
 				   (fst $ fst $ snd double,snd $ fst $ snd double)
 				   (fst $ snd $ snd double,snd $ snd $ snd double)				   
 				   (fst $ snd $ fst double,snd $ snd $ fst double))]
-	in Union $ foldr1 (++) $ map quadToTriangles $ doubles pts
+	in Union $ concat $ map quadToTriangles $ doubles pts
+toTriangles (Union things) = Union $ map toTriangles things
+toTriangles (Transformation mat thing) = toTriangles $ modelTransform mat thing
 
 -- |
 -- Converts the specified Model into POV-Ray source.
@@ -118,34 +138,35 @@ toPOV (Triangle c (p0,v0) (p1,v1) (p2,v2)) =
     ">,<" ++ (vectorString v2) ++ ">\n" ++
     "  pigment { color rgbt <" ++ (vectorString $ rgb c) ++ 
     "," ++ (show $ fromMaybe 0.0 (alpha c)) ++ "> }\n" ++
-    "  finish { ambient rgb <" ++ (vectorString $ fromMaybe (RGB 0 0 0) (lum c)) ++ "> }\n" ++
+    "  finish { ambient rgb <" ++ (vectorString $ fromMaybe (Model.RGB 0 0 0) (lum c)) ++ "> }\n" ++
     "}"
-toPOV strip@(Strip {}) = toPOV $ toTriangles strip
+toPOV the_strip@(Strip {}) = toPOV $ toTriangles the_strip
 toPOV (Union things) = unlines $ map toPOV things
+toPOV (Transformation mat thing) = toPOV $ modelTransform mat thing
 
-printLittleModel :: IO ()
-printLittleModel = putStr $ toPOV $ strip (rgbColor (1,0,0)) [((0,0,-1),(0,0,1)), ((1,0,-1),(1,0,1)), ((2,1,-1),(2,1,1))]
+modelTransform :: Math3D.Matrix Float -> Model -> Model
+modelTransform mat (Triangle c (p0,v0) (p1,v1) (p2,v2)) =
+    seq (aMByNMatrix "in Model.modelTransform" 4 4 mat) $
+    Triangle c (transform mat p0,transform mat v0) (transform mat p1,transform mat v1) (transform mat p2,transform mat v2)
+modelTransform mat anything_else = modelTransform mat $ toTriangles anything_else
 
-printSimpleSORModel :: IO ()
-printSimpleSORModel = putStr $ toPOV $ sor (rgbColor (1.0,0.5,0.25)) 5
-		      [(1,1),
-		       (4,4),
-		       (2,1)]
-
-printSORModel :: IO ()
-printSORModel = putStr $ toPOV $ sor (rgbColor (0.5,0.75,0.75)) 12
-		[(0.1,-1),
-		 (0.5,0),
-		 (1.0,2),
-		 (1.1,2.1),
-		 (1.2,2),
-		 (0.5,-0.5),
-		 (0.2,-1),
-		 (0.1,-2),
-		 (0.2,-2.1),
-		 (1.0,-2.2),
-		 (1.1,-2.3),
-		 (0.1,-2.3)]
+goblet :: Model
+goblet = sor (rgbColor (0.5,0.75,0.75)) 50 $
+	 points2d [(0.1,-1),
+		   (0.5,0),
+		   (1.0,2),
+		   (1.1,2.1),
+		   (1.2,2),
+		   (0.85,0.75),
+		   (0.5,-0.5),
+		   (0.2,-1),
+		   (0.1,-2),
+		   (0.2,-2.1),
+		   (0.4,-2.125),
+		   (0.6,-2.15),
+		   (1.0,-2.2),
+		   (1.1,-2.3),
+		   (0.1,-2.3)]
 
 -- |
 -- Constructs a surface of revolution.  In a SOR, a two-dimensional frame is rotated around
@@ -153,10 +174,71 @@ printSORModel = putStr $ toPOV $ sor (rgbColor (0.5,0.75,0.75)) 12
 -- The second parameter indicates the number of subdivisions.  The third parameter
 -- indicates the 2-dimensional frame.
 --
-sor :: Color -> Integer -> [(Float,Float)] -> Model
-sor c subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
-sor c subdivisions pairs = let radians = map (\x -> pi*(fromInteger x)/(fromInteger subdivisions)) [0..(subdivisions-1)] :: [Float]
-			       mats = map (\x -> rotationMatrix (Vector3D 0 1 0) x) radians
-			       points2d = map point2d pairs
-			       points3d = map (\x -> map (toXYZ . (transform x :: Point2D -> Point3D)) points2d) mats
-			       in Union $ map ((strip c).(uncurry zip)) $ loopedDoubles points3d
+sor :: Model.Color -> Integer -> [Point2D] -> Model
+sor _ subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
+sor c subdivisions pts = let radian_increments = reverse $ map (\x -> 2*pi*(fromInteger x)/(fromInteger subdivisions)) [0..(subdivisions-1)] :: [Float]
+			     mats = map (\x -> rotationMatrix (Vector3D 0 1 0) x) radian_increments
+			     p3ds = map (\x -> map (transform x :: Point2D -> Point3D) pts) mats
+			     in frame c p3ds
+
+-- |
+-- Contructs a surface from a sequence of polyline tails.  This is like wrapping cloth around a wire frame.
+-- 
+frame :: Model.Color -> [[Point3D]] -> Model
+frame c pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry zip)) $ loopedDoubles pts :: [[Vector3D]]
+		  normals_smooth_both_ways = map (map vectorAverage . transpose) $ loopedConsecutives 2 normals_smooth_one_way
+		  in Union $ map (Strip c . uncurry zip) $ loopedDoubles $ map (uncurry zip) $ zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
+
+-- |
+-- Constructs a transformation of a Model.
+--
+transformation :: Math3D.Matrix Float -> Model -> Model
+transformation mat model = Transformation (aMByNMatrix "in Model.transformation" 4 4 mat) model
+
+toVertex3 :: Point3D -> Vertex3 Float
+toVertex3 (Point3D x y z) = Vertex3 x y z
+
+toNormal3 :: Vector3D -> Normal3 Float
+toNormal3 (Vector3D x y z) = Normal3 x y z
+
+toColor4_rgb :: Model.Color -> Color4 Float
+toColor4_rgb (Model.Color { rgb=(Model.RGB r g b) }) = Color4 r g b 0
+
+colorOpenGL :: Model.Color -> IO ()
+colorOpenGL c = do materialShininess Front $= 0
+		   materialSpecular Front $= Color4 0 0 0 1
+		   materialDiffuse Front $= toColor4_rgb c
+		   materialAmbient Front $= toColor4_rgb c
+
+toOpenGL :: Model -> IO ()
+toOpenGL (Triangle c (p1,v1) (p2,v2) (p3,v3)) =
+    renderPrimitive Triangles drawTriangle
+	where drawTriangle = do colorOpenGL c
+				normal $ toNormal3 v1
+				vertex $ toVertex3 p1
+				normal $ toNormal3 v2
+				vertex $ toVertex3 p2
+				normal $ toNormal3 v3
+				vertex $ toVertex3 p3
+toOpenGL (Strip c the_strip) =
+    renderPrimitive QuadStrip $ drawStrip the_strip
+	where drawStrip pts = do colorOpenGL c
+				 drawStrip_ pts
+	      drawStrip_ pts@(((p0,v0),(p1,v1)):((p2,v2),(p3,v3)):_) =
+		  do normal $ toNormal3 v0
+		     vertex $ toVertex3 p0
+		     normal $ toNormal3 v1
+		     vertex $ toVertex3 p1
+		     normal $ toNormal3 v2
+		     vertex $ toVertex3 p2
+		     normal $ toNormal3 v3
+		     vertex $ toVertex3 p3
+		     drawStrip_ $ tail pts
+	      drawStrip_ ((_,_):[]) = return ()
+	      drawStrip_ [] = return ()
+toOpenGL (Union things) = mapM_ toOpenGL things
+toOpenGL (Transformation mat thing) = 
+    preservingMatrix render
+	where render = do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
+			  multMatrix (mat' :: GLmatrix Float)
+			  toOpenGL thing
