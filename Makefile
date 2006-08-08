@@ -18,8 +18,11 @@ clean :
 doc :
 	${MAKE} -C haddock
 
+ghc-prof :
+	ghc 	-prof -auto-all ${HS_FLAGS}
+
 ghc :
-	ghc 	${HS_FLAGS}
+	ghc	${HS_FLAGS}
 
 ghc-release :
 	ghc	-O ${HS_FLAGS}

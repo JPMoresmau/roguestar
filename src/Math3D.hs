@@ -28,6 +28,8 @@ module Math3D
      points3d,
      points3d_2,
      vector3d,
+     interpolateBetween3d,
+     loopedInterpolateBetween3d,
      crossProduct,
      vectorAdd,
      vectorSum,
@@ -93,6 +95,38 @@ uncurry3d fn (x,y,z) = fn x y z
 point3d :: (Float,Float,Float) -> Point3D
 point3d = uncurry3d Point3D
 
+interpolateBetween3d :: [Point3D] -> [Point3D]
+interpolateBetween3d pts | length pts < 4 = head pts :
+					    (concatMap 
+					     (\(p1,p2) -> [simpleInterpolateFn p1 p2,p2]) $ 
+					    doubles pts)
+interpolateBetween3d pts = let len = length pts
+			       begin = take 3 pts
+			       end = drop (len-2) pts
+			       in (take 3 $ interpolateBetween3d begin) ++ 
+				      (concatMap (\x -> [goodInterpolateFn x,x !! 2]) $ consecutives 4 pts) ++ 
+				      (drop 2 $ interpolateBetween3d end)
+
+loopedInterpolateBetween3d :: [Point3D] -> [Point3D]
+loopedInterpolateBetween3d pts | length pts < 4 = (concatMap
+						   (\(p1,p2) -> [simpleInterpolateFn p1 p2,p2]) $
+						  loopedDoubles pts)
+loopedInterpolateBetween3d pts = (concatMap (\x -> [goodInterpolateFn x,x!! 2]) $ loopedConsecutives 4 pts)
+
+simpleInterpolateFn :: Point3D -> Point3D -> Point3D
+simpleInterpolateFn (Point3D x0 y0 z0) (Point3D x1 y1 z1) = Point3D ((x0+x1)/2) ((y0+y1)/2) ((z0+z1)/2)
+
+goodInterpolateFn :: [Point3D] -> Point3D
+goodInterpolateFn [p0,p1,p2,p3] = 
+    let (Point3D x y z) = (simpleInterpolateFn p1 p2)
+	simple = vectorAdd (vectorToFrom p1 p0) (vectorToFrom p2 p3)
+	scaled = maybe (Vector3D 0 0 0) (vectorScaleTo (vectorLength (vectorToFrom p1 p2) / 9)) $ aNonZeroVector simple
+	(Vector3D x' y' z') = if (vectorLength simple < vectorLength scaled)
+			      then simple
+			      else scaled
+	in Point3D (x+x'/2) (y+y'/2) (z+z'/2)
+goodInterpolateFn _ = error "goodInterpolateFn: works only on lists of 4"
+
 point2d :: (Float,Float) -> Point2D
 point2d = uncurry Point2D
 
@@ -121,16 +155,15 @@ aValidVector msg vector@(Vector3D x y z) =
 -- |
 -- Checks that the given vector is not zero.
 --
-aNonZeroVector :: String -> Vector3D -> Vector3D
-aNonZeroVector msg (Vector3D 0 0 0) = error ("aNonZeroVector failed; " ++ msg)
-aNonZeroVector _ vector = vector
+aNonZeroVector :: Vector3D -> Maybe Vector3D
+aNonZeroVector (Vector3D 0 0 0) = Nothing
+aNonZeroVector vector = Just vector
 
 -- |
 -- The cross product of two vectors.
 --
 crossProduct :: Vector3D -> Vector3D -> Vector3D
 crossProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
-    aNonZeroVector "in crossProduct" $
     Vector3D (ay*bz - az*by) (az*bx - az*bz) (ax*by - ay*bx)
 
 -- |
@@ -160,22 +193,32 @@ vectorLength :: Vector3D -> Float
 vectorLength (Vector3D x y z) = sqrt (x*x + y*y + z*z)
 
 -- |
+-- Multiply a vector by a scalar value.
+--
+vectorScale :: Float -> Vector3D -> Vector3D
+vectorScale s (Vector3D x y z) = Vector3D (x*s) (y*s) (z*s)
+
+-- |
+-- Scale a vector so that it has the specified length.
+--
+vectorScaleTo :: Float -> Vector3D -> Vector3D
+vectorScaleTo new_length vector = vectorScale new_length $ vectorNormalize vector
+
+-- |
 -- Answers the same vector normalized to a length of 1.
 --
 vectorNormalize :: Vector3D -> Vector3D
-vectorNormalize v@(Vector3D x y z) = 
+vectorNormalize v = 
     let l = vectorLength v
-	in seq (aNonZeroVector "in vectorNormalize" v) $
-	   Vector3D (x/l) (y/l) (z/l)
+	in maybe (Vector3D 0 0 0) (vectorScale (1/l)) $ aNonZeroVector v
 
 -- |
 -- Takes the average direction of a list of vectors.  The result is a normalized vector,
 -- and the length of the element vectors does not factor into the result.
 --
 vectorAverage :: [Vector3D] -> Vector3D
-vectorAverage vects = vectorNormalize $
-		      aNonZeroVector "in vectorAverage" $
-		      vectorSum $ map vectorNormalize vects
+vectorAverage vects = maybe (Vector3D 0 0 0) vectorNormalize $
+		      aNonZeroVector $ vectorSum $ map vectorNormalize vects
 
 -- |
 -- The normal vector taken from three points.

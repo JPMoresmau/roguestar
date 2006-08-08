@@ -22,14 +22,14 @@ module Main
     (main)
     where
 
+import Quality
+import Data.IORef
+import Globals
 import Data.Maybe
 import Translation
 import Graphics.UI.GLUT
---import Graphics.Rendering.OpenGL.GL
---import Graphics.Rendering.OpenGL.GLU
---import Model
 import StarflightBackground
-import AscensionClassStarship
+import Models.AscensionClassStarship
 
 default_window_size :: Size
 default_window_size = Size 640 480
@@ -46,55 +46,38 @@ languageFromArgs :: [String] -> Language
 languageFromArgs [] = English
 languageFromArgs (x:xs) = fromMaybe (languageFromArgs xs) (translator x)
 
+qualityFromArgs :: [String] -> Quality
+qualityFromArgs [] = Good
+qualityFromArgs ("quality-bad":_) = Bad
+qualityFromArgs ("quality-poor":_) = Poor
+qualityFromArgs ("quality-good":_) = Good
+qualityFromArgs ("quality-super":_) = Super
+qualityFromArgs args = qualityFromArgs $ tail args
+
 main :: IO ()
 main = do (_,args) <- getArgsAndInitialize
 	  let trl = tr $ languageFromArgs args
-	      in do initialWindowSize $= default_window_size
+	      quality = qualityFromArgs args
+	      in do globals_ref <- newIORef $ RoguestarGlobals { global_quality = quality,
+								 global_display_func = renderStarflightRotation quality $ ascension_class_starship quality }
+		    initialWindowSize $= default_window_size
 		    initialDisplayMode $= display_mode
 		    window <- createWindow (trl ["window-title"])
 		    reshapeCallback $= Just roguestarReshapeCallback
-		    displayCallback $= roguestarDisplayCallback
-		    addTimerCallback timer_callback_millis (roguestarTimerCallback window)
+		    displayCallback $= roguestarDisplayCallback globals_ref
+		    addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
 		    mainLoop
 
 roguestarReshapeCallback :: Size -> IO ()
 roguestarReshapeCallback (Size width height) = do matrixMode $= Projection
 						  loadIdentity
 						  viewport $= (Position 0 0,Size width height)
-						  postRedisplay Nothing
 
-roguestarDisplayCallback :: IO ()
-roguestarDisplayCallback = do renderStarflightFlyby 0.0 ascension_class_starship
-			      swapBuffers
+roguestarDisplayCallback :: (IORef RoguestarGlobals) -> IO ()
+roguestarDisplayCallback globals_ref = do globals <- readIORef globals_ref
+					  (global_display_func globals)
+					  swapBuffers
 
-{-
-roguestarDisplayCallback :: IO ()
-roguestarDisplayCallback = do clearColor $= Color4 0 0 0 0
-			      clear [ColorBuffer,DepthBuffer]
-			      depthFunc $= Just Lequal
-			      depthMask $= Enabled
-			      lighting $= Enabled
-			      shadeModel $= Smooth
-			      lightModelAmbient $= (Color4 0 0 0 0)
-			      (light $ Light 0) $= Enabled
-			      (ambient $ Light 0) $= (Color4 0 0 0 0)
-			      (specular $ Light 0) $= (Color4 0 0 0 0)
-			      (diffuse $ Light 0) $= (Color4 1 1 1 0)
-			      (position $ Light 0) $= (Vertex4 3 3 3 0)
-			      matrixMode $= Projection
-			      loadIdentity
-			      (Size width height) <- get windowSize
-			      perspective 90.0 ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) 0.1 20.0
-			      matrixMode $= Modelview 0
-			      loadIdentity
-			      lookAt (Vertex3 0 3 3) (Vertex3 0 0 0) (Vector3 0 1 0)
-			      renderGoblet
-			      swapBuffers
--}
-
-roguestarTimerCallback :: Window -> IO ()
-roguestarTimerCallback window = do addTimerCallback timer_callback_millis (roguestarTimerCallback window)
-				   postRedisplay $ Just window
-
---renderGoblet :: IO ()
---renderGoblet = toOpenGL goblet
+roguestarTimerCallback :: (IORef RoguestarGlobals) -> Window -> IO ()
+roguestarTimerCallback globals_ref window = do addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
+					       postRedisplay $ Just window
