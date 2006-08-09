@@ -51,7 +51,7 @@ ogl_bare_bones_configuration = OGLStateConfiguration {
 						      ogl_background_color = Color4 0 0 0 0,
 						      ogl_depth_func = Just Lequal,
 						      ogl_depth_mask = Enabled,
-						      ogl_shade_model = Smooth,
+						      ogl_shade_model = Flat,
 						      ogl_polygon_smooth = Disabled,
 						      ogl_lighting = Disabled,
 						      ogl_light_model_ambient = Color4 0 0 0 1,
@@ -72,13 +72,15 @@ ogl_bare_bones_configuration = OGLStateConfiguration {
 
 ogl_state_configuration_model :: OGLStateConfiguration
 ogl_state_configuration_model = ogl_bare_bones_configuration { ogl_lighting = Enabled,
-							       ogl_cull_face = Just Back }
+							       ogl_cull_face = Just Back,
+							       ogl_shade_model = Smooth }
 
 ogl_state_configuration_effects :: OGLStateConfiguration
 ogl_state_configuration_effects = ogl_bare_bones_configuration { ogl_depth_mask = Disabled,
 								 ogl_cull_face = Nothing, 
 								 ogl_polygon_smooth = Enabled,
-								 ogl_blend = Enabled
+								 ogl_blend = Enabled,
+								 ogl_shade_model = Smooth
 							       }
 
 setOpenGLState :: OGLStateConfiguration -> IO ()

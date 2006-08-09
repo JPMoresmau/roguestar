@@ -22,6 +22,8 @@ module Main
     (main)
     where
 
+import License
+import PrintText
 import Quality
 import Data.IORef
 import Globals
@@ -29,10 +31,9 @@ import Data.Maybe
 import Translation
 import Graphics.UI.GLUT
 import StarflightBackground
-import Models.AscensionClassStarship
 
 default_window_size :: Size
-default_window_size = Size 640 480
+default_window_size = Size 800 600
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -59,7 +60,10 @@ main = do (_,args) <- getArgsAndInitialize
 	  let trl = tr $ languageFromArgs args
 	      quality = qualityFromArgs args
 	      in do globals_ref <- newIORef $ RoguestarGlobals { global_quality = quality,
-								 global_display_func = renderStarflightRotation quality $ ascension_class_starship quality }
+								 global_display_func = renderStarflightBackground quality,
+								 global_text_output_buffer = [],
+								 global_text_output_mode = Unlimited }
+		    printText globals_ref GUIMessage license_info
 		    initialWindowSize $= default_window_size
 		    initialDisplayMode $= display_mode
 		    window <- createWindow (trl ["window-title"])
@@ -76,6 +80,7 @@ roguestarReshapeCallback (Size width height) = do matrixMode $= Projection
 roguestarDisplayCallback :: (IORef RoguestarGlobals) -> IO ()
 roguestarDisplayCallback globals_ref = do globals <- readIORef globals_ref
 					  (global_display_func globals)
+					  renderText globals_ref
 					  swapBuffers
 
 roguestarTimerCallback :: (IORef RoguestarGlobals) -> Window -> IO ()

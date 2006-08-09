@@ -2,6 +2,7 @@ module Globals
     (RoguestarGlobals(..))
     where
 
+import PrintTextData
 import Quality
 
 -- |
@@ -9,5 +10,7 @@ import Quality
 --
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
-					  global_display_func :: IO ()
+					  global_display_func :: IO (),
+					  global_text_output_buffer :: [(TextType,String)], -- in reverse order for ease of appending
+					  global_text_output_mode :: PrintTextMode
 					 }
