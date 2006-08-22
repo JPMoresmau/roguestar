@@ -79,9 +79,12 @@ runByArgs "periodic-table" = do displayPeriodicTable
 runByArgs "begin" = do db0 <- initialDB
 		       mainLoop db0
 
+runByArgs "over" = putStrLn "over"
+
 runByArgs "help" = do putStrLn "Commands:"
 		      putStrLn "begin                    - begin a protocol session (used by GUI clients and experts)"
 		      putStrLn "help                     - print this message"
+		      putStrLn "over                     - print \"over\" on a line by itself"
 		      putStrLn "periodic-table           - print the roguestar periodic table of the elements"
 		      putStrLn "tests                    - run unit tests"
 		      putStrLn "test-character-generator - generate a random sample creature"

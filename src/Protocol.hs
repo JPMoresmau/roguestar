@@ -11,11 +11,13 @@ import StatsData
 import DB
 import System.Exit
 import Races
+import System.IO
 
 mainLoop :: DB_BaseType -> IO ()
-mainLoop db0 = do putStrLn "over"
-		  next_command <- getLine
+mainLoop db0 = do next_command <- getLine
 		  db1 <- ioDispatch (words $ map toLower next_command) db0
+		  putStrLn "over"
+		  hFlush stdout
 		  mainLoop db1
 
 done :: DB String
@@ -59,6 +61,8 @@ ioDispatch ("save":_) db0 = do putStrLn "error: save not implemented"
 ioDispatch ("load":_) db0 = do putStrLn "error: load not implemented"
 			       return db0
 
+ioDispatch ("noop":_) db0 = return db0
+
 ioDispatch unknown_command db0 = do putStrLn ("protocol-error: unknown command " ++ (unwords unknown_command))
 				    return db0
 
@@ -67,13 +71,18 @@ dbDispatch :: [String] -> DB String
 dbDispatch ["query","state"] = 
     do state <- dbState
        return $ case state of
-			   DBRaceSelectionState -> "race-selection"
-			   DBClassSelectionState {} -> "class-selection"
+			   DBRaceSelectionState -> "answer: state race-selection"
+			   DBClassSelectionState {} -> "answer: state class-selection"
+
+dbDispatch ["query","player-races"] =
+    return ("begin-table player-races 0 name\n" ++
+	    unlines player_race_names ++
+	    "end-table")
 
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
 
-dbDispatch ["query","player-stats"] = dbRequiresClassSelectionState dbQueryCreatureStats
+dbDispatch ["query","creature-stats"] = dbRequiresClassSelectionState dbQueryCreatureStats
 
 dbDispatch ["query","eligable-base-classes"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
@@ -92,7 +101,7 @@ dbQueryCreatureStats creature = return $ creatureStatsTable creature
 creatureStatsTable :: Creature -> String
 creatureStatsTable creature =
     let sts = creature_stats creature
-	in "begin-table property value\n" ++
+	in "begin-table creature-stats 0 property value\n" ++
 	       "str " ++ (show $ str sts) ++ "\n" ++
 	       "dex " ++ (show $ dex sts) ++ "\n" ++
 	       "con " ++ (show $ con sts) ++ "\n" ++
@@ -111,6 +120,6 @@ dbQueryBaseClasses creature = return $ eligableBaseClassesTable creature
 
 eligableBaseClassesTable :: Creature -> String
 eligableBaseClassesTable creature = 
-    "begin-table class\n" ++
+    "begin-table eligable-base-classes 0 class\n" ++
     (unlines $ map show $ getEligableBaseCharacterClasses creature) ++
     "end-table"

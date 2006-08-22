@@ -1,5 +1,6 @@
 module Races
     (selectPlayerRace,
+     player_race_names,
      all_races,
      allowed_player_races,
      anachronid,
@@ -47,6 +48,9 @@ allowed_player_races = [female_anachronid,
 			planetar,
 			shylock,
 			synthanthrope]
+
+player_race_names :: [String]
+player_race_names = map (map toLower . species_name) allowed_player_races
 
 selectPlayerRace :: String -> Maybe Species
 selectPlayerRace race_name = find 
