@@ -12,6 +12,8 @@ import System.Random
 import Data.List
 import Model
 import OGLStateConfiguration
+import Data.IORef
+import Globals
 
 -- |
 -- Renders an animated background as though traveling through hyperspace.
@@ -24,8 +26,8 @@ starflight_background_ogl_configuration = ogl_state_configuration_effects { ogl_
 									    ogl_fog = Enabled,
 									    ogl_fog_mode = Linear 500 1000 }
 
-renderStarflightBackground :: Quality -> IO ()
-renderStarflightBackground quality = 
+renderStarflightBackground :: (IORef RoguestarGlobals) -> IO ()
+renderStarflightBackground globals_ref = 
     do setOpenGLState starflight_background_ogl_configuration
        clear [ColorBuffer]
        rotate_cycle <- cycleSeconds 360
@@ -34,7 +36,8 @@ renderStarflightBackground quality =
        preservingMatrix renderStarsFar
        preservingMatrix renderStarsNear
        preservingMatrix renderStarsBehind
-	   where renderStarsNear = do renderStars (-1000,1000) (-1000,1000) (1,1000) $ starfield quality
+	   where renderStarsNear = do globals <- readIORef globals_ref
+				      renderStars (-1000,1000) (-1000,1000) (1,1000) $ starfield (global_quality globals)
 		 renderStarsFar = do translate $ (Vector3 0 0 1000 :: Vector3 Float)
 				     renderStarsNear
 		 renderStarsBehind = do translate $ (Vector3 0 0 (-1000) :: Vector3 Float)
@@ -60,9 +63,9 @@ starflight_model_ogl_configuration =
 -- |
 -- Renders a model spinning through hyperspace.
 --
-renderStarflightRotation :: Quality -> Model -> IO ()
-renderStarflightRotation quality model = 
-    do renderStarflightBackground quality
+renderStarflightRotation :: (IORef RoguestarGlobals) -> Model -> IO ()
+renderStarflightRotation globals_ref model = 
+    do renderStarflightBackground globals_ref
        setOpenGLState starflight_model_ogl_configuration
        clear [DepthBuffer]
        lookAt (Vertex3 0 0 0) (Vertex3 0 0 1) (Vector3 0 1 0)

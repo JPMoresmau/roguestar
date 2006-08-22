@@ -1,0 +1,7 @@
+#!/bin/sh
+
+ROGUESTAR_ENGINE="roguestar-engine version over begin"
+ROGUESTAR_UI="roguestar-gl-bin"
+
+faucet $$ --out --in --unix --once ${ROGUESTAR_ENGINE} &
+hose localhost $$ --out --in --unix ${ROGUESTAR_UI} &

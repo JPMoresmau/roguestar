@@ -2,7 +2,9 @@ module PrintText
     (printText,
      renderText,
      PrintTextMode(..),
-     TextType(..))
+     TextType(..),
+     PrintText.translate,
+     printTranslated)
     where
 
 import Data.IORef
@@ -74,3 +76,17 @@ textTypeToColor Untranslated = Color3 1.0 0.5 0.0
 textTypeToColor Information = Color3 0.5 0.75 1.0
 textTypeToColor UserQuery = Color3 0.5 1.0 0.5
 textTypeToColor GUIMessage = Color3 1.0 1.0 1.0
+
+-- |
+-- Calls the global_translator function in the IO monad.
+--
+translate :: IORef RoguestarGlobals -> [String] -> IO String
+translate globals_ref args = do globals <- readIORef globals_ref
+				return $ global_translator globals args
+
+-- |
+-- Prints the translated data.
+--
+printTranslated :: IORef RoguestarGlobals -> TextType -> [String] -> IO ()
+printTranslated globals_ref ttype args = do translated_text <- PrintText.translate globals_ref args
+					    printText globals_ref ttype translated_text

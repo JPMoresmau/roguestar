@@ -12,7 +12,8 @@ data Quality = Bad
 	     | Poor
 	     | Good
 	     | Super
-	     deriving (Eq,Enum,Ord)
+	     deriving (Eq,Enum,Ord,Show)
+
 -- |
 -- Might improve the Quality.  Appropriate for a major piece
 -- of geometry that needs extra detail.

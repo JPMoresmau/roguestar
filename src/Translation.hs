@@ -31,11 +31,19 @@ data Language = English
 -- If the string corresponds to a language for which a translation exists,
 -- answers the language, otherwise Nothing.
 --
+-- Supported languages:
+-- "en" - english
+--
 translator :: String -> Maybe Language
 translator "en" = Just English
+translator "english" = Just English
 translator _ = Nothing
 
+-- |
+-- Performs a translation.
+--
 tr :: Language -> [String] -> String
 
 tr English ["window-title"] = "RogueStar - OpenGL"
+
 tr _ args = unwords args
