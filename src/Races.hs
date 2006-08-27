@@ -6,15 +6,17 @@ module Races
      anachronid,
      male_anachronid,
      female_anachronid,
-     cyborg,
+     androsynth,
+     ascendant,
+     caduceator,
+     encephalon,
+     kraken,
      goliath,
      hellion,
-     human,
      myrmidon,
-     reptilian,
-     planetar,
-     shylock,
-     synthanthrope)
+     perennial,
+     recreant,
+     reptilian)
     where
 
 import Data.Char
@@ -26,28 +28,31 @@ import Data.List
 
 all_races :: [Species]
 all_races = [anachronid,
-	     cyborg,
+	     androsynth,
+	     ascendant,
+	     caduceator,
+	     encephalon,
+	     kraken,
 	     goliath,
 	     hellion,
-	     human,
-	     kraken,
 	     myrmidon,
-	     reptilian,
-	     planetar,
-	     shylock,
-	     synthanthrope]
+	     perennial,
+	     recreant,
+	     reptilian]
 
 allowed_player_races :: [Species]
 allowed_player_races = [female_anachronid,
+			androsynth,
+			ascendant,
+			caduceator,
+			encephalon,
+			kraken,
 			goliath,
 			hellion,
-			human,
-			kraken,
 			myrmidon,
-			reptilian,
-			planetar,
-			shylock,
-			synthanthrope]
+			perennial,
+			recreant,
+			reptilian]
 
 player_race_names :: [String]
 player_race_names = map (map toLower . species_name) allowed_player_races
@@ -60,6 +65,9 @@ selectPlayerRace race_name = find
 -- |
 -- Six-legged species that move through time unusually slowly, making them appear (to outsiders),
 -- to move very quickly.  Yes, they eat their own males -- squad leaders are always female.
+-- Anachronids in modern times are often seen working as mercenaries and scouts for the Imperial Alliance,
+-- although as a species they are scattered on many worlds -- their homeworld having been destroyed
+-- in war with the myrmidons many centuries past.
 --
 anachronid :: Species
 anachronid = Species {
@@ -77,128 +85,165 @@ male_anachronid :: Species
 male_anachronid = anachronid { attribute_generator = [percentMale 100,AttributeAlways NoKillPenalty] ++ (attribute_generator anachronid) }
 
 -- |
--- Humanoids that have been augmented with cybernetic technology.  Very strong, tough, and intelligent.
--- (Always evil strategic).
+-- Androsynths are androids, created by the Ascendants to be their physical bodies before
+-- they learned to transform themselves into pure psionic energy.  The Androsynths were left
+-- behind with all of the memories but none of the emotions of their creators.  Over hundreds of
+-- years they developed their own civilization and culture.  They have few emotions other their
+-- ongoing dedication to the ideals of their ancestors.
 --
-cyborg :: Species
-cyborg = Species {
-		  averages = Stats { str=15, dex=(-10), con=15, int=15, per=(-10), cha=(-10), mind=(-10) },
-		  distributions = (stats 10) { int=0, per=4, cha=4, mind=4 },
-		  attribute_generator = ([percentMale 50,
-					  AttributeAlways NoKillPenalty,
-					  AttributeAlways DoesNotNegotiate] ++
-					 (multipleAttribute Evasion (5,10)) ++
-					 (multipleAttribute ImprovedRangedCombat (5,10) ++)
-					 (multipleAttribute Toughness (5,10))),
-		  species_name = "cyborg"
-		 }
+androsynth :: Species
+androsynth = Species {
+		      averages = (stats (-2)) { int=14, cha=(-8) },
+		      distributions = (stats 0) { int=0 },
+		      attribute_generator = ([AttributeAlways DoesNotValueMoney] ++
+					     (multipleAttribute DamageReduction (3,3))), --also: some resistance to kinetic energy
+		      species_name = "androsynth"
+		     }
 
 -- |
--- Small humanoids with four arms.
+-- This ancient race (who early in their evolution had the form of flightless birds) was known for its
+-- craft in the force and psionic arts.  Ascendant force knights once guaranteed peace in the galaxy.
+-- As they evolved, their bodies were no longer able to contain their powerful psionic energies,
+-- and they became pure psionic life forces.  It is rumored that the energy beings recognized as the
+-- Ascendants are actually mere shadows of what have grown into vastly powerful, almost godlike creatures
+-- engaged in an epic battle against evil in a dimension beyond mortal comprehension.  At least, that
+-- theory tries to explain why they no longer work to maintain peace in the galaxy of today.
+-- The last of the Ascendant knights still posessing a physical form signed with the Interstellar Concordance,
+-- but its not clear if the Ascendants still recognize that alliance.
+--
+ascendant :: Species
+ascendant = Species {
+		     averages = Stats { str=(-2), dex=4, con=(-2), int=5, per=(-3), cha=7, mind=20 },
+		     distributions = (stats 4),
+		     attribute_generator = [percentMale 45], -- also: very high resistance to kinetic energy
+		     species_name = "ascendant"
+		    }
+
+-- |
+-- This serpentine species has a unique facility with language, and in the last thousand years
+-- have supersceded the Ascendants as peacemakers in the galaxy.  They are the founders of the
+-- Interstellar Concordance, but they have seen their influence wane in the face of the reptilians
+-- and kraken, who know how to leverage business relationships to faciliatate change.
+--
+caduceator :: Species
+caduceator = Species {
+		      averages = Stats { str=(-4), dex=3, con=(-4), int=0, per=(-4), cha=12, mind=0 },
+		      distributions = (stats 6) { str=2, con=2 },
+		      attribute_generator = [percentMale 60,
+					     AttributeAlways DoesNotValueMoney], -- also: vulnerability to heat and cold
+		      species_name = "caduceator"
+		     }
+-- |
+-- Despite their name, these massive creatures are made mostly from fat, not brain matter.
+-- They are the most intelligence life forms in the universe, but their lack of mobility
+-- limits their experience of life, which in turn has limited their influence.  Their homeworld
+-- is a member planet of the Imperial Alliance, for whom they develop powerful computers.
+--
+encephalon :: Species
+encephalon = Species {
+		      averages = Stats { str=(-10), dex=(-10), con=20, int=20, per=(-10), cha=(-5), mind=(-5) },
+		      distributions = (stats 5),
+		      attribute_generator = [percentMale 95,
+					     AttributeAlways DoesNotValueMoney],
+		      species_name = "encephalon"
+		     }
+		      
+		      
+
+-- |
+-- Small humanoids with four hands, often recognized as skilled surgeons and engineers.
+-- The Hellion homeworld is a member of the Interstellar Concordance.
 --
 hellion :: Species
 hellion = Species {
-		   averages = Stats { str=(-1), dex=0, con=0, int=(-2), per=4, cha=3, mind=(-2) },
-		   distributions = (stats 3),
+		   averages = Stats { str=(-3), dex=(-1), con=(-3), int=4, per=4, cha=2, mind=(-3) },
+		   distributions = (stats 10),
 		   attribute_generator = [percentMale 65],
 		   species_name = "hellion"
 		  }
-
--- |
--- Your basic, average humanoid species.
---
-human :: Species
-human = Species {
-		 averages = (stats 0),
-		 distributions = (stats 4),
-		 attribute_generator = ([percentMale 50]),
-		 species_name = "human"
-		}
 
 -- |
 -- Large, tough, gray aliens with big heads and big eyes that like to smash.
 --
 goliath :: Species
 goliath = Species {
-		   averages = Stats { str=6, dex=(-2), con=9, int=(-5), per=2, cha=(-6), mind=(-6) },
+		   averages = Stats { str=9, dex=(-2), con=6, int=(-6), per=2, cha=(-8), mind=(-6) },
 		   distributions = (stats 6),
-		   attribute_generator = ([percentMale 75]),
+		   attribute_generator = ([percentMale 55] ++
+					  (multipleAttribute Toughness (3,7))),
 		   species_name = "goliath"
 		  }
 
 -- |
--- Aquatic species with tenticles.
+-- Aquatic species with tenticles.  The kraken homeworld is the capital of the Imperial Aliance.
 --
 kraken :: Species
 kraken = Species {
 		  averages = Stats { str=2, dex=2, con=4, int=0, per=(-2), cha=4, mind=0 },
 		  distributions = (stats 2) { mind=6 },
-		  attribute_generator = ([percentMale 50,
+		  attribute_generator = ([percentMale 45,
 					  AttributeAlways WaterSurvival]),
 		  species_name = "kraken"
 		 }
 
 -- |
--- Ant-like species.  Inventive species that works well in groups despite complete lack of centralized
--- leadership.  Tagline: "I find your proposition unreasonable."
+-- Ant-like species.  An inventive species that effectively uses consensus decision making.  They are
+-- signatories to the Pan Galactic Treaty Organization even though they have no formal government. 
+-- The Myrmidon homeworld houses the Headquarters of the Pan Galactic Treaty Organization, but was devestated
+-- in the attack that begins the game.
 --
 myrmidon :: Species
 myrmidon = Species {
 		    averages = Stats { str=(-6), dex=2, con=(-6), int=10, per=(-4), cha=0, mind=0 },
 		    distributions = (stats 4),
-		    attribute_generator = ([percentFemale 100]),
+		    attribute_generator = [percentFemale 100],
 		    species_name = "myrmidon"
 		   }
 
 -- |
--- Velociraptor-esque species that likes to claw things to death.
+-- Plant creatures!  Mobile flowering shrubs.  Although their homeword has been a member of the Pan Galactic
+-- Treaty Organization since shortly after it was first established, they have never participated in any
+-- actions with that organization, including the action to defend the Myrmidon homeworld.
 --
-reptilian :: Species
-reptilian = Species {
-		     averages = Stats { str=1, dex=4, con=3, int=(-6), per=4, cha=(-3), mind=(-2) },
-		     distributions = (stats 3),
-		     attribute_generator = ([percentMale 35] ++
-					    (multipleAttribute Toughness (1,2)) ++
-					    (multipleAttribute Speed (0,2)) ++
-					    (multipleAttribute ImprovedMeleeCombat (4,10))),
-		     species_name = "reptilian"
-		    }
-
--- |
--- Plant creatures!  Highly enlightened plant creatures and founders of the Interplanetary Concordance.
---
-planetar :: Species
-planetar = Species {
-		    averages = Stats { str=(-4), dex=(-4), con=2, int=2, per=(-1), cha=2, mind=5 },
-		    distributions = (stats 5),
-		    attribute_generator = ([AttributeAlways DamageReduction,
-					    AttributeAlways HideInForest,
-					    AttributeAlways WaterSurvival]),
-		    species_name = "planetar"
+perennial :: Species
+perennial = Species {
+		     averages = Stats { str=(-5), dex=(-5), con=2, int=2, per=(-4), cha=2, mind=8 },
+		     distributions = (stats 5),
+		     attribute_generator = ([AttributeAlways DamageReduction,
+					     AttributeAlways ForestSurvival,
+					     AttributeAlways WaterSurvival,
+					     AttributeAlways Regeneration,
+					     AttributeAlways DoesNotValueMoney]), -- also: resistance to cold and fire
+		     species_name = "perennial"
 		   }
 
 -- |
--- Serpentine race generally known as the black marketeers of the galaxy.  This is somewhat of a 
--- misunderstanding:  Among Shylocks, actual honesty -- especially in business dealings -- is 
--- considered an insult.
+-- Recreants are not a single species, but a variety of different self-replicating machines left over from
+-- the Myrmidon-Anachronid war.  Most now dwell on the former Anachronid homeworld, but they know how to
+-- operate the starships that the Anachronids left on that planet, and sometimes travel to other worlds
+-- where, if antagonized, they spread various forms of horrifying destruction.
 --
-shylock :: Species
-shylock = Species {
-		   averages = Stats { str=(-2), dex=(-1), con=(-1), int=1, per=3, cha=4, mind=(-3) },
-		   distributions = (stats 6),
-		   attribute_generator = ([percentMale 50]),
-		   species_name = "shylock"
-		  }
+recreant :: Species
+recreant = Species {
+		    averages = Stats { str=(-2), dex=(-2), con=(-2), int=5, per=(-2), cha=(-5), mind=(-5) },
+		    distributions = (stats 12),
+		    attribute_generator = ((multipleAttribute Regeneration (7,19)) ++
+					   [AttributeAlways DoesNotValueMoney,
+					    AttributeAlways NoKillPenalty]), -- also: resistance to every energy type and built-in plasma weapons
+		    species_name = "recreant"
+		   }
 
 -- |
--- Androids.  The first member of their species was a creation of a mad scientist, after hundreds
--- of years this one individual developed into an entire race.  They have few emotions.
+-- An adaptable, velociraptor-esque species built for combat but often appearing as skilled negotiators.
+-- The reptilian homeworld is a signatory planet to the Pan Galactic Treaty Organization.
 --
-synthanthrope :: Species
-synthanthrope = Species {
-			 averages = (stats 2) { int=6, cha=(-4) },
-			 distributions = (stats 0),
-			 attribute_generator = ([AttributeAlways DoesNotValueMoney] ++
-						(multipleAttribute DamageReduction (3,3))),
-			 species_name = "synthanthrope"
-			}
+reptilian :: Species
+reptilian = Species {
+		     averages = Stats { str=(-5), dex=6, con=(-5), int=0, per=0, cha=4, mind=(-2) },
+		     distributions = (stats 10),
+		     attribute_generator = ([percentMale 35] ++
+					    (multipleAttribute Toughness (2,3)) ++
+					    (multipleAttribute Speed (0,2)) ++
+					    (multipleAttribute ImprovedMeleeCombat (2,5))), -- also: vulnerability to cold and fire
+		     species_name = "reptilian"
+		    }

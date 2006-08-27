@@ -70,10 +70,7 @@ data CreatureAttribute = Gender CreatureGender
 		       | LevelBonus
 		       | DoesNotNegotiate
 		       | DoesNotValueMoney
-		       | HideInForest
-		       | HideInWater
 		       | NoKillPenalty
-		       | WaterSurvival
 		       | NegotiateSkill
 		       | LeadershipSkill
 		       | HideSkill
@@ -82,6 +79,9 @@ data CreatureAttribute = Gender CreatureGender
 		       | EngineeringSkill
 		       | ScienceSkill
 		       | CalmBeastAbility
+		       | Regeneration
+		       | ForestSurvival
+		       | WaterSurvival
 		       | HardStatBonus Statistic
 		       | SoftStatBonus Statistic
 		       | AlignmentBonus AlignmentSchool
@@ -177,9 +177,9 @@ levelAdjustment LevelPenalty = 1
 levelAdjustment LevelBonus = (-1)
 levelAdjustment Speed = 1
 levelAdjustment NoKillPenalty = 0
-levelAdjustment WaterSurvival = 2
-levelAdjustment HideInForest = 4
-levelAdjustment HideInWater = 4
+levelAdjustment WaterSurvival = 1
+levelAdjustment ForestSurvival = 1
+levelAdjustment Regeneration = 2
 levelAdjustment DoesNotValueMoney = 0
 levelAdjustment DoesNotNegotiate = 0
 levelAdjustment (Gender {}) = 0
@@ -200,8 +200,7 @@ levelAdjustment CharacterLevel {} = 0
 -- |
 -- Adds a CreatureAttribute to a Creature.  The CreatureAttribute stacks with or replaces any other
 -- related attributes already applied to the creature, depending on the type of attribute.
--- Includes some transparent special handling for some CreatureAttributes 
--- (specifically, Hard___Bonus and Soft___Bonus).
+-- Includes some special handling for some CreatureAttributes.
 --
 applyCreatureAttribute :: CreatureAttribute -> Creature -> Creature
 applyCreatureAttribute (HardStatBonus statistic) = incCreatureStat statistic 
