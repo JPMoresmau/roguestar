@@ -1,35 +1,17 @@
 module Globals
     (RoguestarGlobals(..),
      roguestar_globals_0,
-     RoguestarTable(..),
-     RoguestarEngineState(..),
-     tableSelect)
+     RoguestarEngineState(..))
     where
 
-import Data.List
 import Data.IORef
 import Translation
 import PrintTextData
 import Quality
-
-data RoguestarTable = RoguestarTable { table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
+import Tables
+import DefaultKeymap
 
 data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarTable], restate_answers :: [(String,String)] }
-
--- |
--- Select from a table, like the SQL select statement.
--- For example:
--- tableSelect people ["name","sex","phone-number"] = [["bob","male","123-4567"],["susan","female","987-6543"]]
--- If a given header is not in the table, lists "???" as the value.
---
-tableSelect :: RoguestarTable -> [String] -> [[String]]
-tableSelect table headers = let header_indices = map (\x -> elemIndex x $ table_header table) headers
-				in map (rowSelect header_indices) $ table_data table
-
-rowSelect :: [Maybe Int] -> [String] -> [String]
-rowSelect (Nothing:more) row = "???" : rowSelect more row
-rowSelect (Just x:more) row = (row !! x) : rowSelect more row
-rowSelect [] _ = []
 
 -- |
 -- Some nasty, nasty global variables that we can't seem to live without.
@@ -42,7 +24,9 @@ rowSelect [] _ = []
 -- global_engine_input_line_fragment -- the current string being read (don't touch unless you're Driver.hs)
 -- global_engine_output_lines -- lines that have already been sent to stdout (don't touch unless you're Driver.hs), used to ensure that we don't send the same request many times
 -- global_engine_state -- raw state information pulled from the engine (use accessor functions in Driver.hs)
--- global_read_mvar -- the MVar containing the last character read by the driverReadThread (don't touch unless you're Driver.hs)
+-- global_language -- language (anyone can read, only main function should write based on command line arguments)
+-- global_keymap -- mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
+-- global_user_input -- input from the user typing (don't touch unless you're Main.hs)
 --
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
@@ -53,7 +37,9 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_engine_input_line_fragment :: String, -- in reverse order for easy of appending
 					  global_engine_output_lines :: [String],
 					  global_engine_state :: RoguestarEngineState,
-					  global_translator :: [String] -> String
+					  global_language :: Language,
+					  global_keymap :: [(String,String)], -- map of keystrokes to action names
+					  global_user_input :: String -- in normal order
 					 }
 
 -- |
@@ -69,5 +55,7 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_engine_input_line_fragment = "",
 					global_engine_output_lines = [],
 					global_engine_state = RoguestarEngineState { restate_tables = [], restate_answers = [] },
-					global_translator = tr English
+					global_language = English,
+					global_keymap = default_keymap,
+					global_user_input = []
 				       }

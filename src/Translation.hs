@@ -20,9 +20,11 @@
 
 module Translation
     (Language(..),
-     translator,
-     tr)
+     stringToLanguage,
+     translateStr)
     where
+
+import String
 
 data Language = English
 	      deriving (Eq,Enum,Show)
@@ -34,16 +36,31 @@ data Language = English
 -- Supported languages:
 -- "en" - english
 --
-translator :: String -> Maybe Language
-translator "en" = Just English
-translator "english" = Just English
-translator _ = Nothing
+stringToLanguage :: String -> Maybe Language
+stringToLanguage "en" = Just English
+stringToLanguage "english" = Just English
+stringToLanguage _ = Nothing
 
 -- |
 -- Performs a translation.
 --
-tr :: Language -> [String] -> String
+translateStr :: Language -> [String] -> String
 
-tr English ["window-title"] = "RogueStar - OpenGL"
+-- 
+-- General redirection of translateStr requests that probably apply to all languages.
+--
+translateStr language ["menu-item","select-race",species] = translateStr language ["species",species]
 
-tr _ args = unwords args
+
+--
+-- English language translation.
+--
+translateStr English ["window-title"] = "RogueStar - OpenGL"
+
+translateStr English ["menu-title","select-race"] = "Select a species for your starting character:"
+
+translateStr English ["species",species] = titleCapitalize species
+
+translateStr English ["user-selected-species",species] = titleCapitalize species
+
+translateStr _ args = strToUpper $ unwords args

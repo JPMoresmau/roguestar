@@ -13,6 +13,7 @@ module PrintTextData
 data PrintTextMode = Limited -- print only a few lines (or only 1)
 		   | Unlimited -- fill the entire screen with text
 		   | Disabled -- don't print any text at all
+		     deriving (Eq)
 
 -- |
 -- Type of any line of text printed on the screen.  We print the
@@ -20,7 +21,7 @@ data PrintTextMode = Limited -- print only a few lines (or only 1)
 --
 -- Untranslated -- we didn't recognize some input from roguestar-engine, so we print it in the raw
 -- Information -- information from roguestar-engine
--- UserQuery -- a question put the user
+-- UserQuery -- a question put to the user
 -- GUIMessage -- printed from the GUI, not the engine.
 --
 data TextType = Untranslated

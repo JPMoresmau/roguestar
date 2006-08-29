@@ -3,7 +3,6 @@ module PrintText
      renderText,
      PrintTextMode(..),
      TextType(..),
-     PrintText.translate,
      printTranslated)
     where
 
@@ -12,6 +11,7 @@ import Graphics.UI.GLUT as GLUT
 import Globals
 import OGLStateConfiguration
 import PrintTextData
+import Translation
 
 font_width_pixels :: Int
 font_width_pixels = 9
@@ -45,7 +45,10 @@ renderText globals_ref =
        loadIdentity
        let max_characters_height = (fromIntegral height - 2 * fromIntegral padding_pixels) `div` (fromIntegral font_height_pixels)
 	   max_characters_width = (fromIntegral width - 2 * fromIntegral padding_pixels) `div` (fromIntegral font_width_pixels)
-	   lines_to_print = restrictLines max_characters_height max_characters_width $
+	   lines_to_print = restrictLines max_characters_height max_characters_width $ 
+			    (if (length $ global_user_input globals) > 0 || global_text_output_mode globals /= PrintTextData.Disabled 
+			     then [(GUIMessage,"> " ++ global_user_input globals)] 
+			     else []) ++
 			    case (global_text_output_mode globals) of
 								   PrintTextData.Disabled -> []
 								   Limited -> take 3 $ global_text_output_buffer globals
@@ -78,15 +81,8 @@ textTypeToColor UserQuery = Color3 0.5 1.0 0.5
 textTypeToColor GUIMessage = Color3 1.0 1.0 1.0
 
 -- |
--- Calls the global_translator function in the IO monad.
---
-translate :: IORef RoguestarGlobals -> [String] -> IO String
-translate globals_ref args = do globals <- readIORef globals_ref
-				return $ global_translator globals args
-
--- |
 -- Prints the translated data.
 --
 printTranslated :: IORef RoguestarGlobals -> TextType -> [String] -> IO ()
-printTranslated globals_ref ttype args = do translated_text <- PrintText.translate globals_ref args
-					    printText globals_ref ttype translated_text
+printTranslated globals_ref ttype args = do globals <- readIORef globals_ref
+					    printText globals_ref ttype $ translateStr (global_language globals) args

@@ -2,7 +2,7 @@ module Driver
     (driverRead,
      driverRequestAnswer,
      driverRequestTable,
-     driverTableSelect)
+     driverAction)
     where
 
 import Control.Monad
@@ -11,6 +11,7 @@ import Data.List
 import System.IO
 import Globals
 import PrintText
+import Tables
 
 -- |
 -- driverRequestAnswer globals_ref "why", sends "game query why" to the
@@ -45,10 +46,8 @@ driverRequestTable_ first_try globals_ref the_table_name the_table_id =
 					else return Nothing)
 			 Just just_table -> return $ Just just_table
 
-driverTableSelect :: IORef RoguestarGlobals -> String -> String -> [String] -> IO (Maybe [[String]])
-driverTableSelect globals_ref the_table_name the_table_id columns =
-    do maybe_the_table <- driverRequestTable globals_ref the_table_name the_table_id
-       return $ maybe Nothing (Just . (`tableSelect` columns)) maybe_the_table
+driverAction :: IORef RoguestarGlobals -> [String] -> IO ()
+driverAction globals_ref strs = driverWrite globals_ref ("game action " ++ (unwords strs) ++ "\n")
 
 -- |
 -- Writes the specified command to standard output, automatically triggering a read, in parallel.
@@ -118,6 +117,13 @@ interpretLine globals_ref _ str | (head $ words str) == "protocol-error:" =
 interpretLine globals_ref _ str | (head $ words str) == "error:" = 
 				    do printText globals_ref Untranslated str
 				       return DIError
+
+interpretLine globals_ref DINeutral "done" =
+    do globals <- readIORef globals_ref
+       writeIORef globals_ref $ globals { global_engine_state = RoguestarEngineState { restate_answers=[], restate_tables=[] } }
+       return DINeutral
+
+interpretLine _ _ "done" = return DIError
 
 interpretLine _ DINeutral "over" = return DINeutral
 
