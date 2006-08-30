@@ -45,9 +45,6 @@ getEligableCharacterClasses = getEligableCharacterClassesComposable all_characte
 getEligableBaseCharacterClasses :: Creature -> [CharacterClass]
 getEligableBaseCharacterClasses = getEligableCharacterClassesComposable base_character_classes
 
-anyone :: Prerequisite
-anyone _ = True
-
 prerequisites :: [Prerequisite] -> Prerequisite
 prerequisites prereqs creature = all ($ creature) prereqs
 
@@ -81,7 +78,7 @@ mustHave statistic min_score creature = (getStatistic statistic $ creature_stats
 --
 characterClass :: CharacterClass -> Prerequisite -> [[CreatureAttribute]] -> CharacterClassData
 characterClass character_class prereqs level_xforms = 
-    (prereqs,map ((CharacterLevel character_class) :) $ listByFrequency level_xforms)
+    ((\x -> prereqs x || isFavoredClass character_class x),map ((CharacterLevel character_class) :) $ listByFrequency level_xforms)
 
 applyCharacterClass :: CharacterClass -> Creature -> Creature
 applyCharacterClass character_class creature =
@@ -103,10 +100,10 @@ classInfo :: CharacterClass -> CharacterClassData
 --
 -------------------------------------------------------------------------------
 
-classInfo Barbarian = characterClass Barbarian anyone
+classInfo Barbarian = characterClass Barbarian (prerequisites [mustHave Strength 1,mustHave Constitution 1])
 		      [[Toughness,HardStatBonus Constitution,HardStatBonus Strength,AlignmentBonus Indifferent]]
 
-classInfo Consular = characterClass Consular (mustHave Charisma 0)
+classInfo Consular = characterClass Consular (mustHave Charisma 1)
 		     [[NegotiateSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic],
 		      [LeadershipSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
 
@@ -131,7 +128,7 @@ classInfo Ninja = characterClass Ninja (prerequisites [mustHave Dexterity 1,must
 		   [HardStatBonus Dexterity,AlignmentBonus Indifferent],
 		   [HardStatBonus Perception,AlignmentBonus Indifferent]]
 
-classInfo Pilot = characterClass Pilot (mustHave Intelligence 1)
+classInfo Pilot = characterClass Pilot (prerequisites [mustHave Intelligence 2,mustHave Perception 2])
 		  [[PilotSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,SoftStatBonus Perception,AlignmentBonus Tactical],
 		   [PilotSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,SoftStatBonus Perception,AlignmentBonus Tactical],
 		   [EngineeringSkill,SoftStatBonus Intelligence,AlignmentBonus Strategic],
@@ -144,7 +141,7 @@ classInfo Privateer = characterClass Privateer (prerequisites [mustHave Intellig
 		       [Toughness,SoftStatBonus Strength,AlignmentBonus Tactical],
 		       [LeadershipSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
 
-classInfo Scout = characterClass Scout anyone
+classInfo Scout = characterClass Scout (prerequisites [mustHave Perception 0])
 		  [[SpotSkill,SoftStatBonus Dexterity,SoftStatBonus Perception,AlignmentBonus Tactical],
 		   [ScienceSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,AlignmentBonus Strategic]]
 
@@ -157,7 +154,7 @@ classInfo Shepherd = characterClass Shepherd (prerequisites [mustHave Charisma 0
 classInfo Thief = characterClass Thief (mustHave Perception 1)
 		  [[HideSkill,SoftStatBonus Dexterity,SoftStatBonus Charisma,SoftStatBonus Mindfulness,AlignmentBonus Tactical]]
 
-classInfo Warrior = characterClass Warrior (mustHave Strength 1)
+classInfo Warrior = characterClass Warrior (prerequisites [mustHave Strength 1,mustHave Dexterity 1])
 		    [[ImprovedMeleeCombat,SoftStatBonus Constitution,SoftStatBonus Strength,SoftStatBonus Dexterity,SoftStatBonus Mindfulness,AlignmentBonus Tactical]]
 
 -------------------------------------------------------------------------------

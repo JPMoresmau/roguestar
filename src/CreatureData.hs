@@ -36,16 +36,17 @@ module CreatureData
      creatureRangedDamageBonus,
      creatureMeleeArmourClass,
      creatureRangedArmourClass,
-     creatureSpeed,
+     creatureSpeedBonus,
+     creatureSize,
      creatureGender,
-     characterClassLevels)
+     characterClassLevels,
+     isFavoredClass)
     where
 
 import CharacterData
 import Alignment
 import StatsData
 import ListUtils (count)
-import Ratio
 import Data.Maybe
 
 data Creature = Creature { creature_stats :: Stats, 
@@ -86,6 +87,7 @@ data CreatureAttribute = Gender CreatureGender
 		       | SoftStatBonus Statistic
 		       | AlignmentBonus AlignmentSchool
 		       | CharacterLevel CharacterClass
+		       | FavoredClass CharacterClass
 			 deriving (Eq, Show, Read)
 
 -- |
@@ -120,10 +122,10 @@ injure damage creature = let actual_damage = max 0 (damage - (con $ creature_sta
 			     in creature { creature_damage=(creature_damage creature + actual_damage) }
 
 -- |
--- The hit points remaining over the maximum hit points for the creature.
+-- The hitPoints remaining for this creature (maxHitPoints is maximum).
 --
-hitPoints :: Creature -> Rational
-hitPoints creature = (maxHitPoints creature - creature_damage creature) % (maxHitPoints creature)
+hitPoints :: Creature -> Integer
+hitPoints creature = (maxHitPoints creature - creature_damage creature)
 
 -- |
 -- True if the creature is alive.
@@ -157,7 +159,7 @@ creatureEffectiveLevel creature = let the_stats = creature_stats creature
 
 -- |
 -- Answers the number of levels a Creature has taken in a particular CharacterClass.
--- These are not proportional to the value of creatureEffectiveLevel, taking a level
+-- These might not be proportional to the value of creatureEffectiveLevel, taking a level
 -- in a CharacterClass sometimes increases it's effective level by more than one.
 --
 characterClassLevels :: CharacterClass -> Creature -> Integer
@@ -195,6 +197,7 @@ levelAdjustment PilotSkill = 1
 levelAdjustment EngineeringSkill = 1
 levelAdjustment ScienceSkill = 1
 levelAdjustment CalmBeastAbility = 1
+levelAdjustment FavoredClass {} = 0
 levelAdjustment CharacterLevel {} = 0
 
 -- |
@@ -296,13 +299,16 @@ creatureRangedArmourClass creature = (per $ creature_stats creature) +
 -- |
 -- The number of actions per round that this creature gets.
 --
-creatureSpeed :: Creature -> Integer
-creatureSpeed creature = max 1 $
-			 (
-			  10 + 
-			  (((dex $ creature_stats creature) + (mind $ creature_stats creature)) `quot` 2) +
-			  (count Speed (creature_attribs creature))
-			 )
+creatureSpeedBonus :: Creature -> Integer
+creatureSpeedBonus creature = max 1 $ (20 + (count Speed (creature_attribs creature)) - creatureSize creature)
+
+-- |
+-- The physical size of this creature, based on its attributes.
+--
+creatureSize :: Creature -> Integer
+creatureSize creature = (con $ creature_stats creature) +
+			((str $ creature_stats creature) `quot` 2) -
+			((dex $ creature_stats creature) `quot` 4)
 
 genderOf :: CreatureAttribute -> Maybe CreatureGender
 genderOf attrib = case attrib of
@@ -314,3 +320,9 @@ genderOf attrib = case attrib of
 --
 creatureGender :: Creature -> CreatureGender
 creatureGender creature = fromMaybe Neuter $ listToMaybe $ mapMaybe genderOf $ creature_attribs creature
+
+-- |
+-- Answers true if the specified class is a favored class for this creature.
+--
+isFavoredClass :: CharacterClass -> Creature -> Bool
+isFavoredClass character_class creature = (FavoredClass character_class) `elem` (creature_attribs creature)

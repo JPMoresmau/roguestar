@@ -3,6 +3,7 @@ module Protocol
     where
 
 import Data.Char
+import Data.List
 import Control.Monad.State
 import CreatureData
 import Creature
@@ -12,6 +13,8 @@ import DB
 import System.Exit
 import Races
 import System.IO
+import BeginGame
+import Data.Maybe
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -82,9 +85,15 @@ dbDispatch ["query","player-races"] =
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
 
-dbDispatch ["query","creature-stats"] = dbRequiresClassSelectionState dbQueryCreatureStats
+dbDispatch ["action","reroll"] =
+    dbRequiresClassSelectionState $ dbRerollRace
 
-dbDispatch ["query","eligable-base-classes"] = dbRequiresClassSelectionState dbQueryBaseClasses
+dbDispatch ["action","select-class",class_name] =
+    dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
+
+dbDispatch ["query","player-stats"] = dbRequiresClassSelectionState dbQueryPlayerStats
+
+dbDispatch ["query","base-classes"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
 dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")
 
@@ -95,13 +104,27 @@ dbSelectPlayerRace race_name = case (selectPlayerRace race_name)
 			       Just species -> do dbGenerateInitialPlayerCreature species
 						  done
 
-dbQueryCreatureStats :: Creature -> DB String
-dbQueryCreatureStats creature = return $ creatureStatsTable creature
+dbSelectPlayerClass :: String -> Creature -> DB String
+dbSelectPlayerClass class_name creature = 
+    let eligable_base_classes = getEligableBaseCharacterClasses creature
+	in case findIndex (\x -> (map toLower . show) x == class_name) eligable_base_classes
+	   of
+	   Nothing -> return ("protocol-error: unrecognized or invalid class '" ++ class_name ++ "'")
+	   Just i -> do dbBeginGame creature (eligable_base_classes !! i)
+			done
 
-creatureStatsTable :: Creature -> String
-creatureStatsTable creature =
+dbRerollRace :: Creature -> DB String
+dbRerollRace _ = do starting_race <- dbGetStartingRace
+		    dbGenerateInitialPlayerCreature $ fromJust starting_race
+		    done
+
+dbQueryPlayerStats :: Creature -> DB String
+dbQueryPlayerStats creature = return $ playerStatsTable creature
+
+playerStatsTable :: Creature -> String
+playerStatsTable creature =
     let sts = creature_stats creature
-	in "begin-table creature-stats 0 property value\n" ++
+	in "begin-table player-stats 0 property value\n" ++
 	       "str " ++ (show $ str sts) ++ "\n" ++
 	       "dex " ++ (show $ dex sts) ++ "\n" ++
 	       "con " ++ (show $ con sts) ++ "\n" ++
@@ -111,15 +134,14 @@ creatureStatsTable creature =
 	       "mind " ++ (show $ mind sts) ++ "\n" ++
 	       "hp " ++ (show $ hitPoints creature) ++ "\n" ++
 	       "maxHP " ++ (show $ maxHitPoints creature) ++ "\n" ++
-	       "speed " ++ (show $ creatureSpeed creature) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender creature) ++ "\n" ++
 	       "end-table"
 
 dbQueryBaseClasses :: Creature -> DB String
-dbQueryBaseClasses creature = return $ eligableBaseClassesTable creature
+dbQueryBaseClasses creature = return $ baseClassesTable creature
 
-eligableBaseClassesTable :: Creature -> String
-eligableBaseClassesTable creature = 
-    "begin-table eligable-base-classes 0 class\n" ++
+baseClassesTable :: Creature -> String
+baseClassesTable creature = 
+    "begin-table base-classes 0 class\n" ++
     (unlines $ map show $ getEligableBaseCharacterClasses creature) ++
     "end-table"

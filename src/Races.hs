@@ -22,6 +22,7 @@ module Races
 import Data.Char
 import StatsData
 import CreatureData
+import CharacterData
 import SpeciesData
 import AttributeData
 import Data.List
@@ -69,11 +70,15 @@ selectPlayerRace race_name = find
 -- although as a species they are scattered on many worlds -- their homeworld having been destroyed
 -- in war with the myrmidons many centuries past.
 --
+-- Homeworld: Anachrona Prime
+-- Second Homeworld: Anachrona Inferior
+--
 anachronid :: Species
 anachronid = Species {
-		      averages = Stats { str=(-3), dex=3, con=(-2), int=(-1), per=(-4), cha=1, mind=3 },
+		      averages = Stats { str=2, dex=3, con=2, int=0, per=1, cha=(-3), mind=(-3) },
 		      distributions = (stats 4),
-		      attribute_generator = ([percentFemale 5] ++ 
+		      attribute_generator = ([percentFemale 5,
+					      AttributeAlways $ FavoredClass Barbarian] ++ 
 		                             (multipleAttribute Speed (5,14))),
 		      species_name = "anachronid"
 		     }
@@ -91,11 +96,14 @@ male_anachronid = anachronid { attribute_generator = [percentMale 100,AttributeA
 -- years they developed their own civilization and culture.  They have few emotions other their
 -- ongoing dedication to the ideals of their ancestors.
 --
+-- Homeworld: Synthetica Zero.
+--
 androsynth :: Species
 androsynth = Species {
 		      averages = (stats (-2)) { int=14, cha=(-8) },
 		      distributions = (stats 0) { int=0 },
-		      attribute_generator = ([AttributeAlways DoesNotValueMoney] ++
+		      attribute_generator = ([AttributeAlways DoesNotValueMoney,
+					      AttributeAlways $ FavoredClass Engineer] ++
 					     (multipleAttribute DamageReduction (3,3))), --also: some resistance to kinetic energy
 		      species_name = "androsynth"
 		     }
@@ -108,14 +116,16 @@ androsynth = Species {
 -- Ascendants are actually mere shadows of what have grown into vastly powerful, almost godlike creatures
 -- engaged in an epic battle against evil in a dimension beyond mortal comprehension.  At least, that
 -- theory tries to explain why they no longer work to maintain peace in the galaxy of today.
+--
 -- The last of the Ascendant knights still posessing a physical form signed with the Interstellar Concordance,
 -- but its not clear if the Ascendants still recognize that alliance.
 --
 ascendant :: Species
 ascendant = Species {
-		     averages = Stats { str=(-2), dex=4, con=(-2), int=5, per=(-3), cha=7, mind=20 },
+		     averages = Stats { str=(-2), dex=4, con=(-2), int=5, per=(-5), cha=7, mind=20 },
 		     distributions = (stats 4),
-		     attribute_generator = [percentMale 45], -- also: very high resistance to kinetic energy
+		     attribute_generator = [AttributeAlways $ FavoredClass Shepherd,
+					    percentMale 45], -- also: very high resistance to kinetic energy
 		     species_name = "ascendant"
 		    }
 
@@ -125,25 +135,29 @@ ascendant = Species {
 -- Interstellar Concordance, but they have seen their influence wane in the face of the reptilians
 -- and kraken, who know how to leverage business relationships to faciliatate change.
 --
+-- Homeworld: Caducea Prime
+--
 caduceator :: Species
 caduceator = Species {
 		      averages = Stats { str=(-4), dex=3, con=(-4), int=0, per=(-4), cha=12, mind=0 },
 		      distributions = (stats 6) { str=2, con=2 },
 		      attribute_generator = [percentMale 60,
+					     AttributeAlways $ FavoredClass Consular,
 					     AttributeAlways DoesNotValueMoney], -- also: vulnerability to heat and cold
 		      species_name = "caduceator"
 		     }
 -- |
 -- Despite their name, these massive creatures are made mostly from fat, not brain matter.
--- They are the most intelligence life forms in the universe, but their lack of mobility
+-- They are the most intelligent life forms in the universe, but their lack of mobility
 -- limits their experience of life, which in turn has limited their influence.  Their homeworld
 -- is a member planet of the Imperial Alliance, for whom they develop powerful computers.
 --
 encephalon :: Species
 encephalon = Species {
-		      averages = Stats { str=(-10), dex=(-10), con=20, int=20, per=(-10), cha=(-5), mind=(-5) },
+		      averages = Stats { str=(-10), dex=(-10), con=20, int=15, per=(-10), cha=(-5), mind=(-5) },
 		      distributions = (stats 5),
 		      attribute_generator = [percentMale 95,
+					     AttributeAlways $ FavoredClass Engineer,
 					     AttributeAlways DoesNotValueMoney],
 		      species_name = "encephalon"
 		     }
@@ -154,22 +168,32 @@ encephalon = Species {
 -- Small humanoids with four hands, often recognized as skilled surgeons and engineers.
 -- The Hellion homeworld is a member of the Interstellar Concordance.
 --
+-- Homeworld: Hellios
+--
 hellion :: Species
 hellion = Species {
-		   averages = Stats { str=(-3), dex=(-1), con=(-3), int=4, per=4, cha=2, mind=(-3) },
+		   averages = Stats { str=(-3), dex=(-1), con=(-3), int=2, per=4, cha=2, mind=(-3) },
 		   distributions = (stats 10),
-		   attribute_generator = [percentMale 65],
+		   attribute_generator = [AttributeAlways $ FavoredClass Scout,
+					  AttributeAlways $ FavoredClass Marine,
+					  AttributeAlways $ FavoredClass Thief,
+					  percentMale 65],
 		   species_name = "hellion"
 		  }
 
 -- |
 -- Large, tough, gray aliens with big heads and big eyes that like to smash.
 --
+-- Homeworld: Golia-Indri
+--
 goliath :: Species
 goliath = Species {
 		   averages = Stats { str=9, dex=(-2), con=6, int=(-6), per=2, cha=(-8), mind=(-6) },
 		   distributions = (stats 6),
-		   attribute_generator = ([percentMale 55] ++
+		   attribute_generator = ([percentMale 55,
+					   AttributeAlways $ FavoredClass Barbarian,
+					   AttributeAlways $ FavoredClass Warrior,
+					   AttributeAlways $ FavoredClass Scout] ++
 					  (multipleAttribute Toughness (3,7))),
 		   species_name = "goliath"
 		  }
@@ -177,11 +201,15 @@ goliath = Species {
 -- |
 -- Aquatic species with tenticles.  The kraken homeworld is the capital of the Imperial Aliance.
 --
+-- Homeworld: Quatica
+--
 kraken :: Species
 kraken = Species {
 		  averages = Stats { str=2, dex=2, con=4, int=0, per=(-2), cha=4, mind=0 },
 		  distributions = (stats 2) { mind=6 },
 		  attribute_generator = ([percentMale 45,
+					  AttributeAlways $ FavoredClass Privateer,
+					  AttributeAlways $ FavoredClass Consular,
 					  AttributeAlways WaterSurvival]),
 		  species_name = "kraken"
 		 }
@@ -192,11 +220,16 @@ kraken = Species {
 -- The Myrmidon homeworld houses the Headquarters of the Pan Galactic Treaty Organization, but was devestated
 -- in the attack that begins the game.
 --
+-- Homeworld: Myrmidon Prime
+--
 myrmidon :: Species
 myrmidon = Species {
 		    averages = Stats { str=(-6), dex=2, con=(-6), int=10, per=(-4), cha=0, mind=0 },
 		    distributions = (stats 4),
-		    attribute_generator = [percentFemale 100],
+		    attribute_generator = [AttributeAlways $ FavoredClass Barbarian,
+					   AttributeAlways $ FavoredClass Engineer,
+					   AttributeAlways $ FavoredClass Warrior,
+					   percentFemale 100],
 		    species_name = "myrmidon"
 		   }
 
@@ -205,11 +238,16 @@ myrmidon = Species {
 -- Treaty Organization since shortly after it was first established, they have never participated in any
 -- actions with that organization, including the action to defend the Myrmidon homeworld.
 --
+-- Homeworld: Terrene
+--
 perennial :: Species
 perennial = Species {
 		     averages = Stats { str=(-5), dex=(-5), con=2, int=2, per=(-4), cha=2, mind=8 },
 		     distributions = (stats 5),
-		     attribute_generator = ([AttributeAlways DamageReduction,
+		     attribute_generator = ([AttributeAlways $ FavoredClass Barbarian,
+					     AttributeAlways $ FavoredClass Consular,
+					     AttributeAlways $ FavoredClass Shepherd,
+					     AttributeAlways DamageReduction,
 					     AttributeAlways ForestSurvival,
 					     AttributeAlways WaterSurvival,
 					     AttributeAlways Regeneration,
@@ -223,13 +261,16 @@ perennial = Species {
 -- operate the starships that the Anachronids left on that planet, and sometimes travel to other worlds
 -- where, if antagonized, they spread various forms of horrifying destruction.
 --
+-- Homeworld: 
+--
 recreant :: Species
 recreant = Species {
-		    averages = Stats { str=(-2), dex=(-2), con=(-2), int=5, per=(-2), cha=(-5), mind=(-5) },
+		    averages = Stats { str=(-2), dex=(-2), con=(-2), int=(-2), per=(-2), cha=(-5), mind=(-5) },
 		    distributions = (stats 12),
 		    attribute_generator = ((multipleAttribute Regeneration (7,19)) ++
 					   [AttributeAlways DoesNotValueMoney,
-					    AttributeAlways NoKillPenalty]), -- also: resistance to every energy type and built-in plasma weapons
+					    AttributeAlways NoKillPenalty,
+					    AttributeAlways $ FavoredClass Barbarian]), -- also: resistance to every energy type escept kinetic and built-in plasma weapons
 		    species_name = "recreant"
 		   }
 
@@ -241,7 +282,9 @@ reptilian :: Species
 reptilian = Species {
 		     averages = Stats { str=(-5), dex=6, con=(-5), int=0, per=0, cha=4, mind=(-2) },
 		     distributions = (stats 10),
-		     attribute_generator = ([percentMale 35] ++
+		     attribute_generator = ([percentMale 35,
+					     AttributeAlways $ FavoredClass Warrior,
+					     AttributeAlways $ FavoredClass Consular] ++
 					    (multipleAttribute Toughness (2,3)) ++
 					    (multipleAttribute Speed (0,2)) ++
 					    (multipleAttribute ImprovedMeleeCombat (2,5))), -- also: vulnerability to cold and fire

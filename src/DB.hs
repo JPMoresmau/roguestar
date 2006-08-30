@@ -30,7 +30,9 @@ module DB
      dbGetCreature,
      dbGetPlane,
      dbNextRandomInteger,
-     dbNextRandomIntegerStream)
+     dbNextRandomIntegerStream,
+     dbSetStartingRace,
+     dbGetStartingRace)
     where
 
 import DBData
@@ -41,6 +43,7 @@ import System.Time
 import RNG
 import Data.Map as Map
 import InsidenessMap
+import SpeciesData
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
@@ -50,8 +53,9 @@ data DBState = DBRaceSelectionState
 -- Random access form of the roguestar database.
 --
 data DB_BaseType = DB_BaseType { db_state :: DBState,
-				 random_number_stream_stream :: [[Integer]],
-				 next_object_ref :: Integer,
+				 db_random_number_stream_stream :: [[Integer]],
+				 db_next_object_ref :: Integer,
+				 db_starting_race :: Maybe Species,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
 				 db_inside :: InsidenessMap DBReference DBReference DBLocation}
@@ -60,8 +64,9 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 -- Serial form of the roguestar database.
 --
 data DB_Persistant_BaseType = DB_Persistant_BaseType { db_state_ :: DBState,
-						       random_number_generator_seed_ :: Integer,
-                                                       next_object_ref_ :: Integer,
+						       db_random_number_generator_seed_ :: Integer,
+                                                       db_next_object_ref_ :: Integer,
+						       db_starting_race_ :: Maybe Species,
 						       db_creatures_ :: [(CreatureRef,Creature)],
 						       db_planes_ :: [(PlaneRef,Plane)],
 						       db_inside_ :: [(DBReference,DBReference,DBLocation)]}
@@ -70,8 +75,9 @@ data DB_Persistant_BaseType = DB_Persistant_BaseType { db_state_ :: DBState,
 toPersistant :: DB_BaseType -> DB_Persistant_BaseType
 toPersistant db = DB_Persistant_BaseType {
 					  db_state_ = db_state db,
-					  random_number_generator_seed_ = (random_number_stream_stream db) !! 0 !! 0,
-					  next_object_ref_ = next_object_ref db,
+					  db_random_number_generator_seed_ = (db_random_number_stream_stream db) !! 0 !! 0,
+					  db_next_object_ref_ = db_next_object_ref db,
+					  db_starting_race_ = db_starting_race db,
 					  db_creatures_ = Map.toList $ db_creatures db,
 					  db_planes_ = Map.toList $ db_planes db,
 					  db_inside_ = InsidenessMap.toList $ db_inside db
@@ -80,8 +86,9 @@ toPersistant db = DB_Persistant_BaseType {
 fromPersistant :: DB_Persistant_BaseType -> DB_BaseType
 fromPersistant persistant = DB_BaseType {
 					 db_state = db_state_ persistant,
-					 random_number_stream_stream = randomIntegerStreamStream $ random_number_generator_seed_ persistant,
-					 next_object_ref = next_object_ref_ persistant,
+					 db_random_number_stream_stream = randomIntegerStreamStream $ db_random_number_generator_seed_ persistant,
+					 db_next_object_ref = db_next_object_ref_ persistant,
+					 db_starting_race = db_starting_race_ persistant,
 					 db_creatures = Map.fromList $ db_creatures_ persistant,
 					 db_planes = Map.fromList $ db_planes_ persistant,
 					 db_inside = InsidenessMap.fromList $ db_inside_ persistant
@@ -104,8 +111,9 @@ type DB a = State DB_BaseType a
 initialDB :: IO DB_BaseType
 initialDB = do (TOD seconds picos) <- getClockTime
 	       return DB_BaseType { db_state = DBRaceSelectionState,
-				    random_number_stream_stream = randomIntegerStreamStream (seconds + picos),
-				    next_object_ref = 0,
+				    db_random_number_stream_stream = randomIntegerStreamStream (seconds + picos),
+				    db_next_object_ref = 0,
+				    db_starting_race = Nothing,
 				    db_creatures = Map.fromList [],
 				    db_planes = Map.fromList [],
 				    db_inside = InsidenessMap.fromList []
@@ -133,8 +141,8 @@ dbSetState state = do db0 <- get
 --
 dbNextObjectRef :: DB Integer
 dbNextObjectRef = do db <- get
-		     let result = next_object_ref db
-			 in do put (db { next_object_ref=(succ result) })
+		     let result = db_next_object_ref db
+			 in do put (db { db_next_object_ref=(succ result) })
 			       return result
 
 -- |
@@ -200,10 +208,10 @@ dbGetPlane = dbGetObjectComposable db_planes
 --
 dbNextRandomInteger :: DB Integer
 dbNextRandomInteger = do db <- get
-			 let rngss0 = random_number_stream_stream db 
+			 let rngss0 = db_random_number_stream_stream db 
                              (rngs0,rngss1) = (head rngss0, tail rngss0)
                              (result,rngs1) = (head rngs0, tail rngs0)
-                             in do put db { random_number_stream_stream=(rngs1:rngss1) }
+                             in do put db { db_random_number_stream_stream=(rngs1:rngss1) }
                                    return (result)
 
 -- |
@@ -211,6 +219,20 @@ dbNextRandomInteger = do db <- get
 --
 dbNextRandomIntegerStream :: DB [Integer]
 dbNextRandomIntegerStream = do db <- get
-                               let rngss = random_number_stream_stream db
-                                   in do put db { random_number_stream_stream=(tail rngss) }
+                               let rngss = db_random_number_stream_stream db
+                                   in do put db { db_random_number_stream_stream=(tail rngss) }
                                          return (head rngss)
+
+-- |
+-- Answers the starting race.
+--
+dbGetStartingRace :: DB (Maybe Species)
+dbGetStartingRace = do db <- get
+		       return $ db_starting_race db
+
+-- |
+-- Sets the starting race.
+--
+dbSetStartingRace :: Species -> DB ()
+dbSetStartingRace species = do db <- get
+			       put $ db { db_starting_race = Just species }

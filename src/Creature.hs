@@ -53,6 +53,7 @@ newCreature species = do (stats,attribs,name) <- generateCreatureData species
 --
 dbGenerateInitialPlayerCreature :: Species -> DB ()
 dbGenerateInitialPlayerCreature species = do newc <- newCreature species
+					     dbSetStartingRace species
 					     dbSetState (DBClassSelectionState newc)
 
 -- |
