@@ -18,32 +18,22 @@ import Tables
 -- engine and answers the result, or Nothing if no result is forthcomming.
 --
 driverRequestAnswer :: IORef RoguestarGlobals -> String -> IO (Maybe String)
-driverRequestAnswer = driverRequestAnswer_ True
-
-driverRequestAnswer_ :: Bool -> IORef RoguestarGlobals -> String -> IO (Maybe String)
-driverRequestAnswer_ _ _ question | (length $ words question) /= 1 = error ("driverRequestAnswer: 'question' must be a single word (" ++ question ++ ")")
-driverRequestAnswer_ first_try globals_ref question = 
+driverRequestAnswer _ question | (length $ words question) /= 1 = error ("driverRequestAnswer: 'question' must be a single word (" ++ question ++ ")")
+driverRequestAnswer globals_ref question = 
     do globals <- readIORef globals_ref
        let answer = lookup question $ restate_answers $ global_engine_state globals
 	   in case answer of
 			  Nothing -> do driverWrite globals_ref ("game query " ++ question ++ "\n")
-				        (if first_try 
-					 then driverRequestAnswer_ False globals_ref question
-					 else return Nothing)
+				        return Nothing
 			  Just just_answer -> return $ Just just_answer
 
 driverRequestTable :: IORef RoguestarGlobals -> String -> String -> IO (Maybe RoguestarTable)
-driverRequestTable = driverRequestTable_ True
-
-driverRequestTable_ :: Bool -> IORef RoguestarGlobals -> String -> String -> IO (Maybe RoguestarTable)
-driverRequestTable_ first_try globals_ref the_table_name the_table_id =
+driverRequestTable globals_ref the_table_name the_table_id =
     do globals <- readIORef globals_ref
        let table = find (\x -> table_name x == the_table_name && table_id x == the_table_id) $ restate_tables $ global_engine_state globals 
 	   in case table of
 			 Nothing -> do driverWrite globals_ref ("game query " ++ the_table_name ++ "\n")
-				       (if first_try
-					then driverRequestTable_ False globals_ref the_table_name the_table_id
-					else return Nothing)
+				       return Nothing
 			 Just just_table -> return $ Just just_table
 
 driverAction :: IORef RoguestarGlobals -> [String] -> IO ()
@@ -98,12 +88,16 @@ driverUpdate globals_ref =
 data DriverInterpretationState = DINeutral
 			       | DIScanningTable RoguestarTable
 			       | DIError
+				 deriving (Eq,Show)
 
 interpretText :: IORef RoguestarGlobals -> IO ()
-interpretText globals_ref = do globals0 <- readIORef globals_ref
-			       foldM (interpretLine globals_ref) DINeutral $ reverse $ global_engine_input_lines globals0
-			       globals1 <- readIORef globals_ref
-			       writeIORef globals_ref $ globals1 { global_engine_input_lines = [] }
+interpretText globals_ref = 
+    do globals0 <- readIORef globals_ref
+       final_state <- foldM (interpretLine globals_ref) DINeutral $ reverse $ global_engine_input_lines globals0
+       when (final_state /= DINeutral) $ do printText globals_ref Untranslated "interpretText concluded in a non-neutral state, which was:"
+					    printText globals_ref Untranslated (show final_state)
+       globals1 <- readIORef globals_ref
+       writeIORef globals_ref $ globals1 { global_engine_input_lines = [] }
 
 interpretLine :: IORef RoguestarGlobals -> DriverInterpretationState -> String -> IO DriverInterpretationState
 interpretLine _ DIError _ = return DIError
@@ -120,10 +114,14 @@ interpretLine globals_ref _ str | (head $ words str) == "error:" =
 
 interpretLine globals_ref DINeutral "done" =
     do globals <- readIORef globals_ref
-       writeIORef globals_ref $ globals { global_engine_state = RoguestarEngineState { restate_answers=[], restate_tables=[] } }
+       writeIORef globals_ref $ globals { global_engine_state = global_engine_state roguestar_globals_0,
+					  global_engine_output_lines = global_engine_output_lines roguestar_globals_0,
+					  global_dones = global_dones globals + 1 }
        return DINeutral
 
-interpretLine _ _ "done" = return DIError
+interpretLine globals_ref distate "done" = 
+    do printText globals_ref Untranslated ("gui-side protocol error: unexpected \"done\" in " ++ (show distate) ++ " state.")
+       return DIError
 
 interpretLine _ DINeutral "over" = return DINeutral
 
@@ -167,4 +165,4 @@ interpretLine globals_ref (DIScanningTable table) str = let table_row = words st
 									  return DIError })
 
 interpretLine globals_ref _ str = do printText globals_ref Untranslated (str)
-				     return DIError
+				     return DINeutral

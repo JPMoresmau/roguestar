@@ -27,6 +27,7 @@ data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarT
 -- global_language -- language (anyone can read, only main function should write based on command line arguments)
 -- global_keymap -- mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
 -- global_user_input -- input from the user typing (don't touch unless you're Main.hs)
+-- global_dones -- number of "done" lines recieved from the engine, used to track turn changes.
 --
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
@@ -39,7 +40,8 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_engine_state :: RoguestarEngineState,
 					  global_language :: Language,
 					  global_keymap :: [(String,String)], -- map of keystrokes to action names
-					  global_user_input :: String -- in normal order
+					  global_user_input :: String, -- in normal order
+					  global_dones :: Integer
 					 }
 
 -- |
@@ -57,5 +59,6 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_engine_state = RoguestarEngineState { restate_tables = [], restate_answers = [] },
 					global_language = English,
 					global_keymap = default_keymap,
-					global_user_input = []
+					global_user_input = [],
+					global_dones = 0
 				       }

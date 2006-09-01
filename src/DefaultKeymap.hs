@@ -24,4 +24,5 @@ default_keymap = filterKeymap
 		  ("m","myrmidon"),
 		  ("p","perennial"),
 		  ("r","reptilian"),
-		  ("R","recreant")]
+		  ("R","recreant"),
+		  ("r","reroll")]

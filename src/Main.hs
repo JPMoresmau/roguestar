@@ -32,13 +32,10 @@ import Data.Maybe
 import Data.List
 import Translation
 import Graphics.UI.GLUT
-import StarflightBackground
-import Driver
-import Menus
-import Tables
 import Control.Monad
 import Actions
 import Keymaps
+import RenderingControl
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -89,25 +86,6 @@ roguestarDisplayCallback globals_ref = do globals <- readIORef globals_ref
 					  (global_display_func globals) globals_ref
 					  renderText globals_ref
 					  swapBuffers
-
-setNextDisplayFunc :: IORef RoguestarGlobals -> (IORef RoguestarGlobals -> IO ()) -> IO ()
-setNextDisplayFunc globals_ref fn = do globals <- readIORef globals_ref
-				       writeIORef globals_ref $ globals { global_display_func=fn }
-
-initialTurnDisplay :: IORef RoguestarGlobals -> IO ()
-initialTurnDisplay globals_ref = do engine_state <- driverRequestAnswer globals_ref "state"
-				    case engine_state of
-						      Just "race-selection" -> setNextDisplayFunc globals_ref initialRaceSelectionDisplay
-						      Just str -> do printText globals_ref Untranslated ("encountered unknown state:" ++ str)
-								     setNextDisplayFunc globals_ref renderStarflightBackground
-						      Nothing -> renderStarflightBackground globals_ref
-
-initialRaceSelectionDisplay :: IORef RoguestarGlobals -> IO ()
-initialRaceSelectionDisplay globals_ref = 
-    do renderStarflightBackground globals_ref
-       table <- driverRequestTable globals_ref "player-races" "0"
-       when (isJust table) $ do printMenu globals_ref "select-race" (tableSelect1 (fromJust table) "name")
-				setNextDisplayFunc globals_ref renderStarflightBackground
 
 roguestarTimerCallback :: IORef RoguestarGlobals -> Window -> IO ()
 roguestarTimerCallback globals_ref window = do addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)

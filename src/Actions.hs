@@ -35,11 +35,32 @@ selectRaceAction race_name =
 		 Just _ -> return False
 		}},
 
-	    action_execute = \globals_ref -> do {
-						 driverAction globals_ref ["select-race", race_name];
-						 printTranslated globals_ref GUIMessage ["user-selected-species",race_name]
-						}
+	    action_execute = \globals_ref -> 
+	    do {
+		driverAction globals_ref ["select-race", race_name];
+		printTranslated globals_ref GUIMessage ["user-selected-species",race_name]
+	       }
 	   }
+
+reroll_action :: (String,Action)
+reroll_action =
+    ("reroll",
+     Action {
+	     action_valid = \globals_ref -> 
+	     do {
+		 maybe_state <- driverRequestAnswer globals_ref "state";
+		 case maybe_state 
+		 of {
+		     Nothing -> return False; 
+		     Just state -> return (state == "class-selection")
+		    }
+		},
+	     
+	    action_execute = \globals_ref ->
+	    do {
+		driverAction globals_ref ["reroll"]
+	       }
+           })
 
 select_race_action_names :: [String]
 select_race_action_names = ["anachronid",
@@ -59,7 +80,8 @@ select_race_actions :: [(String,Action)]
 select_race_actions = map (\x -> (x,selectRaceAction x)) select_race_action_names
 
 all_actions :: [(String,Action)]
-all_actions = select_race_actions
+all_actions = select_race_actions ++ 
+	      [reroll_action]
 
 getValidActions :: IORef RoguestarGlobals -> IO [String]
 getValidActions globals_ref = 

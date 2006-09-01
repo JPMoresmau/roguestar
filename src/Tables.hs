@@ -16,6 +16,7 @@ import Data.Maybe
 -- that has been sent to us from roguestar-engine.
 --
 data RoguestarTable = RoguestarTable { table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
+		      deriving (Eq,Show)
 
 -- |
 -- Select from a table, like the SQL select statement.
