@@ -75,8 +75,8 @@ selectPlayerRace race_name = find
 --
 anachronid :: Species
 anachronid = Species {
-		      averages = Stats { str=2, dex=3, con=2, int=0, per=1, cha=(-3), mind=(-3) },
-		      distributions = (stats 4),
+		      averages = Stats { str=1, dex=1, con=0, int=0, per=0, cha=(-2), mind=0 },
+		      distributions = (stats 3),
 		      attribute_generator = ([percentFemale 5,
 					      AttributeAlways $ FavoredClass Barbarian] ++ 
 		                             (multipleAttribute Speed (5,14))),
@@ -100,7 +100,7 @@ male_anachronid = anachronid { attribute_generator = [percentMale 100,AttributeA
 --
 androsynth :: Species
 androsynth = Species {
-		      averages = (stats (-2)) { int=14, cha=(-8) },
+		      averages = (stats (-1)) { int=7, cha=(-2) },
 		      distributions = (stats 0) { int=0 },
 		      attribute_generator = ([AttributeAlways DoesNotValueMoney,
 					      AttributeAlways $ FavoredClass Engineer] ++
@@ -122,7 +122,7 @@ androsynth = Species {
 --
 ascendant :: Species
 ascendant = Species {
-		     averages = Stats { str=(-2), dex=4, con=(-2), int=5, per=(-5), cha=7, mind=20 },
+		     averages = Stats { str=(-4), dex=(-1), con=(-1), int=2, per=(-1), cha=1, mind=4 },
 		     distributions = (stats 4),
 		     attribute_generator = [AttributeAlways $ FavoredClass Shepherd,
 					    percentMale 45], -- also: very high resistance to kinetic energy
@@ -139,8 +139,8 @@ ascendant = Species {
 --
 caduceator :: Species
 caduceator = Species {
-		      averages = Stats { str=(-4), dex=3, con=(-4), int=0, per=(-4), cha=12, mind=0 },
-		      distributions = (stats 6) { str=2, con=2 },
+		      averages = Stats { str=(-1), dex=2, con=(-1), int=(-2), per=(-2), cha=2, mind=2 },
+		      distributions = (stats 5),
 		      attribute_generator = [percentMale 60,
 					     AttributeAlways $ FavoredClass Consular,
 					     AttributeAlways DoesNotValueMoney], -- also: vulnerability to heat and cold
@@ -154,7 +154,7 @@ caduceator = Species {
 --
 encephalon :: Species
 encephalon = Species {
-		      averages = Stats { str=(-10), dex=(-10), con=20, int=15, per=(-10), cha=(-5), mind=(-5) },
+		      averages = Stats { str=(-10), dex=(-10), con=20, int=20, per=(-10), cha=(-5), mind=(-5) },
 		      distributions = (stats 5),
 		      attribute_generator = [percentMale 95,
 					     AttributeAlways $ FavoredClass Engineer,
@@ -172,7 +172,7 @@ encephalon = Species {
 --
 hellion :: Species
 hellion = Species {
-		   averages = Stats { str=(-3), dex=(-1), con=(-3), int=2, per=4, cha=2, mind=(-3) },
+		   averages = Stats { str=(-1), dex=1, con=(-1), int=1, per=2, cha=(-1), mind=(-1) },
 		   distributions = (stats 10),
 		   attribute_generator = [AttributeAlways $ FavoredClass Scout,
 					  AttributeAlways $ FavoredClass Marine,
@@ -188,8 +188,8 @@ hellion = Species {
 --
 goliath :: Species
 goliath = Species {
-		   averages = Stats { str=9, dex=(-2), con=6, int=(-6), per=2, cha=(-8), mind=(-6) },
-		   distributions = (stats 6),
+		   averages = Stats { str=3, dex=(-1), con=4, int=(-2), per=0, cha=(-4), mind=(-3) },
+		   distributions = (stats 4),
 		   attribute_generator = ([percentMale 55,
 					   AttributeAlways $ FavoredClass Barbarian,
 					   AttributeAlways $ FavoredClass Warrior,
@@ -224,7 +224,7 @@ kraken = Species {
 --
 myrmidon :: Species
 myrmidon = Species {
-		    averages = Stats { str=(-6), dex=2, con=(-6), int=10, per=(-4), cha=0, mind=0 },
+		    averages = Stats { str=2, dex=(-1), con=(-1), int=4, per=(-2), cha=(-2), mind=0 },
 		    distributions = (stats 4),
 		    attribute_generator = [AttributeAlways $ FavoredClass Barbarian,
 					   AttributeAlways $ FavoredClass Engineer,
@@ -242,7 +242,7 @@ myrmidon = Species {
 --
 perennial :: Species
 perennial = Species {
-		     averages = Stats { str=(-5), dex=(-5), con=2, int=2, per=(-4), cha=2, mind=8 },
+		     averages = Stats { str=(-4), dex=(-4), con=1, int=1, per=(-1), cha=2, mind=2 },
 		     distributions = (stats 5),
 		     attribute_generator = ([AttributeAlways $ FavoredClass Barbarian,
 					     AttributeAlways $ FavoredClass Consular,
@@ -261,13 +261,13 @@ perennial = Species {
 -- operate the starships that the Anachronids left on that planet, and sometimes travel to other worlds
 -- where, if antagonized, they spread various forms of horrifying destruction.
 --
--- Homeworld: 
+-- Homeworld: Anachrona Prime
 --
 recreant :: Species
 recreant = Species {
-		    averages = Stats { str=(-2), dex=(-2), con=(-2), int=(-2), per=(-2), cha=(-5), mind=(-5) },
-		    distributions = (stats 12),
-		    attribute_generator = ((multipleAttribute Regeneration (7,19)) ++
+		    averages = (stats (-4)) { dex=4 },
+		    distributions = (stats 3),
+		    attribute_generator = ((multipleAttribute Regeneration (15,25)) ++
 					   [AttributeAlways DoesNotValueMoney,
 					    AttributeAlways NoKillPenalty,
 					    AttributeAlways $ FavoredClass Barbarian]), -- also: resistance to every energy type escept kinetic and built-in plasma weapons
@@ -280,8 +280,8 @@ recreant = Species {
 --
 reptilian :: Species
 reptilian = Species {
-		     averages = Stats { str=(-5), dex=6, con=(-5), int=0, per=0, cha=4, mind=(-2) },
-		     distributions = (stats 10),
+		     averages = Stats { str=1, dex=1, con=1, int=(-4), per=0, cha=2, mind=(-4) },
+		     distributions = (stats 3),
 		     attribute_generator = ([percentMale 35,
 					     AttributeAlways $ FavoredClass Warrior,
 					     AttributeAlways $ FavoredClass Consular] ++
