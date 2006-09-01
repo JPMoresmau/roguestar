@@ -106,7 +106,7 @@ exampleCreature1 = Creature
 --
 maxHitPoints :: Creature -> Integer
 maxHitPoints creature = let sts = creature_stats creature
-			    in max 6 (10 + (str sts) + (con sts) + (dex sts) + (mind sts)) + bonusHitPoints creature
+			    in max 6 (20 + (str sts) + (con sts) + (dex sts) + (mind sts)) + bonusHitPoints creature
 
 -- |
 -- The bonus hit points this creature gets for having the toughness attribute.

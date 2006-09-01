@@ -133,7 +133,7 @@ playerStatsTable creature =
 	       "cha " ++ (show $ cha sts) ++ "\n" ++
 	       "mind " ++ (show $ mind sts) ++ "\n" ++
 	       "hp " ++ (show $ hitPoints creature) ++ "\n" ++
-	       "maxHP " ++ (show $ maxHitPoints creature) ++ "\n" ++
+	       "maxhp " ++ (show $ maxHitPoints creature) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender creature) ++ "\n" ++
 	       "end-table"
 
