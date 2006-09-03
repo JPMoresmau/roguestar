@@ -2,12 +2,15 @@ HS_FLAGS = 	-hidir products/ \
 		-odir products/ \
 		-isrc/:products \
 		-Wall \
-		-Werror \
 		-fno-warn-type-defaults \
 		--make src/Main.hs \
 		-o products/roguestar-gl-bin
 
-default : ghc
+default : ghc-release
+
+install :
+	install products/roguestar-gl /usr/local/bin/
+	install products/roguestar-gl-bin /usr/local/bin/
 
 clean :
 	-rm -f products/*.o 2> /dev/null
@@ -26,7 +29,7 @@ ghc : products/roguestar-gl
 	ghc	${HS_FLAGS}
 
 ghc-release : products/roguestar-gl
-	ghc	-O ${HS_FLAGS}
+	ghc	-O -Werror ${HS_FLAGS}
 
 products/roguestar-gl : src/roguestar-gl
 	cp src/roguestar-gl products/roguestar-gl
