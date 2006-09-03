@@ -46,8 +46,8 @@ type Alignment = (AlignmentStrength,AlignmentEthic,AlignmentSchool)
 -- mindfulness.  Evil is associated with all of the mental alignments.)
 --
 modifierFromAlignment :: Alignment -> Stats -> Integer
-modifierFromAlignment (strength, ethic, schl) sts =
-    limitModifierByAlignmentStrength strength (modifierFromAlignmentEthic ethic sts + modifierFromAlignmentSchool schl sts)
+modifierFromAlignment (align_strength, ethic, schl) sts =
+    limitModifierByAlignmentStrength align_strength (modifierFromAlignmentEthic ethic sts + modifierFromAlignmentSchool schl sts)
 
 -- |
 -- Helpers for modifierFromAlignment

@@ -122,19 +122,21 @@ dbQueryPlayerStats :: Creature -> DB String
 dbQueryPlayerStats creature = return $ playerStatsTable creature
 
 playerStatsTable :: Creature -> String
-playerStatsTable creature =
-    let sts = creature_stats creature
-	in "begin-table player-stats 0 property value\n" ++
-	       "str " ++ (show $ str sts) ++ "\n" ++
-	       "dex " ++ (show $ dex sts) ++ "\n" ++
-	       "con " ++ (show $ con sts) ++ "\n" ++
-	       "int " ++ (show $ int sts) ++ "\n" ++
-	       "per " ++ (show $ per sts) ++ "\n" ++
-	       "cha " ++ (show $ cha sts) ++ "\n" ++
-	       "mind " ++ (show $ mind sts) ++ "\n" ++
-	       "hp " ++ (show $ hitPoints creature) ++ "\n" ++
-	       "maxhp " ++ (show $ maxHitPoints creature) ++ "\n" ++
-	       "gender " ++ (show $ creatureGender creature) ++ "\n" ++
+playerStatsTable c =
+    "begin-table player-stats 0 property value\n" ++
+               "str " ++ (show $ str c) ++ "\n" ++
+	       "dex " ++ (show $ dex c) ++ "\n" ++
+	       "con " ++ (show $ con c) ++ "\n" ++
+	       "int " ++ (show $ int c) ++ "\n" ++
+	       "per " ++ (show $ per c) ++ "\n" ++
+	       "cha " ++ (show $ cha c) ++ "\n" ++
+	       "mind " ++ (show $ mind c) ++ "\n" ++
+	       "hp " ++ (show $ creatureScore HitPoints c) ++ "\n" ++
+	       "maxhp " ++ (show $ creatureScore MaxHitPoints c) ++ "\n" ++
+	       "species " ++ (creature_species_name c) ++ "\n" ++
+	       "random-id " ++ (show $ creature_random_id c) ++ "\n" ++
+	       "effective-level " ++ (show $ creatureScore EffectiveLevel c) ++ "\n" ++
+	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
 	       "end-table"
 
 dbQueryBaseClasses :: Creature -> DB String

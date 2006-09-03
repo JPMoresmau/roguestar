@@ -59,7 +59,7 @@ type CreatureGenerationData = ( Stats, [CreatureAttribute], String )
 --
 exampleSpecies :: Species
 exampleSpecies = Species {
-			  averages = Stats { str=1, dex=(-2), con=1, int=(-1), per=(-1), cha=3, mind=(-1) },
+			  averages = Stats { strength=1, dexterity=(-2), constitution=1, intelligence=(-1), perception=(-1), charisma=3, mindfulness=(-1) },
 			  distributions = (stats 2),
 			  attribute_generator = [percentMale 40],
 			  species_name = "Example-Species" 

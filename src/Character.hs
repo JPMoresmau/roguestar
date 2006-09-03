@@ -101,44 +101,46 @@ classInfo :: CharacterClass -> CharacterClassData
 -------------------------------------------------------------------------------
 
 classInfo Barbarian = characterClass Barbarian (prerequisites [mustHave Strength 1,mustHave Constitution 1])
-		      [[Toughness,HardStatBonus Constitution,HardStatBonus Strength,AlignmentBonus Indifferent]]
+		      [[ToughnessTrait,DamageReductionTrait,SpeedTrait,HardStatBonus Constitution,HardStatBonus Strength,AlignmentBonus Indifferent]]
 
 classInfo Consular = characterClass Consular (mustHave Charisma 1)
-		     [[NegotiateSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic],
-		      [LeadershipSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
+		     [[NegotiateSkill,LeadershipSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
 
 classInfo Engineer = characterClass Engineer (mustHave Intelligence 1)
 		     [[EngineeringSkill,SoftStatBonus Intelligence,AlignmentBonus Strategic],
-		      [EngineeringSkill,AlignmentBonus Strategic],
+		      [RepairSkill,AlignmentBonus Strategic],
 		      [ScienceSkill,SoftStatBonus Intelligence,AlignmentBonus Strategic]]
 
 classInfo ForceAdept = characterClass ForceAdept (prerequisites [mustHave Intelligence 1, mustHave Perception 1, mustHave Charisma 2, mustHave Mindfulness 4])
-		       [[Evasion,HardStatBonus Mindfulness,AlignmentBonus Indifferent],
-			[NegotiateSkill,HardStatBonus Charisma,AlignmentBonus Diplomatic],
-			[ImprovedMeleeCombat,HardStatBonus Dexterity,AlignmentBonus Tactical],
-			[PilotSkill,HardStatBonus Intelligence,AlignmentBonus Strategic],
-			[HideSkill,HardStatBonus Perception,AlignmentBonus Tactical],
-			[SpotSkill,HardStatBonus Perception,AlignmentBonus Tactical]]
+		       [[RangedDefenseSkill,MeleeDefenseSkill,AlignmentBonus Indifferent],
+			[NegotiateSkill,HardStatBonus Mindfulness,AlignmentBonus Diplomatic],
+			[MeleeAttackSkill,HardStatBonus Charisma,AlignmentBonus Tactical],
+			[PilotSkill,HardStatBonus Dexterity,AlignmentBonus Strategic],
+			[HideSkill,SpotSkill,AlignmentBonus Tactical]]
 
 classInfo Marine = characterClass Marine (mustHave Perception 0)
-		   [[ImprovedRangedCombat,SoftStatBonus Constitution,SoftStatBonus Dexterity,SoftStatBonus Perception,SoftStatBonus Mindfulness,AlignmentBonus Tactical]]
+		   [[RangedAttackSkill,
+		     RangedDefenseSkill,
+		     PreciseShot,
+		     SoftStatBonus Constitution,
+		     SoftStatBonus Dexterity,
+		     SoftStatBonus Perception,
+		     SoftStatBonus Mindfulness,
+		     AlignmentBonus Tactical]]
 		   
 classInfo Ninja = characterClass Ninja (prerequisites [mustHave Dexterity 1,mustHave Perception 1])
-		  [[Evasion,AlignmentBonus Indifferent],
-		   [HardStatBonus Dexterity,AlignmentBonus Indifferent],
-		   [HardStatBonus Perception,AlignmentBonus Indifferent]]
+		  [[MeleeDefenseSkill,RangedDefenseSkill,AlignmentBonus Indifferent],
+		   [HardStatBonus Dexterity,HardStatBonus Perception,AlignmentBonus Indifferent]]
 
 classInfo Pilot = characterClass Pilot (prerequisites [mustHave Intelligence 2,mustHave Perception 2])
 		  [[PilotSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,SoftStatBonus Perception,AlignmentBonus Tactical],
-		   [PilotSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,SoftStatBonus Perception,AlignmentBonus Tactical],
-		   [EngineeringSkill,SoftStatBonus Intelligence,AlignmentBonus Strategic],
-		   [ScienceSkill,SoftStatBonus Intelligence,AlignmentBonus Strategic]]
+		   [PilotSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,SoftStatBonus Perception,AlignmentBonus Tactical]]
 
 classInfo Privateer = characterClass Privateer (prerequisites [mustHave Intelligence 0, mustHave Perception 0, mustHave Charisma 0, mustHave Mindfulness 0])
-		      [[ImprovedRangedCombat,SoftStatBonus Dexterity,AlignmentBonus Diplomatic],
+		      [[RangedAttackSkill,SoftStatBonus Dexterity,AlignmentBonus Diplomatic],
 		       [PilotSkill,SoftStatBonus Perception,AlignmentBonus Tactical],
 		       [NegotiateSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic],
-		       [Toughness,SoftStatBonus Strength,AlignmentBonus Tactical],
+		       [ToughnessTrait,SoftStatBonus Strength,AlignmentBonus Tactical],
 		       [LeadershipSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
 
 classInfo Scout = characterClass Scout (prerequisites [mustHave Perception 0])
@@ -146,34 +148,88 @@ classInfo Scout = characterClass Scout (prerequisites [mustHave Perception 0])
 		   [ScienceSkill,SoftStatBonus Intelligence,SoftStatBonus Mindfulness,AlignmentBonus Strategic]]
 
 classInfo Shepherd = characterClass Shepherd (prerequisites [mustHave Charisma 0,mustHave Mindfulness 0])
-		     [[CalmBeastAbility,SoftStatBonus Charisma,SoftStatBonus Mindfulness,AlignmentBonus Indifferent],
-		      [ScienceSkill,SoftStatBonus Charisma,AlignmentBonus Strategic],
-		      [SpotSkill,SoftStatBonus Perception,SoftStatBonus Mindfulness,AlignmentBonus Tactical],
-		      [NegotiateSkill,SoftStatBonus Charisma,AlignmentBonus Diplomatic]]
+		     [[CalmBeastAbility,NegotiateSkill,SpotSkill,SoftStatBonus Perception,SoftStatBonus Mindfulness,AlignmentBonus Indifferent]]
 
 classInfo Thief = characterClass Thief (mustHave Perception 1)
 		  [[HideSkill,SoftStatBonus Dexterity,SoftStatBonus Charisma,SoftStatBonus Mindfulness,AlignmentBonus Tactical]]
 
 classInfo Warrior = characterClass Warrior (prerequisites [mustHave Strength 1,mustHave Dexterity 1])
-		    [[ImprovedMeleeCombat,SoftStatBonus Constitution,SoftStatBonus Strength,SoftStatBonus Dexterity,SoftStatBonus Mindfulness,AlignmentBonus Tactical]]
+		    [[MeleeAttackSkill,
+		      MeleeDefenseSkill,
+		      PreciseStrike,
+		      SoftStatBonus Constitution,
+		      SoftStatBonus Strength,
+		      SoftStatBonus Dexterity,
+		      SoftStatBonus Mindfulness,
+		      AlignmentBonus Tactical]]
 
 -------------------------------------------------------------------------------
 --
---  Expert Classes
--- 
---  These classes are extensions of the base classes.  They have moderate
---  prerequisites and improve on skills that the base classes provide.
+--  Prestige Classes
 --
+--  Prestige classes don't show up at character creation, in part because I
+--  want to have deep starting levels for each class, and in part due to
+--  a philosophy of giving the player a depth of choices rather than a
+--  breadth of choices.
+--
+--  Prestige classes have prerequisites based on both ability scores and
+--  action roll scores.  Despite what may be shown below, having previous levels
+--  in a character class is never a prerequisite.  For example, if "marine" is
+--  listed as a prerequisite, then we would actually use the creature's ranged attack
+--  skill ranks as the prerequisite.
+--
+--  Now we also have to ask, what is the benefit of a prestige class over a simple
+--  multiclassed character.  The Consular chain is a good example of this:
+--  we force the character to combine negotiate and leadership, and then
+--  after a few levels the character can replace one of those skills with
+--  command.  Therefore we should not have a class that simply lets the character
+--  take a single skill (this destroys class identity).  The Thief class is the
+--  only class provides a single skill, and if you look at thief-based prestige
+--  classes they all provide new skills, not new skill combinations.
+--
+--  The notation of unimplemented ideas below is informal, but generally is of the form:
+--  prerequisites -> new class (new classes' abilities).
+--
+
 -------------------------------------------------------------------------------
 
--- Additional notes on Advanced Character Classes
-
--- Barbarian -> Berzerker (ability to melee attack all adjacent squares)
+-- Barbarian+Warrior -> Berzerker (ability to melee attack all adjacent squares)
 
 -- Consular (negotiate+leadership) -> Arbiter (command+negotiate), Commodore (command+leadership)
 
--- Shepherd -> BeastMaster (beast calming+barbarian), Druid (beast calming,negotiate,weather controll)
+-- Shepherd+Barbarian -> BeastMaster (beast calming+melee combat+berzerker)
 
--- Druid+Arbiter/Commodore -> Archon (command,weather control,lightning attack)
+-- ForceAdept+Consular -> ForceApprentice   (stunning blow ability -- melee)
 
--- ForceAdept -> ForceApprentice (force push ability) -> ForceKnight (omnidirectional-force-push ability) -> ForceMaster (lightning attack)
+-- ForceApprentice+Shepherd -> Druid        (weather controll, lesser lightning attack)
+-- ForceApprentice+Warrior -> ForceKnight   (melee attack, force push ability)
+-- ForceApprentice+Command -> ForceMaster   (lightning attack,orbital strike ability)
+-- ForceApprentice+Pilot -> ForcePaladin    (force push ability,air strike ability)
+-- ForceApprentice+Consular -> ForcePrior   (force push ability,lightning attack)
+-- ForceApprentice+Barbarian -> ForceZephyr (stunning blow ability, speed)
+
+-- Scout+Engineer -> Operator (teleport command w/ orbiting ship)
+
+-- Scout+Command -> Field Marshal (oribtal strike ability)
+
+-- Scout+Marine -> Watchman (stunning blow ability -- ranged)
+
+-- Thief+Scout+Marine -> Sniper (assasinate ability -- ranged)
+
+-- Thief+Consular+Warrior -> Assassin (assasinate ability -- melee)
+
+-- Thief+Engineer -> Expert (improved explosives)
+
+-- Barbarian+Marine -> Gunslinger (rapid shot skill instead of defense)
+
+-- Pilot+Scout -> Ranger (range attack+air strike ability)
+
+-- Thief+Scout -> Rogue (hide+spot+both extra damage abilities)
+
+-- Shepherd+Ninja -> BeastWhisperer (beast calming+defense)
+
+-- Engineer+Scout -> Meteorologist (weather control)
+
+-- Ninja+Warrior -> BladeMaster (rapid melee attack instead of precise strike)
+
+-- Thief+Barbarian -> Thug (hide skill instead of speed)

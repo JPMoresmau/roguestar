@@ -22,22 +22,13 @@ module CreatureData
     (Creature(..),
      CreatureGender(..),
      CreatureAttribute(..),
+     creatureScore,
+     Score(..),
      applyCreatureAttribute,
      exampleCreature1,
-     maxHitPoints,
      injure,
-     hitPoints,
      alive,
      dead,
-     creatureEffectiveLevel,
-     creatureMeleeAttackBonus,
-     creatureMeleeDamageBonus,
-     creatureRangedAttackBonus,
-     creatureRangedDamageBonus,
-     creatureMeleeArmourClass,
-     creatureRangedArmourClass,
-     creatureSpeedBonus,
-     creatureSize,
      creatureGender,
      characterClassLevels,
      isFavoredClass)
@@ -51,9 +42,19 @@ import Data.Maybe
 
 data Creature = Creature { creature_stats :: Stats, 
 			   creature_attribs :: [CreatureAttribute],
-			   creature_name :: String,
+			   creature_species_name :: String,
+			   creature_random_id :: Integer,
 			   creature_damage :: Integer }
 		deriving (Read,Show)
+
+instance StatisticsBlock Creature where
+    str creature = strength $ creature_stats creature
+    dex creature = dexterity $ creature_stats creature
+    con creature = constitution $ creature_stats creature
+    int creature = intelligence $ creature_stats creature
+    per creature = perception $ creature_stats creature
+    cha creature = charisma $ creature_stats creature
+    mind creature = mindfulness $ creature_stats creature
 
 data CreatureGender = Male | Female | Neuter deriving (Eq,Read,Show)
 
@@ -61,58 +62,99 @@ data CreatureGender = Male | Female | Neuter deriving (Eq,Read,Show)
 -- A creature's attributes.
 --
 data CreatureAttribute = Gender CreatureGender
-		       | Toughness
-		       | DamageReduction
-		       | ImprovedMeleeCombat
-		       | ImprovedRangedCombat
-                       | Evasion
-		       | Speed
-		       | LevelPenalty
-		       | LevelBonus
-		       | DoesNotNegotiate
-		       | DoesNotValueMoney
-		       | NoKillPenalty
-		       | NegotiateSkill
-		       | LeadershipSkill
-		       | HideSkill
-		       | SpotSkill
-		       | PilotSkill
-		       | EngineeringSkill
-		       | ScienceSkill
-		       | CalmBeastAbility
-		       | Regeneration
-		       | ForestSurvival
-		       | WaterSurvival
-		       | HardStatBonus Statistic
-		       | SoftStatBonus Statistic
-		       | AlignmentBonus AlignmentSchool
-		       | CharacterLevel CharacterClass
-		       | FavoredClass CharacterClass
+		       | ToughnessTrait                  -- extra hit points
+		       | DamageReductionTrait            -- subtracts from any damage inflicted
+		       | MeleeAttackSkill                -- increased melee accuracy
+		       | MeleeDefenseSkill               -- increase melee defense
+		       | PreciseStrike                   -- increase melee damage
+		       | RangedAttackSkill               -- increased ranged accuracy
+		       | RangedDefenseSkill              -- increase ranged defense
+		       | PreciseShot                     -- increased ranged damage
+		       | SpeedTrait                      -- more turns per round
+		       | DoesNotNegotiate                -- AI flag -- unit does not negotiate
+		       | DoesNotValueMoney               -- AI flag, unit will not take money to make up for missed negotiate check
+		       | NoKillPenalty                   -- killing this unit always earns neutral experience
+		       | CommandSkill                    -- skill needed to command a starship
+		       | NegotiateSkill                  -- skill used to negotiate prices or peace
+		       | LeadershipSkill                 -- add bonus to other unit's rolls by chatting
+		       | HideSkill                       -- unit is harder to see
+		       | SpotSkill                       -- unit can see farther away
+		       | PilotSkill                      -- skill needed to operate single-pilot ships
+		       | EngineeringSkill                -- skill used to build and disassemble devices
+		       | RepairSkill                     -- skill used to repair starships
+		       | ScienceSkill                    -- equivalent of spot for starships
+		       | CalmBeastAbility                -- equivalent of negotiate for non-sentient creatures
+		       | RegenerationAbility             -- special ability to recharge hit points using psi points
+		       | ForestSurvivalSkill             -- hide, speed, and defense in forest
+		       | WaterSurvivalSkill              -- hide, speed, and defense in water, plus resistance to drowning
+		       | HardStatBonus Statistic         -- when applied, instantly raises statistic by 1
+		       | SoftStatBonus Statistic         -- when applied multiple times, instantly raises statistic as a progression
+		       | AlignmentBonus AlignmentSchool  -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
+		       | CharacterLevel CharacterClass   -- record of a character class being applied to the creature, has no game effect
+		       | FavoredClass CharacterClass     -- creature is able to take the specified class without any prerequisites
 			 deriving (Eq, Show, Read)
+
+data Score = MaxHitPoints
+	   | HitPoints
+	   | DamageReduction
+	   | MeleeAttack
+	   | MeleeDefense
+	   | MeleeDamage
+	   | RangedAttack
+	   | RangedDefense
+	   | RangedDamage
+	   | Speed
+	   | EffectiveLevel
 
 -- |
 -- An example creature used for test cases.
 --
 exampleCreature1 :: Creature
 exampleCreature1 = Creature 
-		   { creature_stats = Stats { str=2, con=5, dex=1, int=(-2), per=4, cha=(-1), mind=(-1) },
-		     creature_attribs = [Gender Male,Toughness,Toughness,Toughness,ImprovedMeleeCombat,Evasion],
-		     creature_name = "Example-Creature-1",
+		   { creature_stats = Stats { strength=2, constitution=5, dexterity=1, intelligence=(-2), perception=4, charisma=(-1), mindfulness=(-1) },
+		     creature_attribs = [Gender Male,
+					 ToughnessTrait,
+					 ToughnessTrait,
+					 ToughnessTrait,
+					 MeleeAttackSkill,
+					 MeleeDefenseSkill,
+					 RangedDefenseSkill],
+		     creature_species_name = "Example-Creature-1",
+		     creature_random_id=0,
 		     creature_damage = 0 }
 
+creatureScore :: Score -> Creature -> Integer
+creatureScore MaxHitPoints = \c -> max 6 (20 + (str c) + (con c) + (dex c) + (mind c)) + 2 * attributeCount ToughnessTrait c
+creatureScore HitPoints = \c -> creatureScore MaxHitPoints c - creature_damage c
+creatureScore DamageReduction = statPlusDouble Constitution DamageReductionTrait
+creatureScore MeleeAttack = statPlusDouble Dexterity MeleeAttackSkill
+creatureScore MeleeDefense = statPlusDouble Dexterity MeleeDefenseSkill
+creatureScore MeleeDamage = statPlusDouble Strength PreciseStrike
+creatureScore RangedAttack = statPlusDouble Perception RangedAttackSkill
+creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill 
+creatureScore RangedDamage = \c -> max 0 $ per c + attributeCount PreciseShot c
+creatureScore Speed = \c -> 20 + attributeCount SpeedTrait c
 -- |
--- The maximum hit points for this Creature.  A Creature's maximum hit points are the sum of it's
--- strength, constitution, dexterity, and mindfulness, or at least 6.
+-- The creature's effective level.
 --
-maxHitPoints :: Creature -> Integer
-maxHitPoints creature = let sts = creature_stats creature
-			    in max 6 (20 + (str sts) + (con sts) + (dex sts) + (mind sts)) + bonusHitPoints creature
+-- This sums all of the ability scores and attributes that a creature has and determines
+-- approximately how powerful the creature is.
+--
+-- It is possible for a creature to have a negative effective level,
+-- especially if its ability scores are poor.
+--
+creatureScore EffectiveLevel = \c -> sum (map ($ c) [str,dex,con,int,per,cha,mind] ++
+					  map levelAdjustment (creature_attribs c))
+
+attributeCount :: CreatureAttribute -> Creature -> Integer
+attributeCount attrib creature = count attrib $ creature_attribs creature
 
 -- |
--- The bonus hit points this creature gets for having the toughness attribute.
+-- The standard way to calculate any score is to add the relevant Statistic to twice the number of
+-- ranks in the relevant skill.
 --
-bonusHitPoints :: Creature -> Integer
-bonusHitPoints creature = 2 * (count Toughness (creature_attribs creature))
+statPlusDouble :: Statistic -> CreatureAttribute -> Creature -> Integer
+statPlusDouble statistic attrib creature = max 0 $ 20 + getStatistic statistic creature + 2 * attributeCount attrib creature
 
 -- |
 -- Does the specified damage against the Creature.
@@ -122,40 +164,16 @@ injure damage creature = let actual_damage = max 0 (damage - (con $ creature_sta
 			     in creature { creature_damage=(creature_damage creature + actual_damage) }
 
 -- |
--- The hitPoints remaining for this creature (maxHitPoints is maximum).
---
-hitPoints :: Creature -> Integer
-hitPoints creature = (maxHitPoints creature - creature_damage creature)
-
--- |
 -- True if the creature is alive.
 --
 alive :: Creature -> Bool
-alive creature = hitPoints creature >= 0
+alive creature = creatureScore HitPoints creature >= 0
 
 -- |
 -- True if the creature is dead.
 --
 dead :: Creature -> Bool
 dead = not . alive
-
--- |
--- The creature's effective level.
---
--- This sums all of the attributes that the character has and weights them according
--- to the levelAdjustment function.  The theory is that levelAdjustment indicates the
--- power of any attribute, with a single +1 bonus to any ability score having a
--- value of 1.  (This implies that every ability score should have the same value.)
---
--- It is possible for a creature to have a negative effective level,
--- especially if its ability scores are poor.
---
-creatureEffectiveLevel :: Creature -> Integer
-creatureEffectiveLevel creature = let the_stats = creature_stats creature
-                                      in (str the_stats) + (dex the_stats) + (con the_stats) +
-                                             (int the_stats) + (per the_stats) + (cha the_stats) +
-                                             (mind the_stats) +
-                                             (sum $ map levelAdjustment (creature_attribs creature))
 
 -- |
 -- Answers the number of levels a Creature has taken in a particular CharacterClass.
@@ -171,30 +189,33 @@ characterClassLevels character_class creature = count (CharacterLevel character_
 --
 levelAdjustment :: CreatureAttribute -> Integer
 
-levelAdjustment Toughness = 1
-levelAdjustment ImprovedMeleeCombat = 1
-levelAdjustment ImprovedRangedCombat = 1
-levelAdjustment Evasion = 1
-levelAdjustment LevelPenalty = 1
-levelAdjustment LevelBonus = (-1)
-levelAdjustment Speed = 1
+levelAdjustment ToughnessTrait = 1
+levelAdjustment MeleeAttackSkill = 1
+levelAdjustment MeleeDefenseSkill = 1
+levelAdjustment PreciseStrike = 1
+levelAdjustment RangedAttackSkill = 1
+levelAdjustment RangedDefenseSkill = 1
+levelAdjustment PreciseShot = 1
+levelAdjustment SpeedTrait = 2
 levelAdjustment NoKillPenalty = 0
-levelAdjustment WaterSurvival = 1
-levelAdjustment ForestSurvival = 1
-levelAdjustment Regeneration = 2
+levelAdjustment WaterSurvivalSkill = 1
+levelAdjustment ForestSurvivalSkill = 1
+levelAdjustment RegenerationAbility = 2
 levelAdjustment DoesNotValueMoney = 0
 levelAdjustment DoesNotNegotiate = 0
 levelAdjustment (Gender {}) = 0
-levelAdjustment DamageReduction = 1
+levelAdjustment DamageReductionTrait = 1
 levelAdjustment SoftStatBonus {} = 0
 levelAdjustment HardStatBonus {} = 1
 levelAdjustment AlignmentBonus {} = 0
 levelAdjustment LeadershipSkill = 1
 levelAdjustment NegotiateSkill = 1
+levelAdjustment CommandSkill = 1
 levelAdjustment HideSkill = 1
 levelAdjustment SpotSkill = 1
 levelAdjustment PilotSkill = 1
 levelAdjustment EngineeringSkill = 1
+levelAdjustment RepairSkill = 1
 levelAdjustment ScienceSkill = 1
 levelAdjustment CalmBeastAbility = 1
 levelAdjustment FavoredClass {} = 0
@@ -235,80 +256,6 @@ softIncCreatureStat statistic creature =
 	in if (getStatistic statistic sts < num)
 	   then incCreatureStat statistic $ stripCreatureAttribute (SoftStatBonus statistic) creature
 	   else putCreatureAttribute (SoftStatBonus statistic) creature
-
--- |
--- The melee attack bonus for the creature.
--- This value increases the probability that the creature will hit
--- in melee (hand-to-hand or with a wielded weapon) combat.
---
-creatureMeleeAttackBonus :: Creature -> Integer
-creatureMeleeAttackBonus creature = (dex $ creature_stats creature) + (bonusMeleeCombatPoints $ creature)
-
--- |
--- The ranged attack bonus for the creature.
--- This value increases the probability that the creature will hit
--- when shooting a ranged weapon.
---
-creatureRangedAttackBonus :: Creature -> Integer
-creatureRangedAttackBonus creature = (per $ creature_stats creature) + (bonusRangedCombatPoints $ creature)
-
--- |
--- The melee damage bonus for the creature.
--- This value is added to the damage that the creature does when it
--- strikes in melee combat.
---
-creatureMeleeDamageBonus :: Creature -> Integer
-creatureMeleeDamageBonus creature = (str $ creature_stats creature) + (bonusMeleeCombatPoints creature)
-
--- |
--- The ranged damage bonus for the creature.
--- This value is added to the damage that the creature does when it
--- strikes in ranged combat.
---
-creatureRangedDamageBonus :: Creature -> Integer
-creatureRangedDamageBonus creature = (bonusRangedCombatPoints creature)
-
--- |
--- The bonus to melee attack and damage rolls.
---
-bonusMeleeCombatPoints :: Creature -> Integer
-bonusMeleeCombatPoints creature = count ImprovedMeleeCombat (creature_attribs creature)
-
--- |
--- The bonux to ranged attack and damage rolls.
---
-bonusRangedCombatPoints :: Creature -> Integer
-bonusRangedCombatPoints creature = count ImprovedRangedCombat (creature_attribs creature)
-
--- |
--- The melee armour class for the creature.  The higher a creature's armour
--- class, the lower the probability that another creature can hit it.
---
-creatureMeleeArmourClass :: Creature -> Integer
-creatureMeleeArmourClass creature = (dex $ creature_stats creature) + 
-                                    (count Evasion (creature_attribs creature))
-
--- |
--- The ranged armour class for the creature.  The higher a creature's armour
--- class, the lower the probability that another creature can hit it.
---
-creatureRangedArmourClass :: Creature -> Integer
-creatureRangedArmourClass creature = (per $ creature_stats creature) + 
-                                     (count Evasion (creature_attribs creature))
-
--- |
--- The number of actions per round that this creature gets.
---
-creatureSpeedBonus :: Creature -> Integer
-creatureSpeedBonus creature = max 1 $ (20 + (count Speed (creature_attribs creature)) - creatureSize creature)
-
--- |
--- The physical size of this creature, based on its attributes.
---
-creatureSize :: Creature -> Integer
-creatureSize creature = (con $ creature_stats creature) +
-			((str $ creature_stats creature) `quot` 2) -
-			((dex $ creature_stats creature) `quot` 4)
 
 genderOf :: CreatureAttribute -> Maybe CreatureGender
 genderOf attrib = case attrib of

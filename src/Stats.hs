@@ -43,10 +43,10 @@ generateStats averages deviations = do new_str <- generate1Stat (str averages) (
 				       new_per <- generate1Stat (per averages) (per deviations)
 				       new_cha <- generate1Stat (cha averages) (cha deviations)
 				       new_mind <- generate1Stat (mind averages) (mind deviations)
-				       return Stats { str = new_str,
-						      dex = new_dex,
-						      con = new_con,
-						      int = new_int,
-						      per = new_per,
-						      cha = new_cha,
-						      mind = new_mind }
+				       return Stats { strength = new_str,
+						      dexterity = new_dex,
+						      constitution = new_con,
+						      intelligence = new_int,
+						      perception = new_per,
+						      charisma = new_cha,
+						      mindfulness = new_mind }
