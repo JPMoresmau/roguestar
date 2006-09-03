@@ -37,6 +37,11 @@ formatTable :: Language -> RoguestarTable -> Maybe String
 
 formatTable language table | table_name table == "player-stats" =
 			       let the_table_data = tableSelect2 table ("property","value")
+				   species_name = lookup "species" the_table_data
+				   creature_random_id = lookup "random-id" the_table_data
+				   name_str = (if and [isJust species_name,isJust creature_random_id]
+					       then translateStr language ["a-creature-named",fromJust species_name,fromJust creature_random_id] ++ "\n"
+					       else "")
 				   (hp,maxHP) = (lookup "hp" the_table_data,lookup "maxhp" the_table_data)
 				   hp_str = case (hp,maxHP) of
 							    (Nothing,Nothing) -> []
@@ -44,7 +49,8 @@ formatTable language table | table_name table == "player-stats" =
 							    (Nothing,Just y) -> formatLine language table ("maxhp", Just y)
 							    (Just x,Just y) -> formatLine language table ("hp/maxhp", Just $ x ++ "/" ++ y)
 				   gender_str = formatLine2 language table ("gender",lookup "gender" the_table_data)
-				   in Just $ (gender_str ++
+				   in Just $ (name_str ++ 
+					      gender_str ++
 					      (concatMap (\x -> formatLine2 language table (x, lookup x the_table_data))
 					       ["str","dex","con","int","per","cha","mind"]) ++
 					      hp_str)

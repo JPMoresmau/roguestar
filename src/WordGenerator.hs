@@ -1,7 +1,8 @@
-module NameGenerator
+module WordGenerator
     (HardOrSoft(..),
      WordGenerator(..),
-     generateWord)
+     generateWord,
+     sample_word_generator)
     where
 
 import System.Random
@@ -36,10 +37,10 @@ generateWord word_gen _ | maximum (map length $ word_patterns word_gen) == 0 = "
 generateWord word_gen std_gen | minimum (map length $ word_patterns word_gen) == 0 = generateWord 
 										     (word_gen { word_patterns=filter ((== 0) . length) $ word_patterns word_gen })
 										     std_gen
-generateWord word_gen std_gen = let (rand1,gen1) = next std_gen
+generateWord word_gen std_gen = let (rand1,gen1) = next $ snd $ next std_gen
 				    the_word_patterns = word_patterns word_gen
 				    the_word_pattern = the_word_patterns !! (rand1 `mod` (length the_word_patterns))
-				    (rand2,gen2) = next gen1
+				    (rand2,gen2) = next $ snd $ next gen1
 				    next_soft = softs word_gen !! (rand2 `mod` (length $ softs word_gen))
 				    next_hard = hards word_gen !! (rand2 `mod` (length $ hards word_gen))
 				    in case head the_word_pattern of

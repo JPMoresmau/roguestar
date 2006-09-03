@@ -16,7 +16,13 @@ data Action = Action { action_valid :: IORef RoguestarGlobals -> IO Bool,
 		       action_execute :: IORef RoguestarGlobals -> IO () }
 
 selectRaceAction :: String -> Action
-selectRaceAction race_name = 
+selectRaceAction = selectTableAction ("player-races","0","name") "race-selection" "select-race"
+
+selectBaseClassAction :: String -> Action
+selectBaseClassAction = selectTableAction ("base-classes","0","class") "class-selection" "select-class"
+
+selectTableAction :: (String,String,String) -> String -> String -> String -> Action
+selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
     Action {
 	    action_valid = \globals_ref -> 
 	    do {
@@ -24,21 +30,21 @@ selectRaceAction race_name =
 		case state of 
 		{
 		 Nothing -> return False;
-		 Just "race-selection" -> 
+		 Just x | x == allowed_state -> 
 		 do { 
-		     maybe_table <- driverRequestTable globals_ref "player-races" "0";
+		     maybe_table <- driverRequestTable globals_ref the_table_name the_table_id;
 		     case maybe_table of 
 		     {
 		      Nothing -> return False;
-		      Just table -> return $ race_name `elem` tableSelect1 table "name"
+		      Just table -> return $ action_param `elem` tableSelect1 table the_table_header
 		     }};
 		 Just _ -> return False
 		}},
 
 	    action_execute = \globals_ref -> 
 	    do {
-		driverAction globals_ref ["select-race", race_name];
-		printTranslated globals_ref GUIMessage ["user-selected-species",race_name]
+		driverAction globals_ref [action_name, action_param];
+		printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
 	       }
 	   }
 
@@ -76,12 +82,30 @@ select_race_action_names = ["anachronid",
 			    "recreant",
 			    "reptilian"]
 
+select_base_class_action_names :: [String]
+select_base_class_action_names = ["barbarian",
+				  "consular",
+				  "engineer",
+				  "forceadept",
+				  "marine",
+				  "ninja",
+				  "pilot",
+				  "privateer",
+				  "scout",
+				  "shepherd",
+				  "thief",
+				  "warrior"]
+
 select_race_actions :: [(String,Action)]
 select_race_actions = map (\x -> (x,selectRaceAction x)) select_race_action_names
 
+select_base_class_actions :: [(String,Action)]
+select_base_class_actions = map (\x -> (x,selectBaseClassAction x)) select_base_class_action_names
+
 all_actions :: [(String,Action)]
 all_actions = select_race_actions ++ 
-	      [reroll_action]
+	      [reroll_action] ++
+	      select_base_class_actions
 
 getValidActions :: IORef RoguestarGlobals -> IO [String]
 getValidActions globals_ref = 

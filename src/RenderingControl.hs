@@ -64,8 +64,13 @@ initialClassSelectionDisplay :: IORef RoguestarGlobals -> IO ()
 initialClassSelectionDisplay globals_ref =
     do renderStarflightBackground globals_ref
        setNextDisplayFunc globals_ref $ 
-			  printTable "player-stats" "0" $ 
-			  waitNextTurnTransition renderStarflightBackground
+			  printTable "player-stats" "0" $ classSelectionMenuDisplay
+
+classSelectionMenuDisplay :: IORef RoguestarGlobals -> IO ()
+classSelectionMenuDisplay globals_ref =
+    do table <- driverRequestTable globals_ref "base-classes" "0"
+       when (isJust table) $ do printMenu globals_ref "select-base-class" $ (tableSelect1 (fromJust table) "class" ++ ["reroll"])
+				waitNextTurnTransition renderStarflightBackground globals_ref
 
 -- |
 -- Reads in (using Driver) and prints (using PrintText).
@@ -84,3 +89,4 @@ printTable the_table_name the_table_id next_display_func globals_ref =
 				 else printText globals_ref Untranslated ("No format for table:" ++ (table_name $ fromJust table)))
 				setNextDisplayFunc globals_ref next_display_func
        when (isNothing table) $ setNextDisplayFunc globals_ref $ printTable the_table_name the_table_id next_display_func
+

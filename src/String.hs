@@ -2,7 +2,9 @@ module String
     (strToLower,
      strToUpper,
      capitalize,
-     titleCapitalize)
+     titleCapitalize,
+     padLeft,
+     padRight)
     where
 
 import Data.Char
@@ -24,3 +26,9 @@ titleCapitalize str = capitalize $ unwords $ map capitalizeTitleWord $ words str
 	  capitalizeTitleWord "a" = "a"
 	  capitalizeTitleWord "an" = "an"
 	  capitalizeTitleWord x = capitalize x
+
+padLeft :: Int -> String -> String
+padLeft n str = replicate (max 1 $ n - length str) ' ' ++ str
+
+padRight :: Int -> String -> String
+padRight n str = str ++ replicate (max 1 $ n - length str) ' '

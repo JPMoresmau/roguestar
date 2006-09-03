@@ -25,4 +25,16 @@ default_keymap = filterKeymap
 		  ("p","perennial"),
 		  ("r","reptilian"),
 		  ("R","recreant"),
-		  ("r","reroll")]
+		  (".","reroll"),
+		  ("b","barbarian"),
+		  ("c","consular"),
+		  ("e","engineer"),
+		  ("a","forceadept"),
+		  ("m","marine"),
+		  ("n","ninja"),
+		  ("p","pilot"),
+		  ("P","privateer"),
+		  ("s","scout"),
+		  ("S","shepherd"),
+		  ("t","thief"),
+		  ("w","warrior")]
