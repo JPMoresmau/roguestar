@@ -2,12 +2,14 @@ HS_FLAGS = 	-hidir products/ \
 		-odir products/ \
 		-isrc/:products \
 		-Wall \
-		-Werror \
 		-fno-warn-type-defaults \
 		--make src/Main.hs \
 		-o products/roguestar-engine
 
-default : ghc
+default : ghc-release
+
+install :
+	install products/roguestar-engine /usr/local/bin/
 
 clean :
 	-rm -f products/*.o 2> /dev/null
@@ -22,7 +24,7 @@ ghc :
 	ghc 	${HS_FLAGS}
 
 ghc-release :
-	ghc	-O ${HS_FLAGS}
+	ghc	-O -Werror ${HS_FLAGS}
 
 check:
 	${MAKE} clean
