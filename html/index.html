@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+
+  <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
+  <title>Roguestar-GL</title>
+
+
+  <style type="text/css">
+body { border-style: none;
+font-family: Arial,Helvetica,sans-serif;
+font-size: large;
+}
+.notebox { border: 1px dotted rgb(102, 102, 204);
+font-size: small;
+background-color: rgb(204, 204, 255);
+}
+  </style>
+</head>
+
+
+<body>
+
+<h1>Roguestar-GL</h1>
+
+<a href="#installing">Installing Roguestar-GL<br>
+
+</a><a href="#screenshots">Screenshots</a><br>
+
+<h2>Information on the roguestar-gl package.</h2>
+
+Roguestar-GL is:<br>
+
+<ul>
+
+  <li>A OpenGL frontend to the roguestar game engine
+(<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-engine/">roguestar-engine</a>)</li>
+
+  <li>Free: roguestar-gl is distributed under the <a href="http://www.gnu.org/copyleft/gpl.html">GNU GPL</a>.</li>
+
+  <li>Written in the pure functional programming language <a href="http://www.haskell.org">haskell</a>.</li>
+
+  <li>In it's very earliest stages of development.</li>
+
+</ul>
+
+<h3><a name="installing"></a>Installing
+Roguestar-GL</h3>
+
+You can obtain the source code to the latest unstable version
+roguestar-gl from <a href="http://www.downstairspeople.org/darcs/unstable/roguestar-gl/">this
+darcs repository</a>.&nbsp; Binaries of roguestar-gl are NOT
+available. &nbsp;Note that roguestar-gl is useless without&nbsp;<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-engine/">roguestar-engine</a>.<br>
+
+<br>
+
+Once you have darcs installed, downloading roguestar-gl and
+roguestar-engine is simple: <br>
+
+<br>
+
+<span style="font-family: monospace;">darcs get
+http://www.downstairspeople.org/darcs/unstable/roguestar-gl</span><br>
+
+<span style="font-family: monospace;">darcs get
+http://www.downstairspeople.org/darcs/unstable/roguestar-engine</span>
+<h4>Dependencies</h4>
+
+To build roguestar-gl, you will need the following packages, all of
+which are available, for example, with Debian GNU/Linux:<br>
+
+<ul>
+
+  <li><a href="http://haskell.org/ghc/">ghc</a>
+version 6.4.1 or higher</li>
+
+  <li><a href="http://www.darcs.net">darcs</a></li>
+
+  <li><a href="http://web.purplefrog.com/%7Ethoth/netpipes/netpipes.html">netpipes</a>
+(scroll down to "download")</li>
+
+  <li>GNU make or compatible</li>
+
+  <li>bash</li>
+
+</ul>
+
+<h4>Steps For Linux/BSD/MacOS X/Cygwin.</h4>
+
+Step 1: &nbsp;Do you have the above dependencies installed?
+&nbsp;If not, go back and install them.<br>
+
+<br>
+
+Step 2: Change to the roguestar-engine directory and execute the
+following commands:<br>
+
+<br>
+
+<span style="font-family: monospace;">$ make</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;">$ su</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;"># make install</span><br>
+
+<br>
+
+Step 3. &nbsp;Change to the roguestar-gl directory and execute the
+following commands:<br>
+
+<br>
+
+<span style="font-family: monospace;">$ make</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;">$ su</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;"># make install</span><br style="font-family: monospace;">
+
+<br>
+
+Step 4: &nbsp;Simply run roguestar-gl<br>
+
+<br>
+
+<span style="font-family: monospace;">$ roguestar-gl<br>
+
+</span><span style="font-family: monospace;"></span>
+<h3><a name="screenshots"></a>Screenshots</h3>
+
+<a href="roguestar-gl-linux-license-races-1.png">Selecting
+a&nbsp;race</a><br>
+
+<a href="roguestar-gl-linux-class-2.png">Selecting a class</a>
+</body>
+</html>
