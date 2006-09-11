@@ -22,10 +22,11 @@ module TerrainData
     (Biome(..),
      TerrainPatch(..),
      TerrainMap,
-     TerrainGenerationData,
+     TerrainGenerationData(..),
      generateTerrain,
      generateExampleTerrain,
-     prettyPrintTerrain)
+     prettyPrintTerrain,
+     difficult_terrains)
     where
 
 import Grids
@@ -46,6 +47,7 @@ data Biome = RockBiome
            | DeasertBiome
            | OceanBiome
            | MountainBiome
+	   | SwampBiome
 	     deriving (Read,Show,Eq,Ord,Enum,Bounded)
 
 -- |
@@ -62,12 +64,14 @@ data TerrainPatch = RockFace
                   | Dirt
                   | Grass
                   | Sand
-                  | Deasert
+                  | Deasert -- exactly like sand, except from the terrain generator's point of view: oasis can appear
                   | Forest
                   | DeepForest
                   | Water
                   | DeepWater
                   | Ice
+		  | Lava
+		  | Glass -- what sand becomes when struck by intense heat
                   | DungeonEntrance Integer
                   | DungeonExit
                     deriving (Read,Show,Eq,Ord)
@@ -76,6 +80,13 @@ data TerrainGenerationData = TerrainGenerationData
 			   { tg_smootheness :: Integer,
 			     tg_biome :: Biome }
 			   deriving (Read,Show)
+
+-- |
+-- A list of TerrainPatches that are considered "difficult", either for traveling
+-- or for constructing buildings.
+--
+difficult_terrains :: [TerrainPatch]
+difficult_terrains = [RockFace,Forest,DeepForest,Water,DeepWater,Ice,Lava]
 
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
 terrainFrequencies RockBiome = [(1,RockFace),(1,Rubble),(3,RockyGround),(1,Sand)]
@@ -86,6 +97,7 @@ terrainFrequencies TundraBiome = [(1,RockFace),(3,RockyGround),(1,Sand),(1,Water
 terrainFrequencies DeasertBiome = [(1,RockFace),(3,RockyGround),(1,Grass),(1,Water),(11,Deasert)]
 terrainFrequencies OceanBiome = [(1,RockyGround),(3,Sand),(1,Grass),(1,Forest),(7,Water),(20,DeepWater)]
 terrainFrequencies MountainBiome = [(6,RockFace),(3,RockyGround),(1,Rubble),(1,Sand),(1,Grass),(1,Forest),(1,Water)]
+terrainFrequencies SwampBiome = [(1,Forest),(1,Water)]
 
 terrainInterpFn :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
 terrainInterpFn (a,b) = [(1,a),(1,b)] ++ (terrainInterpRule (a,b)) ++ (terrainInterpRule (b,a))
@@ -114,7 +126,7 @@ terrainInterpRule _ = []
 -- A list of every TerrainPatch that might be created from the terrainFrequencies function.
 --
 baseTerrainPatches :: [TerrainPatch]
-baseTerrainPatches = nub $ List.map snd $ foldr (++) [] $ List.map terrainFrequencies [minBound..maxBound]
+baseTerrainPatches = nub $ List.map snd $ concatMap terrainFrequencies [minBound..maxBound]
 
 terrainInterpMap :: Map (TerrainPatch,TerrainPatch) [(Integer,TerrainPatch)]
 terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b <- baseTerrainPatches]
@@ -150,6 +162,8 @@ terrainPatchToASCII DeepForest = 'F'
 terrainPatchToASCII Water = '~'
 terrainPatchToASCII DeepWater = '~'
 terrainPatchToASCII Ice = '^'
+terrainPatchToASCII Glass = '_'
+terrainPatchToASCII Lava = '^'
 terrainPatchToASCII (DungeonEntrance _) = '>'
 terrainPatchToASCII DungeonExit = '<'
 

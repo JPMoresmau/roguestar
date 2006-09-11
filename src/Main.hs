@@ -34,6 +34,7 @@ import Control.Monad
 import TerrainData
 import HopList
 import Protocol
+import GridRayCaster
 
 program_version_number :: String
 program_version_number = "0.0.1"
@@ -56,7 +57,8 @@ runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++
 						   testDice ++ 
 						   creatureTests ++
 						   insidenessTests ++
-						   hopListTests)
+						   hopListTests ++
+						   gridRayCasterTests)
 		       if testsPassed
 			  then putStrLn "All tests passed."
 			  else putStrLn "Error: a test failed."

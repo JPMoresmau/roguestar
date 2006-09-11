@@ -19,7 +19,11 @@
 --------------------------------------------------------------------------
 
 module Tests 
-    (TestResult( Passed, Failed ), TestCase, test, runAllTests, sampleTestCase)
+    (TestResult(..), 
+     TestCase, 
+     test, 
+     runAllTests, 
+     sampleTestCase)
     where
 
 data TestResult = Passed String | Failed String deriving Show

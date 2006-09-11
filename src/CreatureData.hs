@@ -39,12 +39,14 @@ import Alignment
 import StatsData
 import ListUtils (count)
 import Data.Maybe
+import FactionData
 
 data Creature = Creature { creature_stats :: Stats, 
 			   creature_attribs :: [CreatureAttribute],
 			   creature_species_name :: String,
 			   creature_random_id :: Integer,
-			   creature_damage :: Integer }
+			   creature_damage :: Integer,
+			   creature_faction :: Faction }
 		deriving (Read,Show)
 
 instance StatisticsBlock Creature where
@@ -105,6 +107,8 @@ data Score = MaxHitPoints
 	   | RangedDamage
 	   | Speed
 	   | EffectiveLevel
+	   | Spot
+	   | Hide
 
 -- |
 -- An example creature used for test cases.
@@ -121,7 +125,8 @@ exampleCreature1 = Creature
 					 RangedDefenseSkill],
 		     creature_species_name = "Example-Creature-1",
 		     creature_random_id=0,
-		     creature_damage = 0 }
+		     creature_damage = 0,
+		     creature_faction = MonstersInc }
 
 creatureScore :: Score -> Creature -> Integer
 creatureScore MaxHitPoints = \c -> max 6 (20 + (str c) + (con c) + (dex c) + (mind c)) + 2 * attributeCount ToughnessTrait c
@@ -134,6 +139,9 @@ creatureScore RangedAttack = statPlusDouble Perception RangedAttackSkill
 creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill 
 creatureScore RangedDamage = \c -> max 0 $ per c + attributeCount PreciseShot c
 creatureScore Speed = \c -> 20 + attributeCount SpeedTrait c
+creatureScore Spot = statPlusDouble Perception SpotSkill
+creatureScore Hide = statPlusDouble Perception HideSkill
+
 -- |
 -- The creature's effective level.
 --

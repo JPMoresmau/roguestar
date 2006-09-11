@@ -25,6 +25,8 @@ module InsidenessMap
      InsidenessMap.delete,
      parent,
      children,
+     userData,
+     InsidenessMap.lookup,
      InsidenessMap.toList,
      InsidenessMap.fromList,
      insidenessTests,
@@ -63,7 +65,7 @@ insert (a,b,c) the_map@(InsidenessMap _ bac) =
                (Map.insert b (a,c) bac)
 
 -- |
--- Deletes the specified child from this insideness map.
+-- Deletes the specified object from this insideness map.
 --
 delete :: (Ord a, Ord b) => b -> InsidenessMap a b c -> InsidenessMap a b c
 delete b the_map@(InsidenessMap _ bac) =
@@ -88,10 +90,24 @@ purgeAB b (InsidenessMap ab bac) =
 
 -- |
 -- Answers the parent of an element, or nothing if the element
--- is not listed in this InsidenessMap.
+-- is not listed as a child in this InsidenessMap.
 --
 parent :: (Ord a, Ord b) => b -> InsidenessMap a b c -> Maybe a
-parent b (InsidenessMap _ bac) = maybe Nothing (Just . fst) (Map.lookup b bac)
+parent b imap = InsidenessMap.lookup b imap >>= return . fst
+
+-- |
+-- Answers the user data of an element, or nothing if the element
+-- is not listed as a child in this InsidenessMap.
+--
+userData :: (Ord a,Ord b) => b -> InsidenessMap a b c -> Maybe c
+userData b imap = InsidenessMap.lookup b imap >>= return . snd
+
+-- |
+-- Looks up the (parent,user data) pair for this InsidenessMap, or
+-- nothing if the element is not listed as a child in this InsidenessMap.
+--
+lookup :: (Ord a,Ord b) => b -> InsidenessMap a b c -> Maybe (a,c)
+lookup b (InsidenessMap _ bac) = Map.lookup b bac
 
 -- |
 -- Answers a list of the children of an element, in the form

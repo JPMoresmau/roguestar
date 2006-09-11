@@ -33,6 +33,7 @@ import Species
 import Tests
 import DBData
 import Dice
+import FactionData
 
 runCreatureGenerationTest :: IO ()
 runCreatureGenerationTest = do db0 <- initialDB
@@ -41,30 +42,34 @@ runCreatureGenerationTest = do db0 <- initialDB
 -- |
 -- Generates a new Creature from the specified species.
 --
-newCreature :: Species -> DB Creature
-newCreature species = do (stats,attribs,name) <- generateCreatureData species
-			 random_id <- 1 `d` 2000
-			 return  (Creature { creature_stats=stats,
-					     creature_attribs=attribs,
-					     creature_species_name=name,
-					     creature_random_id=random_id,
-					     creature_damage=0 })
+dbGenerateCreature :: Faction -> Species -> DB Creature
+dbGenerateCreature faction species = 
+    do (stats,attribs,name) <- generateCreatureData species
+       random_id <- 1 `d` 2000
+       return (Creature { creature_stats=stats,
+			  creature_attribs=attribs,
+			  creature_species_name=name,
+			  creature_random_id=random_id,
+			  creature_damage=0,
+			  creature_faction=faction})
 
 -- |
 -- During DBRaceSelectionState, generates a new Creature for the player character and sets it into the 
 -- database's DBClassSelectionState.
 --
 dbGenerateInitialPlayerCreature :: Species -> DB ()
-dbGenerateInitialPlayerCreature species = do newc <- newCreature species
-					     dbSetStartingRace species
-					     dbSetState (DBClassSelectionState newc)
+dbGenerateInitialPlayerCreature species = 
+    do newc <- dbGenerateCreature Player species
+       dbSetStartingRace species
+       dbSetState (DBClassSelectionState newc)
 
 -- |
 -- Generates a new Creature from the specified Species and adds it to the database.
 --
-dbNewCreature :: Species -> DB CreatureRef
-dbNewCreature species = do newc <- newCreature species
-			   dbAddCreature newc
+dbNewCreature :: Faction -> Species -> DB CreatureRef
+dbNewCreature faction species = 
+    do newc <- dbGenerateCreature faction species
+       dbAddCreature newc
 
 creatureTests :: [TestCase]
 creatureTests = [testHitPointCalculation,testAlive,testDead,

@@ -23,12 +23,34 @@ module DBData
      PlaneRef(..),
      DBRef(..),
      DBReference(..),
-     DBLocation(..))
+     DBLocation(..),
+     isCreatureRef,
+     isPlaneRef,
+     toCreatureRef,
+     toPlaneRef)
     where
 
 data DBReference = DBCreatureRef CreatureRef
 		 | DBPlaneRef PlaneRef
 		 deriving (Eq,Ord,Read,Show)
+
+isCreatureRef :: DBReference -> Bool
+isCreatureRef (DBCreatureRef {}) = True
+isCreatureRef _ = False
+
+isPlaneRef :: DBReference -> Bool
+isPlaneRef (DBCreatureRef {}) = True
+isPlaneRef _ = False
+
+toCreatureRef :: (DBRef a) => a -> CreatureRef
+toCreatureRef x = case toDBReference x of
+				       DBCreatureRef creature_ref -> creature_ref
+				       _ -> error "not a DBCreatureRef"
+
+toPlaneRef :: (DBRef a) => a -> PlaneRef
+toPlaneRef x = case toDBReference x of
+				    DBPlaneRef plane_ref -> plane_ref
+				    _ -> error "not a DBPlaneRef"
 
 data DBLocation = DBCoordinateLocation (Integer,Integer)
 		deriving (Read,Show)
@@ -37,7 +59,10 @@ newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)
 newtype PlaneRef = PlaneRef Integer deriving (Eq,Ord,Read,Show)
 
 class DBRef a where
-    toDBReference :: (DBRef a) => a -> DBReference
+    toDBReference :: a -> DBReference
+
+instance DBRef DBReference where
+    toDBReference x = x
 
 instance DBRef CreatureRef where
     toDBReference x = DBCreatureRef x

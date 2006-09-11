@@ -19,7 +19,7 @@
 --------------------------------------------------------------------------
 
 module PlaneData
-    (Plane(..),
+    (Plane,
      UninstancedPlane(..),
      InstancedPlane(..))
     where
@@ -34,5 +34,4 @@ data InstancedPlane = InstancedPlane
     { plane_terrain :: TerrainMap }
     deriving (Read,Show)
 
-data Plane = Either UninstancedPlane InstancedPlane
-	     deriving (Read,Show)
+type Plane = Either UninstancedPlane InstancedPlane

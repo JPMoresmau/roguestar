@@ -3,18 +3,22 @@ module Protocol
     where
 
 import Data.Char
-import Data.List
+import Data.List as List
 import Control.Monad.State
 import CreatureData
 import Creature
 import Character
 import StatsData
 import DB
+import DBData
 import System.Exit
 import Races
 import System.IO
 import BeginGame
 import Data.Maybe
+import Plane
+import FactionData
+import PlaneVisibility
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -46,6 +50,21 @@ dbRequiresClassSelectionState action = do state <- dbState
 						     DBClassSelectionState creature -> action creature
 						     _ -> return "protocol-error: not in class selection state"
 
+dbRequiresPlayerCenteredState :: (Creature -> DB String) -> DB String
+dbRequiresPlayerCenteredState action =
+    do state <- dbState
+       case state of
+		  DBClassSelectionState creature -> action creature
+		  DBPlayerCreatureTurn creature_ref -> action =<< dbGetCreature creature_ref
+		  _ -> return "protocol-error: not in player-centered state"
+
+dbRequiresPlanarTurnState :: (CreatureRef -> DB String) -> DB String
+dbRequiresPlanarTurnState action =
+    do state <- dbState
+       case state of
+		  DBPlayerCreatureTurn creature_ref -> action creature_ref
+		  _ -> return "protocol-error: not in planar turn state"
+
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
 ioDispatch ["quit"] _ = exitWith ExitSuccess
@@ -76,11 +95,19 @@ dbDispatch ["query","state"] =
        return $ case state of
 			   DBRaceSelectionState -> "answer: state race-selection"
 			   DBClassSelectionState {} -> "answer: state class-selection"
+			   DBPlayerCreatureTurn {} -> "answer: state player-turn"
 
 dbDispatch ["query","player-races"] =
     return ("begin-table player-races 0 name\n" ++
 	    unlines player_race_names ++
 	    "end-table")
+
+dbDispatch ["query","visible-terrain"] =
+    do maybe_plane_ref <- dbGetCurrentPlane
+       terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
+       return ("begin-table visible-terrain 0 x y terrain-type\n" ++
+	       (unlines $ map (\ ((x,y),terrain_type) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
+	       "end-table")
 
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
@@ -91,7 +118,9 @@ dbDispatch ["action","reroll"] =
 dbDispatch ["action","select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
 
-dbDispatch ["query","player-stats"] = dbRequiresClassSelectionState dbQueryPlayerStats
+dbDispatch ["query","player-stats"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
+
+dbDispatch ["query","center-coordinates"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
 
 dbDispatch ["query","base-classes"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
@@ -147,3 +176,14 @@ baseClassesTable creature =
     "begin-table base-classes 0 class\n" ++
     (unlines $ map show $ getEligableBaseCharacterClasses creature) ++
     "end-table"
+
+dbQueryCenterCoordinates :: CreatureRef -> DB String
+dbQueryCenterCoordinates creature_ref =
+    do maybe_loc <- dbWhere creature_ref
+       case (return . snd) =<< maybe_loc of
+		Just (DBCoordinateLocation (x,y)) -> return (begin_table ++
+							     "x " ++ show x ++ "\n" ++
+							     "y " ++ show y ++ "\n" ++
+							     "end-table")
+		_ -> return (begin_table ++ "end-table")
+	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"

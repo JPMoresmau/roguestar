@@ -29,6 +29,14 @@ module DB
      dbAddPlane,
      dbGetCreature,
      dbGetPlane,
+     dbModCreature,
+     dbModPlane,
+     dbMoveInto,
+     dbWhere,
+     dbGetContents,
+     dbGetContentsFiltered,
+     dbGetCreatures,
+     dbGetCreaturesFiltered,
      dbNextRandomInteger,
      dbNextRandomIntegerStream,
      dbSetStartingRace,
@@ -42,11 +50,13 @@ import Control.Monad.State
 import System.Time
 import RNG
 import Data.Map as Map
+import Data.List as List
 import InsidenessMap
 import SpeciesData
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
+	     | DBPlayerCreatureTurn CreatureRef
 	     deriving (Read,Show)
 
 -- |
@@ -141,9 +151,9 @@ dbSetState state = do db0 <- get
 --
 dbNextObjectRef :: DB Integer
 dbNextObjectRef = do db <- get
-		     let result = db_next_object_ref db
-			 in do put (db { db_next_object_ref=(succ result) })
-			       return result
+		     result <- return $ db_next_object_ref db
+		     put (db { db_next_object_ref=(succ result) })
+		     return result
 
 -- |
 -- Adds something to a map in the database using a new object reference.
@@ -202,6 +212,67 @@ dbGetCreature = dbGetObjectComposable db_creatures
 --
 dbGetPlane :: PlaneRef -> DB Plane
 dbGetPlane = dbGetObjectComposable db_planes
+
+-- |
+-- Modifies an Object based on an ObjectRef.
+--
+dbModObjectComposable :: DBRef ref => (ref -> DB a) -> ((ref,a) -> DB ()) -> (a -> a) -> ref -> DB ()
+dbModObjectComposable get_fn put_fn mod_fn ref =
+    do x0 <- get_fn ref
+       put_fn (ref,mod_fn x0)
+
+-- |
+-- Modifies a Plane based on a PlaneRef.
+--
+dbModPlane :: (Plane -> Plane) -> PlaneRef -> DB ()
+dbModPlane = dbModObjectComposable dbGetPlane dbPutPlane
+
+-- |
+-- Modifies a Creature based on a PlaneRef.
+--
+dbModCreature :: (Creature -> Creature) -> CreatureRef -> DB ()
+dbModCreature = dbModObjectComposable dbGetCreature dbPutCreature
+
+-- |
+-- Moves the first object into the second.
+--
+dbMoveInto :: (DBRef a,DBRef b) => a -> b -> DBLocation -> DB ()
+dbMoveInto container item location =
+    do db <- get
+       imap <- return $ db_inside db
+       put $ db { db_inside=InsidenessMap.insert (toDBReference container,toDBReference item,location) imap }
+
+-- |
+-- Returns the (parent,object's location) of this object.
+--
+dbWhere :: (DBRef a) => a -> DB (Maybe (DBReference,DBLocation))
+dbWhere item = liftM (InsidenessMap.lookup (toDBReference item) . db_inside) $ get
+
+-- |
+-- Returns the children [(child,child's location)] of this object.
+--
+dbGetContents :: (DBRef a) => a -> DB [(DBReference,DBLocation)]
+dbGetContents item = liftM (Prelude.map (\(_,y,z) -> (y,z)) . InsidenessMap.children (toDBReference item) . db_inside) get
+
+dbGetContentsFiltered :: (DBRef a) => a -> (DBReference -> DB Bool) -> DB [(DBReference,DBLocation)]
+dbGetContentsFiltered item fnM = 
+    filterM fnM' =<< dbGetContents item
+	where fnM' (ref,_) = fnM ref
+
+-- |
+-- Returns all the CreatureRefs for Creatures inside this item.
+--
+dbGetCreatures :: (DBRef a) => a -> DB [(CreatureRef,DBLocation)]
+dbGetCreatures item = dbGetCreaturesFiltered item (\_ -> return True)
+
+dbGetCreaturesFiltered :: (DBRef a) => a -> (CreatureRef -> DB Bool) -> DB [(CreatureRef,DBLocation)]
+dbGetCreaturesFiltered item fnM =
+    liftM (List.map ( \ x -> (toCreatureRef $ fst x,snd x))) $
+	  dbGetContentsFiltered item fnM'
+	      where fnM' x = if isCreatureRef x
+			     then fnM $ toCreatureRef x
+			     else return False
+
 
 -- |
 -- Generates and returns the next random Integer.
