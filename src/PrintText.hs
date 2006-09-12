@@ -3,7 +3,9 @@ module PrintText
      renderText,
      PrintTextMode(..),
      TextType(..),
-     printTranslated)
+     printTranslated,
+     clearText,
+     text_break)
     where
 
 import Data.IORef
@@ -25,15 +27,22 @@ padding_pixels = 10
 font :: BitmapFont
 font = Fixed9By15
 
-printText :: (IORef RoguestarGlobals) -> TextType -> String -> IO ()
-printText globals_ref textType str =
-    do globals <- readIORef globals_ref
-       writeIORef globals_ref $ globals { 
-					 global_text_output_buffer = (map (\x -> (textType,x)) 
-								      (reverse $ lines str)) ++ 
-					                             (global_text_output_buffer globals) }
+text_break :: String
+text_break = "----"
 
-renderText :: (IORef RoguestarGlobals) -> IO ()
+printText :: IORef RoguestarGlobals -> TextType -> String -> IO ()
+printText globals_ref textType str =
+    modifyIORef globals_ref $ 
+		    ( \ globals -> globals { 
+					    global_text_output_buffer = (takeWhile ((/= text_break) . snd) $
+									 (map ( \ x -> (textType,x)) 
+									  (reverse $ lines str)) ++
+									 (global_text_output_buffer globals)) } )
+			
+clearText :: IORef RoguestarGlobals -> IO ()
+clearText globals_ref = modifyIORef globals_ref ( \ globals -> globals { global_text_output_buffer = [] } )
+
+renderText :: IORef RoguestarGlobals -> IO ()
 renderText globals_ref = 
     do globals <- readIORef globals_ref
        (Size width height) <- get windowSize

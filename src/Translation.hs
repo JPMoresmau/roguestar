@@ -196,10 +196,11 @@ translateStr English ["species",species] = titleCapitalize species
 translateStr English ["class","forceadept"] = "Force Adept"
 translateStr English ["class",the_class] = titleCapitalize the_class
 
-translateStr English ["table-action","select-race",species] = "Welcome, young " ++ species ++ "."
+translateStr English ["table-action","select-race",species] = "----\n" ++ "Welcome, young " ++ species ++ "."
 
 translateStr English ["table-action","select-class",the_class] = 
-    ("> Two thousand years ago the Ascendant Knights preserved peace in the galaxy through\n" ++
+    ("----" ++ "\n" ++
+     "> Two thousand years ago the Ascendant Knights preserved peace in the galaxy through\n" ++
      "> charity and negotiation - and sometimes force.  The knights evolved beyond their\n" ++
      "> physical forms, leaving behind a benevolent but disinterested galactic government\n" ++
      "> called the Interstellar Concordance.  Since then the galaxy has existed in an uneasy\n" ++
