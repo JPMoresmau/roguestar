@@ -13,22 +13,22 @@ import Data.Maybe
 
 player_race_to_biome :: [(String,Biome)]
 player_race_to_biome =
-    [("anachronid",DeasertBiome),
+    [("anachronid",DesertBiome),
      ("androsynth",RockBiome),
      ("ascendant",MountainBiome),
      ("canduceator",SwampBiome),
      ("encephalon",SwampBiome),
-     ("goliath",DeasertBiome),
+     ("goliath",DesertBiome),
      ("hellion",GrasslandBiome),
      ("kraken",OceanBiome),
-     ("myrmidon",DeasertBiome),
+     ("myrmidon",DesertBiome),
      ("perennial",ForestBiome),
-     ("recreant",DeasertBiome),
+     ("recreant",DesertBiome),
      ("reptilian",SwampBiome)]
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
-    dbNewPlane $ TerrainGenerationData {tg_smootheness = 5,
+    dbNewPlane $ TerrainGenerationData {tg_smootheness = 3,
 					tg_biome = fromMaybe GrasslandBiome $ lookup (creature_species_name creature) player_race_to_biome}
 
 -- |

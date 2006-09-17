@@ -4,10 +4,12 @@ module VisibilityData
      terrainHideMultiplier,
      terrainSpotMultiplier,
      terrainOpacity,
-     facingToRelative7)
+     facingToRelative7,
+     maximumRangeForSpotCheck)
     where
 
 import TerrainData
+import Data.List
 
 data Facing = North
 	    | NorthEast
@@ -20,8 +22,7 @@ data Facing = North
 	    | Here
 	      deriving (Eq,Enum,Bounded)
 -- |
--- In relative coordinates, one integral step in the specified
--- direction.
+-- In relative coordinates, one integral step in the specified direction.
 --
 facingToRelative :: Facing -> (Integer,Integer)
 facingToRelative North = (0,1)
@@ -60,7 +61,7 @@ terrainHideMultiplier RockyGround = 1
 terrainHideMultiplier Dirt = 0
 terrainHideMultiplier Grass = 1
 terrainHideMultiplier Sand = 1
-terrainHideMultiplier Deasert = 1
+terrainHideMultiplier Desert = 1
 terrainHideMultiplier Forest = 2
 terrainHideMultiplier DeepForest = 2
 terrainHideMultiplier Water = 2
@@ -90,7 +91,7 @@ terrainOpacity RockyGround = 0
 terrainOpacity Dirt = 0
 terrainOpacity Grass = 0
 terrainOpacity Sand = 0
-terrainOpacity Deasert = 0
+terrainOpacity Desert = 0
 terrainOpacity Forest = 2
 terrainOpacity DeepForest = 5
 terrainOpacity Water = 0
@@ -108,4 +109,11 @@ distanceCostForSight :: Facing -> (Integer,Integer) -> Integer
 distanceCostForSight facing (x,y) =
     let (xface,yface) = facingToRelative facing
 	(x',y') = (x-xface,y-yface)
-	in x*x' + y*y'
+	in (x*x' + y*y')
+
+-- |
+-- The maximum distance from any point that a creature with that spot check could see anything,
+-- no matter how well lit.
+--
+maximumRangeForSpotCheck :: Integer -> Integer
+maximumRangeForSpotCheck spot_check = genericLength $ takeWhile (< spot_check) [(x*x) | x <- [1..]]

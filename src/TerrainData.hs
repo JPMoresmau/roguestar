@@ -44,7 +44,7 @@ data Biome = RockBiome
            | GrasslandBiome
 	   | ForestBiome
            | TundraBiome
-           | DeasertBiome
+           | DesertBiome
            | OceanBiome
            | MountainBiome
 	   | SwampBiome
@@ -64,7 +64,7 @@ data TerrainPatch = RockFace
                   | Dirt
                   | Grass
                   | Sand
-                  | Deasert -- exactly like sand, except from the terrain generator's point of view: oasis can appear
+                  | Desert -- exactly like sand, except from the terrain generator's point of view: oasis can appear
                   | Forest
                   | DeepForest
                   | Water
@@ -94,7 +94,7 @@ terrainFrequencies IcyRockBiome = [(1,RockFace),(2,Rubble),(3,RockyGround),(6,Ic
 terrainFrequencies GrasslandBiome = [(1,RockFace),(1,RockyGround),(1,Dirt),(2,Sand),(1,Forest),(1,Water),(10,Grass)]
 terrainFrequencies ForestBiome = [(1,RockFace),(1,RockyGround),(1,Dirt),(5,Water),(3,Grass),(5,Forest),(5,DeepForest)]
 terrainFrequencies TundraBiome = [(1,RockFace),(3,RockyGround),(1,Sand),(1,Water),(1,Grass),(8,Ice)]
-terrainFrequencies DeasertBiome = [(1,RockFace),(3,RockyGround),(1,Grass),(1,Water),(11,Deasert)]
+terrainFrequencies DesertBiome = [(1,RockFace),(3,RockyGround),(1,Grass),(1,Water),(11,Desert)]
 terrainFrequencies OceanBiome = [(1,RockyGround),(3,Sand),(1,Grass),(1,Forest),(7,Water),(20,DeepWater)]
 terrainFrequencies MountainBiome = [(6,RockFace),(3,RockyGround),(1,Rubble),(1,Sand),(1,Grass),(1,Forest),(1,Water)]
 terrainFrequencies SwampBiome = [(1,Forest),(1,Water)]
@@ -119,7 +119,7 @@ terrainInterpRule (Forest,_) = [(1,Grass)]
 terrainInterpRule (Water,Water) = [(20,Water),(1,Sand)]
 terrainInterpRule (Water,DeepWater) = []
 terrainInterpRule (Water,_) = [(1,Sand)]
-terrainInterpRule (Sand,Deasert) = [(1,Grass),(1,Forest)]
+terrainInterpRule (Sand,Desert) = [(1,Grass),(1,Forest)]
 terrainInterpRule _ = []
 
 -- |
@@ -156,7 +156,7 @@ terrainPatchToASCII RockyGround = ':'
 terrainPatchToASCII Dirt = '.'
 terrainPatchToASCII Grass = ','
 terrainPatchToASCII Sand = '_'
-terrainPatchToASCII Deasert = '_'
+terrainPatchToASCII Desert = '_'
 terrainPatchToASCII Forest = 'f'
 terrainPatchToASCII DeepForest = 'F'
 terrainPatchToASCII Water = '~'

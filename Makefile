@@ -6,7 +6,9 @@ HS_FLAGS = 	-hidir products/ \
 		--make src/Main.hs \
 		-o products/roguestar-engine
 
-default : ghc-release
+default : ghc
+
+release : ghc-release
 
 install :
 	install products/roguestar-engine /usr/local/bin/
@@ -21,10 +23,15 @@ doc :
 	${MAKE} -C haddock
 
 ghc :
-	ghc 	${HS_FLAGS}
+	@echo "warning: you're building with development flags on (-Werror, no optimization)"
+	@echo "         did you want to 'make release' ?"
+	ghc 	-Werror ${HS_FLAGS}
+
+ghc-prof :
+	ghc	${HS_FLAGS} -prof -auto-all
 
 ghc-release :
-	ghc	-O -Werror ${HS_FLAGS}
+	ghc	-O2 -fvia-c ${HS_FLAGS}
 
 check:
 	${MAKE} clean
@@ -42,4 +49,4 @@ headache:
 headache-remove:
 	headache -c header/license-header.conf -h header/license-header -r src/*.hs
 
-.PHONY : default clean doc ghc ghc-release check dist headache headache-remove
+.PHONY : default clean doc ghc ghc-release check dist headache headache-remove release
