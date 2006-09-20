@@ -46,6 +46,17 @@ waitNextTurnTransition_ dones_count waiting_display_func globals_ref =
        globals <- readIORef globals_ref
        when (global_dones globals > dones_count) $ setNextDisplayFunc globals_ref displayDispatch
 
+centerCoordinates :: IORef RoguestarGlobals -> IO (Maybe (Integer,Integer))
+centerCoordinates globals_ref = 
+    do maybe_table <- driverRequestTable globals_ref "center-coordinates" "0"
+       return $ do table <- maybe_table
+		   coords <- return $ tableSelect2Integer table ("axis","coordinate")
+		   maybe_x <- lookup "x" coords
+		   maybe_y <- lookup "y" coords
+		   x <- maybe_x
+		   y <- maybe_y
+		   return (x,y)
+
 -- |
 -- Function that dispatches control to another display function based on the game engine's state.
 --
@@ -92,6 +103,7 @@ turn_display_configuration = ogl_state_configuration_model {
 							    ogl_background_color = Color4 0.5 0.5 1.0 1.0,
 							    ogl_near_plane = 2,
 							    ogl_far_plane = 35,
+							    ogl_fov_degrees = 35,
 							    ogl_light_0 = 
 							    Just $ OGLLightConfiguration { ogl_light_ambient = Color4 0.2 0.2 0.2 1.0,
 											   ogl_light_diffuse = Color4 1.0 1.0 1.0 1.0,
@@ -105,7 +117,11 @@ turnDisplay :: IORef RoguestarGlobals -> IO ()
 turnDisplay globals_ref =
     do setOpenGLState turn_display_configuration
        clear [ColorBuffer,DepthBuffer]
-       updateCamera globals_ref [Point3D (-10) 20 (-50)]
+       center_coordinates <- liftM (fromMaybe (0,0)) $ centerCoordinates globals_ref
+       updateCamera globals_ref [Point3D 
+				 (fromInteger $ fst center_coordinates) 
+				 0 
+				 (fromInteger $ snd center_coordinates)]
        globals <- readIORef globals_ref
        global_terrain_rendering_function globals globals_ref
 
