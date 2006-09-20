@@ -64,7 +64,7 @@ main :: IO ()
 main = do (_,args) <- getArgsAndInitialize
 	  language <- return $ languageFromArgs args
 	  globals_ref <- newIORef $ roguestar_globals_0 { global_quality = qualityFromArgs args,
-							  global_display_func = initialTurnDisplay,
+							  global_display_func = displayDispatch,
 							  global_language = language }
 	  printText globals_ref GUIMessage license_info
 	  initialWindowSize $= default_window_size

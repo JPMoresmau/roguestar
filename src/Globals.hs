@@ -10,6 +10,8 @@ import PrintTextData
 import Quality
 import Tables
 import DefaultKeymap
+import Math3D
+import CameraTracking
 
 data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarTable], restate_answers :: [(String,String)] }
 
@@ -28,10 +30,11 @@ data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarT
 -- global_keymap -- mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
 -- global_user_input -- input from the user typing (don't touch unless you're Main.hs)
 -- global_dones -- number of "done" lines recieved from the engine, used to track turn changes.
+-- global_terrain_rendering_function function to draw terrain
 --
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
-					  global_display_func :: (IORef RoguestarGlobals) -> IO (),
+					  global_display_func :: IORef RoguestarGlobals -> IO (),
 					  global_text_output_buffer :: [(TextType,String)], -- in reverse order for ease of appending
 					  global_text_output_mode :: PrintTextMode,
 					  global_engine_input_lines :: [String], -- in reverse order for ease of appending (but each string is in forward order)
@@ -41,7 +44,10 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_language :: Language,
 					  global_keymap :: [(String,String)], -- map of keystrokes to action names
 					  global_user_input :: String, -- in normal order
-					  global_dones :: Integer
+					  global_dones :: Integer,
+					  global_terrain_rendering_function :: IORef RoguestarGlobals -> IO (),
+					  global_last_camera_update_seconds :: Rational,
+					  global_camera :: Camera
 					 }
 
 -- |
@@ -60,5 +66,8 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_language = English,
 					global_keymap = default_keymap,
 					global_user_input = [],
-					global_dones = 0
+					global_dones = 0,
+					global_terrain_rendering_function = \_ -> return (),
+					global_last_camera_update_seconds = 0,
+					global_camera = Camera (Point3D 0 0 0) (Point3D 0 3 (-3))
 				       }

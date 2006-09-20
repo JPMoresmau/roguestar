@@ -3,10 +3,15 @@ HS_FLAGS = 	-hidir products/ \
 		-isrc/:products \
 		-Wall \
 		-fno-warn-type-defaults \
+		-fno-warn-unused-imports \
 		--make src/Main.hs \
 		-o products/roguestar-gl-bin
 
-default : ghc-release
+# -fno-warn-unused-imports due to an apparent bug in ghc, remove this and try again later
+
+default : ghc
+
+release : ghc-release
 
 install :
 	install products/roguestar-gl /usr/local/bin/
@@ -26,10 +31,12 @@ ghc-prof : products/roguestar-gl
 	ghc 	-prof -auto-all ${HS_FLAGS}
 
 ghc : products/roguestar-gl
-	ghc	${HS_FLAGS}
+	@echo "warning: you're building with development flags on (-Werror, no optimization)"
+	@echo "         did you want to 'make release' ?"
+	ghc	-Werror ${HS_FLAGS}
 
 ghc-release : products/roguestar-gl
-	ghc	-O -Werror ${HS_FLAGS}
+	ghc	-O ${HS_FLAGS}
 
 products/roguestar-gl : src/roguestar-gl
 	cp src/roguestar-gl products/roguestar-gl
@@ -50,4 +57,4 @@ headache:
 headache-remove:
 	headache -c header/license-header.conf -h header/license-header -r src/*.hs
 
-.PHONY : default clean doc ghc ghc-release check dist headache headache-remove
+.PHONY : default clean doc ghc ghc-release check dist headache headache-remove release

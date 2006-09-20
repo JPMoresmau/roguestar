@@ -3,10 +3,8 @@ module StarflightBackground
      renderStarflightRotation)
     where
 
---import Graphics.Rendering.OpenGL.GL
---import Graphics.Rendering.OpenGL.GLU
+import Seconds
 import Quality
-import System.Time
 import Graphics.UI.GLUT
 import System.Random
 import Data.List
@@ -75,10 +73,6 @@ renderStarflightRotation globals_ref model =
 				  translate $ (Vector3 0 0 150 :: Vector3 GLfloat)
 				  rotate (360*cyc) (Vector3 1 (sin (2*pi*cyc_axis)) 0)
 				  toOpenGL model
-
-cycleSeconds :: (Fractional n) => Integer -> IO n
-cycleSeconds cycle_length = do (TOD secs picos) <- getClockTime
-			       return $ (fromInteger (secs `mod` cycle_length) + (fromInteger picos / 1000000000000)) / fromInteger cycle_length
 
 -- This isn't properly random, but it does create a nifty effect.
 starfield :: Quality -> [(Float,Float,Float)]
