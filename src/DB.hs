@@ -40,7 +40,8 @@ module DB
      dbNextRandomInteger,
      dbNextRandomIntegerStream,
      dbSetStartingRace,
-     dbGetStartingRace)
+     dbGetStartingRace,
+     dbMoveTo)
     where
 
 import DBData
@@ -234,13 +235,23 @@ dbModCreature :: (Creature -> Creature) -> CreatureRef -> DB ()
 dbModCreature = dbModObjectComposable dbGetCreature dbPutCreature
 
 -- |
--- Moves the first object into the second.
+-- Moves the second parameter so that it is inside the first.
 --
 dbMoveInto :: (DBRef a,DBRef b) => a -> b -> DBLocation -> DB ()
 dbMoveInto container item location =
     do db <- get
        imap <- return $ db_inside db
        put $ db { db_inside=InsidenessMap.insert (toDBReference container,toDBReference item,location) imap }
+
+-- |
+-- Moves the object within its parent.  (The object has the same parent after the action).
+--
+dbMoveTo :: (DBRef a) => a -> DBLocation -> DB ()
+dbMoveTo item location =
+    do where_it_is <- dbWhere item
+       case where_it_is of
+                  Just (container,_) -> dbMoveInto container item location
+                  Nothing -> error "dbMoveTo: but it doesn't have a location to start with"
 
 -- |
 -- Returns the (parent,object's location) of this object.

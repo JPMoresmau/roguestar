@@ -30,6 +30,8 @@ module DBData
      toPlaneRef)
     where
 
+import Facing
+
 data DBReference = DBCreatureRef CreatureRef
 		 | DBPlaneRef PlaneRef
 		 deriving (Eq,Ord,Read,Show)
@@ -53,6 +55,7 @@ toPlaneRef x = case toDBReference x of
 				    _ -> error "not a DBPlaneRef"
 
 data DBLocation = DBCoordinateLocation (Integer,Integer)
+                | DBCoordinateFacingLocation ((Integer,Integer),Facing)
 		deriving (Read,Show)
 
 newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)

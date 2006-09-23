@@ -39,6 +39,7 @@ import Data.Maybe
 import Plane
 import FactionData
 import PlaneVisibility
+import Facing
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -51,7 +52,7 @@ done :: DB String
 done = return "done"
 
 -- |
--- Runs a database action assuming the database is in the DBRaceSelectionState,
+-- Perform an action assuming the database is in the DBRaceSelectionState,
 -- otherwise returns an error message.
 --
 dbRequiresRaceSelectionState :: DB String -> DB String
@@ -61,7 +62,7 @@ dbRequiresRaceSelectionState action = do state <- dbState
 						    _ -> return "protocol-error: not in race selection state"
 
 -- |
--- Runs a database action assuming the database is in the DBClassSelectionState,
+-- Perform an action assuming the database is in the DBClassSelectionState,
 -- otherwise returns an error message.
 --
 dbRequiresClassSelectionState :: (Creature -> DB String) -> DB String
@@ -70,6 +71,14 @@ dbRequiresClassSelectionState action = do state <- dbState
 						     DBClassSelectionState creature -> action creature
 						     _ -> return "protocol-error: not in class selection state"
 
+-- |
+-- Perform an action based on a player creature, when the state is appropriate.
+-- This works even outside of a planar state, such as the class selection state.
+-- The states that work for this are:
+--
+-- DBClassSelectionState
+-- DBPlayerCreatureTurn
+--
 dbRequiresPlayerCenteredState :: (Creature -> DB String) -> DB String
 dbRequiresPlayerCenteredState action =
     do state <- dbState
@@ -78,12 +87,32 @@ dbRequiresPlayerCenteredState action =
 		  DBPlayerCreatureTurn creature_ref -> action =<< dbGetCreature creature_ref
 		  _ -> return "protocol-error: not in player-centered state"
 
+-- |
+-- Perform an action that works during any creature's turn in a planar environment.
+-- The states that work for this are:
+--
+-- DBPlayerCreatureTurn
+-- 
+--
 dbRequiresPlanarTurnState :: (CreatureRef -> DB String) -> DB String
 dbRequiresPlanarTurnState action =
     do state <- dbState
        case state of
 		  DBPlayerCreatureTurn creature_ref -> action creature_ref
 		  _ -> return "protocol-error: not in planar turn state"
+
+-- |
+-- Perform an action that works only during a player-character's turn.
+-- The states that work for this are:
+--
+-- DBPlayerCreatureTurn
+--
+dbRequiresPlayerTurnState :: (CreatureRef -> DB String) -> DB String
+dbRequiresPlayerTurnState action =
+    do state <- dbState
+       case state of
+                  DBPlayerCreatureTurn creature_ref -> action creature_ref
+                  _ -> return "protocol-error: not in player turn state"
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
@@ -137,6 +166,9 @@ dbDispatch ["action","reroll"] =
 
 dbDispatch ["action","select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
+
+dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
+    dbRequiresPlayerTurnState (\x -> dbWalkCreature (fromJust $ stringToFacing direction) x >> done)
 
 dbDispatch ["query","player-stats"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
@@ -205,5 +237,10 @@ dbQueryCenterCoordinates creature_ref =
 							     "x " ++ show x ++ "\n" ++
 							     "y " ++ show y ++ "\n" ++
 							     "end-table")
+                Just (DBCoordinateFacingLocation ((x,y),facing)) -> return (begin_table ++
+                                                                            "x " ++ show x ++ "\n" ++
+                                                                            "y " ++ show y ++ "\n" ++
+                                                                            "facing " ++ show facing ++ "\n " ++
+                                                                            "end-table")
 		_ -> return (begin_table ++ "end-table")
 	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"

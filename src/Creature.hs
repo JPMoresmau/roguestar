@@ -22,9 +22,11 @@ module Creature
     (dbGenerateInitialPlayerCreature,
      runCreatureGenerationTest, 
      creatureTests,
-     dbNewCreature)
+     dbNewCreature,
+     dbWalkCreature)
     where
 
+import Data.Maybe
 import Control.Monad.State
 import CreatureData
 import DB
@@ -34,6 +36,7 @@ import Tests
 import DBData
 import Dice
 import FactionData
+import Facing
 
 runCreatureGenerationTest :: IO ()
 runCreatureGenerationTest = do db0 <- initialDB
@@ -68,27 +71,44 @@ dbGenerateInitialPlayerCreature species =
 --
 dbNewCreature :: Faction -> Species -> DB CreatureRef
 dbNewCreature faction species = 
-    do newc <- dbGenerateCreature faction species
-       dbAddCreature newc
+    do dbAddCreature =<< dbGenerateCreature faction species
+
+-- |
+-- Causes the creature to walk in the specified facing direction.
+dbWalkCreature :: Facing -> CreatureRef -> DB ()
+dbWalkCreature facing creature_ref =
+    do (_,loc0) <- liftM fromJust $ dbWhere creature_ref
+       let (_         ,loc') = case loc0 of
+                                         DBCoordinateLocation (x,y) -> (True, 
+                                                                        DBCoordinateFacingLocation ((x+delta_x,y+delta_y),facing))
+                                         DBCoordinateFacingLocation ((x,y),old_facing) -> (old_facing == facing,
+                                                                                           DBCoordinateFacingLocation ((x+delta_x,y+delta_y),facing))
+           (delta_x,delta_y) = facingToRelative facing
+--           movement_cost = case (delta_x,delta_y) of
+--                                                  (0,0) -> 0%1
+--                                                  (_,0) -> 1%1
+--                                                  (0,_) -> 1%1
+--                                                  (_,_) -> 7%5
+       dbMoveTo creature_ref loc'
 
 creatureTests :: [TestCase]
 creatureTests = [testHitPointCalculation,testAlive,testDead,
                  testEffectiveLevel,testMeleeAttackBonus]
 
 testHitPointCalculation :: TestCase
-testHitPointCalculation = do if (creatureScore MaxHitPoints exampleCreature1 == 33)
-				then return (Passed "testHitPointCalculation")
-				else return (Failed ("testHitPointCalculation" ++ "(" ++ (show (creatureScore MaxHitPoints exampleCreature1)) ++ ")"))
+testHitPointCalculation = if (creatureScore MaxHitPoints exampleCreature1 == 33)
+			  then return (Passed "testHitPointCalculation")
+			  else return (Failed ("testHitPointCalculation" ++ "(" ++ (show (creatureScore MaxHitPoints exampleCreature1)) ++ ")"))
 
 testAlive :: TestCase
-testAlive = do if (alive $ injure 34 exampleCreature1)
-		  then return (Passed "testAlive")
-		  else return (Failed "testAlive")
+testAlive = if (alive $ injure 34 exampleCreature1)
+	    then return (Passed "testAlive")
+	    else return (Failed "testAlive")
 
 testDead :: TestCase
-testDead = do if (dead $ injure 36 exampleCreature1)
-                 then return (Passed "testDead")
-		 else return (Failed "testDead")
+testDead = if (dead $ injure 36 exampleCreature1)
+           then return (Passed "testDead")
+	   else return (Failed "testDead")
 
 testEffectiveLevel :: TestCase
 testEffectiveLevel = let effective_level = (creatureScore EffectiveLevel exampleCreature1)
