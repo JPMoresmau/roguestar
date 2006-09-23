@@ -58,9 +58,6 @@ terrainGlows :: String -> Bool
 terrainGlows "lava" = True
 terrainGlows _ = False
 
---terrainFadesOut :: String -> Bool
---terrainFadesOut _ = True
-
 --data TerrainSpecial = Trees Integer | RockFace
 
 --terrainSpecial :: String -> Maybe TerrainSpecial

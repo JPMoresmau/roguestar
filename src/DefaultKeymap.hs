@@ -37,4 +37,12 @@ default_keymap = filterKeymap
 		  ("s","scout"),
 		  ("S","shepherd"),
 		  ("t","thief"),
-		  ("w","warrior")]
+		  ("w","warrior"),
+		  ("k","move-n"),
+		  ("j","move-s"),
+		  ("h","move-e"),
+		  ("l","move-w"),
+		  ("y","move-ne"),
+		  ("u","move-nw"),
+		  ("b","move-se"),
+		  ("n","move-sw")]

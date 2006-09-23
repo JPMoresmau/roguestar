@@ -2,6 +2,7 @@ Before installing roguestar-gl from source, you need:
 
 - ghc-6.4.x or better
 - roguestar-gl needs to be installed in parallel with roguestar-engine.
+- netpipes
 
 $ make release
 $ su

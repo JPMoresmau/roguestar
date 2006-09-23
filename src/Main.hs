@@ -19,7 +19,8 @@
 --------------------------------------------------------------------------
 
 module Main
-    (main)
+    (main,
+     displayModel)
     where
 
 import System.IO
@@ -36,6 +37,8 @@ import Control.Monad
 import Actions
 import Keymaps
 import RenderingControl
+import Model
+import StarflightBackground
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -75,6 +78,17 @@ main = do (_,args) <- getArgsAndInitialize
 	  keyboardMouseCallback $= (Just $ roguestarKeyCallback globals_ref)
 	  addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
 	  mainLoop
+
+displayModel :: Model -> IO ()
+displayModel model = 
+    do globals_ref <- newIORef $ roguestar_globals_0 { global_display_func = renderStarflightRotation model }
+       initialWindowSize $= default_window_size
+       initialDisplayMode $= display_mode
+       window <- createWindow "Roguestar-GL: Model Display"
+       reshapeCallback $= Just roguestarReshapeCallback
+       displayCallback $= roguestarDisplayCallback globals_ref
+       addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
+       mainLoop
 
 roguestarReshapeCallback :: Size -> IO ()
 roguestarReshapeCallback (Size width height) = do matrixMode $= Projection

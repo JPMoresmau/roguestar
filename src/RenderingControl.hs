@@ -26,8 +26,20 @@ import CameraTracking
 -- retain control until the next call to setNextDisplayFunc.
 --
 setNextDisplayFunc :: IORef RoguestarGlobals -> (IORef RoguestarGlobals -> IO ()) -> IO ()
-setNextDisplayFunc globals_ref fn = do globals <- readIORef globals_ref
-				       writeIORef globals_ref $ globals { global_display_func=fn }
+setNextDisplayFunc globals_ref fn = modifyIORef globals_ref (\globals -> globals { global_display_func=fn })
+
+-- |
+-- Sets a display function to continue until the next done.  ("done" is the signal sent
+-- from roguestar-engine when a state transition occurs.)
+--
+setOngoingDisplayFunc :: IORef RoguestarGlobals -> (IORef RoguestarGlobals -> IO()) -> IO ()
+setOngoingDisplayFunc globals_ref fn =
+    do dones <- liftM global_dones $ readIORef globals_ref
+       let ongoingDisplayFunc _ = do dones_later <- liftM global_dones $ readIORef globals_ref
+				     fn globals_ref
+				     when (dones /= dones_later) $
+					  setNextDisplayFunc globals_ref displayDispatch
+       setNextDisplayFunc globals_ref ongoingDisplayFunc
 
 -- |
 -- Sets itself as the display function and then waits for the next "done" from the engine,
@@ -62,8 +74,7 @@ centerCoordinates globals_ref =
 --
 displayDispatch :: IORef RoguestarGlobals -> IO ()
 displayDispatch globals_ref = 
-    do renderStarflightBackground globals_ref
-       engine_state <- driverRequestAnswer globals_ref "state"
+    do engine_state <- driverRequestAnswer globals_ref "state"
        case engine_state of
 			 Just "race-selection" -> setNextDisplayFunc globals_ref initialRaceSelectionDisplay
 			 Just "class-selection" -> setNextDisplayFunc globals_ref initialClassSelectionDisplay
@@ -94,16 +105,15 @@ classSelectionMenuDisplay globals_ref =
 initialTurnDisplay :: IORef RoguestarGlobals -> IO ()
 initialTurnDisplay globals_ref =
     do good <- resetTerrainRenderingFunction globals_ref
-       updateCamera globals_ref [Point3D 0 0 0]
        turnDisplay globals_ref
-       when good $ setNextDisplayFunc globals_ref turnDisplay
+       when good $ setOngoingDisplayFunc globals_ref turnDisplay
 
 turn_display_configuration :: OGLStateConfiguration
 turn_display_configuration = ogl_state_configuration_model { 
 							    ogl_background_color = Color4 0.5 0.5 1.0 1.0,
 							    ogl_near_plane = 2,
 							    ogl_far_plane = 35,
-							    ogl_fov_degrees = 35,
+							    ogl_fov_degrees = 40,
 							    ogl_light_0 = 
 							    Just $ OGLLightConfiguration { ogl_light_ambient = Color4 0.2 0.2 0.2 1.0,
 											   ogl_light_diffuse = Color4 1.0 1.0 1.0 1.0,
@@ -117,21 +127,28 @@ turnDisplay :: IORef RoguestarGlobals -> IO ()
 turnDisplay globals_ref =
     do setOpenGLState turn_display_configuration
        clear [ColorBuffer,DepthBuffer]
-       center_coordinates <- liftM (fromMaybe (0,0)) $ centerCoordinates globals_ref
-       updateCamera globals_ref [Point3D 
-				 (fromInteger $ fst center_coordinates) 
-				 0 
-				 (fromInteger $ snd center_coordinates)]
+       maybe_center_coordinates <- centerCoordinates globals_ref
+       (if isJust maybe_center_coordinates
+	then updateCamera globals_ref [Point3D 
+				       (fromInteger $ fst $ fromJust maybe_center_coordinates) 
+				       0 
+				       (fromInteger $ snd $ fromJust maybe_center_coordinates)]
+	else updateCamera globals_ref [])
        globals <- readIORef globals_ref
        global_terrain_rendering_function globals globals_ref
+
+camera_speed :: Rational
+camera_speed = 3
 
 -- |
 -- Moves the camera to look at the specified coordinates by calling lookAt.
 --
 updateCamera :: IORef RoguestarGlobals -> [Point3D] -> IO ()
+updateCamera globals_ref [] = cameraLookAt =<< (liftM global_camera $ readIORef globals_ref)
+
 updateCamera globals_ref spot_targets =
     do now_seconds <- seconds
-       delta_seconds <- liftM ((now_seconds -) . global_last_camera_update_seconds) $ readIORef globals_ref
+       delta_seconds <- liftM ((camera_speed *) . (now_seconds -) . global_last_camera_update_seconds) $ readIORef globals_ref
        new_camera <- liftM (trackCamera (fromRational delta_seconds) spot_targets . global_camera) $ readIORef globals_ref
        modifyIORef globals_ref ( \ globals -> globals { global_last_camera_update_seconds = now_seconds,
 							global_camera = new_camera } )
@@ -139,8 +156,9 @@ updateCamera globals_ref spot_targets =
 
 -- |
 -- Reads in (using Driver) and prints (using PrintText).
--- printTableInformation may not successfully read the table from the Driver.  It it does not,
--- it returns taking no action.  If it does successfully read the table, it formats and prints
+-- printTableInformation may not successfully read the table from the Driver.
+-- If it does not, it does a setNextDisplayFunc on itself to try again next time.
+-- If it does successfully read the table, it formats and prints
 -- the information and then does a setNextDisplayFunc on the last parameter.
 --
 printTable :: String -> String -> (IORef RoguestarGlobals -> IO ()) -> IORef RoguestarGlobals -> IO ()

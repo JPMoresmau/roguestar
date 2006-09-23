@@ -149,7 +149,7 @@ interpretLine globals_ref DINeutral str | (head $ words str) == "begin-table" =
 						    else do { printText globals_ref Untranslated "gui-side protocol error: incomplete begin-table header"; 
 							      return DIError })
 
-interpretLine globals_ref (DIScanningTable table) "end-table" =
+interpretLine globals_ref (DIScanningTable table) str | (head $ words str) == "end-table" =
     do globals <- readIORef globals_ref
        let engine_state0 = global_engine_state globals
 	   tables0 = restate_tables engine_state0

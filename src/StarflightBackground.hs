@@ -61,8 +61,8 @@ starflight_model_ogl_configuration =
 -- |
 -- Renders a model spinning through hyperspace.
 --
-renderStarflightRotation :: (IORef RoguestarGlobals) -> Model -> IO ()
-renderStarflightRotation globals_ref model = 
+renderStarflightRotation :: Model -> (IORef RoguestarGlobals) -> IO ()
+renderStarflightRotation model globals_ref = 
     do renderStarflightBackground globals_ref
        setOpenGLState starflight_model_ogl_configuration
        clear [DepthBuffer]

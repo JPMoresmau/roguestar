@@ -48,25 +48,21 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
 	       }
 	   }
 
+moveAction :: String -> (String,Action)
+moveAction str =
+    ("move-" ++ str,
+     Action {
+	     action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverRequestAnswer globals_ref "state",
+	     action_execute = \globals_ref -> driverAction globals_ref ["move",str]
+	    })
+
 reroll_action :: (String,Action)
 reroll_action =
     ("reroll",
      Action {
-	     action_valid = \globals_ref -> 
-	     do {
-		 maybe_state <- driverRequestAnswer globals_ref "state";
-		 case maybe_state 
-		 of {
-		     Nothing -> return False; 
-		     Just state -> return (state == "class-selection")
-		    }
-		},
-	     
-	    action_execute = \globals_ref ->
-	    do {
-		driverAction globals_ref ["reroll"]
-	       }
-           })
+	     action_valid = \globals_ref -> liftM (== Just "class-selection") $ driverRequestAnswer globals_ref "state",
+	     action_execute = \globals_ref -> driverAction globals_ref ["reroll"]
+            })
 
 select_race_action_names :: [String]
 select_race_action_names = ["anachronid",
@@ -96,16 +92,23 @@ select_base_class_action_names = ["barbarian",
 				  "thief",
 				  "warrior"]
 
+eight_directions :: [String]
+eight_directions = ["n","ne","nw","e","w","se","sw","s"]
+
 select_race_actions :: [(String,Action)]
 select_race_actions = map (\x -> (x,selectRaceAction x)) select_race_action_names
 
 select_base_class_actions :: [(String,Action)]
 select_base_class_actions = map (\x -> (x,selectBaseClassAction x)) select_base_class_action_names
 
+move_actions :: [(String,Action)]
+move_actions = map moveAction eight_directions
+
 all_actions :: [(String,Action)]
 all_actions = select_race_actions ++ 
 	      [reroll_action] ++
-	      select_base_class_actions
+	      select_base_class_actions ++
+	      move_actions
 
 getValidActions :: IORef RoguestarGlobals -> IO [String]
 getValidActions globals_ref = 
