@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title>HOWTO: View Models In The Haskell Source</title>
+</head>
+<body>
+You can make new models in roguestar-gl by writing them directly into
+the haskell source code. &nbsp;All models are stored in src/Models/.<br>
+<br>
+To view your model and make sure it looks right, you can follow this
+example using ghci. &nbsp;Text that you type in is in bold.
+&nbsp;Replace anything saying "ascension class starship" with the name
+of whatever model you are making.<br>
+<span style="font-family: monospace;"><br>
+<span style="color: rgb(0, 0, 0);">lane@mr-lambda:~/src/roguestar-gl$</span> <span style="font-weight: bold;">ls</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">add_to_path.sh&nbsp;
+COPYING&nbsp; _darcs&nbsp; haddock&nbsp; header&nbsp; html&nbsp;
+INSTALL&nbsp; Makefile&nbsp; products&nbsp; src</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">lane@mr-lambda:~/src/roguestar-gl$ <span style="font-weight: bold;">cd src/</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">lane@mr-lambda:~/src/roguestar-gl/src$ <span style="font-weight: bold;">ghci</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">&nbsp;&nbsp; ___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ___ _</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">&nbsp; / _ \ /\&nbsp; /\/ __(_)</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">&nbsp;/ /_\// /_/ / /&nbsp; | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; GHC Interactive, version 6.4.2, for Haskell 98.</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">/ /_\\/ __&nbsp; / /___| |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; http://www.haskell.org/ghc/</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">\____/\/ /_/\____/|_|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Type :? for help.</span><br style="font-family: monospace;">
+<br style="font-family: monospace;">
+<span style="font-family: monospace;">Loading package base-1.0 ... linking ... done.</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">Prelude&gt; <span style="font-weight: bold;">:load Main.hs Models/AscensionClassStarship.hs</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">Compiling . . .</span><span style="font-family: monospace;"></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">Ok, modules loaded: Main,
+RenderingControl, Menus, PrintTables, Keymaps, Actions,
+TerrainRenderer, Driver, PrintText, StarflightBackground, Globals,
+Translation, String, Models.AscensionClassStarship, CameraTracking,
+Models.ConcordanceStarshipParts, Quality, Model, Math3D, ListUtils,
+DefaultKeymap, Tables, PrintTextData, WordGenerator,
+OGLStateConfiguration, Seconds, License.</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">*Main&gt; <span style="font-weight: bold;">:module + Models.AscensionClassStarship</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">*Main Models.AscensionClassStarship&gt; <span style="font-weight: bold;">displayModel $ ascension_class_starship Good</span></span><br style="font-family: monospace;">
+<span style="font-family: monospace;">Loading package OpenGL-2.0 ... linking ... done.</span><br style="font-family: monospace;">
+<span style="font-family: monospace;">Loading package GLUT-2.0 ... linking ... done.</span><br style="font-family: monospace;">
+<br>
+Roguestar-GL now displays and rotates your model.
+</body>
+</html>

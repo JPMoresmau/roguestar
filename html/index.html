@@ -4,14 +4,19 @@
 
 
 
+
+  
   
   
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
 
 
+
   
 
 
+  
+  
   
   
   
@@ -33,44 +38,30 @@ background-color: rgb(204, 204, 255);
 
 
 
-<h1>Roguestar-GL</h1>
+
+<h1>Roguestar</h1>
 
 
 
-<a href="#installing">Installing Roguestar-GL<br>
+
+<a href="#installing">Installing Roguestar<br>
+
 
 
 
 </a><a href="#screenshots">Screenshots</a><br>
-
-
-
-<h2>Information on the roguestar-gl package.</h2>
-
-
-
-Roguestar-GL is:<br>
-
-
-
+<h2>Introduction</h2>
+Roguestar is:
 <ul>
+  <li>A space adventure role-playing game.</li>
+  <li>Free: distributed under the <a href="http://www.gnu.org/copyleft/gpl.html">GNU GPL</a>.</li>
 
-
-
-  <li>A OpenGL frontend to the roguestar game engine
-(<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-engine/">roguestar-engine</a>)</li>
-
-
-
-  <li>Free: roguestar-gl is distributed under the <a href="http://www.gnu.org/copyleft/gpl.html">GNU GPL</a>.</li>
 
 
 
   <li>Written in the pure functional programming language <a href="http://www.haskell.org">haskell</a>.</li>
-
-
-
   <li>In it's very earliest stages of development.</li>
+
 
 
 
@@ -78,33 +69,32 @@ Roguestar-GL is:<br>
 
 
 
+
 <h3><a name="installing"></a>Installing
 Roguestar-GL</h3>
-
-
-
-You can obtain the source code to the latest unstable version of
-roguestar-gl from <a href="http://www.downstairspeople.org/darcs/unstable/roguestar-gl/">this
-darcs repository</a>.&nbsp; Binaries of roguestar-gl are NOT
-available. &nbsp;Note that roguestar-gl is useless without&nbsp;<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-engine/">roguestar-engine</a>.<br>
-
-
-
+Roguestar is built from two source packages:&nbsp;&nbsp;<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-engine/">roguestar-engine</a> and&nbsp;&nbsp;<a href="http://www.downstairspeople.org/darcs/unstable/roguestar-gl/">roguestar-gl</a>.
+&nbsp;You need to download, build, and install both of these packages
+before roguestar will work. &nbsp;Binaries and tarballs of roguestar-gl
+are not currently
+available.<br>
 <br>
-
-
-
-Once you have&nbsp;<a href="http://www.darcs.net/">darcs</a> installed, downloading roguestar-gl and
+You can obtain the source code to the latest unstable version of
+roguestar using <a href="http://www.darcs.net/">darcs</a>.<br>
+<br>
+Once you have darcs installed, downloading roguestar-gl and
 roguestar-engine is simple: <br>
 
 
 
+
 <br>
+
 
 
 
 <span style="font-family: monospace;">$ darcs get --partial
 http://www.downstairspeople.org/darcs/unstable/roguestar-gl</span><br>
+
 
 
 
@@ -114,11 +104,13 @@ http://www.downstairspeople.org/darcs/unstable/roguestar-gl</span><br>
 
 
 
-To build and run roguestar-gl, you will need the following packages, all of
+
+To build and run roguestar, you will need the following packages, all of
 which are available, for example, with <a href="http://www.debian.org">Debian GNU/Linux</a>, <a href="http://www.darwinports.com">darwinports</a>
-(for MacOS X), and probably any other unix-ish distribution. &nbsp;If
-you want to get these working on Windows, you're going to want to start
-with cygwin or mingw and then install the other dependencies by hand.<br>
+(for MacOS X), and probably any other *NIX distro.<br>
+<br>
+A windows port of roguestar-gl should be straightforward, but I don't own a windows computer and don't ever plan to.<br>
+
 
 
 
@@ -126,12 +118,16 @@ with cygwin or mingw and then install the other dependencies by hand.<br>
 
 
 
+
   <li><a href="http://haskell.org/ghc/">ghc</a>
 version 6.4.1 or higher</li>
+
   <li><a href="http://web.purplefrog.com/%7Ethoth/netpipes/netpipes.html">netpipes</a>
 (scroll down to "download")</li>
 
+
   <li>make</li>
+
 
 
 
@@ -139,11 +135,14 @@ version 6.4.1 or higher</li>
 
 
 
+
 </ul>
 
 
 
+
 <h4>Steps For Linux/BSD/MacOS X.</h4>
+
 
 
 
@@ -152,7 +151,9 @@ Step 1: &nbsp;Do you have the above dependencies installed?
 
 
 
+
 <br>
+
 
 
 
@@ -161,11 +162,14 @@ following commands:<br>
 
 
 
+
 <br>
 
 
 
-<span style="font-family: monospace;">$ make</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;">$ make release</span><br style="font-family: monospace;">
+
 
 
 
@@ -173,11 +177,14 @@ following commands:<br>
 
 
 
+
 <span style="font-family: monospace;"># make install</span><br>
 
 
 
+
 <br>
+
 
 
 
@@ -186,11 +193,14 @@ following commands:<br>
 
 
 
+
 <br>
 
 
 
-<span style="font-family: monospace;">$ make</span><br style="font-family: monospace;">
+
+<span style="font-family: monospace;">$ make release</span><br style="font-family: monospace;">
+
 
 
 
@@ -198,11 +208,14 @@ following commands:<br>
 
 
 
+
 <span style="font-family: monospace;"># make install</span><br style="font-family: monospace;">
 
 
 
+
 <br>
+
 
 
 
@@ -210,11 +223,14 @@ Step 4: &nbsp;Simply run roguestar-gl.<br>
 
 
 
+
 <br>
 
 
 
+
 <span style="font-family: monospace;">$ roguestar-gl<br>
+
 
 
 
@@ -223,8 +239,10 @@ Step 4: &nbsp;Simply run roguestar-gl.<br>
 
 
 
+
 <a href="roguestar-gl-linux-license-races-1.png">Selecting
 a&nbsp;race</a><br>
+
 
 
 
