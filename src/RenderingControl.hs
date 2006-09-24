@@ -116,11 +116,11 @@ turn_display_configuration = ogl_state_configuration_model {
 							    ogl_fov_degrees = 40,
 							    ogl_light_0 = 
 							    Just $ OGLLightConfiguration { ogl_light_ambient = Color4 0.2 0.2 0.2 1.0,
-											   ogl_light_diffuse = Color4 1.0 1.0 1.0 1.0,
-											   ogl_light_position = Vertex4 10000 10000 10000 1,
-											   ogl_light_specular = Color4 1.0 1.0 1.0 1.0 },
+											   ogl_light_diffuse = Color4 0.85 0.85 0.85 1.0,
+											   ogl_light_position = Vertex4 4000 10000 (-4000) 1,
+											   ogl_light_specular = Color4 0.5 0.5 0.5 1.0 },
 							    ogl_fog = Enabled,
-							    ogl_fog_mode = Exp2 0.08
+							    ogl_fog_mode = Exp2 0.09
 							   }
 
 turnDisplay :: IORef RoguestarGlobals -> IO ()
