@@ -24,6 +24,7 @@ module DBData
      DBRef(..),
      DBReference(..),
      DBLocation(..),
+     toCoordinateLocation,
      isCreatureRef,
      isPlaneRef,
      toCreatureRef,
@@ -57,6 +58,14 @@ toPlaneRef x = case toDBReference x of
 data DBLocation = DBCoordinateLocation (Integer,Integer)
                 | DBCoordinateFacingLocation ((Integer,Integer),Facing)
 		deriving (Read,Show)
+
+-- |
+-- Converts a DBLocation to a location in (x,y) form, or nothing if there is
+-- no valid (x,y) interpretation of the DBLocation.
+--
+toCoordinateLocation :: DBLocation -> Maybe (Integer,Integer)
+toCoordinateLocation (DBCoordinateLocation xy) = Just xy
+toCoordinateLocation (DBCoordinateFacingLocation (xy,_)) = Just xy
 
 newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)
 newtype PlaneRef = PlaneRef Integer deriving (Eq,Ord,Read,Show)

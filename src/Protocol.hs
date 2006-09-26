@@ -158,6 +158,10 @@ dbDispatch ["query","visible-terrain"] =
 	       (unlines $ map (\ ((x,y),terrain_type) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
 
+dbDispatch ["query","visible-objects"] = 
+    do maybe_plane_ref <- dbGetCurrentPlane
+    FIXME HERE
+
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
 
@@ -240,7 +244,7 @@ dbQueryCenterCoordinates creature_ref =
                 Just (DBCoordinateFacingLocation ((x,y),facing)) -> return (begin_table ++
                                                                             "x " ++ show x ++ "\n" ++
                                                                             "y " ++ show y ++ "\n" ++
-                                                                            "facing " ++ show facing ++ "\n " ++
+                                                                            "facing " ++ show facing ++ "\n" ++
                                                                             "end-table")
 		_ -> return (begin_table ++ "end-table")
 	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"

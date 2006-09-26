@@ -19,18 +19,16 @@
 --------------------------------------------------------------------------
 
 module VisibilityData
-    (Facing(..),
-     distanceCostForSight,
+    (distanceCostForSight,
      terrainHideMultiplier,
      terrainSpotMultiplier,
      terrainOpacity,
-     facingToRelative7,
      maximumRangeForSpotCheck)
     where
 
 import TerrainData
 import Data.List
-
+import Facing
 
 -- |
 -- We multiply a creature's hide check by this number if it is standing on this terrain.
@@ -66,7 +64,7 @@ terrainSpotMultiplier _ = 1
 -- interferes with vision.
 --
 terrainOpacity :: TerrainPatch -> Integer
-terrainOpacity RockFace = 100
+terrainOpacity RockFace = 15
 terrainOpacity Rubble = 1
 terrainOpacity (Ore {}) = 1
 terrainOpacity RockyGround = 0

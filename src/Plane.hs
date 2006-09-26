@@ -45,6 +45,7 @@ dbGetPlanarLocation object_ref =
     do parent_info <- dbWhere object_ref
        case parent_info of
 			Just (DBPlaneRef plane_ref,DBCoordinateLocation location) -> return $ Just (plane_ref,location)
+			Just (DBPlaneRef plane_ref,DBCoordinateFacingLocation location) -> return $ Just (plane_ref,fst location)
 			Just (someplace,_) -> dbGetPlanarLocation someplace
 			Nothing -> return Nothing
 
