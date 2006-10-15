@@ -44,7 +44,7 @@ import FactionData
 data Creature = Creature { creature_stats :: Stats, 
 			   creature_attribs :: [CreatureAttribute],
 			   creature_species_name :: String,
-			   creature_random_id :: Integer,
+			   creature_random_id :: Integer, -- simply a random number attached to the creature, used by the gui to name the creature.  It is NOT required to be unique, use the toUID function in DBData for this
 			   creature_damage :: Integer,
 			   creature_faction :: Faction }
 		deriving (Read,Show)

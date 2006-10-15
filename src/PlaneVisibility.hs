@@ -44,7 +44,7 @@ import Facing
 -- Returns a list of all terrain patches that are visible to any creature belonging
 -- to the specified faction on the specified plane.
 --
-dbGetVisibleTerrainForFaction :: Faction -> PlaneRef -> DB [((Integer,Integer),TerrainPatch)]
+dbGetVisibleTerrainForFaction :: Faction -> PlaneRef -> DB [(TerrainPatch,(Integer,Integer))]
 dbGetVisibleTerrainForFaction faction plane_ref = 
     do critters <- liftM (map fst) $ dbGetCreaturesFiltered plane_ref (filterByFaction faction)
        liftM (Set.toList . Set.fromList . concat) $ mapM dbGetVisibleTerrainForCreature critters
@@ -52,7 +52,7 @@ dbGetVisibleTerrainForFaction faction plane_ref =
 -- |
 -- Returns a list of all terrain patches that are visible to the specified creature.
 --
-dbGetVisibleTerrainForCreature :: CreatureRef -> DB [((Integer,Integer),TerrainPatch)]
+dbGetVisibleTerrainForCreature :: CreatureRef -> DB [(TerrainPatch,(Integer,Integer))]
 dbGetVisibleTerrainForCreature creature_ref =
     do loc <- dbGetPlanarLocation creature_ref
        spot_check <- dbGetSpotCheck creature_ref
@@ -64,7 +64,7 @@ dbGetVisibleTerrainForCreature creature_ref =
 -- Returns a list of all objects that are visible to any creature belonging
 -- to the specified faction on the specified plane.
 --
-dbGetVisibleObjectsForFaction :: Faction -> PlaneRef -> DB [(DBReference,(Integer,Integer))]
+dbGetVisibleObjectsForFaction :: Faction -> PlaneRef -> DB [DBReference]
 dbGetVisibleObjectsForFaction faction plane_ref =
     do critters <- liftM (map fst) $ dbGetCreaturesFiltered plane_ref (filterByFaction faction)
        liftM (nub . concat) $ mapM dbGetVisibleObjectsForCreature critters
@@ -72,13 +72,16 @@ dbGetVisibleObjectsForFaction faction plane_ref =
 -- |
 -- Returns a list of all objects that are visible to the specified creature.
 --
-dbGetVisibleObjectsForCreature :: CreatureRef -> DB [(DBReference,(Integer,Integer))]
+dbGetVisibleObjectsForCreature :: CreatureRef -> DB [DBReference]
 dbGetVisibleObjectsForCreature creature_ref =
     do loc <- dbGetPlanarLocation creature_ref
        case loc of
-		Just (plane_ref,_) -> filterM (dbIsPlanarVisibleTo creature_ref . fst) =<< (liftM toCoordinateLocationForm $ dbGetContents plane_ref)
+		Just (plane_ref,_) -> filterM (dbIsPlanarVisibleTo creature_ref) =<< (liftM (map fst) $ dbGetContents plane_ref)
 		Nothing -> return []
 
+-- |
+-- dbIsPlanarVisibleTo (a creature) (some object) is true if the creature can see the object.
+--
 dbIsPlanarVisibleTo :: CreatureRef -> DBReference -> DB Bool
 dbIsPlanarVisibleTo creature_ref obj_ref =
     do creature_loc <- dbGetPlanarLocation creature_ref
@@ -99,10 +102,14 @@ dbGetHideCheck :: DBReference -> DB Integer
 dbGetHideCheck (DBCreatureRef creature_ref) = liftM (creatureScore Hide) $ dbGetCreature creature_ref
 dbGetHideCheck _ = return 0
 
-visibleTerrain :: (Integer,Integer) -> Integer -> TerrainMap -> [((Integer,Integer),TerrainPatch)]
+-- |
+-- visibleTerrain (creature's location) (spot check) (the terrain map) gives
+-- a list of visible terrain patches from that location with that spot check.
+--
+visibleTerrain :: (Integer,Integer) -> Integer -> TerrainMap -> [(TerrainPatch,(Integer,Integer))]
 visibleTerrain creature_at@(creature_x,creature_y) spot_check terrain =
     let max_range = maximumRangeForSpotCheck spot_check
-	in map ( \ (x,y) -> ((x,y), gridAt terrain (x,y))) $
+	in map ( \ (x,y) -> (gridAt terrain (x,y),(x,y))) $
 	   castRays creature_at 
 			[terrainPatchBrightnessForm creature_at spot_check (creature_x+x,creature_y+y) 
 			 | x <- [-max_range..max_range], 
@@ -110,10 +117,17 @@ visibleTerrain creature_at@(creature_x,creature_y) spot_check terrain =
 			 x^2+y^2 <= max_range^2]
 			(terrainOpacity . gridAt terrain)
 
+-- |
+-- terrainPatchBrightnessForm (creature's location) (spot check) (terrain patch's location)
+-- gives (the patch's location,the patch's effective brightness) for the purpose of applying castRays.
+--
 terrainPatchBrightnessForm :: (Integer,Integer) -> Integer -> (Integer,Integer) -> ((Integer,Integer),Integer)
 terrainPatchBrightnessForm creature_at spot_check patch_at =
     let delta_at = (fst creature_at - fst patch_at,snd creature_at - snd patch_at)
 	in (patch_at,spot_check - distanceCostForSight Here delta_at)
 
+-- |
+-- Returns true if the specified CreatureRef belongs to the specified Faction.
+--
 filterByFaction :: Faction -> CreatureRef -> DB Bool
 filterByFaction faction = liftM ((== faction) . creature_faction) . dbGetCreature

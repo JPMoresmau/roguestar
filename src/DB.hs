@@ -37,7 +37,6 @@ module DB
      dbGetContentsFiltered,
      dbGetCreatures,
      dbGetCreaturesFiltered,
-     toCoordinateLocationForm,
      dbNextRandomInteger,
      dbNextRandomIntegerStream,
      dbSetStartingRace,
@@ -285,13 +284,6 @@ dbGetCreaturesFiltered item fnM =
 	      where fnM' x = if isCreatureRef x
 			     then fnM $ toCreatureRef x
 			     else return False
-
--- |
--- Converts a list of a DBRef's children (as from dbGetContents) to only those elements
--- with (x,y) coordinates.
---
-toCoordinateLocationForm :: (DBRef a) => [(a,DBLocation)] -> [(a,(Integer,Integer))]
-toCoordinateLocationForm = mapMaybe (\ (dbref,loc) -> liftM ((,) dbref) $ toCoordinateLocation loc)
 
 -- |
 -- Generates and returns the next random Integer.

@@ -25,6 +25,7 @@ module DBData
      DBReference(..),
      DBLocation(..),
      toCoordinateLocation,
+     toCoordinateFacingLocation,
      isCreatureRef,
      isPlaneRef,
      toCreatureRef,
@@ -67,18 +68,31 @@ toCoordinateLocation :: DBLocation -> Maybe (Integer,Integer)
 toCoordinateLocation (DBCoordinateLocation xy) = Just xy
 toCoordinateLocation (DBCoordinateFacingLocation (xy,_)) = Just xy
 
+-- |
+-- Converts a DBLocation to a location in ((x,y),facing) form, or nothing
+-- if there is no such valid interpretation of the DBLocation.  DBLocations
+-- that contain only (x,y) coordinates will return with a facing of Here.
+--
+toCoordinateFacingLocation :: DBLocation -> Maybe ((Integer,Integer),Facing)
+toCoordinateFacingLocation (DBCoordinateLocation xy) = Just (xy,Here)
+toCoordinateFacingLocation (DBCoordinateFacingLocation xyf) = Just xyf
+
 newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)
 newtype PlaneRef = PlaneRef Integer deriving (Eq,Ord,Read,Show)
 
 class DBRef a where
     toDBReference :: a -> DBReference
+    toUID :: a -> Integer
 
 instance DBRef DBReference where
     toDBReference x = x
+    toUID (DBPlaneRef ref) = toUID ref
+    toUID (DBCreatureRef ref) = toUID ref
 
 instance DBRef CreatureRef where
     toDBReference x = DBCreatureRef x
+    toUID (CreatureRef x) = x
 
 instance DBRef PlaneRef where
     toDBReference x = DBPlaneRef x
-
+    toUID (PlaneRef x) = x

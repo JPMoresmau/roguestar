@@ -155,12 +155,36 @@ dbDispatch ["query","visible-terrain"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
        return ("begin-table visible-terrain 0 x y terrain-type\n" ++
-	       (unlines $ map (\ ((x,y),terrain_type) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
+	       (unlines $ map (\ (terrain_type,(x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
 
 dbDispatch ["query","visible-objects"] = 
     do maybe_plane_ref <- dbGetCurrentPlane
-    FIXME HERE
+       objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+       table_rows <- mapM dbObjectToTableRow objects
+       return ("begin-table visible-objects 0 object-unique-id x y facing\n" ++
+               (unlines $ table_rows) ++
+               "end-table")
+        where dbObjectToTableRow obj_ref = 
+                do maybe_loc <- dbWhere obj_ref
+                   return $ case (toCoordinateFacingLocation . snd =<< maybe_loc :: Maybe ((Integer,Integer),Facing))
+                                 of
+                                 Just ((x,y),facing) -> unwords [show $ toUID obj_ref,show x,show y,show facing]
+                                 Nothing -> ""
+
+dbDispatch ["query","object-details"] =
+  do maybe_plane_ref <- dbGetCurrentPlane
+     objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+     liftM (concat . intersperse "\n") $ mapM dbObjectToTable objects
+     where dbObjectToTable obj_ref =
+             do table_data <- dbGetObjectTableData obj_ref
+                return ("begin-table object-details " ++ (show $ toUID obj_ref) ++ " property value\n" ++
+                        table_data ++
+                        "end-table")
+           dbGetObjectTableData (DBCreatureRef creature_ref) = liftM creatureToTableData $ dbGetCreature creature_ref
+           dbGetObjectTableData (DBPlaneRef _) = return "" -- implausible case
+           creatureToTableData creature = "object-type creature\n" ++
+                                          (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
 
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
@@ -206,6 +230,9 @@ dbRerollRace _ = do starting_race <- dbGetStartingRace
 dbQueryPlayerStats :: Creature -> DB String
 dbQueryPlayerStats creature = return $ playerStatsTable creature
 
+-- |
+-- Information about player creatures (for which the player should have almost all available information.)
+--
 playerStatsTable :: Creature -> String
 playerStatsTable c =
     "begin-table player-stats 0 property value\n" ++
@@ -223,6 +250,16 @@ playerStatsTable c =
 	       "effective-level " ++ (show $ creatureScore EffectiveLevel c) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
 	       "end-table"
+
+-- |
+-- Information about non-player creatures (for which there are very strict limits on what information
+-- the player can have).  The result is in (Property,Value) form so that the result can easily be
+-- manipulated by the caller.
+--
+creatureStatsData :: Creature -> [(String,String)]
+creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `div` creatureScore MaxHitPoints c),
+                       ("species",show $ creature_species_name c),
+                       ("random-id",show $ creature_random_id c)]
 
 dbQueryBaseClasses :: Creature -> DB String
 dbQueryBaseClasses creature = return $ baseClassesTable creature
