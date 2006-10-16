@@ -83,6 +83,7 @@ dbGetVisibleObjectsForCreature creature_ref =
 -- dbIsPlanarVisibleTo (a creature) (some object) is true if the creature can see the object.
 --
 dbIsPlanarVisibleTo :: CreatureRef -> DBReference -> DB Bool
+dbIsPlanarVisibleTo creature_ref obj_ref | (toDBReference creature_ref) == obj_ref = return True
 dbIsPlanarVisibleTo creature_ref obj_ref =
     do creature_loc <- dbGetPlanarLocation creature_ref
        obj_loc <- dbGetPlanarLocation obj_ref
@@ -96,7 +97,7 @@ dbIsPlanarVisibleTo creature_ref obj_ref =
 									     return $ castRay c_at o_at spot_check (terrainOpacity . gridAt terrain)
 
 dbGetSpotCheck :: CreatureRef -> DB Integer
-dbGetSpotCheck creature_ref = liftM (creatureScore Spot) $ dbGetCreature creature_ref
+dbGetSpotCheck creature_ref = liftM ((20 +) . creatureScore Spot) $ dbGetCreature creature_ref
 
 dbGetHideCheck :: DBReference -> DB Integer
 dbGetHideCheck (DBCreatureRef creature_ref) = liftM (creatureScore Hide) $ dbGetCreature creature_ref

@@ -258,7 +258,7 @@ playerStatsTable c =
 --
 creatureStatsData :: Creature -> [(String,String)]
 creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `div` creatureScore MaxHitPoints c),
-                       ("species",show $ creature_species_name c),
+                       ("species",creature_species_name c),
                        ("random-id",show $ creature_random_id c)]
 
 dbQueryBaseClasses :: Creature -> DB String
