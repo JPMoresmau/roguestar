@@ -91,9 +91,10 @@ dbIsPlanarVisibleTo creature_ref obj_ref =
        case (creature_loc,obj_loc) of
 				   (Nothing,_) -> return False
 				   (_,Nothing) -> return False
-				   (Just (c_plane,_),Just (o_plane,_)) | c_plane /= o_plane -> return False
-				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | (ox-cx)^2+(oy-cy)^2 > maximumRangeForSpotCheck spot_check -> return False
-				   (Just (c_plane,c_at),Just (_,o_at)) -> do terrain <- liftM plane_terrain $ dbGetInstancedPlane c_plane
+				   (Just (c_plane,_),Just (o_plane,_)) | c_plane /= o_plane -> return False --never see objects on different planes
+				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | abs (cx-ox) <= 1 && abs (cy-oy) <= 1 -> return True --automatically see adjacent objects
+				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | (ox-cx)^2+(oy-cy)^2 > maximumRangeForSpotCheck spot_check -> return False --cull objects that are too far away to ever be seen
+				   (Just (c_plane,c_at),Just (_,o_at)) -> do terrain <- liftM plane_terrain $ dbGetInstancedPlane c_plane -- falling through all other tests, cast a ray for visibility
 									     return $ castRay c_at o_at spot_check (terrainOpacity . gridAt terrain)
 
 dbGetSpotCheck :: CreatureRef -> DB Integer
