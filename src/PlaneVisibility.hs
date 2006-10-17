@@ -97,7 +97,7 @@ dbIsPlanarVisibleTo creature_ref obj_ref =
 									     return $ castRay c_at o_at spot_check (terrainOpacity . gridAt terrain)
 
 dbGetSpotCheck :: CreatureRef -> DB Integer
-dbGetSpotCheck creature_ref = liftM ((20 +) . creatureScore Spot) $ dbGetCreature creature_ref
+dbGetSpotCheck creature_ref = liftM (creatureScore Spot) $ dbGetCreature creature_ref
 
 dbGetHideCheck :: DBReference -> DB Integer
 dbGetHideCheck (DBCreatureRef creature_ref) = liftM (creatureScore Hide) $ dbGetCreature creature_ref

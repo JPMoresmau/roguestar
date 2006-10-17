@@ -64,16 +64,16 @@ terrainSpotMultiplier _ = 1
 -- interferes with vision.
 --
 terrainOpacity :: TerrainPatch -> Integer
-terrainOpacity RockFace = 15
-terrainOpacity Rubble = 1
-terrainOpacity (Ore {}) = 1
+terrainOpacity RockFace = 90
+terrainOpacity Rubble = 10
+terrainOpacity (Ore {}) = 10
 terrainOpacity RockyGround = 0
 terrainOpacity Dirt = 0
-terrainOpacity Grass = 0
+terrainOpacity Grass = 5
 terrainOpacity Sand = 0
 terrainOpacity Desert = 0
-terrainOpacity Forest = 2
-terrainOpacity DeepForest = 5
+terrainOpacity Forest = 25
+terrainOpacity DeepForest = 50
 terrainOpacity Water = 0
 terrainOpacity DeepWater = 0
 terrainOpacity Ice = 0

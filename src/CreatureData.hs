@@ -105,7 +105,7 @@ data Score = MaxHitPoints
 	   | RangedAttack
 	   | RangedDefense
 	   | RangedDamage
-	   | Speed
+	   | Speed Statistic
 	   | EffectiveLevel
 	   | Spot
 	   | Hide
@@ -138,9 +138,9 @@ creatureScore MeleeDamage = statPlusDouble Strength PreciseStrike
 creatureScore RangedAttack = statPlusDouble Perception RangedAttackSkill
 creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill 
 creatureScore RangedDamage = \c -> max 0 $ per c + attributeCount PreciseShot c
-creatureScore Speed = \c -> 20 + attributeCount SpeedTrait c
+creatureScore (Speed by_statistic) = \c -> max 1 $ getStatistic by_statistic c + attributeCount SpeedTrait c
 creatureScore Spot = statPlusDouble Perception SpotSkill
-creatureScore Hide = statPlusDouble Perception HideSkill
+creatureScore Hide = \c -> max 0 $ per c + attributeCount HideSkill c
 
 -- |
 -- The creature's effective level.

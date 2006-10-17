@@ -75,6 +75,9 @@ trace' :: String -> a -> a
 --trace' = trace
 trace' _ x = x
 
+-- |
+-- Supress compiler warning about trace not being used.
+--
 dontWarnAboutTrace :: String -> a -> a
 dontWarnAboutTrace = trace
 
@@ -96,18 +99,34 @@ castRay (ax,ay) (bx,by) brightness opacityFn =
 data Ray = Ray { ray_origin :: !(Float,Float),
 		 ray_delta :: !(Float,Float) }
 
+--integerToFloatOpacityGrid :: ((Integer,Integer) -> Integer) -> ((Float,Float) -> Float)
+--integerToFloatOpacityGrid fn (x,y) = fromInteger $ fn (round x, round y)
+
 integerToFloatOpacityGrid :: ((Integer,Integer) -> Integer) -> ((Float,Float) -> Float)
-integerToFloatOpacityGrid fn (x,y) = fromInteger $ fn (round x, round y)
+integerToFloatOpacityGrid fn (x,y) =
+  let x_ceil = ceiling x
+      x_floor = floor x
+      y_ceil = ceiling y
+      y_floor = floor y
+      x_part = x - (fromInteger $ floor x)
+      y_part = y - (fromInteger $ floor y)
+      x_part_inv = 1 - x_part
+      y_part_inv = 1 - y_part
+      cc = fromInteger $ fn (x_ceil,y_ceil)
+      cf = fromInteger $ fn (x_ceil,y_floor)
+      fc = fromInteger $ fn (x_floor,y_ceil)
+      ff = fromInteger $ fn (x_floor,y_floor)
+      in x_part     * y_part     * ff +
+         x_part_inv * y_part     * cf +
+         x_part     * y_part_inv * fc +
+         x_part_inv * y_part_inv * cc
+      
 
 -- |
 -- Cast a ray from point a to b, through a medium with variable opacity defined by opacityFn, 
 -- determining whether or not a ray of vision from point a will reach point b.
 --
--- Opacity is relative to the brightness of a ray -- a unit-square region of material with an opacity of
--- 5 will completely block a ray with a brightness of 5.  A region with an opacity of 1, however,
--- will block 1/5th of the brightness of the ray each time the ray passes through a unit square with that
--- brightness.  (Note that brightness here is an abtract concept representing how easily our hero can
--- see the object, not a physical property of a beam of light)
+-- Opacity a percentage of the light or sound that will pass through a given square.
 --
 -- If a ray ends with a brightness less than 1, then is considered completely blocked, otherwise it is
 -- considered to have passed.
@@ -115,7 +134,7 @@ integerToFloatOpacityGrid fn (x,y) = fromInteger $ fn (round x, round y)
 castRayForOpacity :: Float -> (Float,Float) -> (Float,Float) -> Float -> ((Float,Float)->Float) -> Bool
 castRayForOpacity fineness a@(ax,ay) b@(bx,by) brightness rawOpacityFn =
     let ray = setRayLength fineness $ rayFromTo a b
-	opacityFn = \ x -> (1 - rawOpacityFn x / brightness) ** fineness
+	opacityFn = \ x -> (1 - rawOpacityFn x / 100) ** fineness
 	lengthSquared (x1,y1) (x2,y2) = (x1-x2)^2 + (y1-y2)^2
 	goal_length = minimum $ List.map (lengthSquared a) [(bx - signum (bx-ax),by),(bx,by - signum (by-ay)),(bx - signum (bx-ax),by + signum (by-ay))]
 	in all (> 1) $ 
