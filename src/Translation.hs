@@ -199,27 +199,7 @@ translateStr English ["class",the_class] = titleCapitalize the_class
 translateStr English ["table-action","select-race",species] = "----\n" ++ "Welcome, young " ++ species ++ "."
 
 translateStr English ["table-action","select-class",the_class] = 
-    ("----" ++ "\n" ++
-     "> Two thousand years ago the Ascendant Knights preserved peace in the galaxy through\n" ++
-     "> charity and negotiation - and sometimes force.  The knights evolved beyond their\n" ++
-     "> physical forms, leaving behind a benevolent but disinterested galactic government\n" ++
-     "> called the Interstellar Concordance.  Since then the galaxy has existed in an uneasy\n" ++
-     "> peace as tensions mount between the other two galactic powers: the pragmatic Pan\n" ++
-     "> Galactic Treaty Organization (PGTO) and the brutal Imperial Alliance.\n" ++
-     "> \n" ++
-     "> You, a newly trained " ++ class_name ++ ", are vacationing on the luxurious alien\n" ++
-     "> planet of Epicurea, when you recieve an alarming signal through your hyperspace\n" ++
-     "> reciever . . .\n" ++
-     "> \n" ++
-     "> \"This is . . . [static] . . . orbiting Myrmidon Prime . . . defense forces caught\n" ++
-     "> entirely by surprise . . . destruction on a planetwide scale . . . indicate\n" ++ 
-     "> temperatures lower than . . . northern polar region stretching over most of the\n" ++
-     "> southeast continent . . . meteorological activity may have ceased entirely and\n" ++
-     "> . . . bright flash and radiation sensors spiked just before the . . . certain\n" ++
-     "> that the Treaty Organization Headquarters was at the exact epicenter . . . . . .\n" ++
-     "> . . . . . . [static] . . . . . .\"\n" ++
-     "> \n" ++
-     "> The galaxy is at war.")
+        "----\nYou are a newly heralded " ++ class_name ++ "."
 	where class_name = (translateStr English ["class",the_class])
 
 -- 
