@@ -11,6 +11,8 @@ import Globals
 import PrintText
 import Tables
 import Data.Maybe
+import Debug
+import System.IO
 
 data Action = Action { action_valid :: IORef RoguestarGlobals -> IO Bool, 
 		       action_execute :: IORef RoguestarGlobals -> IO () }
@@ -125,7 +127,8 @@ takeUserInputAction _ [] = return False
 takeUserInputAction globals_ref action_names = 
     do valid_actions <- getValidActions globals_ref
        let single_valid_action = intersect action_names valid_actions
-	   executeAction = do action_execute (fromJust $ lookup (head single_valid_action) all_actions) globals_ref
+	   executeAction = do whenDebug $ hPutStrLn stderr $ "takeUserInputAction: executing action \"" ++ (head single_valid_action) ++ "\""
+                              action_execute (fromJust $ lookup (head single_valid_action) all_actions) globals_ref
 			      return True
        case length single_valid_action of
 				       0 -> return False

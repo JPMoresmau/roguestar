@@ -1,5 +1,6 @@
 module Driver
-    (driverRead,
+    (driverNoop,
+     driverRead,
      driverRequestAnswer,
      driverRequestTable,
      driverAction)
@@ -12,6 +13,10 @@ import System.IO
 import Globals
 import PrintText
 import Tables
+import Debug
+
+driverNoop :: IORef RoguestarGlobals -> IO ()
+driverNoop globals_ref = driverWrite globals_ref "noop\n"
 
 -- |
 -- driverRequestAnswer globals_ref "why", sends "game query why" to the
@@ -46,9 +51,11 @@ driverAction globals_ref strs = driverWrite globals_ref ("game action " ++ (unwo
 --
 driverWrite :: IORef RoguestarGlobals -> String -> IO ()
 driverWrite globals_ref str = do globals <- readIORef globals_ref
-				 when (not $ elem str $ global_engine_output_lines globals) $ 
-				      do writeIORef globals_ref $ globals { global_engine_output_lines=str:global_engine_output_lines globals }
-					 driverWrite_ globals_ref str
+				 (if (not $ elem str $ global_engine_output_lines globals) 
+				  then do writeIORef globals_ref $ globals { global_engine_output_lines=str:global_engine_output_lines globals }
+				          whenDebug $ hPutStr stderr "driverWrite: "
+					  driverWrite_ globals_ref str
+				  else whenDebug $ hPutStrLn stderr $ "driverWrite already wrote: " ++ str)
 				 driverRead globals_ref --extra read in case write never happened (harmless)
 
 driverWrite_ :: IORef RoguestarGlobals -> String -> IO ()
@@ -56,6 +63,7 @@ driverWrite_ globals_ref "" = do hFlush stdout
 				 driverRead globals_ref
 driverWrite_ globals_ref str = do driverRead globals_ref
 				  putChar $ head str
+				  whenDebug $ hPutChar stderr $ head str
 				  driverWrite_ globals_ref $ tail str
 
 maybeRead :: IO (Maybe Char)

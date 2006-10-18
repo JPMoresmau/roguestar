@@ -39,6 +39,8 @@ import Keymaps
 import RenderingControl
 import Model
 import StarflightBackground
+import Driver
+import Debug
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -103,6 +105,7 @@ roguestarDisplayCallback globals_ref = do globals <- readIORef globals_ref
 
 roguestarTimerCallback :: IORef RoguestarGlobals -> Window -> IO ()
 roguestarTimerCallback globals_ref window = do addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
+                                               driverRead globals_ref
 					       postRedisplay $ Just window
 
 appendUserInputStr :: IORef RoguestarGlobals -> String -> IO ()
@@ -122,7 +125,7 @@ roguestarKeyCallback globals_ref (Char char) _ _ _ =
        maybeExecuteKeymappedAction globals_ref
 
 roguestarKeyCallback globals_ref (SpecialKey special) _ _ _ =
-    do appendUserInputStr globals_ref $ (show special)
+    do appendUserInputStr globals_ref $ show special
        maybeExecuteKeymappedAction globals_ref
 
 clearUserInput :: IORef RoguestarGlobals -> IO ()
