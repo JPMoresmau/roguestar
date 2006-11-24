@@ -46,23 +46,23 @@ starflight_model_ogl_configuration :: OGLStateConfiguration
 starflight_model_ogl_configuration = 
     ogl_state_configuration_model {
 				   ogl_fov_degrees = 45,
-				   ogl_near_plane = 1,
-				   ogl_far_plane = 10000,
+				   ogl_near_plane = 30,
+				   ogl_far_plane = 300,
 				   ogl_fog = Enabled,
-				   ogl_fog_mode = Linear 750 10000,
+				   ogl_fog_mode = Linear 100 200,
 				   ogl_light_0 = Just OGLLightConfiguration {
 									     ogl_light_ambient = Color4 0.1 0.1 0.2 0,
 									     ogl_light_diffuse = Color4 1 1 1 0,
 									     ogl_light_specular = Color4 1 1 1 0,
 									     ogl_light_position = Vertex4 2000 2000 (-2000) 0
 									    } }
-													    
+
 
 -- |
 -- Renders a model spinning through hyperspace.
 --
-renderStarflightRotation :: Model -> (IORef RoguestarGlobals) -> IO ()
-renderStarflightRotation model globals_ref = 
+renderStarflightRotation :: IO () -> (IORef RoguestarGlobals) -> IO ()
+renderStarflightRotation display_fn globals_ref = 
     do renderStarflightBackground globals_ref
        setOpenGLState starflight_model_ogl_configuration
        clear [DepthBuffer]
@@ -72,7 +72,7 @@ renderStarflightRotation model globals_ref =
 				  cyc_axis <- (cycleSeconds 5 :: IO GLfloat)
 				  translate $ (Vector3 0 0 150 :: Vector3 GLfloat)
 				  rotate (360*cyc) (Vector3 1 (sin (2*pi*cyc_axis)) 0)
-				  toOpenGL model
+				  display_fn
 
 -- This isn't properly random, but it does create a nifty effect.
 starfield :: Quality -> [(Float,Float,Float)]

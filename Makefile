@@ -4,12 +4,13 @@ HS_FLAGS = 	-hidir products/ \
 		-Wall \
 		-fno-warn-type-defaults \
 		-fno-warn-unused-imports \
+                -fglasgow-exts \
 		--make src/Main.hs \
 		-o products/roguestar-gl-bin
 
 # -fno-warn-unused-imports due to an apparent bug in ghc, remove this and try again later
 
-default : ghc
+default : ghc doc
 
 release : ghc-release
 

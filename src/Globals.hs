@@ -5,6 +5,8 @@ module Globals
     where
 
 import Data.IORef
+import Data.Map
+import Graphics.UI.GLUT
 import Translation
 import PrintTextData
 import Quality
@@ -12,26 +14,26 @@ import Tables
 import DefaultKeymap
 import Math3D
 import CameraTracking
+import Models.LibraryData
 
 data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarTable], restate_answers :: [(String,String)] }
 
 -- |
--- Some nasty, nasty global variables that we can't seem to live without.
+-- Some nasty global variables that we can't seem to live without.
 --
--- global_quality -- the graphics quality setting (this should never change -- it's set by a command line option)
--- global_display_func -- the OpenGL display function (change this using the accessor function FIXME no accessor function yet)
--- global_text_output_buffer -- text that has been printed to the screen (don't touch unless you're PrintText.hs)
--- global_text_output_mode -- whether we're showing an entire screen of text or just a few lines (or nothing) (don't touch unless you're PrintText.hs)
--- global_engine_input_lines -- text/protocol input from the engine (don't touch unless you're Driver.hs)
--- global_engine_input_line_fragment -- the current string being read (don't touch unless you're Driver.hs)
--- global_engine_output_lines -- lines that have already been sent to stdout (don't touch unless you're Driver.hs), used to ensure that we don't send the same request many times
--- global_engine_state -- raw state information pulled from the engine (use accessor functions in Driver.hs)
--- global_language -- language (anyone can read, only main function should write based on command line arguments)
--- global_keymap -- mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
--- global_user_input -- input from the user typing (don't touch unless you're Main.hs)
--- global_dones -- number of "done" lines recieved from the engine, used to track turn changes.
--- global_terrain_rendering_function function to draw terrain
---
+-- [@global_quality@] the graphics quality setting (this should never change; it's set by a command line option)
+-- [@global_display_func@] the OpenGL display function (change this using the accessor function FIXME no accessor function yet)
+-- [@global_text_output_buffer@] text that has been printed to the screen (don't touch unless you're PrintText.hs)
+-- [@global_text_output_mode@] whether we're showing an entire screen of text or just a few lines (or nothing) (don't touch unless you're PrintText.hs)
+-- [@global_engine_input_lines@] text input from the engine (don't touch unless you're Driver.hs)
+-- [@global_engine_input_line_fragment@] the current string being read (don't touch unless you're Driver.hs)
+-- [@global_engine_output_lines@] lines that have already been sent to stdout (don't touch unless you're Driver.hs), used to ensure that we don't send the same request many times
+-- [@global_engine_state@] raw state information pulled from the engine (use accessor functions in Driver.hs)
+-- [@global_language@] language (anyone can read, only main function should write based on command line arguments)
+-- [@global_keymap@] mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
+-- [@global_user_input@] input from the user typing (don't touch unless you're Main.hs)
+-- [@global_dones@] number of \"done\" lines recieved from the engine, used to track turn changes.
+-- [@global_terrain_rendering_function@] function to draw terrain
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
 					  global_display_func :: IORef RoguestarGlobals -> IO (),
@@ -47,11 +49,12 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_dones :: Integer,
 					  global_terrain_rendering_function :: IORef RoguestarGlobals -> IO (),
 					  global_last_camera_update_seconds :: Rational,
-					  global_camera :: Camera
+					  global_camera :: Camera,
+					  global_library_models :: Map (LibraryModel,Quality) DisplayList -- remember models that have been stored in a display list
 					 }
 
 -- |
--- Default starting value for all globals.
+-- Default starting values for all globals.
 --
 roguestar_globals_0 :: RoguestarGlobals
 roguestar_globals_0 = RoguestarGlobals {
@@ -69,5 +72,6 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_dones = 0,
 					global_terrain_rendering_function = \_ -> return (),
 					global_last_camera_update_seconds = 0,
-					global_camera = Camera (Point3D 0 0 0) (Point3D 0 3 (-3))
+					global_camera = Camera (Point3D 0 0 0) (Point3D 0 3 (-3)),
+					global_library_models = empty
 				       }

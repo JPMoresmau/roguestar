@@ -64,7 +64,7 @@ statQuantityToQuality _ = "astonishing"
 generateName :: String -> String -> String
 generateName entity_name = maybe 
 			   (\_ -> "?") 
-			   (\gen -> \x -> generateWord gen $mkStdGen (read x :: Int)) 
+			   (\gen -> \x -> generateWord gen $ mkStdGen (read x :: Int)) 
 			   $ lookup entity_name entity_name_generators
 
 entity_name_generators :: [(String,WordGenerator)]

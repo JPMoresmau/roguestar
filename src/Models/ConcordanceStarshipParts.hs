@@ -11,14 +11,14 @@ import Model
 import Math3D
 import System.Random
 
-concordance_material_metal :: Material
-concordance_material_metal = rgbShine 0.15 (0.6,0.625,0.625)
+concordance_material_metal :: Texture
+concordance_material_metal = SolidTexture $ rgbShine 0.15 (0.6,0.625,0.625)
 
-concordance_material_window :: Material
-concordance_material_window = (rgbLum 0.5 (0.6,0.625,0.625)) { shine=Just 1.0 }
+concordance_material_window :: Texture
+concordance_material_window = SolidTexture $ (rgbLum 0.5 (0.6,0.625,0.625)) { shine=Just 1.0 }
 
-concordance_material_engine :: Material
-concordance_material_engine = (rgbLum 0.75 (0.0,0.1625,0.65)) { shine=Just 0.25 }
+concordance_material_engine :: Texture
+concordance_material_engine = SolidTexture $ (rgbLum 0.75 (0.0,0.1625,0.65)) { shine=Just 0.25 }
 
 -- |
 -- A passenger section of an Interstellar Concordance designed starship.

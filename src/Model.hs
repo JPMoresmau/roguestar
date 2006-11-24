@@ -20,21 +20,24 @@
 
 module Model
     (Material(..),
+     Texture(..),
      Point3D,
      Point2D,
      Vector3D,
+     proceduralTexture,
      Model(Union),
+     modelSize,
+     scaleModel,
      rgbColor,
      rgbShine,
      rgbLum,
      enhancePoints,
      flatTriangle,
-     toTriangles,
      strip,
-     toPOV,
      toOpenGL,
      dropUnionElements,
      frame,
+     extrude,
      sor,
      transformation)
     where
@@ -47,20 +50,62 @@ import Math3D
 import Data.Ratio
 import Graphics.Rendering.OpenGL.GL
 
-data RGB = RGB { red, green, blue :: Float }
-	 deriving (Show)
-data Material = Material { rgb :: Model.RGB, alpha :: Maybe Float, shine :: Maybe Float, lum :: Maybe Model.RGB }
-	   deriving (Show)
+data RGB = RGB { red, green, blue :: Float } deriving (Show)
+                
+instance Lerpable Model.RGB Float where
+    lerp u (a,b) = Model.RGB { red = lerp u (red a,red b),
+                               green = lerp u (green a,green b),
+                               blue = lerp u (blue a,blue b) }
+                
+data Material = Material { rgb :: Model.RGB, alpha :: Maybe Float, shine :: Maybe Float, lum :: Maybe Model.RGB } deriving (Show)
+
+instance Lerpable Material Float where
+    lerp u (a,b) = Material { rgb = lerp u (rgb a,rgb b),
+                              alpha = lerp u (alpha a,alpha b),
+                              shine = lerp u (shine a,shine b),
+                              lum = lerp u (lum a,lum b) }
+
+data Texture = SolidTexture Material
+             | ProceduralTexture (Point3D -> Material)
+                
+instance Show Texture where
+    show (SolidTexture mat) = "SolidTexture " ++ show mat
+    show (ProceduralTexture _) = "ProceduralTexture _"
 
 instance Xyz RGB where
     toXYZ c = (red c,green c,blue c)
 
-data Model = Triangle Material (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
-	   | Strip Material [((Point3D,Vector3D),(Point3D,Vector3D))]
+data Model = Triangle Texture (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
+	   | Strip Texture [((Point3D,Vector3D),(Point3D,Vector3D))]
 	   | Union [Model]
 	   | Transformation (Math3D.Matrix Float) Model
-	   deriving (Show)
+	   deriving (Show) -- only important for debugging, remember model designers might want to look at this
 
+-- |
+-- Essentially the maximum distance to any point in a model from the model's origin.
+--
+modelSize :: Model -> Float
+modelSize (Triangle _ (p1,_) (p2,_) (p3,_)) = maximum $ map (distanceBetween origin_point_3d) [p1,p2,p3]
+modelSize (Strip _ pts) = maximum $ map (distanceBetween origin_point_3d) $ concatMap (\((p1,_),(p2,_)) -> [p1,p2]) pts
+modelSize (Union models) = maximum $ map modelSize models
+modelSize transformedModel@(Transformation {}) = modelSize $ pretransform (identityMatrix 4) transformedModel
+
+pretransform :: Math3D.Matrix Float -> Model -> Model
+pretransform m (Transformation m' model) = pretransform (matrixMultiply m m') model
+pretransform m (Triangle tex (p1,v1) (p2,v2) (p3,v3)) = 
+    Triangle tex (transform m p1,transform m v1) (transform m p2,transform m v2) (transform m p3,transform m v3)
+pretransform m (Strip tex pts) = 
+    Strip tex $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,transform m v1),(transform m p2,transform m v2))) pts
+pretransform m (Union models) = Union $ map (pretransform m) models
+
+-- |
+-- Scale the model to be the specified size, as given by modelSize.
+--
+scaleModel :: Float -> Model -> Model
+scaleModel scalar model = 
+    let scalar_adjustment = scalar / modelSize model
+        scale_matrix = scaleMatrix $ Vector3D scalar_adjustment scalar_adjustment scalar_adjustment
+        in Transformation scale_matrix model
 -- |
 -- Generates a Color from red, green, and blue components.  The color has no alpha, no shinyness,
 -- and no luminance.
@@ -81,6 +126,12 @@ rgbLum l (r,g,b) = Material { rgb=Model.RGB r g b,
 			      lum=Just $ Model.RGB (l*r) (l*g) (l*b) }
 
 -- |
+-- Combine a noise function with a material map to make a procedural texture.
+--
+proceduralTexture :: NoiseFunction -> [(Float,Material)] -> Texture
+proceduralTexture nf material_map = ProceduralTexture (\p -> lerpMap (noiseAt nf (identityMatrix 4,p)) material_map)
+
+-- |
 -- Takes a grid of points, as for a frame object, and uses a simple
 -- interpolation function to increase the number of vertices without changing
 -- the shape of the model.
@@ -91,10 +142,10 @@ enhancePoints = transpose . map loopedInterpolateBetween3d . transpose . map int
 -- |
 -- A boring triangle with a single color and an automatically calculated normal vector.
 --
-flatTriangle :: Material -> Point3D -> Point3D -> Point3D -> Model
-flatTriangle c p1 p2 p3 = 
+flatTriangle :: Texture -> Point3D -> Point3D -> Point3D -> Model
+flatTriangle tex p1 p2 p3 = 
     let n = planeNormal p1 p2 p3
-	in Triangle c (p1,n) (p2,n) (p3,n)
+	in Triangle tex (p1,n) (p2,n) (p3,n)
 
 -- |
 -- Generates normal vectors for initial, final, and each interior edge of a quadralateral strip.
@@ -108,14 +159,13 @@ quadStripToNormals pts = let flat_normals = quadStripToFlatNormals pts
 
 -- |
 -- Generates a normal for each interior edge in a quadralateral strip.
--- If there are n vertex pairs, there will be n-2 normals.
+-- If there are n vertex pairs, there will be n minus 2 normals.
 --
 quadStripToSmoothNormals :: [(Point3D,Point3D)] -> [Vector3D]
 quadStripToSmoothNormals pts = map vectorAverage $ consecutives 2 $ quadStripToFlatNormals pts
 
 -- |
--- Generates a normal for each face in a quadralateral strip.  If there are n vertex pairs,
--- there will be n-1 normals.
+-- Generates a normal for each face in a quadralateral strip.  If there are n vertex pairs, then there will be n minus 1 normals.
 --
 quadStripToFlatNormals :: [(Point3D,Point3D)] -> [Vector3D]
 quadStripToFlatNormals [] = []
@@ -124,59 +174,13 @@ quadStripToFlatNormals ((pl0,pr0):(pl1,pr1):pts) = (vectorNormalize $ newell [pl
 
 -- |
 -- Generates a strip of polygons.  A sequence of quadrilaterals are threaded through
--- two polylines, as GL_QUAD_STRIP.  Normals are automatically calculated.
+-- two polylines, as 'GL_QUAD_STRIP'.  Normals are automatically calculated.
 --
-strip :: Material -> [(Point3D,Point3D)] -> Model
-strip c pts = let normals = quadStripToNormals pts
-		  (pts_l,pts_r) = unzip pts
-		  result = zip (zip pts_l normals) (zip pts_r normals)
-		  in Strip c result
-
--- |
--- Converts the specified Model into a Model built entirely of triangles.
---
--- Implementation note: careful, this is mutually-recursive with modelTransform
---
-toTriangles :: Model -> Model
-toTriangles triangle@(Triangle {}) = triangle
-toTriangles (Strip c pts) = 
-    let quadToTriangles double = [(Triangle c 
-				   (fst $ fst $ fst double,snd $ fst $ fst double)
-				   (fst $ fst $ snd double,snd $ fst $ snd double)
-				   (fst $ snd $ fst double,snd $ snd $ fst double)),
-				  (Triangle c
-				   (fst $ fst $ snd double,snd $ fst $ snd double)
-				   (fst $ snd $ snd double,snd $ snd $ snd double)				   
-				   (fst $ snd $ fst double,snd $ snd $ fst double))]
-	in Union $ concat $ map quadToTriangles $ doubles pts
-toTriangles (Union things) = Union $ map toTriangles things
-toTriangles (Transformation mat thing) = toTriangles $ modelTransform mat thing
-
--- |
--- Converts the specified Model into POV-Ray source.
---
-toPOV :: Model -> String
-toPOV (Triangle c (p0,v0) (p1,v1) (p2,v2)) =
-    "smooth_triangle {\n" ++
-    "  <" ++ (vectorString p0) ++ 
-    ">,<" ++ (vectorString v0) ++ 
-    ">,<" ++ (vectorString p1) ++
-    ">,<" ++ (vectorString v1) ++ 
-    ">,<" ++ (vectorString p2) ++
-    ">,<" ++ (vectorString v2) ++ ">\n" ++
-    "  pigment { color rgbt <" ++ (vectorString $ rgb c) ++ 
-    "," ++ (show $ fromMaybe 0.0 (alpha c)) ++ "> }\n" ++
-    "  finish { ambient rgb <" ++ (vectorString $ fromMaybe (Model.RGB 0 0 0) (lum c)) ++ "> }\n" ++
-    "}"
-toPOV the_strip@(Strip {}) = toPOV $ toTriangles the_strip
-toPOV (Union things) = unlines $ map toPOV things
-toPOV (Transformation mat thing) = toPOV $ modelTransform mat thing
-
-modelTransform :: Math3D.Matrix Float -> Model -> Model
-modelTransform mat (Triangle c (p0,v0) (p1,v1) (p2,v2)) =
-    seq (aMByNMatrix "in Model.modelTransform" 4 4 mat) $
-    Triangle c (transform mat p0,transform mat v0) (transform mat p1,transform mat v1) (transform mat p2,transform mat v2)
-modelTransform mat anything_else = modelTransform mat $ toTriangles anything_else
+strip :: Texture -> [(Point3D,Point3D)] -> Model
+strip tex pts = let normals = quadStripToNormals pts
+		    (pts_l,pts_r) = unzip pts
+		    result = zip (zip pts_l normals) (zip pts_r normals)
+		    in Strip tex result
 
 -- |
 -- Skips some elements of a union at random.  The first parameter is the number
@@ -195,25 +199,71 @@ dropUnionElements percent rand_ints (Union things) = let (next_int,next_gen) = n
 dropUnionElements _ _ _ = error "dropUnionElements: Model not of form Union {}"
 
 -- |
--- Constructs a surface of revolution.  In a SOR, a two-dimensional frame is rotated around
--- the Y-axis.  This is the computer graphics equivalent of a potter's wheel.
--- The second parameter indicates the number of subdivisions.  The third parameter
--- indicates the 2-dimensional frame.
+-- Evenly spaced numbers from 0 to 2*pi, in a list whose length is specified by the parameter.
 --
-sor :: Material -> Integer -> [Point2D] -> Model
+radianIncrements :: (Floating a) => Integer -> [a]
+radianIncrements subdivisions = map ((2*) . (pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
+
+-- |
+-- Extrude a figure, usually in the XY plane, along a polyline.
+--
+-- extrude mat subdivisions up figure polyline
+--
+-- [subdivisions] is the number of frames of the figure that will be generated
+--   this is completely independent of the number of vertices in the polylines
+--   therefore the polyline can be extremely intricate, but you must increase 
+--   the number of subdivisions to actually model that intricacy. 
+-- [up] the figure will always be oriented so that it's +Y axis is rotated to point as much as possible toward the up vector
+-- [figure] is a list of vertices of a figure to be extruded
+-- [polyline] is a list of (vertex,thickness) pairs, where vertex is a vertex of the polyline and
+--   thickness is a scaling factor (usually 1.0) representing how large the figure should be at that vertex.
+--
+extrude :: Texture -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Float)] -> Model
+extrude tex subdivs up figure polyline =
+  let points = map (\subdiv -> extrude_ subdiv subdivs up figure polyline) [0..subdivs]
+      in frame tex $ transpose points
+
+extrude_ :: Integer -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Float)] -> [Point3D]
+extrude_ 0 _ up figure polyline = extrude1Frame 0.0 up figure $ head $ doubles polyline
+extrude_ subdiv subdivs up figure polyline | subdiv == subdivs = extrude1Frame 1.0 up figure $ last $ doubles polyline
+extrude_ subdiv subdivs up figure polyline =
+  let segments = doubles polyline
+      distance_into_polyline = ((subdiv * genericLength segments) % subdivs)
+      polyline_index = max 0 $ min (genericLength segments) $ floor distance_into_polyline
+      segment = segments `genericIndex` polyline_index
+      in extrude1Frame (fromRational distance_into_polyline - fromInteger polyline_index) up figure segment
+
+-- |
+-- Produces a single extruded frame.
+--
+extrude1Frame :: Float -> Vector3D -> [Point3D] -> ((Point3D,Float),(Point3D,Float)) -> [Point3D]
+extrude1Frame fraction_of_segment up figure ((a,a_scale),(b,b_scale)) = 
+  let to_point = vectorToFrom (Math3D.translate (vectorScaleTo (fraction_of_segment * distanceBetween a b) $ vectorToFrom b a) a) origin_point_3d
+      scale_factor = fraction_of_segment * b_scale + (1 - fraction_of_segment) * a_scale
+      z_vector = vectorScaleTo scale_factor $ vectorToFrom b a
+      x_vector = vectorScaleTo scale_factor $ crossProduct z_vector up
+      y_vector = vectorScaleTo scale_factor $ crossProduct x_vector z_vector
+      transformation_matrix = xyzMatrix x_vector y_vector z_vector
+      in map (Math3D.translate to_point) $ (map (transform transformation_matrix) figure :: [Point3D])     
+                
+-- |
+-- Constructs a surface of revolution.  In a SOR, a two dimensional frame is rotated around
+-- the Y axis.  This is the computer graphics equivalent of a potter's wheel.
+-- The second parameter indicates the number of subdivisions.  The third parameter
+-- is the two dimensional frame.
+--
+sor :: Texture -> Integer -> [Point2D] -> Model
 sor _ subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
-sor c subdivisions pts = let radian_increments = reverse $ map (\x -> 2*pi*(fromInteger x)/(fromInteger subdivisions)) [0..(subdivisions-1)] :: [Float]
-			     mats = map (\x -> rotationMatrix (Vector3D 0 1 0) x) radian_increments
-			     p3ds = map (\x -> map (transform x :: Point2D -> Point3D) pts) mats
-			     in frame c p3ds
+sor tex subdivisions pts = let points = map ((\m -> map (transformHomogenous m) pts) . rotationMatrix (Vector3D 0 1 0)) $ reverse $ radianIncrements subdivisions
+			       in frame tex points
 
 -- |
 -- Contructs a surface from a sequence of polyline tails.  This is like wrapping cloth around a wire frame.
 -- 
-frame :: Material -> [[Point3D]] -> Model
-frame c pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry zip)) $ loopedDoubles pts :: [[Vector3D]]
-		  normals_smooth_both_ways = map (map vectorAverage . transpose) $ loopedConsecutives 2 normals_smooth_one_way
-		  in Union $ map (Strip c . uncurry zip) $ loopedDoubles $ map (uncurry zip) $ zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
+frame :: Texture -> [[Point3D]] -> Model
+frame tex pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry zip)) $ loopedDoubles pts :: [[Vector3D]]
+	    	    normals_smooth_both_ways = map (map vectorAverage . transpose) $ loopedConsecutives 2 normals_smooth_one_way
+		    in Union $ map (Strip tex . uncurry zip) $ loopedDoubles $ map (uncurry zip) $ zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
 
 -- |
 -- Constructs a transformation of a Model.
@@ -234,34 +284,50 @@ toColor4_lum :: Material -> Color4 Float
 toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 r g b 0
 toColor4_lum _ = Color4 0 0 0 0
 
-colorOpenGL :: Material -> IO ()
-colorOpenGL c = let shininess = fromMaybe 0 (shine c)
-		    in do materialShininess Front $= shininess*128
-			  materialSpecular Front $= Color4 shininess shininess shininess 1
-			  materialAmbientAndDiffuse Front $= toColor4_rgb c
-			  materialEmission Front $= toColor4_lum c
+materialToOpenGL :: Material -> IO ()
+materialToOpenGL c = 
+    let shininess = fromMaybe 0 (shine c)
+	in do materialShininess Front $= shininess*128
+	      materialSpecular Front $= Color4 shininess shininess shininess 1
+	      materialAmbientAndDiffuse Front $= toColor4_rgb c
+              materialEmission Front $= toColor4_lum c
 
+colorOpenGL :: Texture -> IO ()
+colorOpenGL (SolidTexture c) = materialToOpenGL c
+colorOpenGL _ = return ()
+                
+colorOpenGLAt :: Texture -> Point3D -> IO ()
+colorOpenGLAt (ProceduralTexture ptfn) pt = materialToOpenGL $ ptfn pt
+colorOpenGLAt _ _ = return ()
+                
 toOpenGL :: Model -> IO ()
-toOpenGL (Triangle c (p1,v1) (p2,v2) (p3,v3)) =
+toOpenGL (Triangle tex (p1,v1) (p2,v2) (p3,v3)) =
     renderPrimitive Triangles drawTriangle
-	where drawTriangle = do colorOpenGL c
+	where drawTriangle = do colorOpenGL tex
+                                colorOpenGLAt tex p1
 				normal $ toNormal3 v1
 				vertex $ toVertex3 p1
+                                colorOpenGLAt tex p2
 				normal $ toNormal3 v2
 				vertex $ toVertex3 p2
+                                colorOpenGLAt tex p3
 				normal $ toNormal3 v3
 				vertex $ toVertex3 p3
-toOpenGL (Strip c the_strip) =
+toOpenGL (Strip tex the_strip) =
     renderPrimitive QuadStrip $ drawStrip the_strip
-	where drawStrip pts = do colorOpenGL c
+	where drawStrip pts = do colorOpenGL tex
 				 drawStrip_ pts
 	      drawStrip_ pts@(((p0,v0),(p1,v1)):((p2,v2),(p3,v3)):_) =
-		  do normal $ toNormal3 v0
+		  do colorOpenGLAt tex p0
+                     normal $ toNormal3 v0
 		     vertex $ toVertex3 p0
+                     colorOpenGLAt tex p1
 		     normal $ toNormal3 v1
 		     vertex $ toVertex3 p1
+                     colorOpenGLAt tex p2
 		     normal $ toNormal3 v2
 		     vertex $ toVertex3 p2
+                     colorOpenGLAt tex p3
 		     normal $ toNormal3 v3
 		     vertex $ toVertex3 p3
 		     drawStrip_ $ tail pts

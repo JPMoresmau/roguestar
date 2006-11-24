@@ -112,7 +112,7 @@ renderPatch patch_str extra_height =
 
 -- |
 -- Plots a patch of terrain into OpenGL with the given height.
--- Only the shape, not color/texture etc.
+-- Only the shape, not color or texture..
 --
 plotPatch :: Float -> IO ()
 plotPatch the_height = 

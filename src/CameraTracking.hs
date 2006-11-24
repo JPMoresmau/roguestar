@@ -1,15 +1,37 @@
 module CameraTracking 
     (Camera(..),
      trackCamera,
-     cameraLookAt)
+     cameraLookAt,
+     lookAtCamera)
     where
 
 import Math3D
-import Graphics.Rendering.OpenGL.GL
-import Graphics.Rendering.OpenGL.GLU
+import Graphics.Rendering.OpenGL.GL as GL
+import Graphics.Rendering.OpenGL.GLU as GLU
 import Data.List
 
 data Camera = Camera { camera_spot, camera_position :: Point3D }
+
+-- |
+-- Take a function that renders a shape in the x-y plane (it's ok for the shape to extend along the z-axis,
+-- but the intention is that such an extention will be barely perceptable).  Always rotate the shape so that
+-- it faces the camera.  This function does this.
+--
+-- (lookAtCamera camera xyz fn) calls the function fn in OpenGL so that it will be translated to xyz and rotated
+-- to face the camera.
+--
+lookAtCamera :: (Xyz a) => Camera -> a -> IO () -> IO ()
+lookAtCamera camera xyz_source rendering_fn =
+  do let xyz@(x,y,z) = toXYZ xyz_source
+         vector_to_camera = vectorToFrom (camera_position camera) (point3d xyz)
+         rotateY = angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 1 0 1) vector_to_camera) -- angle around
+         rotateX = angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 0 1 1) vector_to_camera) -- angle up & down
+     preservingMatrix $
+         do GL.rotate rotateX (Vector3 1 0 0)
+            GL.rotate rotateY (Vector3 0 1 0)
+            GL.translate $ Vector3 x y z
+            rendering_fn
+            
 
 -- |
 -- Calls GLU's lookAt with this camera.
@@ -29,6 +51,12 @@ trackCamera delta targets camera0 =
 	new_position = trackTarget delta (cameraPullback target targets) $ camera_position camera0
 	in Camera { camera_spot=new_spot, camera_position=new_position }
 
+-- |
+-- trackTarget delta goal now
+-- Where delta is the maximum distance to move on a single step, goal is the goal
+-- position, and now is the current position, returns the next position approaching
+-- the goal on a linear path.
+--
 trackTarget :: Float -> Point3D -> Point3D -> Point3D
 trackTarget delta_step goal now = 
     let delta_vector = vectorToFrom goal now
@@ -37,12 +65,19 @@ trackTarget delta_step goal now =
 	   else Math3D.translate (vectorScaleTo delta_step $ delta_vector) now
 
 
+-- |
+-- The center of gravity of a group of points, assuming all points have equal weight.
+-- That is, the average position of all the points.
+--
 centerOfGravity :: [Point3D] -> Point3D
 centerOfGravity targets =
     let (xs,ys,zs) = unzip3 $ map toXYZ targets
 	average nums = sum nums / (fromInteger $ genericLength nums)
 	in (Point3D (average xs) (average ys) (average zs))
 
+-- |
+-- Where the camera should be, in relation a primary target and all other targets.
+--
 cameraPullback :: Point3D -> [Point3D] -> Point3D
 cameraPullback (Point3D x y _) targets =
     let (xs,_,zs) = unzip3 $ map toXYZ targets

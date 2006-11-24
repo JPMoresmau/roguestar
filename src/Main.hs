@@ -41,6 +41,8 @@ import Model
 import StarflightBackground
 import Driver
 import Debug
+import Models.LibraryData
+import Models.Library
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -81,9 +83,18 @@ main = do (_,args) <- getArgsAndInitialize
 	  addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref window)
 	  mainLoop
 
-displayModel :: Model -> IO ()
-displayModel model = 
-    do globals_ref <- newIORef $ roguestar_globals_0 { global_display_func = renderStarflightRotation model }
+-- Simply comment out the above main function and uncomment this one
+-- to test out your favorite model.
+{-
+main :: IO ()
+main = displayModel AscensionClassStarship Super
+-}
+
+displayModel :: LibraryModel -> Quality -> IO ()
+displayModel model quality = 
+    do _ <- getArgsAndInitialize
+       globals_ref <- newIORef $ roguestar_globals_0
+       writeIORef globals_ref $ roguestar_globals_0 { global_display_func = renderStarflightRotation (displayLibraryModel globals_ref model quality) }
        initialWindowSize $= default_window_size
        initialDisplayMode $= display_mode
        window <- createWindow "Roguestar-GL: Model Display"
