@@ -199,7 +199,7 @@ dotProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 -- The angle between two vectors, based on their dot product, in radians.
 --
 angleBetween :: Vector3D -> Vector3D -> Float
-angleBetween a b = acos $ dotProduct a b
+angleBetween a b = acos $ dotProduct (vectorNormalize a) (vectorNormalize b)
 
 -- |
 -- The cross product of two vectors.

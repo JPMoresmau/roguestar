@@ -20,6 +20,9 @@ import Graphics.Rendering.OpenGL.GLU
 import Math3D
 import Seconds
 import CameraTracking
+import Models.LibraryData
+import Models.Library
+import Quality
 
 -- |
 -- Sets the next function to be used as the OpenGL display callback.  This function will
@@ -136,6 +139,19 @@ turnDisplay globals_ref =
 	else updateCamera globals_ref [])
        globals <- readIORef globals_ref
        global_terrain_rendering_function globals globals_ref
+       renderQuestionMarks globals_ref
+
+renderQuestionMarks :: IORef RoguestarGlobals -> IO ()
+renderQuestionMarks globals_ref =
+    do table <- driverRequestTable globals_ref "visible-objects" "0"
+       when (isJust table) $ do mapM (render1QuestionMark globals_ref) $ tableSelect3Integer (fromJust table) ("object-unique-id","x","y")
+                                return ()
+
+render1QuestionMark :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer)) -> IO ()
+render1QuestionMark globals_ref (_,(Just x,Just y)) =
+    do camera <- liftM global_camera $ readIORef globals_ref
+       lookAtCamera camera (Point3D (fromInteger x) 0.5 (fromInteger y)) (displayLibraryModel globals_ref QuestionMark Super)
+render1QuestionMark _ _ = return ()
 
 camera_speed :: Rational
 camera_speed = 3
@@ -145,7 +161,6 @@ camera_speed = 3
 --
 updateCamera :: IORef RoguestarGlobals -> [Point3D] -> IO ()
 updateCamera globals_ref [] = cameraLookAt =<< (liftM global_camera $ readIORef globals_ref)
-
 updateCamera globals_ref spot_targets =
     do now_seconds <- seconds
        delta_seconds <- liftM ((camera_speed *) . (now_seconds -) . global_last_camera_update_seconds) $ readIORef globals_ref

@@ -10,7 +10,7 @@ import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU as GLU
 import Data.List
 
-data Camera = Camera { camera_spot, camera_position :: Point3D }
+data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Show)
 
 -- |
 -- Take a function that renders a shape in the x-y plane (it's ok for the shape to extend along the z-axis,
@@ -23,13 +23,13 @@ data Camera = Camera { camera_spot, camera_position :: Point3D }
 lookAtCamera :: (Xyz a) => Camera -> a -> IO () -> IO ()
 lookAtCamera camera xyz_source rendering_fn =
   do let xyz@(x,y,z) = toXYZ xyz_source
-         vector_to_camera = vectorToFrom (camera_position camera) (point3d xyz)
-         rotateY = angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 1 0 1) vector_to_camera) -- angle around
-         rotateX = angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 0 1 1) vector_to_camera) -- angle up & down
+         vector_to_camera@(Vector3D delta_x delta_y _) = vectorToFrom (camera_position camera) (point3d xyz)
+         rotateY = (* signum (-delta_x)) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 1 0 1) vector_to_camera) -- angle around
+         rotateX = (* signum delta_y) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 0 1 1) vector_to_camera) -- angle up & down
      preservingMatrix $
-         do GL.rotate rotateX (Vector3 1 0 0)
-            GL.rotate rotateY (Vector3 0 1 0)
-            GL.translate $ Vector3 x y z
+         do GL.translate $ Vector3 x y z
+            GL.rotate rotateX $ Vector3 1 0 0
+            GL.rotate rotateY $ Vector3 0 1 0
             rendering_fn
             
 
@@ -38,7 +38,7 @@ lookAtCamera camera xyz_source rendering_fn =
 --
 cameraLookAt :: Camera -> IO ()
 cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_position=(Point3D position_x position_y position_z)}) =
-    lookAt (Vertex3 (cast position_x) (cast position_y) (cast position_z)) (Vertex3 (cast spot_x) (cast spot_y) (cast spot_z)) (Vector3 0 0 1)
+    lookAt (Vertex3 (cast position_x) (cast position_y) (cast position_z)) (Vertex3 (cast spot_x) (cast spot_y) (cast spot_z)) (Vector3 0 (1.61) 1)
 	where cast = fromRational . toRational
 
 -- |
@@ -47,7 +47,7 @@ cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_positi
 trackCamera :: Float -> [Point3D] -> Camera -> Camera
 trackCamera delta targets camera0 = 
     let target = centerOfGravity targets
-	new_spot = trackTarget delta target $ camera_spot camera0
+	new_spot = trackTarget (delta*1.61) target $ camera_spot camera0 -- spot moves faster than camera
 	new_position = trackTarget delta (cameraPullback target targets) $ camera_position camera0
 	in Camera { camera_spot=new_spot, camera_position=new_position }
 

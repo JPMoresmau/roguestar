@@ -75,12 +75,11 @@ terrainLift "water" = 0.002
 terrainLift "deepwater" = 0.002
 terrainLift _ = 0.0
 
---data TerrainSpecial = Trees Integer | RockFace
+--data TerrainSpecial = Trees Integer
 
 --terrainSpecial :: String -> Maybe TerrainSpecial
 --terrainSpecial "forest" = Just $ Trees 1
 --terrainSpecial "deepforest" = Just $ Trees 3
---terrainSpecial "rockface" = Just RockFace
 --terrainSpecial _ = Nothing
 
 -- |
@@ -157,5 +156,5 @@ resetTerrainRenderingFunction globals_ref =
 
 tableToTerrainData :: RoguestarTable -> [((Integer,Integer),String)]
 tableToTerrainData table = mapMaybe fromTable $ tableSelect3Integer table ("terrain-type","x","y")
-    where fromTable (terrain_type,Just x,Just y) = Just ((x,y),terrain_type)
+    where fromTable (terrain_type,(Just x,Just y)) = Just ((x,y),terrain_type)
 	  fromTable _ = Nothing

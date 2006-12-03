@@ -55,8 +55,8 @@ tableSelect2Integer table headers = map (\x -> (fst x,readInteger $ snd x)) $ ta
 -- |
 -- As tableSelect2Integer, but with the second and third elements converted to integers.
 --
-tableSelect3Integer :: RoguestarTable -> (String,String,String) -> [(String,Maybe Integer,Maybe Integer)]
-tableSelect3Integer table (h1,h2,h3) = map ( \ x -> (x !! 0,readInteger $ x !! 1,readInteger $ x !! 2)) $ tableSelect table [h1,h2,h3]
+tableSelect3Integer :: RoguestarTable -> (String,String,String) -> [(String,(Maybe Integer,Maybe Integer))]
+tableSelect3Integer table (h1,h2,h3) = map ( \ x -> (x !! 0,(readInteger $ x !! 1,readInteger $ x !! 2))) $ tableSelect table [h1,h2,h3]
 
 -- |
 -- tableLookup table ("name","phone-number") "bob" = bob's phone number, or nothing if "bob" isn't in the table.
