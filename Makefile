@@ -22,6 +22,9 @@ clean :
 	-rm -f products/*.hi 2> /dev/null
 	-rm -f products/roguestar-gl 2> /dev/null
 	-rm -f products/roguestar-gl-bin 2> /dev/null
+	-rm -f products/Models/*.o 2> /dev/null
+	-rm -f products/Models/*.hi 2> /dev/null
+	-rmdir products/Models 2> /dev/null
 	${MAKE} -C haddock clean
 
 doc :
