@@ -1,7 +1,5 @@
 module Quality
     (Quality(..),
-     improve,
-     reduce,
      qualitySOR,
      qualityFrame,
      qualityTube)

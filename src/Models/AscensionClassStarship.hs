@@ -18,7 +18,7 @@ ascension_class_starship quality =
 	      [(-10,-3,-14.5),(-10,-3,-27.5)],
 	      [(-10,0.5,-15),(-10,0.5,-30)],
 	      [(-9.9,-2.9,-14.5),(-9.9,-2.9,-27.5)]],
-	     qualityFrame (reduce quality) concordance_material_metal $ map points3d $ reverse $ 
+	     qualityFrame quality concordance_material_metal $ map points3d $ reverse $ 
 	     [[(0,-6,-14),(0,-6,-20)],
 	      [(10,-3,-14.5),(10,-3,-25)],
 	      [(10,0.5,-15),(10,0.5,-30)],
