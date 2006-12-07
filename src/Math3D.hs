@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
@@ -55,7 +57,7 @@ module Math3D
      matrixAdd,
      matrixMultiply,
      matrixTranspose,
-     transform,
+     AffineTransformable(..),
      transformHomogenous,
      aMByNMatrix,
      translationMatrix,
@@ -91,7 +93,7 @@ class Xyz a where
     toXYZ :: a -> XYZ
 
 data Point3D = Point3D Float Float Float
-	     deriving (Read,Show)
+	     deriving (Read,Show,Eq)
 
 origin_point_3d :: Point3D
 origin_point_3d = Point3D 0 0 0
@@ -100,10 +102,10 @@ instance Xyz Point3D where
     toXYZ (Point3D x y z) = (x,y,z)
 
 data Point2D = Point2D Float Float
-	     deriving (Read,Show)
+	     deriving (Read,Show,Eq)
 
 data Vector3D = Vector3D Float Float Float
-	      deriving (Read,Show)
+	      deriving (Read,Show,Eq)
 
 zero_vector :: Vector3D
 zero_vector = Vector3D 0 0 0

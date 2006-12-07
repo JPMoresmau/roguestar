@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
@@ -38,8 +40,7 @@ module Model
      dropUnionElements,
      frame,
      extrude,
-     sor,
-     transformation)
+     sor)
     where
 
 import System.Random
@@ -265,11 +266,8 @@ frame tex pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry 
 	    	    normals_smooth_both_ways = map (map vectorAverage . transpose) $ loopedConsecutives 2 normals_smooth_one_way
 		    in Union $ map (Strip tex . uncurry zip) $ loopedDoubles $ map (uncurry zip) $ zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
 
--- |
--- Constructs a transformation of a Model.
---
-transformation :: Math3D.Matrix Float -> Model -> Model
-transformation mat model = Transformation (aMByNMatrix "in Model.transformation" 4 4 mat) model
+instance AffineTransformable Model where
+    transform mat model = Transformation (aMByNMatrix "in Model.transform" 4 4 mat) model
 
 toVertex3 :: Point3D -> Vertex3 Float
 toVertex3 (Point3D x y z) = Vertex3 x y z

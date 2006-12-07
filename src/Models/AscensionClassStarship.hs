@@ -10,10 +10,10 @@ import Data.List
 
 ascension_class_starship :: Quality -> Model
 ascension_class_starship quality = 
-    Union $ [transformation (translationMatrix $ Vector3D 0 0 20) $ concordance_disk_section 0 quality,
-	     transformation (translationMatrix $ Vector3D (-10) 0 (-15)) $ concordance_engine_section quality,
-	     transformation (translationMatrix $ Vector3D 10 0 (-15)) $ concordance_engine_section quality,
-	     qualityFrame (reduce quality) concordance_material_metal $ map points3d $ 
+    Union $ [translate (Vector3D 0 0 20) $ concordance_disk_section 0 quality,
+	     translate (Vector3D (-10) 0 (-15)) $ concordance_engine_section quality,
+	     translate (Vector3D 10 0 (-15)) $ concordance_engine_section quality,
+	     qualityFrame quality concordance_material_metal $ map points3d $ 
 	     [[(0,-6,-14),(0,-6,-20)],
 	      [(-10,-3,-14.5),(-10,-3,-27.5)],
 	      [(-10,0.5,-15),(-10,0.5,-30)],
