@@ -1,6 +1,7 @@
 module Quality
     (Quality(..),
-     qualitySOR,
+     qualitySor,
+     qualityDeformedSor,
      qualityFrame,
      qualityTube)
     where
@@ -34,11 +35,14 @@ qualityTube Super tex pts = extrude tex (3 * genericLength pts + 1) (newell (map
 -- SOR (as Model.sor) that introduces the number
 -- of subdivisions automatically according to the quality setting.
 --
-qualitySOR :: Quality -> Texture -> [Point2D] -> Model
-qualitySOR Bad tex = sor tex 8
-qualitySOR Poor tex = sor tex 16
-qualitySOR Good tex = sor tex 22
-qualitySOR Super tex = sor tex 28
+qualitySor :: Quality -> Texture -> [Point2D] -> Model
+qualitySor q = qualityDeformedSor q id
+
+qualityDeformedSor :: Quality -> (Point3D -> Point3D) -> Texture -> [Point2D] -> Model
+qualityDeformedSor Bad dfn tex = deformedSor dfn tex 8
+qualityDeformedSor Poor dfn tex = deformedSor dfn tex 16
+qualityDeformedSor Good dfn tex = deformedSor dfn tex 22
+qualityDeformedSor Super dfn tex = deformedSor dfn tex 28
 
 -- |
 -- Generates a frame (as Model.frame), running interpolation

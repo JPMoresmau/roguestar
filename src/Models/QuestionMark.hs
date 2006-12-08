@@ -13,7 +13,7 @@ question_mark :: Quality -> Model
 question_mark q =
     scale (Vector3D (-1) 1 1) $ 
     scaleModel 0.5 $ 
-    Union [qualitySOR q question_mark_material
+    Union [qualitySor q question_mark_material
                         [Point2D 0.1 (-4.5),
                          Point2D 0.5 (-5),
                          Point2D 0.1 (-5.5)],

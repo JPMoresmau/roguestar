@@ -28,7 +28,7 @@ concordance_material_engine = SolidTexture $ (rgbLum 0.75 (0.0,0.1625,0.65)) { s
 concordance_disk_section :: Int -> Quality -> Model
 concordance_disk_section seed quality =
     Union $ [
-	     qualitySOR quality concordance_material_metal $
+	     qualitySor quality concordance_material_metal $
 	     points2d [(0,4),
 		       (1,4),
 		       (2,3),

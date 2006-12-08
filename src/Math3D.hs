@@ -57,6 +57,7 @@ module Math3D
      matrixAdd,
      matrixMultiply,
      matrixTranspose,
+     matrixInverse,
      AffineTransformable(..),
      transformHomogenous,
      aMByNMatrix,

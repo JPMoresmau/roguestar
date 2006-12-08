@@ -40,7 +40,8 @@ module Model
      dropUnionElements,
      frame,
      extrude,
-     sor)
+     sor,
+     deformedSor)
     where
 
 import System.Random
@@ -69,6 +70,10 @@ instance Lerpable Material Float where
 data Texture = SolidTexture Material
              | ProceduralTexture (Point3D -> Material)
                 
+instance AffineTransformable Texture where
+    transform _ (SolidTexture mat) = SolidTexture mat
+    transform m (ProceduralTexture fn) = ProceduralTexture (\p -> fn $ transform (matrixInverse m) p) -- note: inferior asymptotic complexity
+
 instance Show Texture where
     show (SolidTexture mat) = "SolidTexture " ++ show mat
     show (ProceduralTexture _) = "ProceduralTexture _"
@@ -91,12 +96,16 @@ modelSize (Strip _ pts) = maximum $ map (distanceBetween origin_point_3d) $ conc
 modelSize (Union models) = maximum $ map modelSize models
 modelSize transformedModel@(Transformation {}) = modelSize $ pretransform (identityMatrix 4) transformedModel
 
+-- |
+-- Fully apply the specified affine transform to this matrix, now, along with any transformations
+-- stored in the model.  Afterwards the model will have been stripped of all Transformation elements.
+--
 pretransform :: Math3D.Matrix Float -> Model -> Model
 pretransform m (Transformation m' model) = pretransform (matrixMultiply m m') model
 pretransform m (Triangle tex (p1,v1) (p2,v2) (p3,v3)) = 
-    Triangle tex (transform m p1,transform m v1) (transform m p2,transform m v2) (transform m p3,transform m v3)
+    Triangle (transform m tex) (transform m p1,transform m v1) (transform m p2,transform m v2) (transform m p3,transform m v3)
 pretransform m (Strip tex pts) = 
-    Strip tex $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,transform m v1),(transform m p2,transform m v2))) pts
+    Strip (transform m tex) $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,transform m v1),(transform m p2,transform m v2))) pts
 pretransform m (Union models) = Union $ map (pretransform m) models
 
 -- |
@@ -253,13 +262,22 @@ extrude1Frame fraction_of_segment up figure ((a,a_scale),(b,b_scale)) =
 -- The second parameter indicates the number of subdivisions.  The third parameter
 -- is the two dimensional frame.
 --
+-- The result is always of the form Union [longitudinal elements].
+--
 sor :: Texture -> Integer -> [Point2D] -> Model
-sor _ subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
-sor tex subdivisions pts = let points = map ((\m -> map (transformHomogenous m) pts) . rotationMatrix (Vector3D 0 1 0)) $ reverse $ radianIncrements subdivisions
-			       in frame tex points
+sor = deformedSor id
+
+-- |
+-- As a SOR, but apply a deformation function to all points in the SOR.
+--
+deformedSor :: (Point3D -> Point3D) -> Texture -> Integer -> [Point2D] -> Model
+deformedSor _ _ subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
+deformedSor dfn tex subdivisions pts = let points = map ((\m -> map (transformHomogenous m) pts) . rotationMatrix (Vector3D 0 1 0)) $ reverse $ radianIncrements subdivisions
+			                   in frame tex $ map (map dfn) points
 
 -- |
 -- Contructs a surface from a sequence of polyline tails.  This is like wrapping cloth around a wire frame.
+-- The result is always a union of elements.
 -- 
 frame :: Texture -> [[Point3D]] -> Model
 frame tex pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry zip)) $ loopedDoubles pts :: [[Vector3D]]
