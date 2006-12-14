@@ -4,6 +4,7 @@ HS_FLAGS = 	-hidir products/ \
 		-Wall \
 		-fno-warn-type-defaults \
 		-fno-warn-unused-imports \
+		-lglut \
 		--make src/Main.hs \
 		-o products/roguestar-gl-bin
 

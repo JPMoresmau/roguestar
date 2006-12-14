@@ -3,6 +3,7 @@ module Actions
      getValidActions)
     where
 
+import System.Exit
 import Control.Monad
 import Driver
 import Data.IORef
@@ -16,6 +17,11 @@ import System.IO
 data Action = Action { action_valid :: IORef RoguestarGlobals -> IO Bool, 
 		       action_execute :: IORef RoguestarGlobals -> IO () }
 
+quitAction :: (String,Action)
+quitAction = ("quit",
+              Action { action_valid = \_ -> return True,
+                       action_execute = \_ -> exitWith ExitSuccess })
+
 selectRaceAction :: String -> Action
 selectRaceAction = selectTableAction ("player-races","0","name") "race-selection" "select-race"
 
@@ -24,30 +30,21 @@ selectBaseClassAction = selectTableAction ("base-classes","0","class") "class-se
 
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
-    Action {
-	    action_valid = \globals_ref -> 
-	    do {
-		state <- driverRequestAnswer globals_ref "state";
-		case state of 
-		{
-		 Nothing -> return False;
-		 Just x | x == allowed_state -> 
-		 do { 
-		     maybe_table <- driverRequestTable globals_ref the_table_name the_table_id;
-		     case maybe_table of 
-		     {
-		      Nothing -> return False;
-		      Just table -> return $ action_param `elem` tableSelect1 table the_table_header
-		     }};
-		 Just _ -> return False
-		}},
-
-	    action_execute = \globals_ref -> 
-	    do {
-		driverAction globals_ref [action_name, action_param];
-		printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
-	       }
-	   }
+    Action { action_valid = valid,
+             action_execute = execute }
+    where valid globals_ref = 
+	      do state <- driverRequestAnswer globals_ref "state";
+                 case state of 
+                            Nothing -> return False;
+		            Just x | x == allowed_state -> 
+		                do maybe_table <- driverRequestTable globals_ref the_table_name the_table_id;
+		                   case maybe_table of 
+		                                    Nothing -> return False;
+		                                    Just table -> return $ action_param `elem` tableSelect1 table the_table_header
+		            Just _ -> return False
+	  execute globals_ref = 
+	      do driverAction globals_ref [action_name, action_param];
+	         printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
 
 moveAction :: String -> (String,Action)
 moveAction str =
@@ -106,7 +103,8 @@ move_actions :: [(String,Action)]
 move_actions = map moveAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = select_race_actions ++ 
+all_actions = [quitAction] ++
+              select_race_actions ++ 
 	      [reroll_action] ++
 	      select_base_class_actions ++
 	      move_actions

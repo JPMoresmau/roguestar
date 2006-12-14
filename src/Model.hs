@@ -294,7 +294,7 @@ toNormal3 :: Vector3D -> Normal3 Float
 toNormal3 (Vector3D x y z) = Normal3 x y z
 
 toColor4_rgb :: Material -> Color4 Float
-toColor4_rgb (Material { rgb=(Model.RGB r g b) }) = Color4 r g b 0
+toColor4_rgb (Material { rgb=(Model.RGB r g b), alpha=a }) = Color4 r g b (fromMaybe 1 a)
 
 toColor4_lum :: Material -> Color4 Float
 toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 r g b 0
@@ -304,7 +304,7 @@ materialToOpenGL :: Material -> IO ()
 materialToOpenGL c = 
     let shininess = fromMaybe 0 (shine c)
 	in do materialShininess Front $= shininess*128
-	      materialSpecular Front $= Color4 shininess shininess shininess 1
+	      materialSpecular Front $= Color4 shininess shininess shininess 1.0
 	      materialAmbientAndDiffuse Front $= toColor4_rgb c
               materialEmission Front $= toColor4_lum c
 

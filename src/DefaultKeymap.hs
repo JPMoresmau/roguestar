@@ -45,4 +45,5 @@ default_keymap = filterKeymap
 		  ("y","move-ne"),
 		  ("u","move-nw"),
 		  ("b","move-se"),
-		  ("n","move-sw")]
+		  ("n","move-sw"),
+		  ("#quit","quit")]

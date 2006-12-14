@@ -5,6 +5,7 @@ module Models.Library
 import Quality
 import Models.QuestionMark
 import Models.AscensionClassStarship
+import Models.Encephalon
 import Model
 import Models.LibraryData
 import Globals
@@ -17,6 +18,7 @@ import Data.Map as Map
 toModel :: LibraryModel -> Quality -> Model
 toModel QuestionMark = question_mark
 toModel AscensionClassStarship = ascension_class_starship
+toModel Encephalon = encephalon
 
 -- |
 -- Automatically managing display lists, display the specified model at the specified quality.

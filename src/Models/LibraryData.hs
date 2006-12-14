@@ -3,5 +3,6 @@ module Models.LibraryData
     where
     
 data LibraryModel = QuestionMark
-                  | AscensionClassStarship
+                  | AscensionClassStarship       -- spaceships
+                  | Encephalon                   -- creatures
                   deriving (Eq,Ord)

@@ -150,7 +150,7 @@ renderQuestionMarks globals_ref =
 render1QuestionMark :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer)) -> IO ()
 render1QuestionMark globals_ref (_,(Just x,Just y)) =
     do camera <- liftM global_camera $ readIORef globals_ref
-       lookAtCamera camera (Point3D (fromInteger x) 0.5 (fromInteger y)) (displayLibraryModel globals_ref QuestionMark Good)
+       lookAtCamera camera (Point3D (fromInteger x) 0.5 (fromInteger y)) (displayLibraryModel globals_ref Encephalon Super)
 render1QuestionMark _ _ = return ()
 
 camera_speed :: Rational

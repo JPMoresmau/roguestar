@@ -29,7 +29,7 @@ qualityTube _ _ pts | newell (map fst pts) == Vector3D 0.0 0.0 0.0 = error "this
 qualityTube Bad tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 5) pts
 qualityTube Poor tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 8) pts
 qualityTube Good tex pts = extrude tex (2 * genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 16) pts
-qualityTube Super tex pts = extrude tex (3 * genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 22) pts
+qualityTube Super tex pts = extrude tex (3 * genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 36) pts
 
 -- |
 -- SOR (as Model.sor) that introduces the number
@@ -40,9 +40,9 @@ qualitySor q = qualityDeformedSor q id
 
 qualityDeformedSor :: Quality -> (Point3D -> Point3D) -> Texture -> [Point2D] -> Model
 qualityDeformedSor Bad dfn tex = deformedSor dfn tex 8
-qualityDeformedSor Poor dfn tex = deformedSor dfn tex 16
-qualityDeformedSor Good dfn tex = deformedSor dfn tex 22
-qualityDeformedSor Super dfn tex = deformedSor dfn tex 28
+qualityDeformedSor Poor dfn tex = deformedSor dfn tex 16 . interpolateBetween2d
+qualityDeformedSor Good dfn tex = deformedSor dfn tex 22 . interpolateBetween2d . interpolateBetween2d
+qualityDeformedSor Super dfn tex = deformedSor dfn tex 44 . interpolateBetween2d . interpolateBetween2d . interpolateBetween2d
 
 -- |
 -- Generates a frame (as Model.frame), running interpolation
