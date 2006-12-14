@@ -35,15 +35,15 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
     where valid globals_ref = 
 	      do state <- driverRequestAnswer globals_ref "state";
                  case state of 
-                            Nothing -> return False;
+                            Nothing -> return False
 		            Just x | x == allowed_state -> 
-		                do maybe_table <- driverRequestTable globals_ref the_table_name the_table_id;
+		                do maybe_table <- driverRequestTable globals_ref the_table_name the_table_id
 		                   case maybe_table of 
-		                                    Nothing -> return False;
+		                                    Nothing -> return False
 		                                    Just table -> return $ action_param `elem` tableSelect1 table the_table_header
 		            Just _ -> return False
 	  execute globals_ref = 
-	      do driverAction globals_ref [action_name, action_param];
+	      do driverAction globals_ref [action_name, action_param]
 	         printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
 
 moveAction :: String -> (String,Action)

@@ -37,5 +37,6 @@ encephalon_suit q = qualitySor q encephalon_suit_material pts
                                           (10,0)]
                           
 encephalon :: Quality -> Model
-encephalon q = Union [encephalon_head q,
+encephalon q = scaleModel 0.4 $
+               Union [encephalon_head q,
                       encephalon_suit q]

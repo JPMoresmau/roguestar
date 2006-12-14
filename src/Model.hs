@@ -103,9 +103,9 @@ modelSize transformedModel@(Transformation {}) = modelSize $ pretransform (ident
 pretransform :: Math3D.Matrix Float -> Model -> Model
 pretransform m (Transformation m' model) = pretransform (matrixMultiply m m') model
 pretransform m (Triangle tex (p1,v1) (p2,v2) (p3,v3)) = 
-    Triangle (transform m tex) (transform m p1,transform m v1) (transform m p2,transform m v2) (transform m p3,transform m v3)
+    Triangle (transform m tex) (transform m p1,vectorNormalize $ transform m v1) (transform m p2,vectorNormalize $ transform m v2) (transform m p3,vectorNormalize $ transform m v3)
 pretransform m (Strip tex pts) = 
-    Strip (transform m tex) $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,transform m v1),(transform m p2,transform m v2))) pts
+    Strip (transform m tex) $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,vectorNormalize $ transform m v1),(transform m p2,vectorNormalize $ transform m v2))) pts
 pretransform m (Union models) = Union $ map (pretransform m) models
 
 -- |

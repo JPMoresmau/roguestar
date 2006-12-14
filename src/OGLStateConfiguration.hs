@@ -106,6 +106,7 @@ setOpenGLState config_info = do clearColor $= ogl_background_color config_info
 				fogMode $= ogl_fog_mode config_info
 				fogColor $= ogl_background_color config_info
 				matrixMode $= Projection
+                                rescaleNormal $= Enabled
 				loadIdentity
 				(Size width height) <- get windowSize
 				perspective (ogl_fov_degrees config_info) ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) (ogl_near_plane config_info) (ogl_far_plane config_info)
