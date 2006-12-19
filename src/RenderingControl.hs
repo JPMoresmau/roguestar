@@ -160,13 +160,13 @@ ongoingTurnDisplay globals_ref =
 
 renderObjects :: IORef RoguestarGlobals -> IO ()
 renderObjects globals_ref =
-    do table <- driverRequestTable globals_ref "visible-objects" "0"
+    do table <- driverGetTable globals_ref Anything "visible-objects" "0"
        when (isJust table) $ do mapM (render1Object globals_ref) $ tableSelect3Integer (fromJust table) ("object-unique-id","x","y")
                                 return ()
 
 render1Object :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer)) -> IO ()
 render1Object globals_ref (object_id,(Just x,Just y)) =
-    do object_details <- driverRequestTable globals_ref "object-details" object_id
+    do object_details <- driverGetTable globals_ref Anything "object-details" object_id
        when (isJust object_details) $ do render1Object_ globals_ref (x,y) (fromJust object_details)
 render1Object _ _ = return ()
 

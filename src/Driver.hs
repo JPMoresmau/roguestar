@@ -22,8 +22,9 @@ import Tables
 -- [@Fresh@] guarantees that the data returned will be exactly the data that is in the engine, but this data is less likely to be immediately available; send a driverRequest* is necessary.
 -- [@New@] return new data, but the engine might have changed since then; send a driverRequest* is necessary.
 -- [@Old@] return data that is at least one turn old, if the data isn't available there is no way to request it from the engine
+-- [@Anything@] return new data if available, otherwise old data
 --
-data DataFreshness = Fresh | New | Old deriving (Show,Eq)
+data DataFreshness = Fresh | New | Old | Anything deriving (Show,Eq)
 
 driverNoop :: IORef RoguestarGlobals -> IO ()
 driverNoop globals_ref = driverWrite globals_ref "noop\n"
@@ -38,6 +39,11 @@ driverGetAnswer globals_ref Fresh question =
        if stale then return Nothing else driverRequestAnswer globals_ref question
 driverGetAnswer globals_ref New question = driverRequestAnswer globals_ref question
 driverGetAnswer globals_ref Old question = liftM (lookup question . restate_answers . global_old_engine_state) $ readIORef globals_ref
+driverGetAnswer globals_ref Anything question =
+    do new <- driverGetAnswer globals_ref New question
+       old <- driverGetAnswer globals_ref Old question
+       return $ listToMaybe $ catMaybes [new,old]
+       
 
 -- |
 -- Retrives a piece of data from the engine, using a "game query ..." statement and
@@ -66,6 +72,11 @@ driverGetTable globals_ref Fresh the_table_name the_table_id =
 driverGetTable globals_ref New the_table_name the_table_id = driverRequestTable globals_ref the_table_name the_table_id
 driverGetTable globals_ref Old the_table_name the_table_id =
     do liftM ((find (\x -> table_name x == the_table_name && table_id x == the_table_id)) . restate_tables . global_old_engine_state) $ readIORef globals_ref
+driverGetTable globals_ref Anything the_table_name the_table_id =
+    do new <- driverGetTable globals_ref New the_table_name the_table_id
+       old <- driverGetTable globals_ref Old the_table_name the_table_id
+       return $ listToMaybe $ catMaybes [new,old]
+
 
 -- |
 -- Retrives a table from the engine, using a "game query ..." statement and
