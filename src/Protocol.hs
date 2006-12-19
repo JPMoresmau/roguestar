@@ -59,7 +59,7 @@ dbRequiresRaceSelectionState :: DB String -> DB String
 dbRequiresRaceSelectionState action = do state <- dbState
 					 case state of
 						    DBRaceSelectionState -> action
-						    _ -> return "protocol-error: not in race selection state"
+						    _ -> return $ "protocol-error: not in race selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action assuming the database is in the DBClassSelectionState,
@@ -69,11 +69,10 @@ dbRequiresClassSelectionState :: (Creature -> DB String) -> DB String
 dbRequiresClassSelectionState action = do state <- dbState
 					  case state of
 						     DBClassSelectionState creature -> action creature
-						     _ -> return "protocol-error: not in class selection state"
+						     _ -> return $ "protocol-error: not in class selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action based on a player creature, when the state is appropriate.
--- This works even outside of a planar state, such as the class selection state.
 -- The states that work for this are:
 --
 -- DBClassSelectionState
@@ -85,7 +84,7 @@ dbRequiresPlayerCenteredState action =
        case state of
 		  DBClassSelectionState creature -> action creature
 		  DBPlayerCreatureTurn creature_ref -> action =<< dbGetCreature creature_ref
-		  _ -> return "protocol-error: not in player-centered state"
+		  _ -> return $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that works during any creature's turn in a planar environment.
@@ -99,7 +98,7 @@ dbRequiresPlanarTurnState action =
     do state <- dbState
        case state of
 		  DBPlayerCreatureTurn creature_ref -> action creature_ref
-		  _ -> return "protocol-error: not in planar turn state"
+		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that works only during a player-character's turn.
@@ -112,7 +111,7 @@ dbRequiresPlayerTurnState action =
     do state <- dbState
        case state of
                   DBPlayerCreatureTurn creature_ref -> action creature_ref
-                  _ -> return "protocol-error: not in player turn state"
+                  _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
@@ -182,7 +181,7 @@ dbDispatch ["query","object-details"] =
                         table_data ++
                         "end-table")
            dbGetObjectTableData (DBCreatureRef creature_ref) = liftM creatureToTableData $ dbGetCreature creature_ref
-           dbGetObjectTableData (DBPlaneRef _) = return "" -- implausible case
+           dbGetObjectTableData (DBPlaneRef _) = error "implausible case"
            creatureToTableData creature = "object-type creature\n" ++
                                           (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
 
@@ -216,11 +215,11 @@ dbSelectPlayerRace race_name = case (selectPlayerRace race_name)
 dbSelectPlayerClass :: String -> Creature -> DB String
 dbSelectPlayerClass class_name creature = 
     let eligable_base_classes = getEligableBaseCharacterClasses creature
-	in case findIndex (\x -> (map toLower . show) x == class_name) eligable_base_classes
+	in case find (\x -> (map toLower . show) x == class_name) eligable_base_classes
 	   of
 	   Nothing -> return ("protocol-error: unrecognized or invalid class '" ++ class_name ++ "'")
-	   Just i -> do dbBeginGame creature (eligable_base_classes !! i)
-			done
+	   Just the_class -> do dbBeginGame creature the_class
+			        done
 
 dbRerollRace :: Creature -> DB String
 dbRerollRace _ = do starting_race <- dbGetStartingRace
