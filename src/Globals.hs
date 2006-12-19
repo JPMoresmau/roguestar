@@ -29,6 +29,8 @@ data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarT
 -- [@global_engine_input_line_fragment@] the current string being read (don't touch unless you're Driver.hs)
 -- [@global_engine_output_lines@] lines that have already been sent to stdout (don't touch unless you're Driver.hs), used to ensure that we don't send the same request many times
 -- [@global_engine_state@] raw state information pulled from the engine (use accessor functions in Driver.hs)
+-- [@global_old_engine_state@] one-turn-old engine state (use accessor functions in Driver.hs)
+-- [@global_stale@] have we sent an action but not yet recieved a done; if so our engine state variables are out of date but havn't been replaced by anything yet (don't touch unless you're Driver.hs)
 -- [@global_language@] language (anyone can read, only main function should write based on command line arguments)
 -- [@global_keymap@] mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
 -- [@global_user_input@] input from the user typing (don't touch unless you're Main.hs)
@@ -43,6 +45,8 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_engine_input_line_fragment :: String, -- in reverse order for easy of appending
 					  global_engine_output_lines :: [String],
 					  global_engine_state :: RoguestarEngineState,
+					  global_old_engine_state :: RoguestarEngineState,
+					  global_stale :: Bool,
 					  global_language :: Language,
 					  global_keymap :: [(String,String)], -- map of keystrokes to action names
 					  global_user_input :: String, -- in normal order
@@ -66,6 +70,8 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_engine_input_line_fragment = "",
 					global_engine_output_lines = [],
 					global_engine_state = RoguestarEngineState { restate_tables = [], restate_answers = [] },
+					global_old_engine_state = RoguestarEngineState { restate_tables = [], restate_answers = [] },
+					global_stale = False,
 					global_language = English,
 					global_keymap = default_keymap,
 					global_user_input = [],

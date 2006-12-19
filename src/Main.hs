@@ -119,12 +119,9 @@ roguestarTimerCallback globals_ref window = do addTimerCallback timer_callback_m
 					       postRedisplay $ Just window
 
 appendUserInputStr :: IORef RoguestarGlobals -> String -> IO ()
-appendUserInputStr globals_ref str0 =
-    do globals0 <- readIORef globals_ref
-       str1 <- return $ (global_user_input globals0 ++ str0)
-       str' <- filterKeySequence globals_ref str1
-       globals1 <- readIORef globals_ref
-       writeIORef globals_ref $ globals1 { global_user_input=str' }
+appendUserInputStr globals_ref str =
+    do str' <- filterKeySequence globals_ref =<< liftM ((++ str) . global_user_input) (readIORef globals_ref)
+       modifyIORef globals_ref (\globals -> globals { global_user_input=str' })
 
 roguestarKeyCallback :: IORef RoguestarGlobals -> KeyboardMouseCallback
 roguestarKeyCallback _ _ Up _ _ = return ()
@@ -139,13 +136,10 @@ roguestarKeyCallback globals_ref (SpecialKey special) _ _ _ =
        maybeExecuteKeymappedAction globals_ref
 
 clearUserInput :: IORef RoguestarGlobals -> IO ()
-clearUserInput globals_ref =
-    do globals <- readIORef globals_ref
-       writeIORef globals_ref $ globals { global_user_input="" }
+clearUserInput globals_ref = modifyIORef globals_ref (\globals -> globals { global_user_input="" })
 
 maybeExecuteKeymappedAction :: IORef RoguestarGlobals -> IO ()
 maybeExecuteKeymappedAction globals_ref =
-    do globals <- readIORef globals_ref
-       actions <- keysToActionNames globals_ref $ global_user_input globals
+    do actions <- keysToActionNames globals_ref =<< liftM global_user_input (readIORef globals_ref)
        worked <- takeUserInputAction globals_ref actions
        when worked $ clearUserInput globals_ref

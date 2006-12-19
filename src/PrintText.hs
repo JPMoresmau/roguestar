@@ -14,6 +14,7 @@ import Globals
 import OGLStateConfiguration
 import PrintTextData
 import Translation
+import Control.Monad
 
 font_width_pixels :: Int
 font_width_pixels = 9
@@ -38,13 +39,15 @@ printText globals_ref textType str =
 									 (map ( \ x -> (textType,x)) 
 									  (reverse $ lines str)) ++
 									 (global_text_output_buffer globals)) } )
-			
+
 clearText :: IORef RoguestarGlobals -> IO ()
-clearText globals_ref = modifyIORef globals_ref ( \ globals -> globals { global_text_output_buffer = [] } )
+clearText globals_ref = modifyIORef globals_ref (\globals -> globals { global_text_output_buffer = [] } )
 
 renderText :: IORef RoguestarGlobals -> IO ()
 renderText globals_ref = 
-    do globals <- readIORef globals_ref
+    do user_input <- liftM global_user_input $ readIORef globals_ref
+       text_output <- liftM global_text_output_buffer $ readIORef globals_ref
+       text_output_mode <- liftM global_text_output_mode $ readIORef globals_ref
        (Size width height) <- get windowSize
        setOpenGLState ogl_bare_bones_configuration { ogl_depth_func = Nothing, ogl_depth_mask = GLUT.Disabled, ogl_blend = Enabled }
        matrixMode $= Projection
@@ -55,13 +58,13 @@ renderText globals_ref =
        let max_characters_height = (fromIntegral height - 2 * fromIntegral padding_pixels) `div` (fromIntegral font_height_pixels)
 	   max_characters_width = (fromIntegral width - 2 * fromIntegral padding_pixels) `div` (fromIntegral font_width_pixels)
 	   lines_to_print = restrictLines max_characters_height max_characters_width $ 
-			    (if (length $ global_user_input globals) > 0 || global_text_output_mode globals /= PrintTextData.Disabled 
-			     then [(GUIMessage,"> " ++ global_user_input globals)] 
+			    (if length user_input > 0 || text_output_mode /= PrintTextData.Disabled 
+			     then [(GUIMessage,"> " ++ user_input)] 
 			     else []) ++
-			    case (global_text_output_mode globals) of
-								   PrintTextData.Disabled -> []
-								   Limited -> take 3 $ global_text_output_buffer globals
-								   Unlimited -> global_text_output_buffer globals
+			    case (text_output_mode) of
+						    PrintTextData.Disabled -> []
+					            Limited -> take 3 text_output
+	        				    Unlimited -> text_output
 	   actual_width_pixels = font_width_pixels * (maximum $ map (length . snd) lines_to_print)
 	   actual_height_pixels = font_height_pixels * (length lines_to_print)
 	   in do color $ (Color4 0 0 0 0.92 :: Color4 GLfloat)
@@ -93,5 +96,4 @@ textTypeToColor GUIMessage = Color3 1.0 1.0 1.0
 -- Prints the translated data.
 --
 printTranslated :: IORef RoguestarGlobals -> TextType -> [String] -> IO ()
-printTranslated globals_ref ttype args = do globals <- readIORef globals_ref
-					    printText globals_ref ttype $ translateStr (global_language globals) args
+printTranslated globals_ref ttype args = printText globals_ref ttype =<< liftM (flip translateStr args . global_language) (readIORef globals_ref)

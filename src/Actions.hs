@@ -28,16 +28,45 @@ selectRaceAction = selectTableAction ("player-races","0","name") "race-selection
 selectBaseClassAction :: String -> Action
 selectBaseClassAction = selectTableAction ("base-classes","0","class") "class-selection" "select-class"
 
+-- |
+-- Constructs an action such that the action is valid only if it is listed in
+-- a table from the engine.  The first parameter identifies the table column to look up,
+-- (table name, table id, header to look under).  The second parameter is the name of the
+-- action as it will be send to the engine.  The third parameter is the action_param.
+-- The action_param must be listed under the specified header of the specified table,
+-- or the action will not be allowed to execute.
+--
+-- For example: selectTableAction ("people","0","name") "select-person-to-call-state" "call-with-telephone" "carl"
+-- 
+-- \> game query state
+-- answer: state select-person-to-call-state
+-- \> game query people
+-- begin-table people 0 name
+-- john
+-- wendy
+-- carl
+-- bob
+-- end-table
+-- \> game action call-with-telephone Carl
+-- 
+-- In this case the action executes because the state is actually select-person-to-call-state and Carl
+-- is actually listed under the "name" header of the "people" table.
+--
+-- In practice this function is used for things like the race-selection-state and the class-selection-state
+-- where we select from a predifined list of possible choices, but the engine further restricts the choices.
+-- Each possible choice is it's own action that will only return action_valid if it is listed in the appropriate
+-- table from the engine. 
+--
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
     Action { action_valid = valid,
              action_execute = execute }
     where valid globals_ref = 
-	      do state <- driverRequestAnswer globals_ref "state";
+	      do state <- driverGetAnswer globals_ref Fresh "state"
                  case state of 
                             Nothing -> return False
 		            Just x | x == allowed_state -> 
-		                do maybe_table <- driverRequestTable globals_ref the_table_name the_table_id
+		                do maybe_table <- driverGetTable globals_ref Fresh the_table_name the_table_id
 		                   case maybe_table of 
 		                                    Nothing -> return False
 		                                    Just table -> return $ action_param `elem` tableSelect1 table the_table_header
@@ -50,7 +79,7 @@ moveAction :: String -> (String,Action)
 moveAction str =
     ("move-" ++ str,
      Action {
-	     action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverRequestAnswer globals_ref "state",
+	     action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverGetAnswer globals_ref Fresh "state",
 	     action_execute = \globals_ref -> driverAction globals_ref ["move",str]
 	    })
 
@@ -58,7 +87,7 @@ reroll_action :: (String,Action)
 reroll_action =
     ("reroll",
      Action {
-	     action_valid = \globals_ref -> liftM (== Just "class-selection") $ driverRequestAnswer globals_ref "state",
+	     action_valid = \globals_ref -> liftM (== Just "class-selection") $ driverGetAnswer globals_ref Fresh "state",
 	     action_execute = \globals_ref -> driverAction globals_ref ["reroll"]
             })
 
@@ -109,6 +138,9 @@ all_actions = [quitAction] ++
 	      select_base_class_actions ++
 	      move_actions
 
+-- |
+-- Answer a complete list of all actions whose action_valid functions answer True.
+--
 getValidActions :: IORef RoguestarGlobals -> IO [String]
 getValidActions globals_ref = 
     do valid_action_pairs <- filterM ((\x -> action_valid x globals_ref) . snd) all_actions

@@ -1,11 +1,15 @@
 module Driver
-    (driverNoop,
+    (DataFreshness(..),
+     driverNoop,
      driverRead,
+     driverGetAnswer,
      driverRequestAnswer,
+     driverGetTable,
      driverRequestTable,
      driverAction)
     where
 
+import Data.Maybe
 import Control.Monad
 import Data.IORef
 import Data.List
@@ -14,12 +18,32 @@ import Globals
 import PrintText
 import Tables
 
+-- |
+-- [@Fresh@] guarantees that the data returned will be exactly the data that is in the engine, but this data is less likely to be immediately available; send a driverRequest* is necessary.
+-- [@New@] return new data, but the engine might have changed since then; send a driverRequest* is necessary.
+-- [@Old@] return data that is at least one turn old, if the data isn't available there is no way to request it from the engine
+--
+data DataFreshness = Fresh | New | Old deriving (Show,Eq)
+
 driverNoop :: IORef RoguestarGlobals -> IO ()
 driverNoop globals_ref = driverWrite globals_ref "noop\n"
 
 -- |
--- driverRequestAnswer globals_ref "why", sends "game query why" to the
--- engine and answers the result, or Nothing if no result is forthcomming.
+-- driverGetAnswer, as driverRequestAnswer, but if data of the specified freshness is not
+-- available, the result will be Nothing.
+--
+driverGetAnswer :: IORef RoguestarGlobals -> DataFreshness -> String -> IO (Maybe String)
+driverGetAnswer globals_ref Fresh question = 
+    do stale <- liftM global_stale $ readIORef globals_ref
+       if stale then return Nothing else driverRequestAnswer globals_ref question
+driverGetAnswer globals_ref New question = driverRequestAnswer globals_ref question
+driverGetAnswer globals_ref Old question = liftM (lookup question . restate_answers . global_old_engine_state) $ readIORef globals_ref
+
+-- |
+-- Retrives a piece of data from the engine, using a "game query ..." statement and
+-- parsing any "answer: ..." statement that results.
+--
+-- If the engine doesn't respond immediately, returns Nothing.
 --
 driverRequestAnswer :: IORef RoguestarGlobals -> String -> IO (Maybe String)
 driverRequestAnswer _ question | (length $ words question) /= 1 = error ("driverRequestAnswer: 'question' must be a single word (" ++ question ++ ")")
@@ -31,6 +55,26 @@ driverRequestAnswer globals_ref question =
 				        return Nothing
 			  Just just_answer -> return $ Just just_answer
 
+-- |
+-- As driverRequestTable, but if data of the specified freshness is not available, the
+-- result will be Nothing.
+--
+driverGetTable :: IORef RoguestarGlobals -> DataFreshness -> String -> String -> IO (Maybe RoguestarTable)
+driverGetTable globals_ref Fresh the_table_name the_table_id = 
+    do stale <- liftM global_stale $ readIORef globals_ref
+       if stale then return Nothing else driverRequestTable globals_ref the_table_name the_table_id
+driverGetTable globals_ref New the_table_name the_table_id = driverRequestTable globals_ref the_table_name the_table_id
+driverGetTable globals_ref Old the_table_name the_table_id =
+    do liftM ((find (\x -> table_name x == the_table_name && table_id x == the_table_id)) . restate_tables . global_old_engine_state) $ readIORef globals_ref
+
+-- |
+-- Retrives a table from the engine, using a "game query ..." statement and
+-- parsing any "begin-table ..." section that results.  You need to provide
+-- both a table-name (the first string parameter) and a table id (the second).
+-- In many cases a particular table-name always has a single table with an id
+-- of "0".  In other cases there are many tables with the same name and different
+-- ids.
+--
 driverRequestTable :: IORef RoguestarGlobals -> String -> String -> IO (Maybe RoguestarTable)
 driverRequestTable globals_ref the_table_name the_table_id =
     do globals <- readIORef globals_ref
@@ -41,7 +85,9 @@ driverRequestTable globals_ref the_table_name the_table_id =
 			 Just just_table -> return $ Just just_table
 
 driverAction :: IORef RoguestarGlobals -> [String] -> IO ()
-driverAction globals_ref strs = driverWrite globals_ref ("game action " ++ (unwords strs) ++ "\n")
+driverAction globals_ref strs = 
+    do modifyIORef globals_ref (\globals -> globals { global_stale = True})
+       driverWrite globals_ref ("game action " ++ (unwords strs) ++ "\n")
 
 -- |
 -- Writes the specified command to standard output, automatically triggering a read, in parallel.
@@ -49,10 +95,10 @@ driverAction globals_ref strs = driverWrite globals_ref ("game action " ++ (unwo
 -- but it will ensure that a read attempt occurs no matter what.
 --
 driverWrite :: IORef RoguestarGlobals -> String -> IO ()
-driverWrite globals_ref str = do globals <- readIORef globals_ref
-				 (when (not $ elem str $ global_engine_output_lines globals) $ 
-				       do writeIORef globals_ref $ globals { global_engine_output_lines=str:global_engine_output_lines globals }
-					  driverWrite_ globals_ref str)
+driverWrite globals_ref str = do already_sent <- liftM (elem str . global_engine_output_lines) $ readIORef globals_ref
+				 unless already_sent $ 
+				     do modifyIORef globals_ref $ (\globals -> globals { global_engine_output_lines=str:global_engine_output_lines globals })
+					driverWrite_ globals_ref str
 				 driverRead globals_ref --extra read in case write never happened (harmless)
 
 driverWrite_ :: IORef RoguestarGlobals -> String -> IO ()
@@ -60,8 +106,12 @@ driverWrite_ globals_ref "" = do hFlush stdout
 				 driverRead globals_ref
 driverWrite_ globals_ref str = do driverRead globals_ref
 				  putChar $ head str
+				  --hPutChar stderr $ head str -- uncomment to see everything we write in stderr
 				  driverWrite_ globals_ref $ tail str
 
+-- |
+-- Read one character if it is available.
+--
 maybeRead :: IO (Maybe Char)
 maybeRead = do ready <- hReady stdin
 	       case ready of
@@ -69,20 +119,20 @@ maybeRead = do ready <- hReady stdin
 			  True -> do char <- getChar
 				     return $ Just char
 
+-- |
+-- Read and store data from the engine.
+--
 driverRead :: IORef RoguestarGlobals -> IO ()
 driverRead globals_ref = 
-    do globals0 <- readIORef globals_ref
-       maybe_next_char <- maybeRead
+    do maybe_next_char <- maybeRead
        case maybe_next_char of
 			    Nothing -> return ()
-			    Just next_char -> do (if next_char == '\n'
-						  then do {
-							   writeIORef globals_ref (globals0 { global_engine_input_lines=(reverse $ global_engine_input_line_fragment globals0) : global_engine_input_lines globals0,
-											      global_engine_input_line_fragment=""});
-							   driverUpdate globals_ref
-							  }
-						  else writeIORef globals_ref (globals0 { global_engine_input_line_fragment=(next_char : global_engine_input_line_fragment globals0) }))
-						 driverRead globals_ref
+ 			    Just '\n' -> do modifyIORef globals_ref (\globals -> globals { global_engine_input_lines=(reverse $ global_engine_input_line_fragment globals) : global_engine_input_lines globals,
+                                                                                           global_engine_input_line_fragment=""});
+				            driverUpdate globals_ref
+			    Just next_char -> modifyIORef globals_ref (\globals -> globals { global_engine_input_line_fragment=(next_char : global_engine_input_line_fragment globals) })
+       when (isJust maybe_next_char) $ do --hPutChar stderr $ fromJust maybe_next_char -- uncomment to see everything we read in stderr
+                                          driverRead globals_ref
 
 driverUpdate :: IORef RoguestarGlobals -> IO ()
 driverUpdate globals_ref = 
@@ -96,12 +146,13 @@ data DriverInterpretationState = DINeutral
 
 interpretText :: IORef RoguestarGlobals -> IO ()
 interpretText globals_ref = 
-    do globals0 <- readIORef globals_ref
-       final_state <- foldM (interpretLine globals_ref) DINeutral $ reverse $ global_engine_input_lines globals0
+    do final_state <- foldM (interpretLine globals_ref) DINeutral =<< liftM (reverse . global_engine_input_lines) (readIORef globals_ref)
        when (final_state /= DINeutral) $ do printText globals_ref Untranslated "interpretText concluded in a non-neutral state, which was:"
 					    printText globals_ref Untranslated (show final_state)
-       globals1 <- readIORef globals_ref
-       writeIORef globals_ref $ globals1 { global_engine_input_lines = [] }
+       modifyIORef globals_ref (\globals -> globals { global_engine_input_lines = [] })
+
+modifyEngineState :: IORef RoguestarGlobals -> (RoguestarEngineState -> RoguestarEngineState) -> IO ()
+modifyEngineState globals_ref fn = modifyIORef globals_ref (\globals -> globals { global_engine_state = fn $ global_engine_state globals }) 
 
 interpretLine :: IORef RoguestarGlobals -> DriverInterpretationState -> String -> IO DriverInterpretationState
 interpretLine _ DIError _ = return DIError
@@ -117,10 +168,11 @@ interpretLine globals_ref _ str | (head $ words str) == "error:" =
 				       return DIError
 
 interpretLine globals_ref DINeutral "done" =
-    do globals <- readIORef globals_ref
-       writeIORef globals_ref $ globals { global_engine_state = global_engine_state roguestar_globals_0,
-					  global_engine_output_lines = global_engine_output_lines roguestar_globals_0,
-					  global_dones = global_dones globals + 1 }
+    do modifyIORef globals_ref (\globals -> globals { global_engine_state = global_engine_state roguestar_globals_0,
+                                                      global_old_engine_state = global_engine_state globals,
+                                                      global_stale = False,
+					              global_engine_output_lines = global_engine_output_lines roguestar_globals_0,
+					              global_dones = global_dones globals + 1 })
        return DINeutral
 
 interpretLine globals_ref distate "done" = 
@@ -134,13 +186,8 @@ interpretLine globals_ref (DIScanningTable {}) "over" =
        return DIError
 
 interpretLine globals_ref DINeutral str | (head $ words str) == "answer:" && (length $ words str) == 3 =
-					    do globals <- readIORef globals_ref
-					       let engine_state0 = global_engine_state globals
-						   answers0 = restate_answers engine_state0
-						   answers' = (words str !! 1,words str !! 2):answers0
-						   engine_state' = engine_state0 { restate_answers = answers' }
-					       writeIORef globals_ref $ globals { global_engine_state = engine_state' }
-					       return DINeutral
+    do modifyEngineState globals_ref (\engine_state -> engine_state { restate_answers = (words str !! 1,words str !! 2):restate_answers engine_state })
+       return DINeutral
 
 interpretLine globals_ref DINeutral str | (head $ words str) == "begin-table" = 
 					    let table_start_data = words str
@@ -154,13 +201,8 @@ interpretLine globals_ref DINeutral str | (head $ words str) == "begin-table" =
 							      return DIError })
 
 interpretLine globals_ref (DIScanningTable table) str | (head $ words str) == "end-table" =
-    do globals <- readIORef globals_ref
-       let engine_state0 = global_engine_state globals
-	   tables0 = restate_tables engine_state0
-	   tables' = (table {table_data=reverse $ table_data table}):tables0
-	   engine_state' = engine_state0 { restate_tables=tables' }
-	   in writeIORef globals_ref $ globals { global_engine_state = engine_state' }
-       return DINeutral
+  do modifyEngineState globals_ref (\engine_state -> engine_state { restate_tables = (table { table_data=reverse $ table_data table}):restate_tables engine_state })
+     return DINeutral
 
 interpretLine globals_ref (DIScanningTable table) str = let table_row = words str
 							    in (if length table_row == (length $ table_header table)

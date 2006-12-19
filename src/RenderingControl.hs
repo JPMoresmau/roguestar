@@ -86,30 +86,46 @@ displayDispatch globals_ref =
 					setNextDisplayFunc globals_ref renderStarflightBackground
 			 Nothing -> return ()
 
+-- |
+-- Use this function to check that the engine is actual in the state(s) that we expect it to be.
+-- If this function detects that it is not in such a state, then it will flip back to calling displayDispatch.
+-- Otherwise we might get stuck.
+--
+stateGuard :: IORef RoguestarGlobals -> [String] -> IO ()
+stateGuard globals_ref anticipated_states =
+    do state <- driverGetAnswer globals_ref New "state"
+       unless (maybe True (`elem` anticipated_states) state) $ 
+               do printText globals_ref Untranslated "stateGuard: recovering..."
+                  displayDispatch globals_ref
+
 initialRaceSelectionDisplay :: IORef RoguestarGlobals -> IO ()
 initialRaceSelectionDisplay globals_ref = 
-    do renderStarflightBackground globals_ref
+    do stateGuard globals_ref ["race-selection"]
+       renderStarflightBackground globals_ref
        table <- driverRequestTable globals_ref "player-races" "0"
        when (isJust table) $ do printMenu globals_ref "select-race" (tableSelect1 (fromJust table) "name")
 				waitNextTurnTransition renderStarflightBackground globals_ref
 
 initialClassSelectionDisplay :: IORef RoguestarGlobals -> IO ()
 initialClassSelectionDisplay globals_ref =
-    do renderStarflightBackground globals_ref
+    do stateGuard globals_ref ["class-selection"]
+       renderStarflightBackground globals_ref
        setNextDisplayFunc globals_ref $ 
 			  printTable "player-stats" "0" $ classSelectionMenuDisplay
 
 classSelectionMenuDisplay :: IORef RoguestarGlobals -> IO ()
 classSelectionMenuDisplay globals_ref =
-    do table <- driverRequestTable globals_ref "base-classes" "0"
+    do stateGuard globals_ref ["class-selection"]
+       table <- driverRequestTable globals_ref "base-classes" "0"
        when (isJust table) $ do printMenu globals_ref "select-base-class" $ (tableSelect1 (fromJust table) "class" ++ ["reroll"])
 				waitNextTurnTransition renderStarflightBackground globals_ref
 
 initialTurnDisplay :: IORef RoguestarGlobals -> IO ()
 initialTurnDisplay globals_ref =
-    do good <- resetTerrainRenderingFunction globals_ref
-       turnDisplay globals_ref
-       when good $ setOngoingDisplayFunc globals_ref turnDisplay
+    do stateGuard globals_ref ["player-turn"]
+       good <- resetTerrainRenderingFunction globals_ref
+       ongoingTurnDisplay globals_ref
+       when good $ setOngoingDisplayFunc globals_ref ongoingTurnDisplay
 
 turn_display_configuration :: OGLStateConfiguration
 turn_display_configuration = ogl_state_configuration_model { 
@@ -126,9 +142,10 @@ turn_display_configuration = ogl_state_configuration_model {
 							    ogl_fog_mode = Exp2 0.09
 							   }
 
-turnDisplay :: IORef RoguestarGlobals -> IO ()
-turnDisplay globals_ref =
-    do setOpenGLState turn_display_configuration
+ongoingTurnDisplay :: IORef RoguestarGlobals -> IO ()
+ongoingTurnDisplay globals_ref =
+    do stateGuard globals_ref ["player-turn"]
+       setOpenGLState turn_display_configuration
        clear [ColorBuffer,DepthBuffer]
        maybe_center_coordinates <- centerCoordinates globals_ref
        (if isJust maybe_center_coordinates
