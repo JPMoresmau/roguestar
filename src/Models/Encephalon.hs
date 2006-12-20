@@ -51,5 +51,5 @@ encephalon :: Quality -> Model
 encephalon q = scaleModel 0.4 $
                Union [encephalon_head q,
                       encephalon_suit q,
-                      translate (Vector3D (-1) 6 (-4)) $ encephalon_eye q,
-                      translate (Vector3D 1 6 (-4)) $ encephalon_eye q]
+                      translate (Vector3D (-1) 6 4) $ encephalon_eye q,
+                      translate (Vector3D 1 6 4) $ encephalon_eye q]

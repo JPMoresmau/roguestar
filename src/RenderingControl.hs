@@ -34,6 +34,7 @@ import PrintText
 import Menus
 import Tables
 import PrintTables
+import ObjectRenderer
 import TerrainRenderer
 import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU
@@ -177,27 +178,6 @@ ongoingTurnDisplay globals_ref =
        globals <- readIORef globals_ref
        global_terrain_rendering_function globals globals_ref
        renderObjects globals_ref
-
-renderObjects :: IORef RoguestarGlobals -> IO ()
-renderObjects globals_ref =
-    do table <- driverGetTable globals_ref Anything "visible-objects" "0"
-       when (isJust table) $ do mapM (render1Object globals_ref) $ tableSelect3Integer (fromJust table) ("object-unique-id","x","y")
-                                return ()
-
-render1Object :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer)) -> IO ()
-render1Object globals_ref (object_id,(Just x,Just y)) =
-    do object_details <- driverGetTable globals_ref Anything "object-details" object_id
-       when (isJust object_details) $ do render1Object_ globals_ref (x,y) (fromJust object_details)
-render1Object _ _ = return ()
-
-render1Object_ :: IORef RoguestarGlobals -> (Integer,Integer) -> RoguestarTable -> IO ()
-render1Object_ globals_ref (x,y) details | tableLookup details ("property","value") "species" == Just "encephalon" =
-    do preservingMatrix $ do GL.translate $ Vector3 (fromInteger x :: Float) 0 (fromInteger y :: Float)
-                             displayLibraryModel globals_ref Encephalon Super
-render1Object_ globals_ref (x,y) _ = 
-    do camera <- liftM global_camera $ readIORef globals_ref
-       lookAtCamera camera (Point3D (fromInteger x) 0.5 (fromInteger y)) (displayLibraryModel globals_ref QuestionMark Super)
-
 
 camera_speed :: Rational
 camera_speed = 3
