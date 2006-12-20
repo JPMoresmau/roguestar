@@ -79,15 +79,15 @@ facingToDegrees "west" = 270
 facingToDegrees "northwest" = 270+45
 facingToDegrees unexpected = error $ "unexpected facing: " ++ unexpected
 
-toLibraryModel :: String -> LibraryModel
-toLibraryModel "encephalon" = Encephalon
-toLibraryModel unexpected = error $ "unexpected library: " ++ unexpected
+toLibraryModel :: String -> Maybe LibraryModel
+toLibraryModel "encephalon" = Just Encephalon
+toLibraryModel _ = Nothing
 
 renderObject :: IORef RoguestarGlobals -> ObjectRepresentation -> IO ()
-renderObject globals_ref (ObjectRepresentation { object_rep_model = "question_mark", object_rep_position = (x,y) }) = 
-    do camera <- liftM global_camera $ readIORef globals_ref
-       lookAtCamera camera (Point3D x 0.5 y) (displayLibraryModel globals_ref QuestionMark Super)
-renderObject globals_ref object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) =
+renderObject globals_ref object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) | isJust $ toLibraryModel $ object_rep_model object_rep =
     do preservingMatrix $ do GL.translate $ Vector3 x 0 y
                              GL.rotate (object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
-                             displayLibraryModel globals_ref (toLibraryModel $ object_rep_model object_rep) Super
+                             displayLibraryModel globals_ref (fromJust $ toLibraryModel $ object_rep_model object_rep) Super
+renderObject globals_ref (ObjectRepresentation { object_rep_position = (x,y) }) = 
+    do camera <- liftM global_camera $ readIORef globals_ref
+       lookAtCamera camera (Point3D x 0.5 y) (displayLibraryModel globals_ref QuestionMark Super)
