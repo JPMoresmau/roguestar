@@ -45,6 +45,8 @@ data RoguestarTable = RoguestarTable { table_name, table_id :: String, table_hea
 -- tableSelect people ["name","sex","phone-number"] = [["bob","male","123-4567"],["susan","female","987-6543"]]
 -- If a given header is not in the table, lists "???" as the value.
 --
+-- There is a guarantee that all select functions will return results in the same order.
+--
 tableSelect :: RoguestarTable -> [String] -> [[String]]
 tableSelect table headers = let header_indices = map (\x -> elemIndex x $ table_header table) headers
 				in map (rowSelect header_indices) $ table_data table
