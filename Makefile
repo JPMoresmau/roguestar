@@ -12,6 +12,9 @@ HS_FLAGS = 	-hidir products/ \
 
 default : ghc doc
 
+update :
+	darcs pull
+
 release : ghc-release
 
 install :
