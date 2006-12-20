@@ -13,7 +13,7 @@ HS_FLAGS = 	-hidir products/ \
 default : ghc doc
 
 update :
-	darcs pull
+	darcs pull --all
 
 release : ghc-release
 
