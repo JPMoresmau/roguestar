@@ -11,7 +11,7 @@ default : ghc
 release : ghc-release
 
 update :
-	darcs pull
+	darcs pull --all
 
 install :
 	install products/roguestar-engine /usr/local/bin/
