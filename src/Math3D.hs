@@ -327,11 +327,17 @@ matrix dats = let row_lengths = map genericLength dats
 				    col_major=transpose dats }
 		      else error "row lengths do not match")
 
+unsafeMatrix :: [[a]] -> Matrix a
+unsafeMatrix dats = Matrix { rows=genericLength dats, --the number of rows is the length of each column
+                             cols=genericLength $ head dats, --the number of columns is the length of each row
+		             row_major=dats,
+		             col_major=transpose dats }
+
 -- |
 -- identityMatrix n is the n by n identity matrix
 --
 identityMatrix :: (Num a,Integral i) => i -> Matrix a
-identityMatrix n = matrix $ map (\x -> genericReplicate x 0 ++ [1] ++ genericReplicate (n-1-x) 0) [0..n-1]
+identityMatrix n = unsafeMatrix $ map (\x -> genericReplicate x 0 ++ [1] ++ genericReplicate (n-1-x) 0) [0..n-1]
 
 -- |
 -- Produces the matrix in which the x y and z axis are transformed to point in the direction of the specified
@@ -339,10 +345,10 @@ identityMatrix n = matrix $ map (\x -> genericReplicate x 0 ++ [1] ++ genericRep
 --
 xyzMatrix :: Vector3D -> Vector3D -> Vector3D -> Matrix Float
 xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
-    matrix [[x1,x2,x3,0],
-            [y1,y2,y3,0],
-            [z1,z2,z3,0],
-            [0,0,0,0]]
+    unsafeMatrix [[x1,x2,x3,0],
+                  [y1,y2,y3,0],
+                  [z1,z2,z3,0],
+                  [0,0,0,0]]
                 
 rowMajorForm :: Matrix a -> [[a]]
 rowMajorForm mat = row_major mat
@@ -382,7 +388,7 @@ matrixMultiply m n = let m_data = row_major m
 -- Transpose a matrix.
 --
 matrixTranspose :: Matrix a -> Matrix a
-matrixTranspose = matrix . colMajorForm -- works because matrix expects row major form
+matrixTranspose = unsafeMatrix . colMajorForm -- works because matrix expects row major form
                 
 -- |
 -- Returns the same matrix, with rows that have more leading zeroes below rows that have fewer.
@@ -392,7 +398,7 @@ sortMatrixByLeadingZeroes :: (Num a) => Matrix a -> Matrix a
 sortMatrixByLeadingZeroes m =
     let leadingZeroCount r = length $ takeWhile (== 0) r
         compareByLeadingZeroes l r = compare (leadingZeroCount l) (leadingZeroCount r)
-        in matrix $ sortBy compareByLeadingZeroes (rowMajorForm m)
+        in unsafeMatrix $ sortBy compareByLeadingZeroes (rowMajorForm m)
 
 -- |
 -- Picks a row of a matrix matching the specified, which requires
@@ -442,7 +448,7 @@ reduceMatrix :: Matrix a -> (Integer,Integer) -> Matrix a
 reduceMatrix m (i,j) =
     let (above,below) = genericSplitAt j $ rowMajorForm m
         (left,right) = genericSplitAt i $ transpose $ above ++ tail below
-        in matrix $ transpose $ left ++ tail right
+        in unsafeMatrix $ transpose $ left ++ tail right
                 
 matrixMinor :: (Num a,Real a,Fractional a) => Matrix a -> (Integer,Integer) -> a
 matrixMinor m ij = determinant $ reduceMatrix m ij
@@ -463,14 +469,14 @@ matrixInverse m | rows m /= cols m = error "matrixInverse: not a square matrix"
 matrixInverse m | determinant m == 0 = error "matrixInverse: det m = 0"
 matrixInverse m = 
     let scale_factor = 1 / determinant m
-        in matrixTranspose $ matrix [[scale_factor * matrixCofactor m (i,j) | i <- [0..(cols m-1)]]
-                                        | j <- [0..(rows m-1)]]
+        in matrixTranspose $ unsafeMatrix [[scale_factor * matrixCofactor m (i,j) | i <- [0..(cols m-1)]]
+                                                                                  | j <- [0..(rows m-1)]]
 
 -- |
 -- Coerce a matrix from one type to another.
 --
 coerceMatrix :: (a -> b) -> Matrix a -> Matrix b
-coerceMatrix fn m = matrix $ map (map fn) $ rowMajorForm m
+coerceMatrix fn m = unsafeMatrix $ map (map fn) $ rowMajorForm m
 
 -- |
 -- Answers the nth row of a matrix.
@@ -483,11 +489,12 @@ matrixAt m (i,j) = ((rowMajorForm m) `genericIndex` j) `genericIndex` i
 
 -- |
 -- Replace a specific row in a matrix.
+-- An unsafe operation.
 --
 replaceRow :: Matrix a -> Integer -> [a] -> Matrix a
 replaceRow m n new_row =
     let (begin,rest) = genericSplitAt n $ rowMajorForm m
-        in matrix $ begin ++ [new_row] ++ (tail rest)
+        in unsafeMatrix $ begin ++ [new_row] ++ (tail rest)
 
 determinant :: (Num a,Fractional a,Real a) => Matrix a -> a
 determinant m | rows m /= cols m = error "determinant: not a square matrix"
@@ -551,10 +558,10 @@ transformHomogenous :: (Homogenous a, Homogenous b) => Matrix Float -> a -> b
 transformHomogenous transformation_matrix entity = fromHomogenous $ matrixMultiply transformation_matrix $ toHomogenous entity
 
 translationMatrix :: Vector3D -> Matrix Float
-translationMatrix (Vector3D x y z) = matrix [[1,0,0,x],
-					     [0,1,0,y],
-					     [0,0,1,z],
-					     [0,0,0,1]]
+translationMatrix (Vector3D x y z) = unsafeMatrix [[1,0,0,x],
+					           [0,1,0,y],
+					           [0,0,1,z],
+					           [0,0,0,1]]
 
 -- |
 -- Answers a Rotation matrix that rotates any object around the specified
@@ -565,16 +572,16 @@ rotationMatrix vector radians = let s = sin radians
 				    c = cos radians
 				    c' = 1 - c
 				    (Vector3D x y z) = vectorNormalize vector
-				    in matrix [[c+c'*x*x,     c'*y*x - s*z,   c'*z*x + s*y, 0],
-					       [c'*x*y+s*z,   c+c'*y*y,       c'*z*y - s*x, 0],
-					       [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
-					       [0,            0,              0,            1]]
+				    in unsafeMatrix [[c+c'*x*x,     c'*y*x - s*z,   c'*z*x + s*y, 0],
+					             [c'*x*y+s*z,   c+c'*y*y,       c'*z*y - s*x, 0],
+					             [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
+					             [0,            0,              0,            1]]
 
 scaleMatrix :: Vector3D -> Matrix Float
-scaleMatrix (Vector3D x y z) = matrix [[x, 0, 0, 0],
-				       [0, y, 0, 0],
-				       [0, 0, z, 0],
-				       [0, 0, 0, 1]]
+scaleMatrix (Vector3D x y z) = unsafeMatrix [[x, 0, 0, 0],
+				             [0, y, 0, 0],
+				             [0, 0, z, 0],
+				             [0, 0, 0, 1]]
 
 translate :: (AffineTransformable a) => Vector3D -> a -> a
 translate vector = transform $ translationMatrix vector
@@ -585,15 +592,16 @@ rotate vector radians = transform $ rotationMatrix vector radians
 scale :: (AffineTransformable a) => Vector3D -> a -> a
 scale vector = transform $ scaleMatrix vector
                 
-data NoiseFunction = NoiseFunction { nf_transformation_in :: Matrix Float,
+data NoiseFunction = NoiseFunction { nf_transformation_in :: Maybe (Matrix Float),
                                      nf_transformation_out :: Float,
                                      nf_function :: (Matrix Float,Point3D) -> Float }
 
 instance AffineTransformable NoiseFunction where
-    transform m nf = nf { nf_transformation_in = (matrixInverse m) `matrixMultiply` (nf_transformation_in nf) }
+    transform m nf = nf { nf_transformation_in = Just $ (matrixInverse m) `matrixMultiply` (fromMaybe (identityMatrix 4) $ nf_transformation_in nf) }
 
 noiseAt :: NoiseFunction -> (Matrix Float,Point3D) -> Float
-noiseAt nf (m,p) = nf_transformation_out nf * (nf_function nf $ (nf_transformation_in nf `matrixMultiply` m,p))
+noiseAt (nf@NoiseFunction{nf_transformation_in = Nothing}) (m,p) = nf_transformation_out nf * (nf_function nf (m, p))
+noiseAt nf (m,p) = nf_transformation_out nf * (nf_function nf $ ((fromJust $ nf_transformation_in nf) `matrixMultiply` m,p))
 
 -- |
 -- Compose noise functions by (function,amplitude) by addition.  If the amplitudes
@@ -604,12 +612,12 @@ composeNoiseFunctions :: [(NoiseFunction,Float)] -> NoiseFunction
 composeNoiseFunctions nfs =
     let total_amplitude_adjustment = 1 / (sum $ map (abs . snd) nfs)
         new_nfs = map (\(nf,amp) -> nf { nf_transformation_out = nf_transformation_out nf * amp }) nfs
-        in NoiseFunction { nf_transformation_in = identityMatrix 4,
+        in NoiseFunction { nf_transformation_in = Nothing,
                            nf_transformation_out = total_amplitude_adjustment,
                            nf_function = \x -> sum $ map (flip noiseAt x) new_nfs }
 
 noiseFunction :: (Point3D -> Float) -> NoiseFunction
-noiseFunction fn = NoiseFunction { nf_transformation_in = identityMatrix 4,
+noiseFunction fn = NoiseFunction { nf_transformation_in = Nothing,
                                    nf_transformation_out = 1.0,
                                    nf_function = \(m,pt) -> fn $ transform m pt }
 
@@ -702,12 +710,15 @@ perlinNoise (Point3D x0 y0 z0) =
        (y,y') = toFloorForm $ properFraction y0
        (z,z') = toFloorForm $ properFraction z0
        (u,v,w) = (fade x',fade y',fade z')
-       a = pRandom x + y
-       aa = pRandom a + z
-       ab = pRandom (a+1) + z
-       b = pRandom (x+1) + y
-       ba = pRandom b + z
-       bb = pRandom (b+1) + z
+       x_ = fromInteger $ x `mod` 256
+       y_ = fromInteger $ y `mod` 256
+       z_ = fromInteger $ z `mod` 256
+       a = pRandom x_ + y_
+       aa = pRandom a + z_
+       ab = pRandom (a+1) + z_
+       b = pRandom (x_+1) + y_
+       ba = pRandom b + z_
+       bb = pRandom (b+1) + z_
        in lerp w
           (lerp v (lerp u (grad (pRandom aa) x' y' z', grad (pRandom ba) (x'-1) y' z'),
                    lerp u (grad (pRandom ab) x' (y'-1) z', grad (pRandom bb) (x'-1) (y'-1) z')),
@@ -715,11 +726,12 @@ perlinNoise (Point3D x0 y0 z0) =
                    lerp u (grad (pRandom $ ab + 1) x' (y'-1) (z'-1), grad (pRandom $ bb + 1) (x'-1) (y'-1) (z'-1))))
           / 0.75 / 2 + 0.5
                   
-pRandom :: Integer -> Integer
-pRandom n = ps ! (n `mod` 512)
+pRandom :: Int -> Int
+pRandom n = ps ! n
 
-ps :: Array Integer Integer
-ps = listArray (0,511) [646370,406894,78264,638200,196322,307448,596541,107030,4793,565585,576423,650262,571446,43108,
+ps :: Array Int Int
+ps = listArray (0,511) $ map (fromInteger . (`mod` 256))
+                       [646370,406894,78264,638200,196322,307448,596541,107030,4793,565585,576423,650262,571446,43108,
                         633076,111437,2644,155222,536760,617862,571480,161909,102722,312579,206645,141133,181676,284524,
                         280215,636019,266883,234557,625806,272415,484352,207495,663564,676597,612937,326007,40890,184011,
                         446726,644027,65575,547325,524216,370821,679779,512886,329446,263644,343183,308593,182572,422971,
@@ -760,7 +772,7 @@ ps = listArray (0,511) [646370,406894,78264,638200,196322,307448,596541,107030,4
 fade :: (Num a) => a -> a
 fade t = t ^ 3 * (t * (t * 6 - 15) + 10)
 
-grad :: Integer -> Float -> Float -> Float -> Float
+grad :: Int -> Float -> Float -> Float -> Float
 grad hash x y z = 
     case hash `mod` 12 of
                        0 -> x + y
