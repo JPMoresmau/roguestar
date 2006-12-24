@@ -78,19 +78,13 @@ canSmiteAlignment :: Alignment -> Alignment -> Bool
 canSmiteAlignment _ (_,_,Indifferent) = False -- no one can smite an indifferent creature
 canSmiteAlignment (_,_,Indifferent) _ = False -- indifferent alignments can't smite
 
-canSmiteAlignment (_,_,Strategic) (_,_,Tactical) = False -- strategic alignments don't tend to see individuals as threats
+canSmiteAlignment (_,_,Strategic) (_,_,Tactical) = False -- you can't win by calculating the trajectory of a football
 canSmiteAlignment (_,_,Tactical) (_,_,Diplomatic) = False -- you can't kill an idea
 canSmiteAlignment (_,_,Diplomatic) (_,_,Strategic) = False -- you can't con an honest john
 
-canSmiteAlignment (Weak,_,_) (Moderate,_,_) = False  -- weaker alignments can't smite stronger alignments
-canSmiteAlignment (Weak,_,_) (Strong,_,_) = False
-canSmiteAlignment (Moderate,_,_) (Strong,_,_) = False
-
-canSmiteAlignment (_,Evil,_) (_,Lawful,_) = True  -- evil alignments (even weak evil alignments) can smite all others
+canSmiteAlignment (_,Evil,_) (_,Lawful,_) = True  -- evil alignments can smite all others
 canSmiteAlignment (_,Evil,_) (_,Neutral,_) = True
 canSmiteAlignment (_,Evil,_) (_,Chaotic,_) = True
-
-canSmiteAlignment (_,_,Strategic) (_,Evil,_) = True -- only strategic alignments can smite evil
 
 canSmiteAlignment (_,Lawful,_) (_,Chaotic,_) = True -- order overpowers chaos (in direct conflict)
 canSmiteAlignment (_,Neutral,_) (_,Lawful,_) = True -- pragmatism overpowers idealism
@@ -99,31 +93,34 @@ canSmiteAlignment (_,Chaotic,_) (_,Neutral,_) = True -- chaos preys on the commo
 canSmiteAlignment _ _ = False
 
 -- |
--- Returns true if the first alignment can make a massive smite against the second.  A massive smite does additional damage.
+-- Returns true if the first alignment can make a massive smite against the second.  
+-- A massive smite has double effect.
 --
 canMassiveSmiteAlignment :: Alignment -> Alignment -> Bool
 
+canMassiveSmiteAlignment align1@(Strong,_,_) align2@(Strong,_,_) = canSmiteAlignment align1 align2
 canMassiveSmiteAlignment align1@(Strong,_,_) align2@(Moderate,_,_) = canSmiteAlignment align1 align2
-canMassiveSmiteAlignment align1@(Strong,_,_) align2@(Weak,_,_) = canSmiteAlignment align1 align2
-canMassiveSmiteAlignment align1@(Moderate,_,_) align2@(Weak,_,_) = canSmiteAlignment align1 align2
+canMassiveSmiteAlignment align1@(Moderate,_,_) align2@(Strong,_,_) = canSmiteAlignment align1 align2
+canMassiveSmiteAlignment align1@(Moderate,_,_) align2@(Moderate,_,_) = canSmiteAlignment align1 align2
 
 canMassiveSmiteAlignment _ _ = False
 
 -- |
--- Returns true if the first alignment can make a lethal smite against the second.  A lethal smite will usually kill.
+-- Returns true if the first alignment can make a lethal smite against the second.
+-- A lethal smite has 4x effect.
 --
 canLethalSmiteAlignment :: Alignment -> Alignment -> Bool
 
-canLethalSmiteAlignment align1@(Strong,_,_) align2@(Weak,_,_) = canSmiteAlignment align1 align2
+canLethalSmiteAlignment align1@(Strong,_,_) align2@(Strong,_,_) = canSmiteAlignment align1 align2
 
 canLethalSmiteAlignment _ _ = False
 
 -- |
--- Returns the damage if the first alignment smites the second, based on the stats of the first alignment.
+-- Returns the effect bonus if the first alignment smites the second, based on the stats of the first alignment.
 --
 smiteDamage :: Alignment -> Stats -> Alignment -> Integer
 
-smiteDamage align1 sts align2 = if (canLethalSmiteAlignment align1 align2) then (modifierFromAlignment align1 sts)^2
+smiteDamage align1 sts align2 = if (canLethalSmiteAlignment align1 align2) then 4*(modifierFromAlignment align1 sts)
                                 else if (canMassiveSmiteAlignment align1 align2) then 2*(modifierFromAlignment align1 sts)
 				else if (canSmiteAlignment align1 align2) then (modifierFromAlignment align1 sts)
 				else 0

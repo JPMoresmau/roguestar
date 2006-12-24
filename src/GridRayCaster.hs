@@ -21,8 +21,7 @@
 module GridRayCaster
     (castRays,
      castRay,
-     gridRayCasterTests,
-     dontWarnAboutTrace)
+     gridRayCasterTests)
     where
 
 import Data.Set as Set
@@ -30,7 +29,6 @@ import Data.List as List
 import Data.Ratio
 import Tests
 import Data.Maybe
-import Debug.Trace
 
 -- |
 -- When casting large numbers of rays from the same point, castRays will try to do this in
@@ -59,27 +57,13 @@ castRays src@(src_x,src_y) dests opacityFn =
 						      ordering -> ordering
 	      castRays_ _ _ [] = []
 	      -- in this case: if a more distant ray from a darker spot passes, then the nearer, brighter ray obviously passes (NOT cheating!)
-	      castRays_ (Just old_brightness) m ((dest,brightness):rest) | brightness >= old_brightness = trace' "skipping" $ dest : (castRays_ (Just old_brightness) m rest)
-	      -- in this case: if the three spots near to this spot, but one step further from the observer, pass, then pass this spot (cheating!)
-	      castRays_ maybe_old_brightness m (((dx,dy),_):rest) | (>= 2) $ length $ List.filter (flip member m) [(dx+signum (dx-src_x),dy),(dx,dy+signum (dy-src_y)),(dx+signum (dx-src_x),dy+signum (dy-src_y))] = trace' "cheating" $ (dx,dy) : (castRays_ maybe_old_brightness m rest)
+	      castRays_ (Just old_brightness) m ((dest,brightness):rest) | brightness >= old_brightness = dest : (castRays_ (Just old_brightness) m rest)
+	      -- in this case: if two of the three spots near to this spot, but one step further from the observer, pass, then pass this spot (cheating!)
+	      castRays_ maybe_old_brightness m (((dx,dy),_):rest) | (>= 2) $ length $ List.filter (flip member m) [(dx+signum (dx-src_x),dy),(dx,dy+signum (dy-src_y)),(dx+signum (dx-src_x),dy+signum (dy-src_y))] = (dx,dy) : (castRays_ maybe_old_brightness m rest)
 	      -- if we don't have a basis to automatically include this spot, then actually cast a ray (expensive!)
-	      castRays_ maybe_old_brightness m ((dest,brightness):rest) = trace' "casting" $
-									  if castRay src dest brightness opacityFn
+	      castRays_ maybe_old_brightness m ((dest,brightness):rest) = if castRay src dest brightness opacityFn
 									  then dest : (castRays_ (Just brightness) m rest)
 									  else castRays_ maybe_old_brightness m rest
-
--- |
--- Enable or disable tracing by commenting out one of the following.
---
-trace' :: String -> a -> a
---trace' = trace
-trace' _ x = x
-
--- |
--- Supress compiler warning about trace not being used.
---
-dontWarnAboutTrace :: String -> a -> a
-dontWarnAboutTrace = trace
 
 -- |
 -- Facade function to castRayForOpacity.

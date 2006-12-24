@@ -27,10 +27,13 @@ module DB
      DB_BaseType,
      dbAddCreature,
      dbAddPlane,
+     dbAddTool,
      dbGetCreature,
      dbGetPlane,
+     dbGetTool,
      dbModCreature,
      dbModPlane,
+     dbModTool,
      dbMoveInto,
      dbWhere,
      dbGetContents,
@@ -55,6 +58,7 @@ import Data.List as List
 import InsidenessMap
 import SpeciesData
 import Data.Maybe
+import ToolData
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
@@ -70,6 +74,7 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 				 db_starting_race :: Maybe Species,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
+				 db_tools :: Map ToolRef Tool,
 				 db_inside :: InsidenessMap DBReference DBReference DBLocation}
 
 -- |
@@ -81,6 +86,7 @@ data DB_Persistant_BaseType = DB_Persistant_BaseType { db_state_ :: DBState,
 						       db_starting_race_ :: Maybe Species,
 						       db_creatures_ :: [(CreatureRef,Creature)],
 						       db_planes_ :: [(PlaneRef,Plane)],
+						       db_tools_ :: [(ToolRef,Tool)],
 						       db_inside_ :: [(DBReference,DBReference,DBLocation)]}
                               deriving (Read,Show)
 
@@ -92,6 +98,7 @@ toPersistant db = DB_Persistant_BaseType {
 					  db_starting_race_ = db_starting_race db,
 					  db_creatures_ = Map.toList $ db_creatures db,
 					  db_planes_ = Map.toList $ db_planes db,
+					  db_tools_ = Map.toList $ db_tools db,
 					  db_inside_ = InsidenessMap.toList $ db_inside db
 					 }
 
@@ -103,6 +110,7 @@ fromPersistant persistant = DB_BaseType {
 					 db_starting_race = db_starting_race_ persistant,
 					 db_creatures = Map.fromList $ db_creatures_ persistant,
 					 db_planes = Map.fromList $ db_planes_ persistant,
+					 db_tools = Map.fromList $ db_tools_ persistant,
 					 db_inside = InsidenessMap.fromList $ db_inside_ persistant
 					}
 
@@ -128,6 +136,7 @@ initialDB = do (TOD seconds picos) <- getClockTime
 				    db_starting_race = Nothing,
 				    db_creatures = Map.fromList [],
 				    db_planes = Map.fromList [],
+				    db_tools = Map.fromList [],
 				    db_inside = InsidenessMap.fromList []
 				  }
 
@@ -178,6 +187,12 @@ dbAddPlane :: Plane -> DB PlaneRef
 dbAddPlane = dbAddObjectComposable (PlaneRef,dbPutPlane)
 
 -- |
+-- Adds a new Tool to the database.
+--
+dbAddTool :: Tool -> DB ToolRef
+dbAddTool = dbAddObjectComposable (ToolRef,dbPutTool)
+
+-- |
 -- Puts an object into the database using getter and setter functions.
 --
 dbPutObjectComposable :: (Ord a) => (DB_BaseType -> Map a b,Map a b -> DB_BaseType -> DB_BaseType) -> (a,b) -> DB ()
@@ -195,6 +210,12 @@ dbPutCreature = dbPutObjectComposable (db_creatures,\x db_base_type -> db_base_t
 --
 dbPutPlane :: (PlaneRef,Plane) -> DB ()
 dbPutPlane = dbPutObjectComposable (db_planes,\x db_base_type -> db_base_type { db_planes = x })
+
+-- |
+-- Puts a Tool under an arbitrary ToolRef
+--
+dbPutTool :: (ToolRef,Tool) -> DB ()
+dbPutTool = dbPutObjectComposable (db_tools,\x db_base_type -> db_base_type { db_tools = x })
 
 -- |
 -- Gets an object from the database using getter functions.
@@ -216,6 +237,12 @@ dbGetPlane :: PlaneRef -> DB Plane
 dbGetPlane = dbGetObjectComposable db_planes
 
 -- |
+-- Gets a Plane from a PlaneRef
+--
+dbGetTool :: ToolRef -> DB Tool
+dbGetTool = dbGetObjectComposable db_tools
+
+-- |
 -- Modifies an Object based on an ObjectRef.
 --
 dbModObjectComposable :: DBRef ref => (ref -> DB a) -> ((ref,a) -> DB ()) -> (a -> a) -> ref -> DB ()
@@ -234,6 +261,12 @@ dbModPlane = dbModObjectComposable dbGetPlane dbPutPlane
 --
 dbModCreature :: (Creature -> Creature) -> CreatureRef -> DB ()
 dbModCreature = dbModObjectComposable dbGetCreature dbPutCreature
+
+-- |
+-- Modifies a Tool based on a PlaneRef.
+--
+dbModTool :: (Tool -> Tool) -> ToolRef -> DB ()
+dbModTool = dbModObjectComposable dbGetTool dbPutTool
 
 -- |
 -- Moves the second parameter so that it is inside the first.

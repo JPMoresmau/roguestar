@@ -29,7 +29,6 @@ import Tests
 import Dice
 import Creature
 import InsidenessMap
-import PeriodicTable
 import Control.Monad
 import TerrainData
 import HopList
@@ -76,8 +75,6 @@ runByArgs "test-terrain-generator" = do seed <- randomIO
 						  putStrLn "Terrain Map of (5461..5501),(-1009..-989)"
                                                   mapM_ putStrLn $ prettyPrintTerrain ((5461,5501),(-1009,-989)) example_terrain
 
-runByArgs "periodic-table" = do displayPeriodicTable
-
 runByArgs "begin" = do db0 <- initialDB
 		       mainLoop db0
 
@@ -87,7 +84,6 @@ runByArgs "help" = do putStrLn "Commands:"
 		      putStrLn "begin                    - begin a protocol session (used by GUI clients and experts)"
 		      putStrLn "help                     - print this message"
 		      putStrLn "over                     - print \"over\" on a line by itself"
-		      putStrLn "periodic-table           - print the roguestar periodic table of the elements"
 		      putStrLn "tests                    - run unit tests"
 		      putStrLn "test-character-generator - generate a random sample creature"
 		      putStrLn "test-terrain-generator   - display an example terrain map"

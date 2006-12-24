@@ -40,6 +40,7 @@ import Plane
 import FactionData
 import PlaneVisibility
 import Facing
+import ToolData
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -181,9 +182,12 @@ dbDispatch ["query","object-details"] =
                         table_data ++
                         "end-table")
            dbGetObjectTableData (DBCreatureRef creature_ref) = liftM creatureToTableData $ dbGetCreature creature_ref
+           dbGetObjectTableData (DBToolRef tool_ref) = liftM toolToTableData $ dbGetTool tool_ref
            dbGetObjectTableData (DBPlaneRef _) = error "implausible case"
            creatureToTableData creature = "object-type creature\n" ++
                                           (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
+           toolToTableData tool = "object-type tool\n" ++
+                                  (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ toolData tool)
 
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
@@ -259,6 +263,13 @@ creatureStatsData :: Creature -> [(String,String)]
 creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `div` creatureScore MaxHitPoints c),
                        ("species",creature_species_name c),
                        ("random-id",show $ creature_random_id c)]
+
+-- |
+-- Information about non-owned tools.
+--
+toolData :: Tool -> [(String,String)]
+toolData g@(Gun {}) = [("tool-type","gun"),
+                              ("power-cell",show $ gun_power_cell g)]
 
 dbQueryBaseClasses :: Creature -> DB String
 dbQueryBaseClasses creature = return $ baseClassesTable creature

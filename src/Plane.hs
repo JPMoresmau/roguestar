@@ -33,6 +33,8 @@ import DB
 import DBData
 import TerrainData
 import PlaneData
+import Control.Monad
+import Data.Maybe
 
 dbNewPlane :: TerrainGenerationData -> DB PlaneRef
 dbNewPlane tg_data = dbAddPlane $ Left $ UninstancedPlane tg_data
@@ -93,14 +95,15 @@ pickRandomClearSite_ :: Integer -> Integer -> Integer -> Integer -> PlaneRef -> 
 pickRandomClearSite_ search_diameter max_tries object_clear terrain_clear plane_ref =
     do x0 <- 1 `d` (2*search_diameter+1)
        y0 <- 1 `d` (2*search_diameter+1)
-       x' <- return $ x0 - search_diameter - 1
-       y' <- return $ y0 - search_diameter - 1
-       plane <- dbGetInstancedPlane plane_ref
-       terrain <- return $ plane_terrain plane
-       terrain_is_clear <- return $ all (not . (`elem` difficult_terrains)) $
-			   concat [[gridAt terrain (x,y) | x <- [x'-terrain_clear..x'+terrain_clear]] |
-				   y <- [y'-terrain_clear..y'+terrain_clear]]
-       case terrain_is_clear of
-			     True -> return (x',y')
-			     False | search_diameter == max_tries -> pickRandomClearSite_ 0 max_tries (max 0 $ object_clear - 1) (max 0 terrain_clear - 1) plane_ref
-			     False -> pickRandomClearSite_ (search_diameter + 1) max_tries object_clear terrain_clear plane_ref
+       let x' = x0 - search_diameter - 1
+       let y' = y0 - search_diameter - 1
+       terrain <- liftM plane_terrain $ dbGetInstancedPlane plane_ref
+       let terrain_is_clear = all (not . (`elem` difficult_terrains)) $
+			          concat [[gridAt terrain (x,y) | x <- [x'-terrain_clear..x'+terrain_clear]] |
+				                                  y <- [y'-terrain_clear..y'+terrain_clear]]
+       clutter_locations <- liftM (mapMaybe (toCoordinateLocation . snd)) $ dbGetContents plane_ref
+       let clutter_is_clear = not $ (x',y') `elem` clutter_locations 
+       case terrain_is_clear && clutter_is_clear of
+			                         True -> return (x',y')
+			                         False | search_diameter == max_tries -> pickRandomClearSite_ 0 max_tries (max 0 $ object_clear - 1) (max 0 terrain_clear - 1) plane_ref
+			                         False -> pickRandomClearSite_ (search_diameter + 1) max_tries object_clear terrain_clear plane_ref

@@ -30,6 +30,7 @@ import DB
 import DBData
 import TerrainData
 import Data.Maybe
+import ToolData
 
 player_race_to_biome :: [(String,Biome)]
 player_race_to_biome =
@@ -62,4 +63,7 @@ dbBeginGame creature character_class =
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 plane_ref
        dbMoveInto plane_ref creature_ref (DBCoordinateLocation landing_site)
+       a_phaser <- dbAddTool phaser
+       phaser_spot <- pickRandomClearSite 200 30 2 plane_ref
+       dbMoveInto plane_ref a_phaser (DBCoordinateLocation phaser_spot)
        dbSetState $ DBPlayerCreatureTurn creature_ref

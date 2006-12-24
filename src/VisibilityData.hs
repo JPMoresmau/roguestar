@@ -49,8 +49,6 @@ terrainHideMultiplier DeepWater = 2
 terrainHideMultiplier Ice = 0
 terrainHideMultiplier Lava = 0  -- you definitely can't hide on lava
 terrainHideMultiplier Glass = 0
-terrainHideMultiplier (DungeonEntrance {}) = 0
-terrainHideMultiplier DungeonExit = 0
 
 -- |
 -- We multiply a creature's spot check by this number if it is standing on this terrain.
@@ -79,8 +77,6 @@ terrainOpacity DeepWater = 0
 terrainOpacity Ice = 0
 terrainOpacity Lava = 0
 terrainOpacity Glass = 0
-terrainOpacity (DungeonEntrance {}) = 0
-terrainOpacity DungeonExit = 0
 
 -- |
 -- The difficulty to spot an object at the given relative coordinates, taking facing into account.
@@ -96,4 +92,4 @@ distanceCostForSight facing (x,y) =
 -- no matter how well lit.
 --
 maximumRangeForSpotCheck :: Integer -> Integer
-maximumRangeForSpotCheck spot_check = genericLength $ takeWhile (< spot_check) [(x*x) | x <- [1..]]
+maximumRangeForSpotCheck spot_check = genericLength $ takeWhile (< spot_check) [((x+1)*(x+1)) | x <- [1..]]

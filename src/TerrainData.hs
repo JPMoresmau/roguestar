@@ -32,7 +32,7 @@ module TerrainData
 import Grids
 import Data.List as List
 import Data.Map as Map
-import PeriodicTable
+import Substances
 import RNG
 
 -- |
@@ -59,7 +59,7 @@ data Biome = RockBiome
 --
 data TerrainPatch = RockFace
                   | Rubble
-                  | Ore Element
+                  | Ore Solid
                   | RockyGround
                   | Dirt
                   | Grass
@@ -72,8 +72,6 @@ data TerrainPatch = RockFace
                   | Ice
 		  | Lava
 		  | Glass -- what sand becomes when struck by intense heat
-                  | DungeonEntrance Integer
-                  | DungeonExit
                     deriving (Read,Show,Eq,Ord)
 
 data TerrainGenerationData = TerrainGenerationData
@@ -164,8 +162,6 @@ terrainPatchToASCII DeepWater = '~'
 terrainPatchToASCII Ice = '^'
 terrainPatchToASCII Glass = '_'
 terrainPatchToASCII Lava = '^'
-terrainPatchToASCII (DungeonEntrance _) = '>'
-terrainPatchToASCII DungeonExit = '<'
 
 exampleTerrainGenerator :: TerrainGenerationData
 exampleTerrainGenerator = TerrainGenerationData

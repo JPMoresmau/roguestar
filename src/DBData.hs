@@ -21,6 +21,7 @@
 module DBData
     (CreatureRef(..),
      PlaneRef(..),
+     ToolRef(..),
      DBRef(..),
      DBReference(..),
      DBLocation(..),
@@ -28,14 +29,17 @@ module DBData
      toCoordinateFacingLocation,
      isCreatureRef,
      isPlaneRef,
+     isToolRef,
      toCreatureRef,
-     toPlaneRef)
+     toPlaneRef,
+     toToolRef)
     where
 
 import Facing
 
 data DBReference = DBCreatureRef CreatureRef
 		 | DBPlaneRef PlaneRef
+		 | DBToolRef ToolRef
 		 deriving (Eq,Ord,Read,Show)
 
 isCreatureRef :: DBReference -> Bool
@@ -45,6 +49,15 @@ isCreatureRef _ = False
 isPlaneRef :: DBReference -> Bool
 isPlaneRef (DBCreatureRef {}) = True
 isPlaneRef _ = False
+
+isToolRef :: DBReference -> Bool
+isToolRef (DBToolRef {}) = True
+isToolRef _ = False
+
+toToolRef :: (DBRef a) => a -> ToolRef
+toToolRef x = case toDBReference x of
+				       DBToolRef tool_ref -> tool_ref
+				       _ -> error "not a DBCreatureRef"
 
 toCreatureRef :: (DBRef a) => a -> CreatureRef
 toCreatureRef x = case toDBReference x of
@@ -79,6 +92,7 @@ toCoordinateFacingLocation (DBCoordinateFacingLocation xyf) = Just xyf
 
 newtype CreatureRef = CreatureRef Integer deriving (Eq,Ord,Read,Show)
 newtype PlaneRef = PlaneRef Integer deriving (Eq,Ord,Read,Show)
+newtype ToolRef = ToolRef Integer deriving (Eq,Ord,Read,Show)
 
 class DBRef a where
     toDBReference :: a -> DBReference
@@ -88,6 +102,7 @@ instance DBRef DBReference where
     toDBReference x = x
     toUID (DBPlaneRef ref) = toUID ref
     toUID (DBCreatureRef ref) = toUID ref
+    toUID (DBToolRef ref) = toUID ref
 
 instance DBRef CreatureRef where
     toDBReference x = DBCreatureRef x
@@ -96,3 +111,7 @@ instance DBRef CreatureRef where
 instance DBRef PlaneRef where
     toDBReference x = DBPlaneRef x
     toUID (PlaneRef x) = x
+
+instance DBRef ToolRef where
+    toDBReference x = DBToolRef x
+    toUID (ToolRef x) = x

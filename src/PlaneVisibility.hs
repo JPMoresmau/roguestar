@@ -57,7 +57,7 @@ dbGetVisibleTerrainForCreature creature_ref =
     do loc <- dbGetPlanarLocation creature_ref
        spot_check <- dbGetSpotCheck creature_ref
        case loc of
-		Just (plane_ref,creature_at) -> liftM (visibleTerrain creature_at spot_check . plane_terrain) $ dbGetInstancedPlane plane_ref 
+		Just (plane_ref,creature_at) -> liftM (visibleTerrain creature_at spot_check . plane_terrain) $ dbGetInstancedPlane plane_ref
 		Nothing -> return []
 
 -- |
@@ -93,9 +93,10 @@ dbIsPlanarVisibleTo creature_ref obj_ref =
 				   (_,Nothing) -> return False
 				   (Just (c_plane,_),Just (o_plane,_)) | c_plane /= o_plane -> return False --never see objects on different planes
 				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | abs (cx-ox) <= 1 && abs (cy-oy) <= 1 -> return True --automatically see 8-adjacent objects
-				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | (ox-cx)^2+(oy-cy)^2 > maximumRangeForSpotCheck spot_check -> return False --cull objects that are too far away to ever be seen
-				   (Just (c_plane,c_at),Just (_,o_at)) -> do terrain <- liftM plane_terrain $ dbGetInstancedPlane c_plane -- falling through all other tests, cast a ray for visibility
-									     return $ castRay c_at o_at spot_check (terrainOpacity . gridAt terrain)
+				   (Just (_,(cx,cy)),Just (_,(ox,oy))) | (ox-cx)^2+(oy-cy)^2 > (maximumRangeForSpotCheck spot_check)^2 -> return False --cull objects that are too far away to ever be seen
+				   (Just (c_plane,c_at@(cx,cy)),Just (_,o_at@(ox,oy))) -> do let delta_at = (ox-cx,oy-cy)
+				                                                             terrain <- liftM plane_terrain $ dbGetInstancedPlane c_plane -- falling through all other tests, cast a ray for visibility
+									                     return $ castRay c_at o_at (spot_check - distanceCostForSight Here delta_at) (terrainOpacity . gridAt terrain)
 
 dbGetSpotCheck :: CreatureRef -> DB Integer
 dbGetSpotCheck creature_ref = liftM (creatureScore Spot) $ dbGetCreature creature_ref
