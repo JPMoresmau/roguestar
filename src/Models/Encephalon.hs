@@ -1,10 +1,15 @@
 module Models.Encephalon
-    (encephalon)
+    (encephalon,
+     encephalon_scale_factor,
+     encephalon_suit_material)
     where
     
 import Math3D
 import Model
 import Quality
+
+encephalon_scale_factor :: Vector3D
+encephalon_scale_factor = scaleModelFactor 0.4 $ encephalon_suit Super
 
 encephalon_material :: Texture
 encephalon_material = proceduralTexture (synthesizePerlinNoise 1.61 (0.5,3))
@@ -48,7 +53,7 @@ encephalon_suit q = qualitySor q encephalon_suit_material pts
                                           (10,0)]
                           
 encephalon :: Quality -> Model
-encephalon q = scaleModel 0.4 $
+encephalon q = scale encephalon_scale_factor $
                Union [encephalon_head q,
                       encephalon_suit q,
                       translate (Vector3D (-1) 6 4) $ encephalon_eye q,

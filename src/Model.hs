@@ -29,6 +29,7 @@ module Model
      proceduralTexture,
      Model(Union),
      modelSize,
+     scaleModelFactor,
      scaleModel,
      rgbColor,
      rgbShine,
@@ -109,13 +110,19 @@ pretransform m (Strip tex pts) =
 pretransform m (Union models) = Union $ map (pretransform m) models
 
 -- |
+-- The scale factor that would be used by scaleModel to make this model the specified size.
+--
+scaleModelFactor :: Float -> Model -> Vector3D
+scaleModelFactor scalar model = 
+    let scalar_adjustment = scalar / modelSize model
+        in Vector3D scalar_adjustment scalar_adjustment scalar_adjustment
+
+-- |
 -- Scale the model to be the specified size, as given by modelSize.
 --
 scaleModel :: Float -> Model -> Model
-scaleModel scalar model = 
-    let scalar_adjustment = scalar / modelSize model
-        scale_matrix = scaleMatrix $ Vector3D scalar_adjustment scalar_adjustment scalar_adjustment
-        in Transformation scale_matrix model
+scaleModel scalar model = Math3D.scale (scaleModelFactor scalar model) model
+
 -- |
 -- Generates a Color from red, green, and blue components.  The color has no alpha, no shinyness,
 -- and no luminance.

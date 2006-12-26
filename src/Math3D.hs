@@ -222,7 +222,7 @@ crossProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 -- |
 -- The distance between two points.
 --
-distanceBetween :: Point3D -> Point3D -> Float
+distanceBetween :: (Xyz xyz) => xyz -> xyz -> Float
 distanceBetween a b = vectorLength $ vectorToFrom a b
                 
 -- |
@@ -242,8 +242,11 @@ vectorSum vectors = foldr vectorAdd (Vector3D 0 0 0) vectors
 -- |
 -- The vector to the first point from the second.
 -- 
-vectorToFrom :: Point3D -> Point3D -> Vector3D
-vectorToFrom (Point3D ax ay az) (Point3D bx by bz) = Vector3D (ax - bx) (ay - by) (az - bz)
+vectorToFrom :: (Xyz xyz) => xyz -> xyz -> Vector3D
+vectorToFrom a b = 
+    let (ax,ay,az) = toXYZ a
+        (bx,by,bz) = toXYZ b
+        in Vector3D (ax - bx) (ay - by) (az - bz)
 
 -- |
 -- Length of the vector.
