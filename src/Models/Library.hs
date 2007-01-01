@@ -6,6 +6,7 @@ import Quality
 import Models.QuestionMark
 import Models.AscensionClassStarship
 import Models.Encephalon
+import Models.PhaseWeapons
 import Model
 import Models.LibraryData
 import Globals
@@ -19,6 +20,7 @@ toModel :: LibraryModel -> Quality -> Model
 toModel QuestionMark = question_mark
 toModel AscensionClassStarship = ascension_class_starship
 toModel Encephalon = encephalon
+toModel PhasePistol = phase_pistol
 
 -- |
 -- Automatically managing display lists, display the specified model at the specified quality.

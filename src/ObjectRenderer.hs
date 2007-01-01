@@ -66,7 +66,9 @@ getObjectRepresentation _ _ = return Nothing
 
 objectRepresentation :: (Integer,Integer) -> String -> RoguestarTable -> ObjectRepresentation
 objectRepresentation (x,y) facing details =
-    ObjectRepresentation { object_rep_model = fromMaybe "question_mark" $ tableLookup details ("property","value") "species",
+    ObjectRepresentation { object_rep_model = fromMaybe "question_mark" $ 
+                               listToMaybe $ catMaybes $ map (tableLookup details ("property","value")) 
+                                   ["species","tool"],
                            object_rep_position = (fromInteger x,fromInteger y),
                            object_rep_heading_degrees = facingToDegrees facing }
 
@@ -84,18 +86,8 @@ facingToDegrees unexpected = error $ "unexpected facing: " ++ unexpected
 
 renderObject :: String -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderObject "encephalon" = renderEncephalon
+renderObject "phase_pistol" = renderGroundedObject PhasePistol
 renderObject _ = renderQuestionMark
-
-{-
-renderObject :: IORef RoguestarGlobals -> ObjectRepresentation -> IO ()
-renderObject globals_ref object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) | isJust $ toRenderingFunction $ object_rep_model object_rep =
-    do preservingMatrix $ do GL.translate $ Vector3 x 0 y
-                             GL.rotate (object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
-                             (fromJust $ toRenderingFunction $ object_rep_model object_rep) object_rep Super
-renderObject globals_ref (ObjectRepresentation { object_rep_position = (x,y) }) = 
-    do camera <- liftM global_camera $ readIORef globals_ref
-       lookAtCamera camera (Point3D x 0.5 y) (displayLibraryModel globals_ref QuestionMark Super)
--}
 
 atObjectPosition :: ObjectRepresentation -> IO () -> IO ()
 atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) fn =
@@ -113,3 +105,10 @@ renderEncephalon globals_ref q object_rep =
     atObjectPosition object_rep $ do displayLibraryModel globals_ref Encephalon q
                                      toOpenGL $ Math3D.scale encephalon_scale_factor $ basicArm (joint (Point3D 4.5 3.5 0) (Point3D 4.5 3.5 7.5) 8.0 (Vector3D 1.0 0.2 0)) 0.3 q encephalon_suit_material
                                      toOpenGL $ Math3D.scale encephalon_scale_factor $ basicArm (joint (Point3D (-4.5) 3.5 0) (Point3D (-4.5) 3.5 7.5) 8.0 (Vector3D (-1.0) 0.2 0)) 0.3 q encephalon_suit_material
+                                     
+renderGroundedObject :: LibraryModel -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
+renderGroundedObject m globals_ref q object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) =
+    atObjectPosition object_rep $ do GL.translate (Vector3 0 0.1 0 :: Vector3 Float)
+                                     GL.rotate (3*(x+y)*22.5 :: Float) (Vector3 0 1 0 :: Vector3 Float)
+                                     GL.rotate (45 :: Float) (Vector3 0 0 1 :: Vector3 Float)
+                                     displayLibraryModel globals_ref m q
