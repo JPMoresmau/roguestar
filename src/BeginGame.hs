@@ -63,7 +63,7 @@ dbBeginGame creature character_class =
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 plane_ref
        dbMoveInto plane_ref creature_ref (DBCoordinateLocation landing_site)
-       a_phaser <- dbAddTool phaser
+       a_phase_pistol <- dbAddTool phase_pistol
        phaser_spot <- pickRandomClearSite 200 30 2 plane_ref
-       dbMoveInto plane_ref a_phaser (DBCoordinateLocation phaser_spot)
+       dbMoveInto plane_ref a_phase_pistol (DBCoordinateLocation phaser_spot)
        dbSetState $ DBPlayerCreatureTurn creature_ref

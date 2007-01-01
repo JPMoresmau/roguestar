@@ -269,7 +269,7 @@ creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `d
 --
 toolData :: Tool -> [(String,String)]
 toolData g@(Gun {}) = [("tool-type","gun"),
-                              ("power-cell",show $ gun_power_cell g)]
+                       ("tool",toolName g)]
 
 dbQueryBaseClasses :: Creature -> DB String
 dbQueryBaseClasses creature = return $ baseClassesTable creature
