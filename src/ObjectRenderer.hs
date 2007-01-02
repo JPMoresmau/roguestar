@@ -86,8 +86,13 @@ facingToDegrees unexpected = error $ "unexpected facing: " ++ unexpected
 
 renderObject :: String -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderObject "encephalon" = renderEncephalon
+renderObject "recreant" = basicRenderObject Recreant
 renderObject "phase_pistol" = renderGroundedObject PhasePistol
 renderObject _ = renderQuestionMark
+
+basicRenderObject :: LibraryModel -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
+basicRenderObject m globals_ref q object_rep =
+    atObjectPosition object_rep $ do displayLibraryModel globals_ref m q
 
 atObjectPosition :: ObjectRepresentation -> IO () -> IO ()
 atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) fn =

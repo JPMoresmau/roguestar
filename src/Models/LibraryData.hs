@@ -5,6 +5,7 @@ module Models.LibraryData
 data LibraryModel = QuestionMark
                   | AscensionClassStarship       -- spaceships
                   | Encephalon                   -- creatures
+                  | Recreant
                   | PhasePistol                  -- guns
                   deriving (Eq,Ord)
                   
@@ -15,7 +16,7 @@ data LibraryModel = QuestionMark
 -- phaser 
 -- phase rifle
 
--- I also have drawings for the following player races: recreant, myrmidon, anachronid, androsynth
+-- I also have drawings for the following player races: myrmidon, anachronid, androsynth
 
 -- So I need models for these:
 -- perrenial (plant creature)

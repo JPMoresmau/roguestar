@@ -6,6 +6,7 @@ import Quality
 import Models.QuestionMark
 import Models.AscensionClassStarship
 import Models.Encephalon
+import Models.Recreant
 import Models.PhaseWeapons
 import Model
 import Models.LibraryData
@@ -20,6 +21,7 @@ toModel :: LibraryModel -> Quality -> Model
 toModel QuestionMark = question_mark
 toModel AscensionClassStarship = ascension_class_starship
 toModel Encephalon = encephalon
+toModel Recreant = recreant
 toModel PhasePistol = phase_pistol
 
 -- |
