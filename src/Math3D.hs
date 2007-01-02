@@ -68,6 +68,7 @@ module Math3D
      translate,
      rotate,
      scale,
+     scale',
      Matrix,
      rowMajorForm,
      colMajorForm,
@@ -351,7 +352,7 @@ xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
     unsafeMatrix [[x1,x2,x3,0],
                   [y1,y2,y3,0],
                   [z1,z2,z3,0],
-                  [0,0,0,0]]
+                  [0,0,0,1.0]]
                 
 rowMajorForm :: Matrix a -> [[a]]
 rowMajorForm mat = row_major mat
@@ -371,21 +372,23 @@ matrixAdd :: (Num a) => Matrix a -> Matrix a -> Matrix a
 matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
 				      then map ((map (uncurry (+))).(uncurry zip)) $ zip (row_major m) (row_major n)
 				      else error "matrixAdd: dimension mismatch")
-		    in Matrix { rows=rows m,cols=cols m,row_major=new_row_major,col_major=transpose new_row_major }
+		    in Matrix { rows=rows m,
+		                cols=cols m,
+		                row_major=new_row_major,
+		                col_major=transpose new_row_major }
 
 -- |
 -- Multiply two matrices.
 --
 matrixMultiply :: (Num a) => Matrix a -> Matrix a -> Matrix a
+matrixMultiply m n | cols m /= rows n = error "matrixMultiply: dimension mismatch"
 matrixMultiply m n = let m_data = row_major m
 			 n_data = col_major n
-			 new_row_major = (if (cols m) == (rows n)
-					  then [[sum $ map (uncurry (*)) $ zip m' n' | n' <- n_data] | m' <- m_data] 
-					  else error "matrixMultiply: dimension mismatch")
+			 new_row_major = [[sum $ zipWith (*) m' n' | n' <- n_data] | m' <- m_data] 
 			 in Matrix { rows=rows m,
 				     cols=cols n,
 				     row_major = new_row_major,
-				     col_major = transpose new_row_major }
+				     col_major = transpose new_row_major } -- this should force full evaluation
 
 -- |
 -- Transpose a matrix.
@@ -548,6 +551,9 @@ genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
 class AffineTransformable a where
     transform :: Matrix Float -> a -> a
                 
+instance AffineTransformable (Matrix Float) where
+    transform = matrixMultiply
+                
 instance AffineTransformable Vector3D where
     transform = transformHomogenous
 
@@ -595,6 +601,9 @@ rotate vector radians = transform $ rotationMatrix vector radians
 scale :: (AffineTransformable a) => Vector3D -> a -> a
 scale vector = transform $ scaleMatrix vector
                 
+scale' :: (AffineTransformable a) => Float -> a -> a
+scale' x = scale (Vector3D x x x)
+
 data NoiseFunction = NoiseFunction { nf_transformation_in :: Maybe (Matrix Float),
                                      nf_transformation_out :: Float,
                                      nf_function :: (Matrix Float,Point3D) -> Float }

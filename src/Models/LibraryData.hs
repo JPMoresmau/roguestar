@@ -7,7 +7,9 @@ data LibraryModel = QuestionMark
                   | Encephalon                   -- creatures
                   | Recreant
                   | PhasePistol                  -- guns
-                  deriving (Eq,Ord)
+                  | Arm LibraryModel             -- bits and pieces of other things, identified this way so we don't have to list each one individually
+                  | Shoulder LibraryModel
+                  deriving (Eq,Ord,Show)
                   
 -- I have drawings of these but haven't modeled them yet
 -- There's room for 72 handheld weapons, based on energy type (electricity,kinetic,fire,cold).
@@ -17,6 +19,7 @@ data LibraryModel = QuestionMark
 -- phase rifle
 
 -- I also have drawings for the following player races: myrmidon, anachronid, androsynth
+-- Ascendants are just light effects so they don't need a model, exactly, but a routine to do the light effect.
 
 -- So I need models for these:
 -- perrenial (plant creature)

@@ -20,6 +20,8 @@
 
 module Quality
     (Quality(..),
+     reduced,
+     reduced2,
      qualitySor,
      qualityDeformedSor,
      qualityFrame,
@@ -36,6 +38,22 @@ data Quality = Bad
 	     | Good
 	     | Super
 	     deriving (Eq,Enum,Ord,Show)
+
+-- |
+-- Use lower quality for small pieces that don't need so much detail.
+-- i.e. reduced Good == Poor
+--
+reduced :: Quality -> Quality
+reduced Super = Good
+reduced Good = Poor
+reduced Poor = Bad
+reduced Bad = Bad
+
+-- |
+-- Use greatly reduced quality.
+--
+reduced2 :: Quality -> Quality
+reduced2 = reduced . reduced
 
 -- |
 -- Tube (as Model.extrude using a circle as the extruded element) that

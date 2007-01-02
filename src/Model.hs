@@ -112,16 +112,14 @@ pretransform m (Union models) = Union $ map (pretransform m) models
 -- |
 -- The scale factor that would be used by scaleModel to make this model the specified size.
 --
-scaleModelFactor :: Float -> Model -> Vector3D
-scaleModelFactor scalar model = 
-    let scalar_adjustment = scalar / modelSize model
-        in Vector3D scalar_adjustment scalar_adjustment scalar_adjustment
+scaleModelFactor :: Float -> Model -> Float
+scaleModelFactor scalar model = scalar / modelSize model
 
 -- |
 -- Scale the model to be the specified size, as given by modelSize.
 --
 scaleModel :: Float -> Model -> Model
-scaleModel scalar model = Math3D.scale (scaleModelFactor scalar model) model
+scaleModel scalar model = Math3D.scale' (scaleModelFactor scalar model) model
 
 -- |
 -- Generates a Color from red, green, and blue components.  The color has no alpha, no shinyness,
@@ -357,8 +355,10 @@ toOpenGL (Strip tex the_strip) =
 	      drawStrip_ ((_,_):[]) = return ()
 	      drawStrip_ [] = return ()
 toOpenGL (Union things) = mapM_ toOpenGL things
-toOpenGL (Transformation mat thing) = 
-    preservingMatrix render
-	where render = do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
-			  multMatrix (mat' :: GLmatrix Float)
-			  toOpenGL thing
+toOpenGL (Transformation mat thing) = transform mat $ toOpenGL thing
+
+-- This scares me.
+instance AffineTransformable (IO a) where
+    transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
+                                               multMatrix (mat' :: GLmatrix Float)
+                                               iofn

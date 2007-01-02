@@ -37,6 +37,7 @@ import Models.Encephalon
 import Models.LibraryData
 import Models.Library
 import CameraTracking
+import System.IO
 
 data ObjectRepresentation = ObjectRepresentation { object_rep_model :: String,
                                                    object_rep_position :: (Float,Float),
@@ -107,13 +108,22 @@ renderQuestionMark globals_ref q (ObjectRepresentation { object_rep_position = (
 
 renderEncephalon :: IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderEncephalon globals_ref q object_rep = 
-    atObjectPosition object_rep $ do displayLibraryModel globals_ref Encephalon q
-                                     toOpenGL $ Math3D.scale encephalon_scale_factor $ basicArm (joint (Point3D 4.5 3.5 0) (Point3D 4.5 3.5 7.5) 8.0 (Vector3D 1.0 0.2 0)) 0.3 q encephalon_suit_material
-                                     toOpenGL $ Math3D.scale encephalon_scale_factor $ basicArm (joint (Point3D (-4.5) 3.5 0) (Point3D (-4.5) 3.5 7.5) 8.0 (Vector3D (-1.0) 0.2 0)) 0.3 q encephalon_suit_material
-                                     
+    atObjectPosition object_rep $ 
+        do displayLibraryModel globals_ref Encephalon q
+           renderJoint globals_ref Encephalon q $ joint encephalon_joint_params
+           renderJoint globals_ref Encephalon q $ joint $ leftSide encephalon_joint_params
+
 renderGroundedObject :: LibraryModel -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderGroundedObject m globals_ref q object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) =
     atObjectPosition object_rep $ do GL.translate (Vector3 0 0.1 0 :: Vector3 Float)
                                      GL.rotate (3*(x+y)*22.5 :: Float) (Vector3 0 1 0 :: Vector3 Float)
                                      GL.rotate (45 :: Float) (Vector3 0 0 1 :: Vector3 Float)
                                      displayLibraryModel globals_ref m q
+                                     
+-- |
+-- Render a joint for the specified creature model.
+--
+renderJoint :: IORef RoguestarGlobals -> LibraryModel -> Quality -> Joint -> IO ()
+renderJoint globals_ref jointed_creature q the_joint =
+    do transform (joint_shoulder the_joint) $ displayLibraryModel globals_ref (Shoulder jointed_creature) q
+       transform (joint_arm the_joint) $ displayLibraryModel globals_ref (Arm jointed_creature) q
