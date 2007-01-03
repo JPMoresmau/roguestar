@@ -68,7 +68,6 @@ terrainColor "rockface" = terrainColor "rockyground"
 terrainColor _ = Color4 1.0 0.0 1.0 1.0
 
 terrainShininess :: String -> Float
-terrainShininess "grass" = 0.1
 terrainShininess "water" = 0.5
 terrainShininess "deepwater" = 0.5
 terrainShininess "ice" = 1.0

@@ -58,7 +58,7 @@ lookAtCamera camera xyz_source rendering_fn =
 --
 cameraLookAt :: Camera -> IO ()
 cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_position=(Point3D position_x position_y position_z)}) =
-    lookAt (Vertex3 (cast position_x) (cast position_y) (cast position_z)) (Vertex3 (cast spot_x) (cast spot_y) (cast spot_z)) (Vector3 0 (1.61) 1)
+    lookAt (Vertex3 (cast position_x) (cast position_y) (cast position_z)) (Vertex3 (cast spot_x) (cast spot_y) (cast spot_z)) (Vector3 0 (1.61^2) (1))
 	where cast = fromRational . toRational
 
 -- |

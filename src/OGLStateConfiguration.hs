@@ -103,20 +103,20 @@ ogl_state_configuration_effects = ogl_bare_bones_configuration { ogl_depth_mask 
 								 ogl_shade_model = Smooth
 							       }
 
+-- |
+-- Sets all the opengl state variables specified in the given OGLStateConfiguration.
+-- You need to loadIdentity and set the camera before calling this, unless you
+-- want the lights to be in eye coordinates (in which case you should load identity,
+-- call this, and then set the camera.
+--
 setOpenGLState :: OGLStateConfiguration -> IO ()
-setOpenGLState config_info = do matrixMode $= Modelview 0  -- watch out: lights are transformed by the Modelview matrix
-                                loadIdentity
-                                clearColor $= ogl_background_color config_info
+setOpenGLState config_info = do clearColor $= ogl_background_color config_info
 				depthFunc $= ogl_depth_func config_info
 				depthMask $= ogl_depth_mask config_info
 				lighting $= ogl_lighting config_info
 				shadeModel $= ogl_shade_model config_info
 				polygonSmooth $= ogl_polygon_smooth config_info
 				lightModelAmbient $= ogl_light_model_ambient config_info
-				setUpLight 0 $ ogl_light_0 config_info
-				setUpLight 1 $ ogl_light_1 config_info
-				setUpLight 2 $ ogl_light_2 config_info
-				setUpLight 3 $ ogl_light_3 config_info
 				blend $= Enabled
 				blendEquation $= FuncAdd
 				blendFunc $= (SrcAlpha,OneMinusSrcAlpha)
@@ -132,6 +132,11 @@ setOpenGLState config_info = do matrixMode $= Modelview 0  -- watch out: lights 
 				loadIdentity
 				(Size width height) <- get windowSize
 				perspective (ogl_fov_degrees config_info) ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) (ogl_near_plane config_info) (ogl_far_plane config_info)
+                                matrixMode $= Modelview 0
+                                setUpLight 0 $ ogl_light_0 config_info
+				setUpLight 1 $ ogl_light_1 config_info
+				setUpLight 2 $ ogl_light_2 config_info
+				setUpLight 3 $ ogl_light_3 config_info
 
 setUpLight :: GLint -> Maybe OGLLightConfiguration -> IO ()
 setUpLight light_index Nothing = (light $ Light light_index) $= Disabled

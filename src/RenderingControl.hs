@@ -157,7 +157,7 @@ turn_display_configuration = ogl_state_configuration_model {
 							    ogl_light_0 = 
 							    Just $ OGLLightConfiguration { ogl_light_ambient = Color4 0.2 0.2 0.2 1.0,
 											   ogl_light_diffuse = Color4 0.85 0.85 0.85 1.0,
-											   ogl_light_position = Vertex4 1 1 1 0,
+											   ogl_light_position = Vertex4 0.5 0.5 (-1) 0,
 											   ogl_light_specular = Color4 0.5 0.5 0.5 1.0 },
 							    ogl_fog = Enabled,
 							    ogl_fog_mode = Exp2 0.09
@@ -166,8 +166,7 @@ turn_display_configuration = ogl_state_configuration_model {
 ongoingTurnDisplay :: IORef RoguestarGlobals -> IO ()
 ongoingTurnDisplay globals_ref =
     do stateGuard globals_ref ["player-turn"]
-       setOpenGLState turn_display_configuration
-       clear [ColorBuffer,DepthBuffer]
+       loadIdentity
        maybe_center_coordinates <- centerCoordinates globals_ref
        (if isJust maybe_center_coordinates
 	then updateCamera globals_ref [Point3D 
@@ -175,6 +174,8 @@ ongoingTurnDisplay globals_ref =
 				       0 
 				       (fromInteger $ snd $ fromJust maybe_center_coordinates)]
 	else updateCamera globals_ref [])
+       setOpenGLState turn_display_configuration
+       clear [ColorBuffer,DepthBuffer]
        globals <- readIORef globals_ref
        global_terrain_rendering_function globals globals_ref
        renderObjects globals_ref
