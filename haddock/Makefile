@@ -1,5 +1,5 @@
 all:
-	haddock -h ../src/*.hs
+	haddock -h ../src/*.hs 2> haddock.err.out
 
 clean:
 	-rm *.html 2> /dev/null
