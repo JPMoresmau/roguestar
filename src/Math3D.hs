@@ -67,6 +67,9 @@ module Math3D
      scaleMatrix,
      translate,
      rotate,
+     rotateX,
+     rotateY,
+     rotateZ,
      scale,
      scale',
      Matrix,
@@ -597,6 +600,15 @@ translate vector = transform $ translationMatrix vector
 
 rotate :: (AffineTransformable a) => Vector3D -> Float -> a -> a
 rotate vector radians = transform $ rotationMatrix vector radians
+
+rotateX :: (AffineTransformable a) => Float -> a -> a
+rotateX = rotate (Vector3D 1 0 0)
+
+rotateY :: (AffineTransformable a) => Float -> a -> a
+rotateY = rotate (Vector3D 0 1 0)
+
+rotateZ :: (AffineTransformable a) => Float -> a -> a
+rotateZ = rotate (Vector3D 0 0 1)
 
 scale :: (AffineTransformable a) => Vector3D -> a -> a
 scale vector = transform $ scaleMatrix vector

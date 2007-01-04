@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
+{-# OPTIONS_GHC -fglasgow-exts -fno-warn-orphans #-}
 
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
@@ -42,7 +42,8 @@ module Model
      frame,
      extrude,
      sor,
-     deformedSor)
+     deformedSor,
+     radianIncrements)
     where
 
 import System.Random
@@ -217,7 +218,7 @@ dropUnionElements _ _ _ = error "dropUnionElements: Model not of form Union {}"
 -- Evenly spaced numbers from 0 to 2*pi, in a list whose length is specified by the parameter.
 --
 radianIncrements :: (Floating a) => Integer -> [a]
-radianIncrements subdivisions = map ((2*) . (pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
+radianIncrements subdivisions = map ((2*pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
 
 -- |
 -- Extrude a figure, usually in the XY plane, along a polyline.

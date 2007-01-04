@@ -44,12 +44,12 @@ lookAtCamera :: (Xyz a) => Camera -> a -> IO () -> IO ()
 lookAtCamera camera xyz_source rendering_fn =
   do let xyz@(x,y,z) = toXYZ xyz_source
          vector_to_camera@(Vector3D delta_x delta_y _) = vectorToFrom (camera_position camera) (point3d xyz)
-         rotateY = (* signum (-delta_x)) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 1 0 1) vector_to_camera) -- angle around
-         rotateX = (* signum delta_y) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 0 1 1) vector_to_camera) -- angle up & down
+         rotate_y = (* signum (-delta_x)) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 1 0 1) vector_to_camera) -- angle around
+         rotate_x = (* signum delta_y) $ (* 180) $ (/ 3.14) $ angleBetween (Vector3D 0 0 (-1)) (Math3D.scale (Vector3D 0 1 1) vector_to_camera) -- angle up & down
      preservingMatrix $
          do GL.translate $ Vector3 x y z
-            GL.rotate rotateX $ Vector3 1 0 0
-            GL.rotate rotateY $ Vector3 0 1 0
+            GL.rotate rotate_x $ Vector3 1 0 0
+            GL.rotate rotate_y $ Vector3 0 1 0
             rendering_fn
             
 

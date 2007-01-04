@@ -30,8 +30,21 @@ import Data.IORef
 import Tables
 import Data.Maybe
 import Control.Monad
-import Graphics.Rendering.OpenGL.GL
+import Graphics.Rendering.OpenGL.GL as GL
+import Graphics.UI.GLUT.Objects as GLUT
 import Seconds
+import Math3D
+import Model
+
+data TerrainShape = TSPyramid | TSCone | TSCube
+
+terrainShape :: String -> TerrainShape
+terrainShape "rockface" = TSCube
+--terrainShape "water" = TSCone
+--terrainShape "deepwater" = TSCone
+--terrainShape "rockyground" = TSCone
+--terrainShape "lava" = TSCone
+terrainShape _ = TSCone
 
 terrainHeight :: String -> Float
 terrainHeight "water" = 0.025
@@ -79,20 +92,26 @@ terrainGlows "lava" = True
 terrainGlows _ = False
 
 -- |
--- The wavelength of this terrain's sinusoidal motion.
+-- The speed of this terrain's wave motion (smaller is faster).
 --
 terrainCycle :: String -> Maybe Integer
 terrainCycle "water" = Just 2
-terrainCycle "deepwater" = Just 9
+terrainCycle "deepwater" = Just 3
 terrainCycle _ = Nothing
 
 -- |
--- The amplitude of this terrain sinusoidal motion.
+-- The amplitude of this terrain's wave motion.
 --
 terrainLift :: String -> Float
 terrainLift "water" = 0.002
 terrainLift "deepwater" = 0.002
 terrainLift _ = 0.0
+
+terrainBreadth :: String -> Float
+terrainBreadth patch_str =
+    case terrainCycle patch_str of
+                                Nothing -> 1.1
+                                Just _ -> 1.25
 
 --data TerrainSpecial = Trees Integer
 
@@ -102,51 +121,73 @@ terrainLift _ = 0.0
 --terrainSpecial _ = Nothing
 
 -- |
--- Render a patch of terrain.  The first parameter is a set of all known terrain patches
--- the second parameter is the specific patch to render (coordinates,terrain type)
+-- The height of the center of a patch of terrain, given the coordinates
+-- and type of terrain.
+--
+terrainHeightAt :: ((Integer,Integer),String) -> Float
+terrainHeightAt ((x,y),patch_str) = 
+    if isJust (terrainCycle patch_str) -- don't apply height variation to moving tiles, it doesn't look good 
+    then base_height
+    else base_height + base_height * (cos $ fromInteger (x*y^2 `mod` 256)) * 0.25 + 0.01
+       where base_height = terrainHeight patch_str
+
+-- |
+-- Get the sinusoidal lift of a patch of terrain (zero for anythinge except water, lava, etc)
+--
+terrainLiftAt :: ((Integer,Integer),String) -> IO Float
+terrainLiftAt ((x,y),patch_str) =     
+    case terrainCycle patch_str of 
+        Nothing -> return 0
+        Just terrain_cycle -> do cycle_seconds <- cycleSeconds $ terrain_cycle
+                                 return $ terrainLift patch_str * (1 + sin (2*pi * cycle_seconds + fromInteger (x + y) / (fromInteger terrain_cycle) - 1/20))
+    
+
+-- |
+-- Render a patch of terrain given the coordinates and type of terrain.
 --
 renderPatchAt :: ((Integer,Integer),String) -> IO ()
-renderPatchAt ((x,y),patch_str) = 
-    do cycle_seconds <- maybe (return 0) cycleSeconds $ terrainCycle patch_str
-       let extra_lift = (if isNothing (terrainCycle patch_str) then 0
-			 else terrainLift patch_str * (1 + sin (2*pi * cycle_seconds + fromInteger (x + y) / 20)))
-	   extra_height = (if isJust (terrainCycle patch_str) then 0 
-			   else terrainHeight patch_str * (cos $ fromInteger (x*y^2 `mod` 256)) * 0.5 + 0.01)
-	   renderPatchTranslated = do translate $ (Vector3 (fromInteger x) extra_lift (fromInteger y) :: Vector3 Float)
-				      renderPatch patch_str extra_height
-       preservingMatrix renderPatchTranslated
-
-renderPatch :: String -> Float -> IO ()
-renderPatch patch_str extra_height =
-    do materialShininess Front $= shininess*128
+renderPatchAt patch_data@((x,y),patch_str) = preservingMatrix $
+    do extra_lift <- terrainLiftAt patch_data
+       GL.translate $ (Vector3 (fromInteger x) extra_lift (fromInteger y) :: Vector3 Float)
+       materialShininess Front $= shininess*128
        materialSpecular Front $= Color4 shininess shininess shininess 1
        materialDiffuse Front $= the_color
        materialAmbient Front $= terrain_background_color
        materialEmission Front $= (if terrainGlows patch_str then the_color else Color4 0 0 0 1)
-       plotPatch (the_height + extra_height)
+       plotPatch (terrainShape patch_str) (terrainHeightAt patch_data) (terrainBreadth patch_str)
 	   where shininess = terrainShininess patch_str
 		 the_color = terrainColor patch_str
-		 the_height = terrainHeight patch_str
 
 -- |
--- Plots a patch of terrain into OpenGL with the given height.
--- Only the shape, not color or texture..
+-- Plots a pyramid-shaped patch of terrain into OpenGL with the given height and breadth. 
 --
-plotPatch :: Float -> IO ()
-plotPatch the_height = 
-    renderPrimitive TriangleFan $ do normal $ (Normal3 0 1 0 :: Normal3 Float)
-				     vertex $ (Vertex3 0 the_height 0 :: Vertex3 Float)
-				     normal $ (Normal3 (-the_height) normal_y 0 :: Normal3 Float)
-				     vertex $ (Vertex3 (-1) 0 0 :: Vertex3 Float)
-				     normal $ (Normal3 0 normal_y the_height :: Normal3 Float)
-				     vertex $ (Vertex3 0 0 1 :: Vertex3 Float)
-				     normal $ (Normal3 the_height normal_y 0 :: Normal3 Float)
-				     vertex $ (Vertex3 1 0 0 :: Vertex3 Float)
-				     normal $ (Normal3 0 normal_y (-the_height) :: Normal3 Float)
-				     vertex $ (Vertex3 0 0 (-1) :: Vertex3 Float)
-				     normal $ (Normal3 (-the_height) normal_y 0 :: Normal3 Float)
-				     vertex $ (Vertex3 (-1) 0 0 :: Vertex3 Float)
-					 where normal_y = sqrt (1 - (the_height^2))
+plotPatch :: TerrainShape -> Float -> Float -> IO ()
+plotPatch TSPyramid = plotPatch_PyramidIncrements 4
+plotPatch TSCone = plotPatch_PyramidIncrements 8
+plotPatch TSCube = plotPatch_Cube
+
+plotPatch_PyramidIncrements :: Integer -> Float -> Float -> IO ()
+plotPatch_PyramidIncrements increments the_height the_breadth = 
+    renderPrimitive TriangleFan $ 
+        do plotPatch_Apex the_height
+           mapM_ (plotPatch_Vertex the_height the_breadth) $ 0.0 : (reverse $ radianIncrements increments)
+
+plotPatch_Cube :: Float -> Float -> IO ()
+plotPatch_Cube the_height the_breadth =
+    Math3D.scale (Vector3D the_breadth the_height the_breadth) $ renderObject Solid (Cube 1.0)
+
+plotPatch_Apex :: Float -> IO ()
+plotPatch_Apex the_height = 
+    do normal $ (Normal3 0 1 0 :: Normal3 Float)
+       vertex $ (Vertex3 0 the_height 0 :: Vertex3 Float)
+
+plotPatch_Vertex :: Float -> Float -> Float -> IO ()
+plotPatch_Vertex the_height the_breadth rotation = 
+    do normal $ (Normal3 (cosr * the_height) normal_y (sinr * the_height) :: Normal3 Float)
+       vertex $ (Vertex3 (cosr * the_breadth) 0 (sinr * the_breadth) :: Vertex3 Float)
+           where normal_y = sqrt (1 - ((the_height/the_breadth)^2))
+                 cosr = cos rotation
+                 sinr = sin rotation
 
 terrain_background_color :: Color4 Float
 terrain_background_color = Color4 0.3 0.3 0.3 1.0
