@@ -38,9 +38,11 @@ import Models.LibraryData
 import Models.Library
 import CameraTracking
 import System.IO
+import TerrainRenderer
 
 data ObjectRepresentation = ObjectRepresentation { object_rep_model :: String,
                                                    object_rep_position :: (Float,Float),
+                                                   object_rep_altitude :: Float,
                                                    object_rep_heading_degrees :: Float }
 
 -- |
@@ -62,14 +64,16 @@ renderVisibleObjectsTable globals_ref table =
 getObjectRepresentation :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer),String) -> IO (Maybe ObjectRepresentation)
 getObjectRepresentation globals_ref (object_id,(Just x,Just y),facing) =
     do object_details <- driverGetTable globals_ref Anything "object-details" object_id
-       return $ (Just . objectRepresentation (x,y) facing) =<< object_details
+       altitude <- getTerrainHeight globals_ref (x,y)
+       return $ (Just . objectRepresentation (x,y) altitude facing) =<< object_details
 getObjectRepresentation _ _ = return Nothing
 
-objectRepresentation :: (Integer,Integer) -> String -> RoguestarTable -> ObjectRepresentation
-objectRepresentation (x,y) facing details =
+objectRepresentation :: (Integer,Integer) -> Float -> String -> RoguestarTable -> ObjectRepresentation
+objectRepresentation (x,y) altitude facing details =
     ObjectRepresentation { object_rep_model = fromMaybe "question_mark" $ 
                                listToMaybe $ catMaybes $ map (tableLookup details ("property","value")) 
                                    ["species","tool"],
+                           object_rep_altitude = altitude,
                            object_rep_position = (fromInteger x,fromInteger y),
                            object_rep_heading_degrees = facingToDegrees facing }
 
@@ -97,7 +101,7 @@ basicRenderObject m globals_ref q object_rep =
 
 atObjectPosition :: ObjectRepresentation -> IO () -> IO ()
 atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) fn =
-    do preservingMatrix $ do GL.translate $ Vector3 x 0 y
+    do preservingMatrix $ do GL.translate $ Vector3 x (object_rep_altitude object_rep) y
                              GL.rotate (object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
                              fn
 

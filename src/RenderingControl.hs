@@ -177,7 +177,15 @@ ongoingTurnDisplay globals_ref =
        setOpenGLState turn_display_configuration
        clear [ColorBuffer,DepthBuffer]
        globals <- readIORef globals_ref
-       global_terrain_rendering_function globals globals_ref
+       global_terrain_rendering_function globals globals_ref True
+       clear [DepthBuffer]
+       colorMask $= Color4 GL.Disabled GL.Disabled GL.Disabled GL.Disabled
+       global_terrain_rendering_function globals globals_ref False
+       renderPrimitive TriangleFan $ do vertex $ Vertex3 (-10000) 0 (-10000 :: Float)
+                                        vertex $ Vertex3 (-10000) 0 (10000 :: Float)
+                                        vertex $ Vertex3 10000 0 (10000 :: Float)
+                                        vertex $ Vertex3 10000 0 (-10000 :: Float)
+       colorMask $= Color4 Enabled Enabled Enabled Enabled
        renderObjects globals_ref
 
 camera_speed :: Rational

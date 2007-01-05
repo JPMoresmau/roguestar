@@ -25,7 +25,7 @@ module Globals
     where
 
 import Data.IORef
-import Data.Map
+import Data.Map as Map
 import Graphics.UI.GLUT
 import Translation
 import PrintTextData
@@ -71,7 +71,8 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_keymap :: [(String,String)], -- map of keystrokes to action names
 					  global_user_input :: String, -- in normal order
 					  global_dones :: Integer,
-					  global_terrain_rendering_function :: IORef RoguestarGlobals -> IO (),
+					  global_terrain_rendering_function :: IORef RoguestarGlobals -> Bool -> IO (),
+					  global_terrain_data :: Map (Integer,Integer) String,
 					  global_last_camera_update_seconds :: Rational,
 					  global_camera :: Camera,
 					  global_library_models :: Map (LibraryModel,Quality) DisplayList -- remember models that have been stored in a display list
@@ -96,7 +97,8 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_keymap = default_keymap,
 					global_user_input = [],
 					global_dones = 0,
-					global_terrain_rendering_function = \_ -> return (),
+					global_terrain_rendering_function = \_ _ -> return (),
+					global_terrain_data = Map.fromList [],
 					global_last_camera_update_seconds = 0,
 					global_camera = Camera (Point3D 0 0 0) (Point3D 0 3 (-3)),
 					global_library_models = empty

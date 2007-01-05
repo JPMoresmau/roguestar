@@ -19,16 +19,18 @@
 --------------------------------------------------------------------------
 
 module TerrainRenderer
-    (resetTerrainRenderingFunction)
+    (resetTerrainRenderingFunction,
+     getTerrainHeight)
     where
 
 import Data.Set as Set
 import Data.List as List
+import Data.Map as Map
 import Driver
 import Globals
 import Data.IORef
 import Tables
-import Data.Maybe
+import Data.Maybe as Maybe
 import Control.Monad
 import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.UI.GLUT.Objects as GLUT
@@ -36,14 +38,21 @@ import Seconds
 import Math3D
 import Model
 
-data TerrainShape = TSPyramid | TSCone | TSCube
+data TerrainShape = TSPyramid | TSCone | TSCube deriving (Eq)
+
+-- |
+-- The depth information for most terrain patches is erased after 
+-- the terrain has been drawn, and replaced with a simple flat plane.
+-- This prevents the terrain from unrealistically obscuring creatures.
+-- Some terrain, such as rock face, should obscure creatures.
+-- For this terrain patches, we return true.
+--
+terrainIsDepthTestSignificant :: String -> Bool
+terrainIsDepthTestSignificant str | terrainShape str == TSCube = True
+terrainIsDepthTestSignificant _ = False
 
 terrainShape :: String -> TerrainShape
 terrainShape "rockface" = TSCube
---terrainShape "water" = TSCone
---terrainShape "deepwater" = TSCone
---terrainShape "rockyground" = TSCone
---terrainShape "lava" = TSCone
 terrainShape _ = TSCone
 
 terrainHeight :: String -> Float
@@ -58,9 +67,9 @@ terrainHeight "deepforest" = 0.085
 terrainHeight "ice" = 0.025
 terrainHeight "lava" = 0.03
 terrainHeight "glass" = 0.02
-terrainHeight "rockyground" = 0.1
-terrainHeight "rubble" = 0.2
-terrainHeight "rockface" = 0.6
+terrainHeight "rockyground" = 0.09
+terrainHeight "rubble" = 0.1
+terrainHeight "rockface" = 1.0
 terrainHeight _ = 0.0
 
 terrainColor :: String -> Color4 Float
@@ -113,6 +122,15 @@ terrainBreadth patch_str =
                                 Nothing -> 1.1
                                 Just _ -> 1.25
 
+-- |
+-- How deep is the (liquid) terrain when you wade through it.
+--
+terrainDepth :: String -> Float
+terrainDepth "water" = 0.05
+terrainDepth "deepwater" = 0.1
+terrainDepth "lava" = 0.05
+terrainDepth _ = 0.0
+
 --data TerrainSpecial = Trees Integer
 
 --terrainSpecial :: String -> Maybe TerrainSpecial
@@ -131,6 +149,15 @@ terrainHeightAt ((x,y),patch_str) =
     else base_height + base_height * (cos $ fromInteger (x*y^2 `mod` 256)) * 0.25 + 0.01
        where base_height = terrainHeight patch_str
 
+getTerrainHeight :: IORef RoguestarGlobals -> (Integer,Integer) -> IO Float
+getTerrainHeight globals_ref pt = 
+    do patch_str <- liftM (fromMaybe "unknown_terrain" . Map.lookup pt . global_terrain_data) $ readIORef globals_ref
+       lift <- terrainLiftAt (pt,patch_str)
+       return $ if terrainIsDepthTestSignificant patch_str
+                then terrainHeightAt (pt,patch_str)
+                else - lift - (terrainDepth patch_str)
+        
+
 -- |
 -- Get the sinusoidal lift of a patch of terrain (zero for anythinge except water, lava, etc)
 --
@@ -139,7 +166,7 @@ terrainLiftAt ((x,y),patch_str) =
     case terrainCycle patch_str of 
         Nothing -> return 0
         Just terrain_cycle -> do cycle_seconds <- cycleSeconds $ terrain_cycle
-                                 return $ terrainLift patch_str * (1 + sin (2*pi * cycle_seconds + fromInteger (x + y) / (fromInteger terrain_cycle) - 1/20))
+                                 return $ terrainLift patch_str * (1 + sin (2*pi * cycle_seconds + fromInteger (x + y) / (fromInteger terrain_cycle)))
     
 
 -- |
@@ -192,9 +219,9 @@ plotPatch_Vertex the_height the_breadth rotation =
 terrain_background_color :: Color4 Float
 terrain_background_color = Color4 0.3 0.3 0.3 1.0
 
-renderTerrain :: [((Integer,Integer),String)] -> IO ()
-renderTerrain patches = 
-    do mapM_ renderPatchAt patches
+renderTerrain :: [((Integer,Integer),String)] -> Bool -> IO ()
+renderTerrain patches color_buffer_enabled = 
+    do mapM_ renderPatchAt $ List.filter ((color_buffer_enabled ||) . terrainIsDepthTestSignificant . snd) patches
        materialShininess Front $= 0
        materialSpecular Front $= Color4 0 0 0 1.0
        materialAmbient Front $= terrain_background_color
@@ -210,11 +237,12 @@ resetTerrainRenderingFunction :: IORef RoguestarGlobals -> IO Bool
 resetTerrainRenderingFunction globals_ref =
     do table <- driverRequestTable globals_ref "visible-terrain" "0" 
        when (isJust table) $
-	    modifyIORef globals_ref ( \ globals -> globals { global_terrain_rendering_function = \_ ->
-							     renderTerrain $ tableToTerrainData $ fromJust table } )
+           do let terrain_data = tableToTerrainData $ fromJust table
+	      modifyIORef globals_ref ( \ globals -> globals { global_terrain_rendering_function = \_ -> renderTerrain terrain_data,  
+	                                                       global_terrain_data = Map.fromList terrain_data } )
        return (isJust table)
 
 tableToTerrainData :: RoguestarTable -> [((Integer,Integer),String)]
-tableToTerrainData table = mapMaybe fromTable $ tableSelect3Integer table ("terrain-type","x","y")
+tableToTerrainData table = Maybe.mapMaybe fromTable $ tableSelect3Integer table ("terrain-type","x","y")
     where fromTable (terrain_type,(Just x,Just y)) = Just ((x,y),terrain_type)
 	  fromTable _ = Nothing

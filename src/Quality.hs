@@ -64,10 +64,10 @@ reduced2 = reduced . reduced
 --
 qualityTube :: Quality -> Texture -> [(Point3D,Float)] -> Model
 qualityTube _ _ pts | newell (map fst pts) == Vector3D 0.0 0.0 0.0 = error "this extrusion is in a straight line, consider manually supplying a facing vector using Model.extrude or using a sor"
-qualityTube Bad tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 5) pts
-qualityTube Poor tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 8) pts
-qualityTube Good tex pts = extrude tex (2 * genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 16) pts
-qualityTube Super tex pts = extrude tex (3 * genericLength pts + 1) (newell (map fst pts)) (reverse $ ring 36) pts
+qualityTube Bad tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (ring 5) pts
+qualityTube Poor tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (ring 8) pts
+qualityTube Good tex pts = extrude tex (2 * genericLength pts + 1) (newell (map fst pts)) (ring 16) pts
+qualityTube Super tex pts = extrude tex (3 * genericLength pts + 1) (newell (map fst pts)) (ring 36) pts
 
 -- |
 -- SOR (as Model.sor) that introduces the number
