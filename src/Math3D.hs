@@ -554,6 +554,9 @@ genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
 class AffineTransformable a where
     transform :: Matrix Float -> a -> a
                 
+instance AffineTransformable a => AffineTransformable [a] where
+    transform m = map (transform m)
+                
 instance AffineTransformable (Matrix Float) where
     transform = matrixMultiply
                 
@@ -616,34 +619,34 @@ scale vector = transform $ scaleMatrix vector
 scale' :: (AffineTransformable a) => Float -> a -> a
 scale' x = scale (Vector3D x x x)
 
-data NoiseFunction = NoiseFunction { nf_transformation_in :: Maybe (Matrix Float),
-                                     nf_transformation_out :: Float,
-                                     nf_function :: (Matrix Float,Point3D) -> Float }
+data NoiseFunctionElem = NoiseFunctionElem { nf_transformation_in :: Matrix Float,
+                                             nf_transformation_out :: Float,
+                                             nf_function :: Point3D -> Float }
 
-instance AffineTransformable NoiseFunction where
-    transform m nf = nf { nf_transformation_in = Just $ (matrixInverse m) `matrixMultiply` (fromMaybe (identityMatrix 4) $ nf_transformation_in nf) }
+type NoiseFunction = [NoiseFunctionElem]
 
-noiseAt :: NoiseFunction -> (Matrix Float,Point3D) -> Float
-noiseAt (nf@NoiseFunction{nf_transformation_in = Nothing}) (m,p) = nf_transformation_out nf * (nf_function nf (m, p))
-noiseAt nf (m,p) = nf_transformation_out nf * (nf_function nf $ ((fromJust $ nf_transformation_in nf) `matrixMultiply` m,p))
+instance AffineTransformable NoiseFunctionElem where
+    transform m nf = nf { nf_transformation_in = (matrixInverse m) `matrixMultiply` (nf_transformation_in nf) }
+
+noiseAt :: NoiseFunction -> Point3D -> Float
+noiseAt nf p = sum $ map (flip noiseAt_ p) nf
+
+noiseAt_ :: NoiseFunctionElem -> Point3D -> Float
+noiseAt_ nf p = nf_transformation_out nf * (nf_function nf $ transform (nf_transformation_in nf) p)
 
 -- |
 -- Compose noise functions by (function,amplitude) by addition.  If the amplitudes
--- do not sum to 1, they will scaled thereto so that each amplitude represents the fraction
--- of the result that is contributed by that layer.
+-- do not sum to 1, they will be scaled uniformly so that they do.
 --
 composeNoiseFunctions :: [(NoiseFunction,Float)] -> NoiseFunction
 composeNoiseFunctions nfs =
     let total_amplitude_adjustment = 1 / (sum $ map (abs . snd) nfs)
-        new_nfs = map (\(nf,amp) -> nf { nf_transformation_out = nf_transformation_out nf * amp }) nfs
-        in NoiseFunction { nf_transformation_in = Nothing,
-                           nf_transformation_out = total_amplitude_adjustment,
-                           nf_function = \x -> sum $ map (flip noiseAt x) new_nfs }
+        in concatMap (\(nf,amp) -> map (\nfe -> nfe { nf_transformation_out = nf_transformation_out nfe * total_amplitude_adjustment * amp }) nf) nfs
 
 noiseFunction :: (Point3D -> Float) -> NoiseFunction
-noiseFunction fn = NoiseFunction { nf_transformation_in = Nothing,
-                                   nf_transformation_out = 1.0,
-                                   nf_function = \(m,pt) -> fn $ transform m pt }
+noiseFunction fn = [NoiseFunctionElem { nf_transformation_in = identityMatrix 4,
+                                        nf_transformation_out = 1.0,
+                                        nf_function = \pt -> fn pt }]
 
 perlin_noise_function :: NoiseFunction
 perlin_noise_function = noiseFunction perlinNoise

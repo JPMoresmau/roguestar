@@ -145,7 +145,7 @@ rgbLum l (r,g,b) = Material { rgb=Model.RGB r g b,
 -- Combine a noise function with a material map to make a procedural texture.
 --
 proceduralTexture :: NoiseFunction -> [(Float,Material)] -> Texture
-proceduralTexture nf material_map = ProceduralTexture (\p -> lerpMap (noiseAt nf (identityMatrix 4,p)) material_map)
+proceduralTexture nf material_map = ProceduralTexture (\p -> lerpMap (noiseAt nf p) material_map)
 
 -- |
 -- Takes a grid of points, as for a frame object, and uses a simple
