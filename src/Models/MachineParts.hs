@@ -9,7 +9,7 @@ import Math3D
     
 machine_arm :: Float -> Texture -> Quality -> Model
 machine_arm s t q = scale' (s/4.0) $
-                         rotate (Vector3D 1 0 0) (pi/2) $
+                         rotate (Vector3D 1 0 0) (degrees 90) $
                          qualitySor q t $
                          points2d [(0,4.5),
                                    (0.25,4.5),
@@ -20,7 +20,7 @@ machine_arm s t q = scale' (s/4.0) $
 
 machine_shoulder :: Float -> Texture -> Quality -> Model
 machine_shoulder s t q = scale' (s/4.0) $
-                         rotate (Vector3D 1 0 0) (pi/2) $
+                         rotate (Vector3D 1 0 0) (degrees 90) $
                          qualitySor q t $
                          points2d [(0,4.5),
                                    (0.5,4.5),

@@ -217,8 +217,8 @@ dropUnionElements _ _ _ = error "dropUnionElements: Model not of form Union {}"
 -- |
 -- Evenly spaced numbers from 0 to 2*pi, in a list whose length is specified by the parameter.
 --
-radianIncrements :: (Floating a) => Integer -> [a]
-radianIncrements subdivisions = map ((2*pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
+radianIncrements :: Integer -> [Angle]
+radianIncrements subdivisions = map (radians . (2*pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
 
 -- |
 -- Extrude a figure, usually in the XY plane, along a polyline.

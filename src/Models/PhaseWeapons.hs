@@ -7,10 +7,8 @@ import Model
 import Math3D
 import Models.ConcordanceStarshipParts
 
-
-
 phase_weapon_emitter :: Quality -> Model
-phase_weapon_emitter q = rotate (Vector3D 1 0 0) (pi/2) $
+phase_weapon_emitter q = rotate (Vector3D 1 0 0) (degrees 90) $
                       qualityDeformedSor q dfn concordance_material_metal $
                           points2d [(0,0),
                                     (4,1),

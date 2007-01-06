@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
@@ -43,7 +45,14 @@ import TerrainRenderer
 data ObjectRepresentation = ObjectRepresentation { object_rep_model :: String,
                                                    object_rep_position :: (Float,Float),
                                                    object_rep_altitude :: Float,
-                                                   object_rep_heading_degrees :: Float }
+                                                   object_rep_heading_degrees :: Angle }
+
+instance Lerpable ObjectRepresentation Float where
+    lerp _ (a,b) | object_rep_model a /= object_rep_model b = error "ObjectRepresentation; lerp: tried to lerp different models"
+    lerp u (a,b) = ObjectRepresentation { object_rep_model = object_rep_model a,
+                                          object_rep_position = lerp u (object_rep_position a,object_rep_position b),
+                                          object_rep_altitude = lerp u (object_rep_altitude a,object_rep_altitude b),
+                                          object_rep_heading_degrees = lerp u (object_rep_heading_degrees a,object_rep_heading_degrees b) }
 
 -- |
 -- Gets the "visible-objects" table and renders it on the screen.
@@ -75,19 +84,19 @@ objectRepresentation (x,y) altitude facing details =
                                    ["species","tool"],
                            object_rep_altitude = altitude,
                            object_rep_position = (fromInteger x,fromInteger y),
-                           object_rep_heading_degrees = facingToDegrees facing }
+                           object_rep_heading_degrees = facingToAngle facing }
 
-facingToDegrees :: String -> Float
-facingToDegrees "here" = 0.0
-facingToDegrees "north" = 0.0
-facingToDegrees "northeast" = 45
-facingToDegrees "east" = 90
-facingToDegrees "southeast" = 90+45
-facingToDegrees "south" = 180
-facingToDegrees "southwest" = 180+45
-facingToDegrees "west" = 270
-facingToDegrees "northwest" = 270+45
-facingToDegrees unexpected = error $ "unexpected facing: " ++ unexpected
+facingToAngle :: String -> Angle
+facingToAngle "here" = zero_angle
+facingToAngle "north" = zero_angle
+facingToAngle "northeast" = degrees 45
+facingToAngle "east" = degrees 90
+facingToAngle "southeast" = degrees $ 90+45
+facingToAngle "south" = degrees 180
+facingToAngle "southwest" = degrees $ 180+45
+facingToAngle "west" = degrees $ 270
+facingToAngle "northwest" = degrees 270+45
+facingToAngle unexpected = error $ "unexpected facing: " ++ unexpected
 
 renderObject :: String -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderObject "encephalon" = renderEncephalon
@@ -102,7 +111,7 @@ basicRenderObject m globals_ref q object_rep =
 atObjectPosition :: ObjectRepresentation -> IO () -> IO ()
 atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) fn =
     do preservingMatrix $ do GL.translate $ Vector3 x (object_rep_altitude object_rep) y
-                             GL.rotate (object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
+                             GL.rotate (inDegrees $ object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
                              fn
 
 renderQuestionMark :: IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()

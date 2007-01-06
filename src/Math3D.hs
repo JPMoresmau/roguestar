@@ -83,7 +83,20 @@ module Math3D
      synthesizePerlinNoise,
      Lerpable(..),
      lerpBetween,
-     lerpMap)
+     lerpMap,
+     Angle,
+     degrees,
+     radians,
+     sine,
+     arcSine,
+     cosine,
+     arcCosine,
+     tangent,
+     arcTangent,
+     inRadians,
+     inDegrees,
+     scaleAngle,
+     zero_angle)
     where
 
 import Data.List
@@ -213,8 +226,8 @@ dotProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 -- |
 -- The angle between two vectors, based on their dot product, in radians.
 --
-angleBetween :: Vector3D -> Vector3D -> Float
-angleBetween a b = acos $ dotProduct (vectorNormalize a) (vectorNormalize b)
+angleBetween :: Vector3D -> Vector3D -> Angle
+angleBetween a b = arcSine $ dotProduct (vectorNormalize a) (vectorNormalize b)
 
 -- |
 -- The cross product of two vectors.
@@ -579,18 +592,17 @@ translationMatrix (Vector3D x y z) = unsafeMatrix [[1,0,0,x],
 					           [0,0,0,1]]
 
 -- |
--- Answers a Rotation matrix that rotates any object around the specified
--- vector a number of degrees equal to the second paramter, in radians.
+-- Answers a Rotation matrix that rotates any object around the specified vector.
 --
-rotationMatrix :: Vector3D -> Float -> Matrix Float
-rotationMatrix vector radians = let s = sin radians
-				    c = cos radians
-				    c' = 1 - c
-				    (Vector3D x y z) = vectorNormalize vector
-				    in unsafeMatrix [[c+c'*x*x,     c'*y*x - s*z,   c'*z*x + s*y, 0],
-					             [c'*x*y+s*z,   c+c'*y*y,       c'*z*y - s*x, 0],
-					             [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
-					             [0,            0,              0,            1]]
+rotationMatrix :: Vector3D -> Angle -> Matrix Float
+rotationMatrix vector angle = let s = sine angle
+				  c = cosine angle
+				  c' = 1 - c
+				  (Vector3D x y z) = vectorNormalize vector
+				  in unsafeMatrix [[c+c'*x*x,     c'*y*x - s*z,   c'*z*x + s*y, 0],
+					           [c'*x*y+s*z,   c+c'*y*y,       c'*z*y - s*x, 0],
+					           [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
+					           [0,            0,              0,            1]]
 
 scaleMatrix :: Vector3D -> Matrix Float
 scaleMatrix (Vector3D x y z) = unsafeMatrix [[x, 0, 0, 0],
@@ -601,16 +613,16 @@ scaleMatrix (Vector3D x y z) = unsafeMatrix [[x, 0, 0, 0],
 translate :: (AffineTransformable a) => Vector3D -> a -> a
 translate vector = transform $ translationMatrix vector
 
-rotate :: (AffineTransformable a) => Vector3D -> Float -> a -> a
-rotate vector radians = transform $ rotationMatrix vector radians
+rotate :: (AffineTransformable a) => Vector3D -> Angle -> a -> a
+rotate vector angle = transform $ rotationMatrix vector angle
 
-rotateX :: (AffineTransformable a) => Float -> a -> a
+rotateX :: (AffineTransformable a) => Angle -> a -> a
 rotateX = rotate (Vector3D 1 0 0)
 
-rotateY :: (AffineTransformable a) => Float -> a -> a
+rotateY :: (AffineTransformable a) => Angle -> a -> a
 rotateY = rotate (Vector3D 0 1 0)
 
-rotateZ :: (AffineTransformable a) => Float -> a -> a
+rotateZ :: (AffineTransformable a) => Angle -> a -> a
 rotateZ = rotate (Vector3D 0 0 1)
 
 scale :: (AffineTransformable a) => Vector3D -> a -> a
@@ -667,6 +679,86 @@ synthesizePerlinNoise m (l,r) =
         perlin_layers = map (\x -> (scale (Vector3D x x x) perlin_noise_function,x)) lengths
         in composeNoiseFunctions perlin_layers
 
+data Angle = Radians Float deriving (Show)
+
+radians :: Float -> Angle
+radians = Radians
+
+degrees :: Float -> Angle
+degrees = Radians . ((*) (pi/180))
+
+-- |
+-- Returns the angle in the range of -180 .. 180, inclusive
+--
+inDegrees :: Angle -> Float
+inDegrees x = let (Radians x') = toBoundedAngle x
+                  in x' * 180 / pi
+
+-- |
+-- Returns the angle in the range of -pi .. pi, inclusive
+--
+inRadians :: Angle -> Float
+inRadians (Radians x) = x
+
+scaleAngle :: Float -> Angle -> Angle
+scaleAngle x = Radians . (* x) . inRadians
+
+zero_angle :: Angle
+zero_angle = Radians 0
+
+sine :: Angle -> Float
+sine = sin . inRadians
+
+arcSine :: Float -> Angle
+arcSine = radians . asin
+
+cosine :: Angle -> Float
+cosine = cos . inRadians
+
+arcCosine :: Float -> Angle
+arcCosine = radians . acos
+
+tangent :: Angle -> Float
+tangent = tan . inRadians
+
+arcTangent :: Float -> Angle
+arcTangent = radians . atan
+
+-- |
+-- Force the angle into the range (-pi..pi).
+--
+toBoundedAngle :: Angle -> Angle
+toBoundedAngle (Radians x) | x > pi = toBoundedAngle $ Radians $ x - (2*pi)
+toBoundedAngle (Radians x) | x < (-pi) = toBoundedAngle $ Radians $ x + (2*pi)
+toBoundedAngle x = x
+
+instance Lerpable Angle Float where
+    lerp u (a,b) = a + scaleAngle u (b - a)
+    
+instance Eq Angle where
+    (==) x y = case (inRadians x,inRadians y) of
+                   (x',y') | abs x' == pi && abs y' == pi -> True
+                   (x',y') | x' == y' -> True
+                   _ -> False
+    
+instance Ord Angle where
+    compare x y = case () of
+                      _ | x == y -> EQ
+                      _ -> compare (inRadians x) (inRadians y)
+    
+-- |
+-- fromInteger interprets the parameter in degrees.
+-- (*) is a useless function that fullfills the contract with Num
+-- signum returns 0, -pi, or pi, indicating the direction of winding.
+instance Num Angle where
+    (+) x y = toBoundedAngle $ Radians $ inRadians x + inRadians y
+    (-) x y = toBoundedAngle $ Radians $ inRadians x - inRadians y
+    (*) x y = Radians $ inRadians x * inRadians y / pi                -- this may seem strange, but it's consistent with the contract with Num
+    abs = toBoundedAngle . Radians . abs . inRadians
+    negate = toBoundedAngle . Radians . negate . inRadians
+    signum = Radians . (*pi) . signum . inRadians . toBoundedAngle
+    fromInteger = toBoundedAngle . degrees . fromInteger
+
 -- |
 -- Class of things subject to linear interpolation.
 --
@@ -679,6 +771,9 @@ synthesizePerlinNoise m (l,r) =
 --
 class Fractional n => Lerpable a n where
     lerp :: n -> (a,a) -> a
+
+instance Lerpable a n => Lerpable (a,a) n where
+    lerp u ((a1,a2),(b1,b2)) = (lerp u (a1,b1),lerp u (a2,b2))
 
 -- |
 -- lerp takes a parameter between 0 and 1, while lerpBetween takes a parameter between two arbitrary values.

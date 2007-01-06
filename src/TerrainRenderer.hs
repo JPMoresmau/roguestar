@@ -197,7 +197,7 @@ plotPatch_PyramidIncrements :: Integer -> Float -> Float -> IO ()
 plotPatch_PyramidIncrements increments the_height the_breadth = 
     renderPrimitive TriangleFan $ 
         do plotPatch_Apex the_height
-           mapM_ (plotPatch_Vertex the_height the_breadth) $ 0.0 : (reverse $ radianIncrements increments)
+           mapM_ (plotPatch_Vertex the_height the_breadth) $ zero_angle : (reverse $ radianIncrements increments)
 
 plotPatch_Cube :: Float -> Float -> IO ()
 plotPatch_Cube the_height the_breadth =
@@ -208,13 +208,13 @@ plotPatch_Apex the_height =
     do normal $ (Normal3 0 1 0 :: Normal3 Float)
        vertex $ (Vertex3 0 the_height 0 :: Vertex3 Float)
 
-plotPatch_Vertex :: Float -> Float -> Float -> IO ()
+plotPatch_Vertex :: Float -> Float -> Angle -> IO ()
 plotPatch_Vertex the_height the_breadth rotation = 
     do normal $ (Normal3 (cosr * the_height) normal_y (sinr * the_height) :: Normal3 Float)
        vertex $ (Vertex3 (cosr * the_breadth) 0 (sinr * the_breadth) :: Vertex3 Float)
            where normal_y = sqrt (1 - ((the_height/the_breadth)^2))
-                 cosr = cos rotation
-                 sinr = sin rotation
+                 cosr = cosine rotation
+                 sinr = sine rotation
 
 terrain_background_color :: Color4 Float
 terrain_background_color = Color4 0.3 0.3 0.3 1.0

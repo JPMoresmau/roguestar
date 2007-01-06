@@ -38,6 +38,7 @@ toModel (Shoulder shoulder) = error $ "Models.Library.toModel: unknown Shoulder"
 qualityOverride :: LibraryModel -> Quality -> Quality
 qualityOverride (Arm _) = reduced2
 qualityOverride (Shoulder _) = reduced2
+qualityOverride PhasePistol = reduced
 qualityOverride _ = id
 
 -- |

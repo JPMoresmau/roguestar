@@ -29,4 +29,4 @@ import Model
 -- Answers a ring of points on the XY plane 1 unit away from the origin.
 --
 ring :: Integer -> [Point3D]
-ring = map (\x -> Point3D (cos x) (sin x) 0) . radianIncrements
+ring = map (\x -> Point3D (cosine x) (sine x) 0) . radianIncrements
