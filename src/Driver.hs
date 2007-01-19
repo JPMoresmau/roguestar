@@ -37,6 +37,7 @@ import System.IO
 import Globals
 import PrintText
 import Tables
+import Seconds
 
 -- |
 -- [@Fresh@] guarantees that the data returned will be exactly the data that is in the engine, but this data is less likely to be immediately available; send a driverRequest* is necessary.
@@ -220,16 +221,19 @@ interpretLine globals_ref DINeutral str | (head $ words str) == "answer:" && (le
     do modifyEngineState globals_ref (\engine_state -> engine_state { restate_answers = (words str !! 1,words str !! 2):restate_answers engine_state })
        return DINeutral
 
-interpretLine globals_ref DINeutral str | (head $ words str) == "begin-table" = 
-					    let table_start_data = words str
-						in (if length table_start_data > 3
-						    then return $ DIScanningTable $ RoguestarTable {
-												    table_name = table_start_data !! 1,
-												    table_id = table_start_data !! 2,
-												    table_header = drop 3 table_start_data,
-												    table_data = []}
-						    else do { printText globals_ref Untranslated "gui-side protocol error: incomplete begin-table header"; 
-							      return DIError })
+interpretLine _ DINeutral str | (head $ words str) == "begin-table" && (length $ words str) > 3 = 
+    do secs <- seconds
+       let table_start_data = words str
+       return $ DIScanningTable $ RoguestarTable {
+						  table_created = secs,
+				                  table_name = table_start_data !! 1,
+		                                  table_id = table_start_data !! 2,
+		                                  table_header = drop 3 table_start_data,
+                                                  table_data = []}
+
+interpretLine globals_ref _ str | (head $ words str) == "begin-table" =
+    do printText globals_ref Untranslated "gui-side protocol error: incomplete begin-table header"
+       return DIError
 
 interpretLine globals_ref (DIScanningTable table) str | (head $ words str) == "end-table" =
   do modifyEngineState globals_ref (\engine_state -> engine_state { restate_tables = (table { table_data=reverse $ table_data table}):restate_tables engine_state })

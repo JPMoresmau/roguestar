@@ -20,24 +20,38 @@
 
 module Tables
     (RoguestarTable(..),
+     TableDataFormat(..),
      tableSelect,
      tableSelect1,
      tableSelect2,
      tableSelect2Integer,
-     tableSelect3Integer,
+     tableSelectFormatted,
      tableLookup,
-     tableLookupInteger)
+     tableLookupInteger,
+     tableAge,
+     empty_table)
     where
 
 import Data.List
 import Data.Maybe
+import Seconds
+import Control.Monad
 
 -- |
 -- This is a simple implementation of a relational data table, and is always used to represent information
 -- that has been sent to us from roguestar-engine.
 --
-data RoguestarTable = RoguestarTable { table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
+data RoguestarTable = RoguestarTable { table_created :: Seconds, table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
 		      deriving (Eq,Show)
+
+data TableDataFormat s n = TDString s
+                         | TDNumber n
+
+-- |
+-- The age of this table.
+--
+tableAge :: (Fractional n) => RoguestarTable -> IO n
+tableAge = secondsSince . table_created
 
 -- |
 -- Select from a table, like the SQL select statement.
@@ -75,10 +89,10 @@ tableSelect2Integer :: RoguestarTable -> (String,String) -> [(String,Maybe Integ
 tableSelect2Integer table headers = map (\x -> (fst x,readInteger $ snd x)) $ tableSelect2 table headers
 
 -- |
--- As tableSelect2Integer, but with the second and third elements converted to integers.
+-- Select arbitrary strings and integers.
 --
-tableSelect3Integer :: RoguestarTable -> (String,String,String) -> [(String,(Maybe Integer,Maybe Integer))]
-tableSelect3Integer table (h1,h2,h3) = map ( \ x -> (x !! 0,(readInteger $ x !! 1,readInteger $ x !! 2))) $ tableSelect table [h1,h2,h3]
+tableSelectFormatted :: RoguestarTable -> [TableDataFormat String String] -> [TableDataFormat String Integer]
+tableSelectFormatted table headers = map (toFormat headers) $ tableSelect table (map toString headers)
 
 -- |
 -- tableLookup table ("name","phone-number") "bob" = bob's phone number, or nothing if "bob" isn't in the table.
@@ -94,3 +108,12 @@ tableLookupInteger table headers value = fromMaybe Nothing $ lookup value $ tabl
 
 readInteger :: String -> Maybe Integer
 readInteger = listToMaybe . map fst . reads
+
+toString :: TableDataFormat String String
+toString (TDString str) = str
+toString (TDInteger str) = str
+
+toFormat :: [TableDataFormat a b] -> [String] -> [TableDataFormat String Integer]
+toFormat headers row = zipWith toFormat_ headers row
+    where toFormat_ (TDString {}) str = TDString str
+          toFormat_ (TDInteger {}) str = maybe (TDString str) TDInteger $ readInteger str

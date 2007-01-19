@@ -19,19 +19,33 @@
 --------------------------------------------------------------------------
 
 module Seconds
-    (seconds,
+    (Seconds,
+     seconds,
+     secondsSince,
      cycleSeconds)
     where
 
 import System.Time
 import Data.Ratio
+import Control.Monad
+
+type Seconds = Rational
 
 -- |
 -- The time since some fixed moment in seconds.
 --
-seconds :: IO Rational
+seconds :: IO Seconds
 seconds = do (TOD secs picos) <- getClockTime
 	     return $ (secs % 1) + (picos % 1000000000000)
+
+-- |
+-- The time since the specified moment in seconds.
+--
+secondsSince :: (Fractional n) => Seconds -> IO n
+secondsSince moment = do secs <- seconds
+                         return $ (\x -> fromRational $ x - moment) secs
+
+--liftM (fromRational . (- moment)) seconds
 
 -- |
 -- Answers a value between in the rand [0..1) indicating how far we are through

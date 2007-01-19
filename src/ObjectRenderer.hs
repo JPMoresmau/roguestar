@@ -42,24 +42,64 @@ import CameraTracking
 import System.IO
 import TerrainRenderer
 
-data ObjectRepresentation = ObjectRepresentation { object_rep_model :: String,
+data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
+                                                   object_rep_model :: String,
                                                    object_rep_position :: (Float,Float),
                                                    object_rep_altitude :: Float,
                                                    object_rep_heading_degrees :: Angle }
 
+data ObjectAnimationStop = ObjectAnimationStopFrame { object_anim_stop_object_rep :: ObjectRepresentation,
+                                                      object_anim_stop_uptodate :: Seconds }
+
+data ObjectAnimation = ObjectAnimation { object_anim_old :: ObjectRepresentation,
+                                         object_anim_new :: ObjectRepresentation,
+                                         object_anim_starts :: Seconds }
+
 instance Lerpable ObjectRepresentation Float where
-    lerp _ (a,b) | object_rep_model a /= object_rep_model b = error "ObjectRepresentation; lerp: tried to lerp different models"
-    lerp u (a,b) = ObjectRepresentation { object_rep_model = object_rep_model a,
+    lerp _ (a,b) | object_rep_uid a /= object_rep_uid b = error "ObjectRepresentation; lerp: tried to lerp different objects"
+    lerp u (a,b) = ObjectRepresentation { object_rep_uid = object_rep_uid a,
+                                          object_rep_model = object_rep_model a,
                                           object_rep_position = lerp u (object_rep_position a,object_rep_position b),
                                           object_rep_altitude = lerp u (object_rep_altitude a,object_rep_altitude b),
-                                          object_rep_heading_degrees = lerp u (object_rep_heading_degrees a,object_rep_heading_degrees b) }
+                                          object_rep_heading_degrees = lerp u (object_rep_heading_degrees a,object_rep_heading_degrees b),
+                                          object_rep_uptodate = max (object_rep_uptodate a) (object_rep_uptodate b) }
 
+getObjectRepresentations :: IORef RoguestarGlobals -> IO [ObjectRepresentation]
+getObjectRepresentations globals_ref =
+    do new_objects <- format $ driverGetTable globals_ref New "visible-objects" "0"
+       old_objects <- format $ driverGetTable globals_ref Old "visible-objects" "0"
+       new_object_anim_stops <- mapM (positionInfoToObjectAnimStop roguestar_globals New) new_table
+       old_object_anim_stops <- mapM (positionInfoToObjectAnimStop roguestar_globals Old) old_table
+       mergeObjectRepresentations new_object_reps old_object_reps
+         where format_tableSelect = tableSelectFormatted [TDString "object-unique-id",TDInteger "x",TDInteger "y",TDString "facing"]
+               format_toTuple = \e -> case e of
+                                             [TDString uid,TDInteger x,TDInteger y,TDString f] -> [(uid,x,y,f)]
+                                             _ -> []
+               format = maybe [] (concatMap format_toTuple . format_tableSelect)
+
+positionInfoToObjectAnimStop :: IORef RoguestarGlobals -> DataFreshness -> (String,Integer,Integer,String) -> IO ObjectAnimationStop
+positionInfoToObjectAnimStop globals_ref freshness (uid,x,y,f) =
+    do object_details <- driverGetTable globals_ref freshness "object-details" uid
+       altitue <- getTerrainHeight globals_ref (x,y)
+       return $ (Just . objectAnimationStop uid (x,y) altitude facing) =<< object_details
+
+-- |
+-- Merge new and old animation stops to make an animation.
+--
+mergeObjectAnimations :: [ObjectAnimationStop] -> [ObjectAnimationStop] -> IO [ObjectAnimation]
+mergeObjectAnimations new_anim_stops old_anim_stops =
+    let old_object_reps_map = Map.fromList $ List.map ((\x -> (object_rep_uid,x)) . object_animation_stop_object_rep) old_object_reps
+        merge new old = ObjectAnimation { object_anim_old = old,
+                                          object_anim_new = object_anim_stop_object_rep new,
+                                          object_anim_starts = object_anim_stop_uptodate new }
+
+{-
 -- |
 -- Gets the "visible-objects" table and renders it on the screen.
 --
 renderObjects :: IORef RoguestarGlobals -> IO ()
 renderObjects globals_ref =
-    do table <- driverGetTable globals_ref Anything "visible-objects" "0"
+    do new_table <- driverGetTable globals_ref New "visible-objects" "0"
        when (isJust table) $ renderVisibleObjectsTable globals_ref $ fromJust table
 
 renderVisibleObjectsTable :: IORef RoguestarGlobals -> RoguestarTable -> IO ()
@@ -76,10 +116,17 @@ getObjectRepresentation globals_ref (object_id,(Just x,Just y),facing) =
        altitude <- getTerrainHeight globals_ref (x,y)
        return $ (Just . objectRepresentation (x,y) altitude facing) =<< object_details
 getObjectRepresentation _ _ = return Nothing
+-}
 
-objectRepresentation :: (Integer,Integer) -> Float -> String -> RoguestarTable -> ObjectRepresentation
-objectRepresentation (x,y) altitude facing details =
-    ObjectRepresentation { object_rep_model = fromMaybe "question_mark" $ 
+objectAnimationStop :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectAnimerationStop
+objectAnimationStop obj_loc_data altitude details =
+    ObjectAnimerationStop { object_anim_stop_object_rep = objectRepresentation obj_loc_data altitude details,
+                            object_anim_stop_uptodate = table_created details }
+
+objectRepresentation :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectRepresentation
+objectRepresentation (uid,x,y,facing) altitude details =
+    ObjectRepresentation { object_rep_uid = uid,
+                           object_rep_model = fromMaybe "question_mark" $ 
                                listToMaybe $ catMaybes $ map (tableLookup details ("property","value")) 
                                    ["species","tool"],
                            object_rep_altitude = altitude,
