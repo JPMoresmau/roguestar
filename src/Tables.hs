@@ -28,8 +28,7 @@ module Tables
      tableSelectFormatted,
      tableLookup,
      tableLookupInteger,
-     tableAge,
-     empty_table)
+     tableAge)
     where
 
 import Data.List
@@ -91,7 +90,7 @@ tableSelect2Integer table headers = map (\x -> (fst x,readInteger $ snd x)) $ ta
 -- |
 -- Select arbitrary strings and integers.
 --
-tableSelectFormatted :: RoguestarTable -> [TableDataFormat String String] -> [TableDataFormat String Integer]
+tableSelectFormatted :: RoguestarTable -> [TableDataFormat String String] -> [[TableDataFormat String Integer]]
 tableSelectFormatted table headers = map (toFormat headers) $ tableSelect table (map toString headers)
 
 -- |
@@ -109,11 +108,11 @@ tableLookupInteger table headers value = fromMaybe Nothing $ lookup value $ tabl
 readInteger :: String -> Maybe Integer
 readInteger = listToMaybe . map fst . reads
 
-toString :: TableDataFormat String String
+toString :: TableDataFormat String String -> String
 toString (TDString str) = str
-toString (TDInteger str) = str
+toString (TDNumber str) = str
 
 toFormat :: [TableDataFormat a b] -> [String] -> [TableDataFormat String Integer]
 toFormat headers row = zipWith toFormat_ headers row
     where toFormat_ (TDString {}) str = TDString str
-          toFormat_ (TDInteger {}) str = maybe (TDString str) TDInteger $ readInteger str
+          toFormat_ (TDNumber {}) str = maybe (TDString str) TDNumber $ readInteger str

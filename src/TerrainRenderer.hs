@@ -243,6 +243,6 @@ resetTerrainRenderingFunction globals_ref =
        return (isJust table)
 
 tableToTerrainData :: RoguestarTable -> [((Integer,Integer),String)]
-tableToTerrainData table = Maybe.mapMaybe fromTable $ tableSelect3Integer table ("terrain-type","x","y")
-    where fromTable (terrain_type,(Just x,Just y)) = Just ((x,y),terrain_type)
-	  fromTable _ = Nothing
+tableToTerrainData table = Maybe.mapMaybe fromTable $ tableSelectFormatted table [TDString "terrain-type",TDNumber "x",TDNumber "y"]
+    where fromTable [TDString terrain_type,TDNumber x,TDNumber y] = Just ((x,y),terrain_type)
+          fromTable _ = Nothing

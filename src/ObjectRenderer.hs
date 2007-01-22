@@ -41,6 +41,8 @@ import Models.Library
 import CameraTracking
 import System.IO
 import TerrainRenderer
+import Seconds
+import qualified Data.Map as Map
 
 data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
                                                    object_rep_model :: String,
@@ -48,8 +50,8 @@ data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
                                                    object_rep_altitude :: Float,
                                                    object_rep_heading_degrees :: Angle }
 
-data ObjectAnimationStop = ObjectAnimationStopFrame { object_anim_stop_object_rep :: ObjectRepresentation,
-                                                      object_anim_stop_uptodate :: Seconds }
+data ObjectAnimationStop = ObjectAnimationStop { object_anim_stop_object_rep :: ObjectRepresentation,
+                                                 object_anim_stop_uptodate :: Seconds }
 
 data ObjectAnimation = ObjectAnimation { object_anim_old :: ObjectRepresentation,
                                          object_anim_new :: ObjectRepresentation,
@@ -61,67 +63,69 @@ instance Lerpable ObjectRepresentation Float where
                                           object_rep_model = object_rep_model a,
                                           object_rep_position = lerp u (object_rep_position a,object_rep_position b),
                                           object_rep_altitude = lerp u (object_rep_altitude a,object_rep_altitude b),
-                                          object_rep_heading_degrees = lerp u (object_rep_heading_degrees a,object_rep_heading_degrees b),
-                                          object_rep_uptodate = max (object_rep_uptodate a) (object_rep_uptodate b) }
+                                          object_rep_heading_degrees = lerp u (object_rep_heading_degrees a,object_rep_heading_degrees b) }
 
-getObjectRepresentations :: IORef RoguestarGlobals -> IO [ObjectRepresentation]
-getObjectRepresentations globals_ref =
-    do new_objects <- format $ driverGetTable globals_ref New "visible-objects" "0"
-       old_objects <- format $ driverGetTable globals_ref Old "visible-objects" "0"
-       new_object_anim_stops <- mapM (positionInfoToObjectAnimStop roguestar_globals New) new_table
-       old_object_anim_stops <- mapM (positionInfoToObjectAnimStop roguestar_globals Old) old_table
-       mergeObjectRepresentations new_object_reps old_object_reps
-         where format_tableSelect = tableSelectFormatted [TDString "object-unique-id",TDInteger "x",TDInteger "y",TDString "facing"]
+getObjectAnimations :: IORef RoguestarGlobals -> IO [ObjectAnimation]
+getObjectAnimations globals_ref =
+    do new_objects <- liftM format $ driverGetTable globals_ref Anything "visible-objects" "0"
+       old_objects <- liftM format $ driverGetTable globals_ref Old "visible-objects" "0"
+       new_object_anim_stops <- liftM catMaybes $ mapM (positionInfoToObjectAnimStop globals_ref New) new_objects
+       old_object_anim_stops <- liftM catMaybes $ mapM (positionInfoToObjectAnimStop globals_ref Old) old_objects
+       return $ mergeObjectAnimations new_object_anim_stops old_object_anim_stops
+         where format_tableSelect = flip tableSelectFormatted [TDString "object-unique-id",TDNumber "x",TDNumber "y",TDString "facing"]
                format_toTuple = \e -> case e of
-                                             [TDString uid,TDInteger x,TDInteger y,TDString f] -> [(uid,x,y,f)]
+                                             [TDString uid,TDNumber x,TDNumber y,TDString f] -> [(uid,x,y,f)]
                                              _ -> []
                format = maybe [] (concatMap format_toTuple . format_tableSelect)
 
-positionInfoToObjectAnimStop :: IORef RoguestarGlobals -> DataFreshness -> (String,Integer,Integer,String) -> IO ObjectAnimationStop
-positionInfoToObjectAnimStop globals_ref freshness (uid,x,y,f) =
+animateObject :: Seconds -> ObjectAnimation -> ObjectRepresentation
+animateObject seconds_now anim = lerp ((min 1.0 $ fromRational $ seconds_now - object_anim_starts anim) :: Float) 
+                                      (object_anim_old anim,object_anim_new anim)
+
+positionInfoToObjectAnimStop :: IORef RoguestarGlobals -> DataFreshness -> (String,Integer,Integer,String) -> IO (Maybe ObjectAnimationStop)
+positionInfoToObjectAnimStop globals_ref freshness (uid,x,y,facing) =
     do object_details <- driverGetTable globals_ref freshness "object-details" uid
-       altitue <- getTerrainHeight globals_ref (x,y)
-       return $ (Just . objectAnimationStop uid (x,y) altitude facing) =<< object_details
+       altitude <- getTerrainHeight globals_ref (x,y)
+       return $ (Just . objectAnimationStop (uid,x,y,facing) altitude) =<< object_details
 
 -- |
 -- Merge new and old animation stops to make an animation.
 --
-mergeObjectAnimations :: [ObjectAnimationStop] -> [ObjectAnimationStop] -> IO [ObjectAnimation]
+mergeObjectAnimations :: [ObjectAnimationStop] -> [ObjectAnimationStop] -> [ObjectAnimation]
 mergeObjectAnimations new_anim_stops old_anim_stops =
-    let old_object_reps_map = Map.fromList $ List.map ((\x -> (object_rep_uid,x)) . object_animation_stop_object_rep) old_object_reps
-        merge new old = ObjectAnimation { object_anim_old = old,
+    let objectAnimStopMap = Map.fromList . map (\x -> (object_rep_uid $ object_anim_stop_object_rep x,x))
+        old_anim_stops_map = objectAnimStopMap old_anim_stops
+        new_anim_stops_map = objectAnimStopMap new_anim_stops
+        merge new old = ObjectAnimation { object_anim_old = object_anim_stop_object_rep old,
                                           object_anim_new = object_anim_stop_object_rep new,
                                           object_anim_starts = object_anim_stop_uptodate new }
+        start new = ObjectAnimation { object_anim_old = object_anim_stop_object_rep new,
+                                      object_anim_new = object_anim_stop_object_rep new,
+                                      object_anim_starts = object_anim_stop_uptodate new }
+        stop old = ObjectAnimation { object_anim_old = object_anim_stop_object_rep old,
+                                     object_anim_new = object_anim_stop_object_rep old,
+                                     object_anim_starts = object_anim_stop_uptodate old }
+        merges = Map.toList $ Map.intersectionWith merge new_anim_stops_map old_anim_stops_map
+        news = Map.toList $ Map.map start $ Map.difference new_anim_stops_map old_anim_stops_map
+        olds = Map.toList $ Map.map stop $ Map.difference old_anim_stops_map new_anim_stops_map
+        in map snd $ news ++ olds ++ merges
 
-{-
 -- |
--- Gets the "visible-objects" table and renders it on the screen.
+-- Renders all of the objects in the visible objects table, detecting
+-- diffs between this and the old table and rendering animations to
+-- show state transitions.
 --
 renderObjects :: IORef RoguestarGlobals -> IO ()
 renderObjects globals_ref =
-    do new_table <- driverGetTable globals_ref New "visible-objects" "0"
-       when (isJust table) $ renderVisibleObjectsTable globals_ref $ fromJust table
+    do anims <- getObjectAnimations globals_ref
+       secs <- seconds
+       let object_reps = map (animateObject secs) anims
+       mapM_ (\x -> renderObject (object_rep_model x) globals_ref Poor x) object_reps
 
-renderVisibleObjectsTable :: IORef RoguestarGlobals -> RoguestarTable -> IO ()
-renderVisibleObjectsTable globals_ref table = 
-    do let object_position_data = tableSelect3Integer table ("object-unique-id","x","y") :: [(String,(Maybe Integer,Maybe Integer))]
-       let objects_with_facing = zipWith (\(unique_id,pos) facing -> (unique_id,pos,facing)) object_position_data $ tableSelect1 table "facing" :: [(String,(Maybe Integer,Maybe Integer),String)]
-       object_reps <- liftM (catMaybes) $ mapM (getObjectRepresentation globals_ref) objects_with_facing :: IO [ObjectRepresentation]
-       mapM (\x -> renderObject (object_rep_model x) globals_ref Super x) object_reps
-       return ()
-
-getObjectRepresentation :: IORef RoguestarGlobals -> (String,(Maybe Integer,Maybe Integer),String) -> IO (Maybe ObjectRepresentation)
-getObjectRepresentation globals_ref (object_id,(Just x,Just y),facing) =
-    do object_details <- driverGetTable globals_ref Anything "object-details" object_id
-       altitude <- getTerrainHeight globals_ref (x,y)
-       return $ (Just . objectRepresentation (x,y) altitude facing) =<< object_details
-getObjectRepresentation _ _ = return Nothing
--}
-
-objectAnimationStop :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectAnimerationStop
+objectAnimationStop :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectAnimationStop
 objectAnimationStop obj_loc_data altitude details =
-    ObjectAnimerationStop { object_anim_stop_object_rep = objectRepresentation obj_loc_data altitude details,
-                            object_anim_stop_uptodate = table_created details }
+    ObjectAnimationStop { object_anim_stop_object_rep = objectRepresentation obj_loc_data altitude details,
+                          object_anim_stop_uptodate = table_created details }
 
 objectRepresentation :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectRepresentation
 objectRepresentation (uid,x,y,facing) altitude details =
