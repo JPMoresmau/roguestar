@@ -40,10 +40,11 @@ import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU
 import Math3D
 import Seconds
-import CameraTracking
+import Camera
 import Models.LibraryData
 import Models.Library
 import Quality
+import Animation
 
 -- |
 -- Sets the next function to be used as the OpenGL display callback.  This function will
@@ -81,17 +82,6 @@ waitNextTurnTransition_ dones_count waiting_display_func globals_ref =
        driverRead globals_ref
        globals <- readIORef globals_ref
        when (global_dones globals > dones_count) $ setNextDisplayFunc globals_ref displayDispatch
-
-centerCoordinates :: IORef RoguestarGlobals -> IO (Maybe (Integer,Integer))
-centerCoordinates globals_ref = 
-    do maybe_table <- driverRequestTable globals_ref "center-coordinates" "0"
-       return $ do table <- maybe_table
-		   coords <- return $ tableSelect2Integer table ("axis","coordinate")
-		   maybe_x <- lookup "x" coords
-		   maybe_y <- lookup "y" coords
-		   x <- maybe_x
-		   y <- maybe_y
-		   return (x,y)
 
 -- |
 -- Function that dispatches control to another display function based on the game engine's state.
@@ -167,13 +157,7 @@ ongoingTurnDisplay :: IORef RoguestarGlobals -> IO ()
 ongoingTurnDisplay globals_ref =
     do stateGuard globals_ref ["player-turn"]
        loadIdentity
-       maybe_center_coordinates <- centerCoordinates globals_ref
-       (if isJust maybe_center_coordinates
-	then updateCamera globals_ref [Point3D 
-				       (fromInteger $ fst $ fromJust maybe_center_coordinates) 
-				       0 
-				       (fromInteger $ snd $ fromJust maybe_center_coordinates)]
-	else updateCamera globals_ref [])
+       cameraLookAt . fromCSN world_coordinates =<< getCamera globals_ref
        setOpenGLState turn_display_configuration
        clear [ColorBuffer,DepthBuffer]
        globals <- readIORef globals_ref
@@ -187,22 +171,6 @@ ongoingTurnDisplay globals_ref =
                                         vertex $ Vertex3 10000 0 (-10000 :: Float)
        colorMask $= Color4 Enabled Enabled Enabled Enabled
        renderObjects globals_ref
-
-camera_speed :: Rational
-camera_speed = 3
-
--- |
--- Moves the camera to look at the specified coordinates by calling lookAt.
---
-updateCamera :: IORef RoguestarGlobals -> [Point3D] -> IO ()
-updateCamera globals_ref [] = cameraLookAt =<< (liftM global_camera $ readIORef globals_ref)
-updateCamera globals_ref spot_targets =
-    do now_seconds <- seconds
-       delta_seconds <- liftM ((camera_speed *) . (now_seconds -) . global_last_camera_update_seconds) $ readIORef globals_ref
-       new_camera <- liftM (trackCamera (fromRational delta_seconds) spot_targets . global_camera) $ readIORef globals_ref
-       modifyIORef globals_ref ( \ globals -> globals { global_last_camera_update_seconds = now_seconds,
-							global_camera = new_camera } )
-       cameraLookAt new_camera
 
 -- |
 -- Reads in (using Driver) and prints (using PrintText).

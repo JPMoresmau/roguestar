@@ -38,11 +38,12 @@ import Model
 import Models.Encephalon
 import Models.LibraryData
 import Models.Library
-import CameraTracking
 import System.IO
 import TerrainRenderer
 import Seconds
 import qualified Data.Map as Map
+import Camera
+import Animation
 
 data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
                                                    object_rep_model :: String,
@@ -167,7 +168,7 @@ atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) 
 
 renderQuestionMark :: IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderQuestionMark globals_ref q (ObjectRepresentation { object_rep_position = (x,y) }) = 
-    do camera <- liftM global_camera $ readIORef globals_ref
+    do camera <- liftM (fromCSN world_coordinates) $ getCamera globals_ref
        lookAtCamera camera (Point3D x 0.5 y) (displayLibraryModel globals_ref QuestionMark q)
 
 renderEncephalon :: IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()

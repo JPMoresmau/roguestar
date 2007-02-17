@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
@@ -18,9 +20,9 @@
 --                                                                        
 --------------------------------------------------------------------------
 
-module CameraTracking 
+module Camera 
     (Camera(..),
-     trackCamera,
+     newCameraAnimation,
      cameraLookAt,
      lookAtCamera)
     where
@@ -29,8 +31,22 @@ import Math3D
 import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU as GLU
 import Data.List
+import AnimationCore
+import AnimationAux
+import Seconds
+import Control.Monad
+import Tables
+import Data.Maybe
 
 data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Show)
+
+instance AffineTransformable Camera where
+    transform mat camera = Camera { camera_spot = transform mat $ camera_spot camera,
+                                    camera_position = transform mat $ camera_position camera }
+                                    
+instance Lerpable Camera Float where
+    lerp u (a,b) = Camera { camera_spot = lerp u (camera_spot a,camera_spot b),
+                            camera_position = lerp u (camera_position a,camera_position b) }
 
 -- |
 -- Take a function that renders a shape in the x-y plane (it's ok for the shape to extend along the z-axis,
@@ -62,29 +78,44 @@ cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_positi
 	where cast = fromRational . toRational
 
 -- |
--- Moves the camera the specified number of units to aim toward the specified point.
+-- The Camera animation.
 --
-trackCamera :: Float -> [Point3D] -> Camera -> Camera
-trackCamera delta targets camera0 = 
-    let target = centerOfGravity targets
-	new_spot = trackTarget (delta*1.61) target $ camera_spot camera0 -- spot moves faster than camera
-	new_position = trackTarget delta (cameraPullback target targets) $ camera_position camera0
-	in Camera { camera_spot=new_spot, camera_position=new_position }
+newCameraAnimation :: IO (Animation () (CSN Camera))
+newCameraAnimation = 
+    newAcceleratedLerpAnimation 
+        (0,0) 
+        (toCSN world_coordinates Camera {camera_spot=(Point3D 0 0 1), camera_position=origin_point_3d})
+        centerCoordinates
+        (\_ (x,y) -> return $ toCSN world_coordinates $ goalCamera [Point3D (fromIntegral x) 0 (fromIntegral y)])
+        (\_ -> return ())
+        (\x y -> return $ toRational $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
+            where limitTime x | x > 4 = 4 + log (x - 4)
+                  limitTime x = x
+
+camera_states :: [String]
+camera_states = ["player-turn"]  -- states that provide center-coordinates 
+                                 -- if we get a bug where the camera stops moving, we probably need to add a state here
+
+centerCoordinates :: AniM i o (Maybe (Integer,Integer))
+centerCoordinates = 
+    do maybe_state <- animGetAnswer Fresh "state"
+       if (maybe False (`elem` camera_states) maybe_state)  
+           then do maybe_table <- animGetTable Anything "center-coordinates" "0"
+                   return $ do table <- maybe_table
+		               coords <- return $ tableSelect2Integer table ("axis","coordinate")
+		               maybe_x <- lookup "x" coords
+		               maybe_y <- lookup "y" coords
+		               liftM2 (,) maybe_x maybe_y
+           else return Nothing
 
 -- |
--- trackTarget delta goal now
--- Where delta is the maximum distance to move on a single step, goal is the goal
--- position, and now is the current position, returns the next position approaching
--- the goal on a linear path.
+-- The goal camera based on a group of points that we want in the field of view.
 --
-trackTarget :: Float -> Point3D -> Point3D -> Point3D
-trackTarget delta_step goal now = 
-    let delta_vector = vectorToFrom goal now
-	in if vectorLength delta_vector < delta_step
-	   then goal
-	   else Math3D.translate (vectorScaleTo delta_step $ delta_vector) now
-
-
+goalCamera :: [Point3D] -> Camera
+goalCamera targets = Camera { camera_spot=goal_spot, camera_position=goal_position }
+                         where goal_spot = centerOfGravity targets
+                               goal_position = cameraPullback goal_spot targets
+ 
 -- |
 -- The center of gravity of a group of points, assuming all points have equal weight.
 -- That is, the average position of all the points.
@@ -96,11 +127,11 @@ centerOfGravity targets =
 	in (Point3D (average xs) (average ys) (average zs))
 
 -- |
--- Where the camera should be, in relation a primary target and all other targets.
+-- Where the camera should be, in relation to a primary target and all other targets.
 --
 cameraPullback :: Point3D -> [Point3D] -> Point3D
 cameraPullback (Point3D x y _) targets =
     let (xs,_,zs) = unzip3 $ map toXYZ targets
 	breadth = maximum xs - minimum xs
 	z = minimum zs
-	in (Point3D x (y + breadth + 3) (z - 1.3*breadth - 4))
+	in (Point3D x (y + 0.8*breadth + 3) (z - 1.3*breadth - 4))

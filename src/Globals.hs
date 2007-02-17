@@ -33,8 +33,9 @@ import Quality
 import Tables
 import DefaultKeymap
 import Math3D
-import CameraTracking
+import Camera
 import Models.LibraryData
+import AnimationCore
 
 data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarTable], restate_answers :: [(String,String)] }
 
@@ -54,8 +55,12 @@ data RoguestarEngineState = RoguestarEngineState { restate_tables :: [RoguestarT
 -- [@global_language@] language (anyone can read, only main function should write based on command line arguments)
 -- [@global_keymap@] mapping from keystrokes to action names, only (don't touch unless you're Main.hs)
 -- [@global_user_input@] input from the user typing (don't touch unless you're Main.hs)
--- [@global_dones@] number of \"done\" lines recieved from the engine, used to track turn changes.
--- [@global_terrain_rendering_function@] function to draw terrain
+-- [@global_dones@] number of \"done\" lines recieved from the engine, used to track turn changes. (Driver.hs)
+-- [@global_terrain_rendering_function@] function to draw terrain.  (Terrain.hs)
+-- [@global_terrain_data@] description of terrain in the current scene.  (Terrain.hs)
+-- [@global_camera_animation@] an Animation describing the position and orientation of the camera.  (Camera.hs)
+-- [@global_library_models@] mapping of library models to OpenGL display lists.  (Library.hs)
+--
 data RoguestarGlobals = RoguestarGlobals {
 					  global_quality :: Quality,
 					  global_display_func :: IORef RoguestarGlobals -> IO (),
@@ -73,13 +78,13 @@ data RoguestarGlobals = RoguestarGlobals {
 					  global_dones :: Integer,
 					  global_terrain_rendering_function :: IORef RoguestarGlobals -> Bool -> IO (),
 					  global_terrain_data :: Map (Integer,Integer) String,
-					  global_last_camera_update_seconds :: Rational,
-					  global_camera :: Camera,
+					  global_camera_animation :: Animation () (CSN Camera),
 					  global_library_models :: Map (LibraryModel,Quality) DisplayList -- remember models that have been stored in a display list
-					 }
+					      }
 
 -- |
 -- Default starting values for all globals.
+-- global_camera_animation is left undefined.
 --
 roguestar_globals_0 :: RoguestarGlobals
 roguestar_globals_0 = RoguestarGlobals {
@@ -99,7 +104,6 @@ roguestar_globals_0 = RoguestarGlobals {
 					global_dones = 0,
 					global_terrain_rendering_function = \_ _ -> return (),
 					global_terrain_data = Map.fromList [],
-					global_last_camera_update_seconds = 0,
-					global_camera = Camera (Point3D 0 0 0) (Point3D 0 3 (-3)),
+					global_camera_animation = error "roguestar_globals_0: global_camera_animation: undefined (bug in roguestar-gl!)",
 					global_library_models = empty
 				       }

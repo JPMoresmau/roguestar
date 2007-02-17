@@ -23,7 +23,7 @@ module License
     where
 
 license_info :: String
-license_info = "> roguestar-gl: Copyright (C) 2006 Christopher Lane Hinson\n" ++
+license_info = "> roguestar-gl: Copyright (C) 2006, 2007 Christopher Lane Hinson\n" ++
 	       "> \n" ++
 	       "> This program is free software; you can redistribute it and/or modify\n" ++
 	       "> it under the terms of the GNU General Public License as published by\n" ++

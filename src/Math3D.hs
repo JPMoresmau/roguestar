@@ -569,6 +569,9 @@ class AffineTransformable a where
                 
 instance AffineTransformable a => AffineTransformable [a] where
     transform m = map (transform m)
+
+instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
+    transform m (a,b) = (transform m a,transform m b)
                 
 instance AffineTransformable (Matrix Float) where
     transform = matrixMultiply
