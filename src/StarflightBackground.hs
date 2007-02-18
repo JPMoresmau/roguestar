@@ -23,7 +23,7 @@ module StarflightBackground
      renderStarflightRotation)
     where
 
-import Seconds
+import Time
 import Quality
 import Graphics.UI.GLUT
 import System.Random

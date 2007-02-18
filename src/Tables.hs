@@ -33,14 +33,14 @@ module Tables
 
 import Data.List
 import Data.Maybe
-import Seconds
+import Time
 import Control.Monad
 
 -- |
 -- This is a simple implementation of a relational data table, and is always used to represent information
 -- that has been sent to us from roguestar-engine.
 --
-data RoguestarTable = RoguestarTable { table_created :: Seconds, table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
+data RoguestarTable = RoguestarTable { table_created :: Time, table_name, table_id :: String, table_header :: [String], table_data :: [[String]] }
 		      deriving (Eq,Show)
 
 data TableDataFormat s n = TDString s

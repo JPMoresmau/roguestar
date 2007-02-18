@@ -39,7 +39,6 @@ import TerrainRenderer
 import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU
 import Math3D
-import Seconds
 import Camera
 import Models.LibraryData
 import Models.Library

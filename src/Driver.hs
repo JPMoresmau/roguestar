@@ -37,7 +37,7 @@ import System.IO
 import Globals
 import PrintText
 import Tables
-import Seconds
+import Time
 import DriverData
 
 driverNoop :: IORef RoguestarGlobals -> IO ()
@@ -215,10 +215,10 @@ interpretLine globals_ref DINeutral str | (head $ words str) == "answer:" && (le
        return DINeutral
 
 interpretLine _ DINeutral str | (head $ words str) == "begin-table" && (length $ words str) > 3 = 
-    do secs <- seconds
+    do time <- getTime
        let table_start_data = words str
        return $ DIScanningTable $ RoguestarTable {
-						  table_created = secs,
+						  table_created = time,
 				                  table_name = table_start_data !! 1,
 		                                  table_id = table_start_data !! 2,
 		                                  table_header = drop 3 table_start_data,

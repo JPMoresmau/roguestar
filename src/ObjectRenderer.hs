@@ -40,7 +40,7 @@ import Models.LibraryData
 import Models.Library
 import System.IO
 import TerrainRenderer
-import Seconds
+import Time
 import qualified Data.Map as Map
 import Camera
 import Animation
@@ -52,11 +52,11 @@ data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
                                                    object_rep_heading_degrees :: Angle }
 
 data ObjectAnimationStop = ObjectAnimationStop { object_anim_stop_object_rep :: ObjectRepresentation,
-                                                 object_anim_stop_uptodate :: Seconds }
+                                                 object_anim_stop_uptodate :: Time }
 
 data ObjectAnimation = ObjectAnimation { object_anim_old :: ObjectRepresentation,
                                          object_anim_new :: ObjectRepresentation,
-                                         object_anim_starts :: Seconds }
+                                         object_anim_starts :: Time }
 
 instance Lerpable ObjectRepresentation Float where
     lerp _ (a,b) | object_rep_uid a /= object_rep_uid b = error "ObjectRepresentation; lerp: tried to lerp different objects"
@@ -79,8 +79,8 @@ getObjectAnimations globals_ref =
                                              _ -> []
                format = maybe [] (concatMap format_toTuple . format_tableSelect)
 
-animateObject :: Seconds -> ObjectAnimation -> ObjectRepresentation
-animateObject seconds_now anim = lerp ((min 1.0 $ fromRational $ seconds_now - object_anim_starts anim) :: Float) 
+animateObject :: Time -> ObjectAnimation -> ObjectRepresentation
+animateObject seconds_now anim = lerp ((min 1.0 $ toSeconds $ seconds_now - object_anim_starts anim) :: Float) 
                                       (object_anim_old anim,object_anim_new anim)
 
 positionInfoToObjectAnimStop :: IORef RoguestarGlobals -> DataFreshness -> (String,Integer,Integer,String) -> IO (Maybe ObjectAnimationStop)
@@ -119,8 +119,8 @@ mergeObjectAnimations new_anim_stops old_anim_stops =
 renderObjects :: IORef RoguestarGlobals -> IO ()
 renderObjects globals_ref =
     do anims <- getObjectAnimations globals_ref
-       secs <- seconds
-       let object_reps = map (animateObject secs) anims
+       time <- getTime
+       let object_reps = map (animateObject time) anims
        mapM_ (\x -> renderObject (object_rep_model x) globals_ref Poor x) object_reps
 
 objectAnimationStop :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectAnimationStop

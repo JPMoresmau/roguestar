@@ -11,8 +11,8 @@ module AnimationCore
      animTerminate,
      animToCSN,
      animFromCSN,
-     animSeconds,
-     animDeltaSeconds,
+     animTime,
+     animDeltaTime,
      animGetCoordinateSystem,
      animCall,
      animExcludeIO,
@@ -33,7 +33,7 @@ module AnimationCore
      module DriverData)
     where
 
-import Seconds
+import Time
 import Math3D
 import Model
 import Control.Monad.State
@@ -48,7 +48,7 @@ import DriverData
 type Animation i o = IORef (AnimationData i o)
 
 data AnimationData i o = AnimationData { animdata_last_out :: Maybe (o,[AnimatedIOAction]),
-                                         animdata_last_update :: Seconds,
+                                         animdata_last_update :: Time,
                                          animdata_switch :: i -> AniM i o o,
                                          animdata_in_progress :: Bool,
                                          animdata_pending_events :: [i]  -- in reverse order of arrival
@@ -69,8 +69,8 @@ newAnimation switch = newIORef $ AnimationData { animdata_last_out = Nothing,
 
 runAnimationWithContext :: IOSystem -> CSN Point3D -> Animation i o -> i -> IO (Maybe o)
 runAnimationWithContext iosystem camerapt animation i = 
-    do secs <- seconds
-       result <- guardedRunAnimation iosystem secs animation i
+    do time <- getTime
+       result <- guardedRunAnimation iosystem time animation i
        case result of
                    Just (o,ioactions) -> do runAnimationIOActions camerapt ioactions
                                             return $ Just o
@@ -83,7 +83,7 @@ runAnimationWithContext iosystem camerapt animation i =
 notifyAnimation :: Animation a b -> a -> IO ()
 notifyAnimation animation event = modifyIORef animation (\x -> x { animdata_pending_events = event : animdata_pending_events x })
 
-guardedRunAnimation :: IOSystem -> Seconds -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
+guardedRunAnimation :: IOSystem -> Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
 guardedRunAnimation iosystem secs animation i =
     do animation_data <- readIORef animation
        case (animdata_in_progress animation_data,
@@ -95,7 +95,7 @@ guardedRunAnimation iosystem secs animation i =
                                    _ -> do runPendingEvents iosystem secs animation
                                            unguardedRunAnimation iosystem secs animation i  -- run the animation
 
-unguardedRunAnimation :: IOSystem -> Seconds -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
+unguardedRunAnimation :: IOSystem -> Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
 unguardedRunAnimation iosystem secs animation i =
     do modifyIORef animation (\x -> x { animdata_in_progress = True })
        animdata <- readIORef animation
@@ -117,11 +117,11 @@ unguardedRunAnimation iosystem secs animation i =
                                         animdata_last_out = result `mplus` animdata_last_out x })
        return result
 
-runPendingEvents :: IOSystem -> Seconds -> Animation i o -> IO ()
-runPendingEvents iosystem secs animation =
+runPendingEvents :: IOSystem -> Time -> Animation i o -> IO ()
+runPendingEvents iosystem time animation =
     do pending_events <- liftM (reverse . animdata_pending_events) $ readIORef animation
        modifyIORef animation (\x -> x { animdata_pending_events = [] })
-       mapM_ (unguardedRunAnimation iosystem secs animation) pending_events
+       mapM_ (unguardedRunAnimation iosystem time animation) pending_events
 
 forceSwitch :: Animation i o -> (i -> AniM i o o) -> IO ()
 forceSwitch animation switch = modifyIORef animation (\x -> x { animdata_switch = switch })
@@ -137,8 +137,8 @@ forceSwitch animation switch = modifyIORef animation (\x -> x { animdata_switch 
 animCall :: Animation a b -> a -> AniM i o (Maybe b)
 animCall animation a = 
     do iosystem <- AniM $ liftM2 (,) (gets anim_getAnswer) (gets anim_getTable)
-       secs <- animSeconds
-       result <- AniM $ liftIO $ guardedRunAnimation iosystem secs animation a
+       time <- animTime
+       result <- AniM $ liftIO $ guardedRunAnimation iosystem time animation a
        case result of
                    Just (o,ioactions) -> do mapM_ (\x -> animCSNio (toCSN world_coordinates $ animio_position x) (toCSN world_coordinates $ animio_action x)) ioactions
                                             return $ Just o
@@ -163,18 +163,18 @@ runAnimationIOActions csncamera actions =
 data AniMState i o = AniMState { anim_transformation_stack :: [Matrix Float],
                                  anim_io_actions :: [AnimatedIOAction],
                                  anim_switch :: i -> AniM i o o,
-                                 anim_seconds :: Seconds,
-                                 anim_delta_seconds :: Seconds,
+                                 anim_time :: Time,
+                                 anim_delta_time :: Time,
                                  anim_getAnswer :: DataFreshness -> String -> IO (Maybe String),
                                  anim_getTable :: DataFreshness -> String -> String -> IO (Maybe RoguestarTable) }
 
-animationStartState :: IOSystem -> Seconds -> AnimationData i o -> AniMState i o
-animationStartState (getAnswer,getTable) secs animdata = 
+animationStartState :: IOSystem -> Time -> AnimationData i o -> AniMState i o
+animationStartState (getAnswer,getTable) time animdata = 
     AniMState { anim_transformation_stack = [identityMatrix 4],
                 anim_io_actions = [],
                 anim_switch = animdata_switch animdata,
-                anim_seconds = secs,
-                anim_delta_seconds = secs - animdata_last_update animdata,
+                anim_time = time,
+                anim_delta_time = time - animdata_last_update animdata,
                 anim_getAnswer = getAnswer,
                 anim_getTable = getTable }
 
@@ -379,8 +379,8 @@ animGetTable fresh name the_id =
     do getTable <- AniM $ gets anim_getTable
        unsafeAnimIO $ getTable fresh name the_id
 
-animSeconds :: AniM i o Seconds
-animSeconds = AniM $ gets anim_seconds
+animTime :: AniM i o Time
+animTime = AniM $ gets anim_time
 
-animDeltaSeconds :: AniM i o Seconds
-animDeltaSeconds = AniM $ gets anim_delta_seconds
+animDeltaTime :: AniM i o Time
+animDeltaTime = AniM $ gets anim_delta_time

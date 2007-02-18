@@ -33,10 +33,10 @@ import Graphics.Rendering.OpenGL.GLU as GLU
 import Data.List
 import AnimationCore
 import AnimationAux
-import Seconds
 import Control.Monad
 import Tables
 import Data.Maybe
+import Time
 
 data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Show)
 
@@ -88,7 +88,7 @@ newCameraAnimation =
         centerCoordinates
         (\_ (x,y) -> return $ toCSN world_coordinates $ goalCamera [Point3D (fromIntegral x) 0 (fromIntegral y)])
         (\_ -> return ())
-        (\x y -> return $ toRational $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
+        (\x y -> return $ fromSeconds $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
             where limitTime x | x > 4 = 4 + log (x - 4)
                   limitTime x = x
 

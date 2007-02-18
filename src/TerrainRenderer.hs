@@ -34,7 +34,7 @@ import Data.Maybe as Maybe
 import Control.Monad
 import Graphics.Rendering.OpenGL.GL as GL
 import Graphics.UI.GLUT.Objects as GLUT
-import Seconds
+import Time
 import Math3D
 import Model
 
