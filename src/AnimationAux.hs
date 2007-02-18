@@ -49,7 +49,7 @@ lerpAnimNewest :: LerpAnimation o -> o
 lerpAnimNewest (LerpAnimationStill o) = o
 lerpAnimNewest o = lerpanim_new o
 
-animLerp :: (Lerpable a Float) => LerpAnimation a -> (Float -> Float) -> AniM i o a
+animLerp :: (Lerpable a) => LerpAnimation a -> (Float -> Float) -> AniM i o a
 animLerp (LerpAnimationStill x) _ = return x
 animLerp x lerpMutator = 
     do oldx <- animLerp (lerpanim_old x) lerpMutator
@@ -64,7 +64,7 @@ optimizeLerp x@(LerpAnimation {}) =
            then return $ LerpAnimationStill $ lerpanim_new x
            else liftM (\old -> x { lerpanim_old = old }) $ optimizeLerp $ lerpanim_old x
 
-lerpAnimation :: (Eq a,Lerpable o Float) => a -> LerpAnimation o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> (Float -> Float) -> () -> AniM () o o
+lerpAnimation :: (Eq a,Lerpable o) => a -> LerpAnimation o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> (Float -> Float) -> () -> AniM () o o
 lerpAnimation a o getA atoO renderO lerpTimeO lerpMutator _ = 
     do newa <- getA
        secs <- animTime
@@ -86,7 +86,7 @@ lerpAnimation a o getA atoO renderO lerpTimeO lerpMutator _ =
 -- lerpTime, which indicates how long the linear interpolation should take.  For example, this might be the
 -- pythagorean distance between two points, or just a constant value.
 --
-newLerpAnimation :: (Eq a,Lerpable o Float) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
+newLerpAnimation :: (Eq a,Lerpable o) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
 newLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerpAnimation a (LerpAnimationStill o) getA atoO renderO lerpTime id
 
 -- |
@@ -94,7 +94,7 @@ newLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerpAnimation a
 -- object accelerates to a maximum speed halfway through the interpolation, and the slows as it approaches the end.
 -- No change should be needed to replace newLerpAnimation with newAcceleratedLerpAnimation.
 --
-newAcceleratedLerpAnimation :: (Eq a,Lerpable o Float) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
+newAcceleratedLerpAnimation :: (Eq a,Lerpable o) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
 newAcceleratedLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerpAnimation a (LerpAnimationStill o) getA atoO renderO (accelerateTime lerpTime) accelerateLerp
     where accelerateLerp x | x < 0.5 = 0.5 * (2 * x) ^ 2
           accelerateLerp x = 1.0 - 0.5 * (2 * (1-x)) ^ 2

@@ -58,7 +58,7 @@ data ObjectAnimation = ObjectAnimation { object_anim_old :: ObjectRepresentation
                                          object_anim_new :: ObjectRepresentation,
                                          object_anim_starts :: Time }
 
-instance Lerpable ObjectRepresentation Float where
+instance Lerpable ObjectRepresentation where
     lerp _ (a,b) | object_rep_uid a /= object_rep_uid b = error "ObjectRepresentation; lerp: tried to lerp different objects"
     lerp u (a,b) = ObjectRepresentation { object_rep_uid = object_rep_uid a,
                                           object_rep_model = object_rep_model a,

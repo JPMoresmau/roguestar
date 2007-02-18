@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
-
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
 --  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
@@ -83,6 +81,7 @@ module Math3D
      synthesizePerlinNoise,
      Lerpable(..),
      lerpBetween,
+     lerpBetweenBounded,
      lerpMap,
      Angle,
      degrees,
@@ -564,18 +563,26 @@ genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
 			      z = (row_major m) !! 2 !! 0
 			      in (x,y,z)
                 
+class Floatable a where
+    toFloat :: a -> Float
+    fromFloat :: Float -> a
+
+instance Floatable Float where
+    toFloat = id
+    fromFloat = id
+
 class AffineTransformable a where
     transform :: Matrix Float -> a -> a
-                
+
 instance AffineTransformable a => AffineTransformable [a] where
     transform m = map (transform m)
 
 instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
     transform m (a,b) = (transform m a,transform m b)
                 
-instance AffineTransformable (Matrix Float) where
-    transform = matrixMultiply
-                
+instance (Floatable a) => AffineTransformable (Matrix a) where
+    transform mat = coerceMatrix fromFloat . matrixMultiply mat . coerceMatrix toFloat
+
 instance AffineTransformable Vector3D where
     transform = transformHomogenous
 
@@ -735,7 +742,7 @@ toBoundedAngle (Radians x) | x > pi = toBoundedAngle $ Radians $ x - (2*pi)
 toBoundedAngle (Radians x) | x < (-pi) = toBoundedAngle $ Radians $ x + (2*pi)
 toBoundedAngle x = x
 
-instance Lerpable Angle Float where
+instance Lerpable Angle where
     lerp u (a,b) = a + scaleAngle u (b - a)
     
 instance Eq Angle where
@@ -772,18 +779,24 @@ instance Num Angle where
 -- u indicating a point on the opposite side of a from b and with
 -- a u > 1 indicating a point on the opposite side of b from a.
 --
-class Fractional n => Lerpable a n where
-    lerp :: n -> (a,a) -> a
+class Lerpable a where
+    lerp :: Float -> (a,a) -> a
 
-instance Lerpable a n => Lerpable (a,a) n where
+instance (Lerpable a,Lerpable b) => Lerpable (a,b) where
     lerp u ((a1,a2),(b1,b2)) = (lerp u (a1,b1),lerp u (a2,b2))
 
 -- |
 -- lerp takes a parameter between 0 and 1, while lerpBetween takes a parameter between two arbitrary values.
 -- lerp u (a,b) == lerpBetween (0,u,1) (a,b)
 --
-lerpBetween :: (Lerpable a n) => (n,n,n) -> (a,a) -> a
+lerpBetween :: (Lerpable a) => (Float,Float,Float) -> (a,a) -> a
 lerpBetween (l,u,r) = lerp $ (u-l) / (r-l)
+
+-- |
+-- As lerpBetween, but constrains the parameter to the range 0 <= u <= 1.
+--
+lerpBetweenBounded :: (Lerpable a) => (Float,Float,Float) -> (a,a) -> a
+lerpBetweenBounded (l,u,r) = lerp $ (max 0 $ min 1 $ (u-l) / (r-l))
 
 -- |
 -- Given many entities, lerp between the two entities closest to the given point
@@ -791,7 +804,7 @@ lerpBetween (l,u,r) = lerp $ (u-l) / (r-l)
 -- we might use the map [(0,RED),(1,ORANGE),(2,YELLOW),(3,GREEN),(4,BLUE),(5,INDIGO),(6,VIOLET)].
 -- lerpMap 3.5 would result in a blue-green color.
 --
-lerpMap :: (Ord n,Lerpable a n) => n -> [(n,a)] -> a
+lerpMap :: (Lerpable a) => Float -> [(Float,a)] -> a
 lerpMap u pts = 
     let (l,l') = minimumBy (\x -> \y -> compare (fst x) (fst y)) $ filter ((>= u) . fst) pts
         (r,r') = maximumBy (\x -> \y -> compare (fst x) (fst y)) $ filter ((<= u) . fst) pts
@@ -800,19 +813,19 @@ lerpMap u pts =
 lerpNumber :: (Num n) => n -> (n,n) -> n
 lerpNumber u (a,b) = (1-u)*a + u*b
 
-instance Lerpable Float Float where
+instance Lerpable Float where
    lerp = lerpNumber
 
-instance Lerpable Vector3D Float where
+instance Lerpable Vector3D where
    lerp u (Vector3D ax ay az,Vector3D bx by bz) = Vector3D (lerp u (ax,bx)) (lerp u (ay,by)) (lerp u (az,bz))
 
-instance Lerpable Point3D Float where
+instance Lerpable Point3D where
    lerp u (Point3D ax ay az,Point3D bx by bz) = Point3D (lerp u (ax,bx)) (lerp u (ay,by)) (lerp u (az,bz))
 
-instance Lerpable Point2D Float where
+instance Lerpable Point2D where
    lerp u (Point2D ax ay,Point2D bx by) = Point2D (lerp u (ax,bx)) (lerp u (ay,by))
                 
-instance (Lerpable a n) => Lerpable (Maybe a) n where
+instance (Lerpable a) => Lerpable (Maybe a) where
    lerp u (a,b) = liftM2 (curry $ lerp u) a b
                 
 -- |

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 --------------------------------------------------------------------------
 --  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
@@ -56,14 +56,14 @@ import Graphics.Rendering.OpenGL.GL
 
 data RGB = RGB { red, green, blue :: Float } deriving (Show)
                 
-instance Lerpable Model.RGB Float where
+instance Lerpable Model.RGB where
     lerp u (a,b) = Model.RGB { red = lerp u (red a,red b),
                                green = lerp u (green a,green b),
                                blue = lerp u (blue a,blue b) }
                 
 data Material = Material { rgb :: Model.RGB, alpha :: Maybe Float, shine :: Maybe Float, lum :: Maybe Model.RGB } deriving (Show)
 
-instance Lerpable Material Float where
+instance Lerpable Material where
     lerp u (a,b) = Material { rgb = lerp u (rgb a,rgb b),
                               alpha = lerp u (alpha a,alpha b),
                               shine = lerp u (shine a,shine b),

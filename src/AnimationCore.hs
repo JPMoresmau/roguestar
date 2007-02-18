@@ -279,7 +279,7 @@ newtype CSN a = CSN a
 --
 type CoordinateSystem = CSN (Matrix Float)
 
-instance (AffineTransformable a,Lerpable a f) => Lerpable (CSN a) f where
+instance (AffineTransformable a,Lerpable a) => Lerpable (CSN a) where
     lerp u (a,b) = modifyCSN world_coordinates (lerp u) $ pairCSN (a,b)
 
 world_coordinates :: CoordinateSystem
