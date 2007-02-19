@@ -62,7 +62,7 @@ reduced2 = reduced . reduced
 --
 -- An assumption is that the extrusion is considerably longer than it is thick.
 --
-qualityTube :: Quality -> Texture -> [(Point3D,Float)] -> Model
+qualityTube :: Quality -> Texture -> [(Point3D,Double)] -> Model
 qualityTube _ _ pts | newell (map fst pts) == Vector3D 0.0 0.0 0.0 = error "this extrusion is in a straight line, consider manually supplying a facing vector using Model.extrude or using a sor"
 qualityTube Bad tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (ring 5) pts
 qualityTube Poor tex pts = extrude tex (genericLength pts + 1) (newell (map fst pts)) (ring 8) pts

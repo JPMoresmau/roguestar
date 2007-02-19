@@ -7,7 +7,7 @@ import Quality
 import Model
 import Math3D
     
-machine_arm :: Float -> Texture -> Quality -> Model
+machine_arm :: Double -> Texture -> Quality -> Model
 machine_arm s t q = scale' (s/4.0) $
                          rotate (Vector3D 1 0 0) (degrees 90) $
                          qualitySor q t $
@@ -18,7 +18,7 @@ machine_arm s t q = scale' (s/4.0) $
                                    (0.25,1),
                                    (0,-0.5)]
 
-machine_shoulder :: Float -> Texture -> Quality -> Model
+machine_shoulder :: Double -> Texture -> Quality -> Model
 machine_shoulder s t q = scale' (s/4.0) $
                          rotate (Vector3D 1 0 0) (degrees 90) $
                          qualitySor q t $

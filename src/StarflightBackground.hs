@@ -56,9 +56,9 @@ renderStarflightBackground globals_ref =
        preservingMatrix renderStarsBehind
 	   where renderStarsNear = do globals <- readIORef globals_ref
 				      renderStars (-1000,1000) (-1000,1000) (1,1000) $ starfield (global_quality globals)
-		 renderStarsFar = do translate $ (Vector3 0 0 1000 :: Vector3 Float)
+		 renderStarsFar = do translate $ (Vector3 0 0 1000 :: Vector3 Double)
 				     renderStarsNear
-		 renderStarsBehind = do translate $ (Vector3 0 0 (-1000) :: Vector3 Float)
+		 renderStarsBehind = do translate $ (Vector3 0 0 (-1000) :: Vector3 Double)
 					renderStarsNear
 				
 
@@ -95,7 +95,7 @@ renderStarflightRotation display_fn globals_ref =
 				  display_fn
 
 -- This isn't properly random, but it does create a nifty effect.
-starfield :: Quality -> [(Float,Float,Float)]
+starfield :: Quality -> [(Double,Double,Double)]
 starfield quality = let quality_n = case quality of
 						 Bad -> 5
 						 Poor -> 20
@@ -103,7 +103,7 @@ starfield quality = let quality_n = case quality of
 						 Super -> 1000
 			in sortBy (\(x0,y0,z0) (x1,y1,z1) -> compare (x1*x1+y1*y1+z1*z1) (x0*x0+y0*y0*z0*z0)) $ genStars (mkStdGen 2) quality_n
 
-genStars :: StdGen -> Int -> [(Float,Float,Float)]
+genStars :: StdGen -> Int -> [(Double,Double,Double)]
 genStars _ 0 = []
 genStars g0 n = let (x,g1) = next g0
 		    (y,g2) = next g1
@@ -113,15 +113,15 @@ genStars g0 n = let (x,g1) = next g0
 			tform (y `mod` 1000) / 1000.0,
 			tform (z `mod` 1000) / 1000.0) : (genStars g3 (n-1))
 
-renderStars :: (Float,Float) -> (Float,Float) -> (Float,Float) -> [(Float,Float,Float)] -> IO ()
+renderStars :: (Double,Double) -> (Double,Double) -> (Double,Double) -> [(Double,Double,Double)] -> IO ()
 renderStars (minx,maxx) (miny,maxy) (minz,maxz) pts =
     do renderPrimitive Triangles $ mapM_ drawPoint pts
-	   where drawPoint (x,y,z) = do color $ (Color4 1 1 1 1 :: Color4 Float)
+	   where drawPoint (x,y,z) = do color $ (Color4 1 1 1 1 :: Color4 Double)
 				        (vertex $ Vertex3 
 					 (x*(maxx-minx)+minx)
 					 (y*(maxy-miny)+miny)
 					 (z*(maxz-minz)+minz))
-					color $ (Color4 0 0 1 0 :: Color4 Float)
+					color $ (Color4 0 0 1 0 :: Color4 Double)
 					(vertex $ Vertex3
 					 (x*(maxx-minx)+minx-3)
 					 (y*(maxy-miny)+miny)
@@ -130,12 +130,12 @@ renderStars (minx,maxx) (miny,maxy) (minz,maxz) pts =
 					 (x*(maxx-minx)+minx+3)
 					 (y*(maxy-miny)+miny)
 					 (z*(maxz-minz)+minz+500))
-					color $ (Color4 1 1 1 1 :: Color4 Float)
+					color $ (Color4 1 1 1 1 :: Color4 Double)
 				        (vertex $ Vertex3 
 					 (x*(maxx-minx)+minx)
 					 (y*(maxy-miny)+miny)
 					 (z*(maxz-minz)+minz))
-					color $ (Color4 0 0 1 0 :: Color4 Float)
+					color $ (Color4 0 0 1 0 :: Color4 Double)
 					(vertex $ Vertex3
 					 (x*(maxx-minx)+minx)
 					 (y*(maxy-miny)+miny-6)

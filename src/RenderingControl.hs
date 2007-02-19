@@ -164,10 +164,10 @@ ongoingTurnDisplay globals_ref =
        clear [DepthBuffer]
        colorMask $= Color4 GL.Disabled GL.Disabled GL.Disabled GL.Disabled
        global_terrain_rendering_function globals globals_ref False
-       renderPrimitive TriangleFan $ do vertex $ Vertex3 (-10000) 0 (-10000 :: Float)
-                                        vertex $ Vertex3 (-10000) 0 (10000 :: Float)
-                                        vertex $ Vertex3 10000 0 (10000 :: Float)
-                                        vertex $ Vertex3 10000 0 (-10000 :: Float)
+       renderPrimitive TriangleFan $ do vertex $ Vertex3 (-10000) 0 (-10000 :: Double)
+                                        vertex $ Vertex3 (-10000) 0 (10000 :: Double)
+                                        vertex $ Vertex3 10000 0 (10000 :: Double)
+                                        vertex $ Vertex3 10000 0 (-10000 :: Double)
        colorMask $= Color4 Enabled Enabled Enabled Enabled
        renderObjects globals_ref
 

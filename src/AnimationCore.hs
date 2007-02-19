@@ -160,7 +160,7 @@ runAnimationIOActions csncamera actions =
                        where sortfn x y = compare (distanceBetween camera (animio_position x)) (distanceBetween camera (animio_position y))  
                              camera = fromCSN world_coordinates csncamera
 
-data AniMState i o = AniMState { anim_transformation_stack :: [Matrix Float],
+data AniMState i o = AniMState { anim_transformation_stack :: [Matrix Double],
                                  anim_io_actions :: [AnimatedIOAction],
                                  anim_switch :: i -> AniM i o o,
                                  anim_time :: Time,
@@ -248,13 +248,13 @@ animTerminate switch retval =
     do animSoftSwitch switch
        animReturn retval
 
-animPush :: Matrix Float -> AniM i o ()
+animPush :: Matrix Double -> AniM i o ()
 animPush mat = AniM $ modify (\x -> x { anim_transformation_stack = mat `matrixMultiply` (head $ anim_transformation_stack x) : anim_transformation_stack x })
 
 animPop :: AniM i o ()
 animPop = AniM $ modify (\x -> x { anim_transformation_stack = tail $ anim_transformation_stack x })
 
-animMatrix :: AniM i o (Matrix Float)
+animMatrix :: AniM i o (Matrix Double)
 animMatrix = AniM $ gets (fromMaybe (identityMatrix 4) . listToMaybe . anim_transformation_stack)
 
 instance AffineTransformable (AniM i o a) where
@@ -277,7 +277,7 @@ newtype CSN a = CSN a
 -- |
 -- An affine coordinate system itself in coordinate-system-neutral form.
 --
-type CoordinateSystem = CSN (Matrix Float)
+type CoordinateSystem = CSN (Matrix Double)
 
 instance (AffineTransformable a,Lerpable a) => Lerpable (CSN a) where
     lerp u (a,b) = modifyCSN world_coordinates (lerp u) $ pairCSN (a,b)

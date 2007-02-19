@@ -54,14 +54,14 @@ import Math3D
 import Data.Ratio
 import Graphics.Rendering.OpenGL.GL
 
-data RGB = RGB { red, green, blue :: Float } deriving (Show)
+data RGB = RGB { red, green, blue :: Double } deriving (Show)
                 
 instance Lerpable Model.RGB where
     lerp u (a,b) = Model.RGB { red = lerp u (red a,red b),
                                green = lerp u (green a,green b),
                                blue = lerp u (blue a,blue b) }
                 
-data Material = Material { rgb :: Model.RGB, alpha :: Maybe Float, shine :: Maybe Float, lum :: Maybe Model.RGB } deriving (Show)
+data Material = Material { rgb :: Model.RGB, alpha :: Maybe Double, shine :: Maybe Double, lum :: Maybe Model.RGB } deriving (Show)
 
 instance Lerpable Material where
     lerp u (a,b) = Material { rgb = lerp u (rgb a,rgb b),
@@ -86,13 +86,13 @@ instance Xyz RGB where
 data Model = Triangle Texture (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
 	   | Strip Texture [((Point3D,Vector3D),(Point3D,Vector3D))]
 	   | Union [Model]
-	   | Transformation (Math3D.Matrix Float) Model
+	   | Transformation (Math3D.Matrix Double) Model
 	   deriving (Show) -- only important for debugging, remember model designers might want to look at this
 
 -- |
 -- Essentially the maximum distance to any point in a model from the model's origin.
 --
-modelSize :: Model -> Float
+modelSize :: Model -> Double
 modelSize (Triangle _ (p1,_) (p2,_) (p3,_)) = maximum $ map (distanceBetween origin_point_3d) [p1,p2,p3]
 modelSize (Strip _ pts) = maximum $ map (distanceBetween origin_point_3d) $ concatMap (\((p1,_),(p2,_)) -> [p1,p2]) pts
 modelSize (Union models) = maximum $ map modelSize models
@@ -102,7 +102,7 @@ modelSize transformedModel@(Transformation {}) = modelSize $ pretransform (ident
 -- Fully apply the specified affine transform to this matrix, now, along with any transformations
 -- stored in the model.  Afterwards the model will have been stripped of all Transformation elements.
 --
-pretransform :: Math3D.Matrix Float -> Model -> Model
+pretransform :: Math3D.Matrix Double -> Model -> Model
 pretransform m (Transformation m' model) = pretransform (matrixMultiply m m') model
 pretransform m (Triangle tex (p1,v1) (p2,v2) (p3,v3)) = 
     Triangle (transform m tex) (transform m p1,vectorNormalize $ transform m v1) (transform m p2,vectorNormalize $ transform m v2) (transform m p3,vectorNormalize $ transform m v3)
@@ -113,29 +113,29 @@ pretransform m (Union models) = Union $ map (pretransform m) models
 -- |
 -- The scale factor that would be used by scaleModel to make this model the specified size.
 --
-scaleModelFactor :: Float -> Model -> Float
+scaleModelFactor :: Double -> Model -> Double
 scaleModelFactor scalar model = scalar / modelSize model
 
 -- |
 -- Scale the model to be the specified size, as given by modelSize.
 --
-scaleModel :: Float -> Model -> Model
+scaleModel :: Double -> Model -> Model
 scaleModel scalar model = Math3D.scale' (scaleModelFactor scalar model) model
 
 -- |
 -- Generates a Color from red, green, and blue components.  The color has no alpha, no shinyness,
 -- and no luminance.
 --
-rgbColor :: (Float,Float,Float) -> Material
+rgbColor :: (Double,Double,Double) -> Material
 rgbColor (r,g,b) = Material { rgb=Model.RGB r g b, alpha=Nothing, shine=Nothing, lum=Nothing }
 
 -- |
 -- As rgbColor, but the first parameter (between 0 and 1) represents specular reflection.
 --
-rgbShine :: Float -> (Float,Float,Float) -> Material
+rgbShine :: Double -> (Double,Double,Double) -> Material
 rgbShine the_shine (r,g,b) = Material { rgb=Model.RGB r g b, alpha=Nothing, shine=Just the_shine, lum=Nothing }
 
-rgbLum :: Float -> (Float,Float,Float) -> Material
+rgbLum :: Double -> (Double,Double,Double) -> Material
 rgbLum l (r,g,b) = Material { rgb=Model.RGB r g b,
 			      alpha=Nothing,
 			      shine=Nothing,
@@ -144,7 +144,7 @@ rgbLum l (r,g,b) = Material { rgb=Model.RGB r g b,
 -- |
 -- Combine a noise function with a material map to make a procedural texture.
 --
-proceduralTexture :: NoiseFunction -> [(Float,Material)] -> Texture
+proceduralTexture :: NoiseFunction -> [(Double,Material)] -> Texture
 proceduralTexture nf material_map = ProceduralTexture (\p -> lerpMap (noiseAt nf p) material_map)
 
 -- |
@@ -234,12 +234,12 @@ radianIncrements subdivisions = map (radians . (2*pi*) . (/ fromInteger subdivis
 -- [polyline] is a list of (vertex,thickness) pairs, where vertex is a vertex of the polyline and
 --   thickness is a scaling factor (usually 1.0) representing how large the figure should be at that vertex.
 --
-extrude :: Texture -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Float)] -> Model
+extrude :: Texture -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Double)] -> Model
 extrude tex subdivs up figure polyline =
   let points = map (\subdiv -> extrude_ subdiv subdivs up figure polyline) [0..subdivs]
       in frame tex $ transpose points
 
-extrude_ :: Integer -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Float)] -> [Point3D]
+extrude_ :: Integer -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Double)] -> [Point3D]
 extrude_ 0 _ up figure polyline = extrude1Frame 0.0 up figure $ head $ doubles polyline
 extrude_ subdiv subdivs up figure polyline | subdiv == subdivs = extrude1Frame 1.0 up figure $ last $ doubles polyline
 extrude_ subdiv subdivs up figure polyline =
@@ -252,7 +252,7 @@ extrude_ subdiv subdivs up figure polyline =
 -- |
 -- Produces a single extruded frame.
 --
-extrude1Frame :: Float -> Vector3D -> [Point3D] -> ((Point3D,Float),(Point3D,Float)) -> [Point3D]
+extrude1Frame :: Double -> Vector3D -> [Point3D] -> ((Point3D,Double),(Point3D,Double)) -> [Point3D]
 extrude1Frame fraction_of_segment up figure ((a,a_scale),(b,b_scale)) = 
   let to_point = vectorToFrom (Math3D.translate (vectorScaleTo (fraction_of_segment * distanceBetween a b) $ vectorToFrom b a) a) origin_point_3d
       scale_factor = fraction_of_segment * b_scale + (1 - fraction_of_segment) * a_scale
@@ -293,22 +293,22 @@ frame tex pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry 
 instance AffineTransformable Model where
     transform mat model = Transformation (aMByNMatrix "in Model.transform" 4 4 mat) model
 
-toVertex3 :: Point3D -> Vertex3 Float
+toVertex3 :: Point3D -> Vertex3 Double
 toVertex3 (Point3D x y z) = Vertex3 x y z
 
-toNormal3 :: Vector3D -> Normal3 Float
+toNormal3 :: Vector3D -> Normal3 Double
 toNormal3 (Vector3D x y z) = Normal3 x y z
 
-toColor4_rgb :: Material -> Color4 Float
-toColor4_rgb (Material { rgb=(Model.RGB r g b), alpha=a }) = Color4 r g b (fromMaybe 1 a)
+toColor4_rgb :: Material -> Color4 GLfloat
+toColor4_rgb (Material { rgb=(Model.RGB r g b), alpha=a }) = Color4 (fromDouble r) (fromDouble g) (fromDouble b) (fromDouble $ fromMaybe 1 a)
 
-toColor4_lum :: Material -> Color4 Float
-toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 r g b 0
+toColor4_lum :: Material -> Color4 GLfloat
+toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 (fromDouble r) (fromDouble g) (fromDouble b) 0
 toColor4_lum _ = Color4 0 0 0 0
 
 materialToOpenGL :: Material -> IO ()
 materialToOpenGL c = 
-    let shininess = fromMaybe 0 (shine c)
+    let shininess = fromDouble $ fromMaybe 0 (shine c)
 	in do materialShininess Front $= shininess*128
 	      materialSpecular Front $= Color4 shininess shininess shininess 1.0
 	      materialAmbientAndDiffuse Front $= toColor4_rgb c
@@ -361,5 +361,5 @@ toOpenGL (Transformation mat thing) = transform mat $ toOpenGL thing
 -- This scares me.
 instance AffineTransformable (IO a) where
     transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
-                                               multMatrix (mat' :: GLmatrix Float)
+                                               multMatrix (mat' :: GLmatrix Double)
                                                iofn

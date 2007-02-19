@@ -47,8 +47,8 @@ import Animation
 
 data ObjectRepresentation = ObjectRepresentation { object_rep_uid :: String,
                                                    object_rep_model :: String,
-                                                   object_rep_position :: (Float,Float),
-                                                   object_rep_altitude :: Float,
+                                                   object_rep_position :: (Double,Double),
+                                                   object_rep_altitude :: Double,
                                                    object_rep_heading_degrees :: Angle }
 
 data ObjectAnimationStop = ObjectAnimationStop { object_anim_stop_object_rep :: ObjectRepresentation,
@@ -80,7 +80,7 @@ getObjectAnimations globals_ref =
                format = maybe [] (concatMap format_toTuple . format_tableSelect)
 
 animateObject :: Time -> ObjectAnimation -> ObjectRepresentation
-animateObject seconds_now anim = lerp ((min 1.0 $ toSeconds $ seconds_now - object_anim_starts anim) :: Float) 
+animateObject seconds_now anim = lerp ((min 1.0 $ toSeconds $ seconds_now - object_anim_starts anim) :: Double) 
                                       (object_anim_old anim,object_anim_new anim)
 
 positionInfoToObjectAnimStop :: IORef RoguestarGlobals -> DataFreshness -> (String,Integer,Integer,String) -> IO (Maybe ObjectAnimationStop)
@@ -123,12 +123,12 @@ renderObjects globals_ref =
        let object_reps = map (animateObject time) anims
        mapM_ (\x -> renderObject (object_rep_model x) globals_ref Poor x) object_reps
 
-objectAnimationStop :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectAnimationStop
+objectAnimationStop :: (String,Integer,Integer,String) -> Double -> RoguestarTable -> ObjectAnimationStop
 objectAnimationStop obj_loc_data altitude details =
     ObjectAnimationStop { object_anim_stop_object_rep = objectRepresentation obj_loc_data altitude details,
                           object_anim_stop_uptodate = table_created details }
 
-objectRepresentation :: (String,Integer,Integer,String) -> Float -> RoguestarTable -> ObjectRepresentation
+objectRepresentation :: (String,Integer,Integer,String) -> Double -> RoguestarTable -> ObjectRepresentation
 objectRepresentation (uid,x,y,facing) altitude details =
     ObjectRepresentation { object_rep_uid = uid,
                            object_rep_model = fromMaybe "question_mark" $ 
@@ -163,7 +163,7 @@ basicRenderObject m globals_ref q object_rep =
 atObjectPosition :: ObjectRepresentation -> IO () -> IO ()
 atObjectPosition object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) fn =
     do preservingMatrix $ do GL.translate $ Vector3 x (object_rep_altitude object_rep) y
-                             GL.rotate (inDegrees $ object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Float)
+                             GL.rotate (inDegrees $ object_rep_heading_degrees object_rep) (Vector3 0 1 0 :: Vector3 Double)
                              fn
 
 renderQuestionMark :: IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
@@ -180,9 +180,9 @@ renderEncephalon globals_ref q object_rep =
 
 renderGroundedObject :: LibraryModel -> IORef RoguestarGlobals -> Quality -> ObjectRepresentation -> IO ()
 renderGroundedObject m globals_ref q object_rep@(ObjectRepresentation { object_rep_position = (x,y) }) =
-    atObjectPosition object_rep $ do GL.translate (Vector3 0 0.1 0 :: Vector3 Float)
-                                     GL.rotate (3*(x+y)*22.5 :: Float) (Vector3 0 1 0 :: Vector3 Float)
-                                     GL.rotate (45 :: Float) (Vector3 0 0 1 :: Vector3 Float)
+    atObjectPosition object_rep $ do GL.translate (Vector3 0 0.1 0 :: Vector3 Double)
+                                     GL.rotate (3*(x+y)*22.5 :: Double) (Vector3 0 1 0 :: Vector3 Double)
+                                     GL.rotate (45 :: Double) (Vector3 0 0 1 :: Vector3 Double)
                                      displayLibraryModel globals_ref m q
                                      
 -- |

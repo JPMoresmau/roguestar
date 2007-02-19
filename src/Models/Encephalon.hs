@@ -19,7 +19,7 @@ encephalon_joint_params = scale' encephalon_scale_factor $
                                         joint_params_length = 8.0,
                                         joint_params_bend_vector = Vector3D 1.0 1.0 0.0 }
 
-encephalon_scale_factor :: Float
+encephalon_scale_factor :: Double
 encephalon_scale_factor = scaleModelFactor 0.3 $ encephalon_suit Super
 
 encephalon_material :: Texture

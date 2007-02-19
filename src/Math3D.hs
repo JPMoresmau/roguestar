@@ -57,6 +57,7 @@ module Math3D
      matrixMultiply,
      matrixTranspose,
      matrixInverse,
+     Doubleable(..),
      AffineTransformable(..),
      transformHomogenous,
      aMByNMatrix,
@@ -105,12 +106,12 @@ import Control.Monad
 import ListUtils
 import System.Random
                 
-type XYZ = (Float,Float,Float)
+type XYZ = (Double,Double,Double)
 
 class Xyz a where
     toXYZ :: a -> XYZ
 
-data Point3D = Point3D Float Float Float
+data Point3D = Point3D Double Double Double
 	     deriving (Read,Show,Eq)
 
 origin_point_3d :: Point3D
@@ -119,10 +120,10 @@ origin_point_3d = Point3D 0 0 0
 instance Xyz Point3D where
     toXYZ (Point3D x y z) = (x,y,z)
 
-data Point2D = Point2D Float Float
+data Point2D = Point2D Double Double
 	     deriving (Read,Show,Eq)
 
-data Vector3D = Vector3D Float Float Float
+data Vector3D = Vector3D Double Double Double
 	      deriving (Read,Show,Eq)
 
 zero_vector :: Vector3D
@@ -138,16 +139,16 @@ vectorString :: Xyz a => a -> String
 vectorString xyz = let (x,y,z) = toXYZ xyz
 		       in (show x) ++ "," ++ (show y) ++ "," ++ (show z)
 
-uncurry3d :: (Float -> Float -> Float -> a) -> (Float,Float,Float) -> a
+uncurry3d :: (Double -> Double -> Double -> a) -> (Double,Double,Double) -> a
 uncurry3d fn (x,y,z) = fn x y z
 
-point3d :: (Float,Float,Float) -> Point3D
+point3d :: (Double,Double,Double) -> Point3D
 point3d = uncurry3d Point3D
 
 interpolateBetween3d :: [Point3D] -> [Point3D]
 interpolateBetween3d pts | length pts < 4 = head pts :
 					    (concatMap 
-					     (\(p1,p2) -> [lerp (0.5 :: Float) (p1,p2),p2]) $ 
+					     (\(p1,p2) -> [lerp (0.5 :: Double) (p1,p2),p2]) $ 
 					    doubles pts)
 interpolateBetween3d pts = let len = length pts
 			       begin = take 3 pts
@@ -158,7 +159,7 @@ interpolateBetween3d pts = let len = length pts
 
 loopedInterpolateBetween3d :: [Point3D] -> [Point3D]
 loopedInterpolateBetween3d pts | length pts < 4 = (concatMap
-						   (\(p1,p2) -> [lerp (0.5 :: Float) (p1,p2),p2]) $
+						   (\(p1,p2) -> [lerp (0.5 :: Double) (p1,p2),p2]) $
 						  loopedDoubles pts)
 loopedInterpolateBetween3d pts = (concatMap (\x -> [goodInterpolateFn x,x !! 2]) $ loopedConsecutives 4 pts)
 
@@ -167,7 +168,7 @@ interpolateBetween2d = map to2d . interpolateBetween3d . map to3d
 
 goodInterpolateFn :: [Point3D] -> Point3D
 goodInterpolateFn [p0,p1,p2,p3] = 
-    let (Point3D x y z) = lerp (0.5 :: Float) (p1,p2)
+    let (Point3D x y z) = lerp (0.5 :: Double) (p1,p2)
 	simple = vectorAdd (vectorToFrom p1 p0) (vectorToFrom p2 p3)
 	scaled = maybe (Vector3D 0 0 0) (vectorScaleTo (vectorLength (vectorToFrom p1 p2) / 9)) $ aNonZeroVector simple
 	(Vector3D x' y' z') = if (vectorLength simple < vectorLength scaled)
@@ -176,19 +177,19 @@ goodInterpolateFn [p0,p1,p2,p3] =
 	in Point3D (x+x'/2) (y+y'/2) (z+z'/2)
 goodInterpolateFn _ = error "goodInterpolateFn: works only on lists of 4"
 
-point2d :: (Float,Float) -> Point2D
+point2d :: (Double,Double) -> Point2D
 point2d = uncurry Point2D
 
-vector3d :: (Float,Float,Float) -> Vector3D
+vector3d :: (Double,Double,Double) -> Vector3D
 vector3d = uncurry3d Vector3D
 
-points2d :: [(Float,Float)] -> [Point2D]
+points2d :: [(Double,Double)] -> [Point2D]
 points2d = map point2d
 
-points3d :: [(Float,Float,Float)] -> [Point3D]
+points3d :: [(Double,Double,Double)] -> [Point3D]
 points3d = map point3d
 
-points3d_2 :: [((Float,Float,Float),(Float,Float,Float))] -> [(Point3D,Point3D)]
+points3d_2 :: [((Double,Double,Double),(Double,Double,Double))] -> [(Point3D,Point3D)]
 points3d_2 = map (\(l,r) -> (point3d l,point3d r))
 
 to3d :: Point2D -> Point3D
@@ -218,7 +219,7 @@ aNonZeroVector vector = Just vector
 -- |
 -- The dot product of two vectors.
 --
-dotProduct :: Vector3D -> Vector3D -> Float
+dotProduct :: Vector3D -> Vector3D -> Double
 dotProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
     (ax*bx) + (ay*by) + (az*bz)
 
@@ -238,7 +239,7 @@ crossProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 -- |
 -- The distance between two points.
 --
-distanceBetween :: (Xyz xyz) => xyz -> xyz -> Float
+distanceBetween :: (Xyz xyz) => xyz -> xyz -> Double
 distanceBetween a b = vectorLength $ vectorToFrom a b
                 
 -- |
@@ -267,19 +268,19 @@ vectorToFrom a b =
 -- |
 -- Length of the vector.
 --
-vectorLength :: Vector3D -> Float
+vectorLength :: Vector3D -> Double
 vectorLength (Vector3D x y z) = sqrt (x*x + y*y + z*z)
 
 -- |
 -- Multiply a vector by a scalar value.
 --
-vectorScale :: Float -> Vector3D -> Vector3D
+vectorScale :: Double -> Vector3D -> Vector3D
 vectorScale s (Vector3D x y z) = Vector3D (x*s) (y*s) (z*s)
 
 -- |
 -- Scale a vector so that it has the specified length.
 --
-vectorScaleTo :: Float -> Vector3D -> Vector3D
+vectorScaleTo :: Double -> Vector3D -> Vector3D
 vectorScaleTo new_length vector = vectorScale new_length $ vectorNormalize vector
 
 -- |
@@ -362,7 +363,7 @@ identityMatrix n = unsafeMatrix $ map (\x -> genericReplicate x 0 ++ [1] ++ gene
 -- Produces the matrix in which the x y and z axis are transformed to point in the direction of the specified
 -- vectors.
 --
-xyzMatrix :: Vector3D -> Vector3D -> Vector3D -> Matrix Float
+xyzMatrix :: Vector3D -> Vector3D -> Vector3D -> Matrix Double
 xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
     unsafeMatrix [[x1,x2,x3,0],
                   [y1,y2,y3,0],
@@ -532,8 +533,8 @@ determinant m =
 -- Instead, (fromHomogenous . matrixTranspose . toHomogenous) would be the identity function.
 --
 class Homogenous a where
-    toHomogenous :: a -> Matrix Float
-    fromHomogenous :: Matrix Float -> a
+    toHomogenous :: a -> Matrix Double
+    fromHomogenous :: Matrix Double -> a
 
 instance Homogenous Vector3D where
     toHomogenous (Vector3D x y z) = matrix [[x],
@@ -557,22 +558,26 @@ instance Homogenous Point3D where
                                            [1.0]]
     fromHomogenous m = uncurry3d Point3D $ genericFromHomogenous m
 
-genericFromHomogenous :: Matrix Float -> (Float,Float,Float)
+genericFromHomogenous :: Matrix Double -> (Double,Double,Double)
 genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
 			      y = (row_major m) !! 1 !! 0
 			      z = (row_major m) !! 2 !! 0
 			      in (x,y,z)
                 
-class Floatable a where
-    toFloat :: a -> Float
-    fromFloat :: Float -> a
+class Doubleable a where
+    toDouble :: a -> Double
+    fromDouble :: Double -> a
 
-instance Floatable Float where
-    toFloat = id
-    fromFloat = id
+instance Doubleable Double where
+    toDouble = id
+    fromDouble = id
+
+instance Doubleable Float where
+    toDouble = uncurry encodeFloat . decodeFloat
+    fromDouble = uncurry encodeFloat . decodeFloat
 
 class AffineTransformable a where
-    transform :: Matrix Float -> a -> a
+    transform :: Matrix Double -> a -> a
 
 instance AffineTransformable a => AffineTransformable [a] where
     transform m = map (transform m)
@@ -580,8 +585,8 @@ instance AffineTransformable a => AffineTransformable [a] where
 instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
     transform m (a,b) = (transform m a,transform m b)
                 
-instance (Floatable a) => AffineTransformable (Matrix a) where
-    transform mat = coerceMatrix fromFloat . matrixMultiply mat . coerceMatrix toFloat
+instance (Doubleable a) => AffineTransformable (Matrix a) where
+    transform mat = coerceMatrix fromDouble . matrixMultiply mat . coerceMatrix toDouble
 
 instance AffineTransformable Vector3D where
     transform = transformHomogenous
@@ -592,10 +597,10 @@ instance AffineTransformable Point3D where
 instance AffineTransformable Point2D where
     transform = transformHomogenous
                 
-transformHomogenous :: (Homogenous a, Homogenous b) => Matrix Float -> a -> b
+transformHomogenous :: (Homogenous a, Homogenous b) => Matrix Double -> a -> b
 transformHomogenous transformation_matrix entity = fromHomogenous $ matrixMultiply transformation_matrix $ toHomogenous entity
 
-translationMatrix :: Vector3D -> Matrix Float
+translationMatrix :: Vector3D -> Matrix Double
 translationMatrix (Vector3D x y z) = unsafeMatrix [[1,0,0,x],
 					           [0,1,0,y],
 					           [0,0,1,z],
@@ -604,7 +609,7 @@ translationMatrix (Vector3D x y z) = unsafeMatrix [[1,0,0,x],
 -- |
 -- Answers a Rotation matrix that rotates any object around the specified vector.
 --
-rotationMatrix :: Vector3D -> Angle -> Matrix Float
+rotationMatrix :: Vector3D -> Angle -> Matrix Double
 rotationMatrix vector angle = let s = sine angle
 				  c = cosine angle
 				  c' = 1 - c
@@ -614,7 +619,7 @@ rotationMatrix vector angle = let s = sine angle
 					           [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
 					           [0,            0,              0,            1]]
 
-scaleMatrix :: Vector3D -> Matrix Float
+scaleMatrix :: Vector3D -> Matrix Double
 scaleMatrix (Vector3D x y z) = unsafeMatrix [[x, 0, 0, 0],
 				             [0, y, 0, 0],
 				             [0, 0, z, 0],
@@ -638,34 +643,34 @@ rotateZ = rotate (Vector3D 0 0 1)
 scale :: (AffineTransformable a) => Vector3D -> a -> a
 scale vector = transform $ scaleMatrix vector
                 
-scale' :: (AffineTransformable a) => Float -> a -> a
+scale' :: (AffineTransformable a) => Double -> a -> a
 scale' x = scale (Vector3D x x x)
 
-data NoiseFunctionElem = NoiseFunctionElem { nf_transformation_in :: Matrix Float,
-                                             nf_transformation_out :: Float,
-                                             nf_function :: Point3D -> Float }
+data NoiseFunctionElem = NoiseFunctionElem { nf_transformation_in :: Matrix Double,
+                                             nf_transformation_out :: Double,
+                                             nf_function :: Point3D -> Double }
 
 type NoiseFunction = [NoiseFunctionElem]
 
 instance AffineTransformable NoiseFunctionElem where
     transform m nf = nf { nf_transformation_in = (matrixInverse m) `matrixMultiply` (nf_transformation_in nf) }
 
-noiseAt :: NoiseFunction -> Point3D -> Float
+noiseAt :: NoiseFunction -> Point3D -> Double
 noiseAt nf p = sum $ map (flip noiseAt_ p) nf
 
-noiseAt_ :: NoiseFunctionElem -> Point3D -> Float
+noiseAt_ :: NoiseFunctionElem -> Point3D -> Double
 noiseAt_ nf p = nf_transformation_out nf * (nf_function nf $ transform (nf_transformation_in nf) p)
 
 -- |
 -- Compose noise functions by (function,amplitude) by addition.  If the amplitudes
 -- do not sum to 1, they will be scaled uniformly so that they do.
 --
-composeNoiseFunctions :: [(NoiseFunction,Float)] -> NoiseFunction
+composeNoiseFunctions :: [(NoiseFunction,Double)] -> NoiseFunction
 composeNoiseFunctions nfs =
     let total_amplitude_adjustment = 1 / (sum $ map (abs . snd) nfs)
         in concatMap (\(nf,amp) -> map (\nfe -> nfe { nf_transformation_out = nf_transformation_out nfe * total_amplitude_adjustment * amp }) nf) nfs
 
-noiseFunction :: (Point3D -> Float) -> NoiseFunction
+noiseFunction :: (Point3D -> Double) -> NoiseFunction
 noiseFunction fn = [NoiseFunctionElem { nf_transformation_in = identityMatrix 4,
                                         nf_transformation_out = 1.0,
                                         nf_function = \pt -> fn pt }]
@@ -679,7 +684,7 @@ perlin_noise_function = noiseFunction perlinNoise
 -- of the layer before it, so that the synthesized noise function contains
 -- layers with many frequencies that are visible at those lengths.
 --
-synthesizePerlinNoise :: Float -> (Float,Float) -> NoiseFunction
+synthesizePerlinNoise :: Double -> (Double,Double) -> NoiseFunction
 synthesizePerlinNoise _ (l,r) | l > r = error "synthesizePerlinNoise: right length greater than left"
 synthesizePerlinNoise m (l,r) = 
     let middle = sqrt $ l * r
@@ -689,49 +694,49 @@ synthesizePerlinNoise m (l,r) =
         perlin_layers = map (\x -> (scale (Vector3D x x x) perlin_noise_function,x)) lengths
         in composeNoiseFunctions perlin_layers
 
-data Angle = Radians Float deriving (Show)
+data Angle = Radians Double deriving (Show)
 
-radians :: Float -> Angle
+radians :: Double -> Angle
 radians = Radians
 
-degrees :: Float -> Angle
+degrees :: Double -> Angle
 degrees = Radians . ((*) (pi/180))
 
 -- |
 -- Returns the angle in the range of -180 .. 180, inclusive
 --
-inDegrees :: Angle -> Float
+inDegrees :: Angle -> Double
 inDegrees x = let (Radians x') = toBoundedAngle x
                   in x' * 180 / pi
 
 -- |
 -- Returns the angle in the range of -pi .. pi, inclusive
 --
-inRadians :: Angle -> Float
+inRadians :: Angle -> Double
 inRadians (Radians x) = x
 
-scaleAngle :: Float -> Angle -> Angle
+scaleAngle :: Double -> Angle -> Angle
 scaleAngle x = Radians . (* x) . inRadians
 
 zero_angle :: Angle
 zero_angle = Radians 0
 
-sine :: Angle -> Float
+sine :: Angle -> Double
 sine = sin . inRadians
 
-arcSine :: Float -> Angle
+arcSine :: Double -> Angle
 arcSine = radians . asin
 
-cosine :: Angle -> Float
+cosine :: Angle -> Double
 cosine = cos . inRadians
 
-arcCosine :: Float -> Angle
+arcCosine :: Double -> Angle
 arcCosine = radians . acos
 
-tangent :: Angle -> Float
+tangent :: Angle -> Double
 tangent = tan . inRadians
 
-arcTangent :: Float -> Angle
+arcTangent :: Double -> Angle
 arcTangent = radians . atan
 
 -- |
@@ -780,7 +785,7 @@ instance Num Angle where
 -- a u > 1 indicating a point on the opposite side of b from a.
 --
 class Lerpable a where
-    lerp :: Float -> (a,a) -> a
+    lerp :: Double -> (a,a) -> a
 
 instance (Lerpable a,Lerpable b) => Lerpable (a,b) where
     lerp u ((a1,a2),(b1,b2)) = (lerp u (a1,b1),lerp u (a2,b2))
@@ -789,13 +794,13 @@ instance (Lerpable a,Lerpable b) => Lerpable (a,b) where
 -- lerp takes a parameter between 0 and 1, while lerpBetween takes a parameter between two arbitrary values.
 -- lerp u (a,b) == lerpBetween (0,u,1) (a,b)
 --
-lerpBetween :: (Lerpable a) => (Float,Float,Float) -> (a,a) -> a
+lerpBetween :: (Lerpable a) => (Double,Double,Double) -> (a,a) -> a
 lerpBetween (l,u,r) = lerp $ (u-l) / (r-l)
 
 -- |
 -- As lerpBetween, but constrains the parameter to the range 0 <= u <= 1.
 --
-lerpBetweenBounded :: (Lerpable a) => (Float,Float,Float) -> (a,a) -> a
+lerpBetweenBounded :: (Lerpable a) => (Double,Double,Double) -> (a,a) -> a
 lerpBetweenBounded (l,u,r) = lerp $ (max 0 $ min 1 $ (u-l) / (r-l))
 
 -- |
@@ -804,7 +809,7 @@ lerpBetweenBounded (l,u,r) = lerp $ (max 0 $ min 1 $ (u-l) / (r-l))
 -- we might use the map [(0,RED),(1,ORANGE),(2,YELLOW),(3,GREEN),(4,BLUE),(5,INDIGO),(6,VIOLET)].
 -- lerpMap 3.5 would result in a blue-green color.
 --
-lerpMap :: (Lerpable a) => Float -> [(Float,a)] -> a
+lerpMap :: (Lerpable a) => Double -> [(Double,a)] -> a
 lerpMap u pts = 
     let (l,l') = minimumBy (\x -> \y -> compare (fst x) (fst y)) $ filter ((>= u) . fst) pts
         (r,r') = maximumBy (\x -> \y -> compare (fst x) (fst y)) $ filter ((<= u) . fst) pts
@@ -813,7 +818,7 @@ lerpMap u pts =
 lerpNumber :: (Num n) => n -> (n,n) -> n
 lerpNumber u (a,b) = (1-u)*a + u*b
 
-instance Lerpable Float where
+instance Lerpable Double where
    lerp = lerpNumber
 
 instance Lerpable Vector3D where
@@ -839,7 +844,7 @@ instance (Lerpable a) => Lerpable (Maybe a) where
 -- following section of code should be replaced with some other
 -- noise function.
 --
-perlinNoise :: Point3D -> Float
+perlinNoise :: Point3D -> Double
 perlinNoise (Point3D x0 y0 z0) =
    let toFloorForm (int_part,frac_part) = if frac_part < 0
                                           then (int_part - 1,1+frac_part)
@@ -910,7 +915,7 @@ ps = listArray (0,511) $ map (fromInteger . (`mod` 256))
 fade :: (Num a) => a -> a
 fade t = t ^ 3 * (t * (t * 6 - 15) + 10)
 
-grad :: Int -> Float -> Float -> Float -> Float
+grad :: Int -> Double -> Double -> Double -> Double
 grad hash x y z = 
     case hash `mod` 12 of
                        0 -> x + y

@@ -49,12 +49,12 @@ lerpAnimNewest :: LerpAnimation o -> o
 lerpAnimNewest (LerpAnimationStill o) = o
 lerpAnimNewest o = lerpanim_new o
 
-animLerp :: (Lerpable a) => LerpAnimation a -> (Float -> Float) -> AniM i o a
+animLerp :: (Lerpable a) => LerpAnimation a -> (Double -> Double) -> AniM i o a
 animLerp (LerpAnimationStill x) _ = return x
 animLerp x lerpMutator = 
     do oldx <- animLerp (lerpanim_old x) lerpMutator
        time <- animTime
-       return $ lerp (lerpMutator $ toSeconds $ max 0 $ min 1 $ (time - lerpanim_start x) / (max 0.1 $ lerpanim_duration x)  :: Float) (oldx,lerpanim_new x)
+       return $ lerp (lerpMutator $ toSeconds $ max 0 $ min 1 $ (time - lerpanim_start x) / (max 0.1 $ lerpanim_duration x)  :: Double) (oldx,lerpanim_new x)
 
 optimizeLerp :: LerpAnimation a -> AniM i o (LerpAnimation a)
 optimizeLerp x@(LerpAnimationStill _) = return x
@@ -64,7 +64,7 @@ optimizeLerp x@(LerpAnimation {}) =
            then return $ LerpAnimationStill $ lerpanim_new x
            else liftM (\old -> x { lerpanim_old = old }) $ optimizeLerp $ lerpanim_old x
 
-lerpAnimation :: (Eq a,Lerpable o) => a -> LerpAnimation o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> (Float -> Float) -> () -> AniM () o o
+lerpAnimation :: (Eq a,Lerpable o) => a -> LerpAnimation o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> (Double -> Double) -> () -> AniM () o o
 lerpAnimation a o getA atoO renderO lerpTimeO lerpMutator _ = 
     do newa <- getA
        secs <- animTime

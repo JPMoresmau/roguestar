@@ -19,14 +19,14 @@ import Model
 data Joint = Joint { joint_base :: Point3D,
                      joint_end :: Point3D,
                      joint_bend :: Point3D,
-                     joint_hand :: Matrix Float,
-                     joint_arm :: Matrix Float,
-                     joint_shoulder :: Matrix Float }
+                     joint_hand :: Matrix Double,
+                     joint_arm :: Matrix Double,
+                     joint_shoulder :: Matrix Double }
                        deriving (Show)
 
 data JointParams = JointParams { joint_params_base :: Point3D,
                                  joint_params_end :: Point3D,
-                                 joint_params_length :: Float,
+                                 joint_params_length :: Double,
                                  joint_params_bend_vector :: Vector3D }
                                    deriving (Show)
 
@@ -60,14 +60,14 @@ joint jps = joint_ (joint_params_base jps)
 -- down and backwards.  Of course, in real life, it's easy to twist one's arm to give 
 -- it a new bend vector.
 --
-joint_ :: Point3D -> Point3D -> Float -> Vector3D -> Joint
+joint_ :: Point3D -> Point3D -> Double -> Vector3D -> Joint
 joint_ base end len bend_vector = 
     let joint_offset = sqrt $ len^2 - (distanceBetween base end)^2
         axis_vector = vectorNormalize $ vectorToFrom end base
         x_vector = crossProduct axis_vector (vectorNormalize bend_vector)
         y_vector = crossProduct axis_vector x_vector
         parametric_circle theta = vectorScale joint_offset $ vectorAdd (vectorScale (cos theta) x_vector) (vectorScale (sin theta) y_vector)
-        joint_bend_result = translate (parametric_circle $ minimize (distanceBetween bend_vector . parametric_circle) (0,2*pi) 0.01) (lerp (0.5 :: Float) (base,end))
+        joint_bend_result = translate (parametric_circle $ minimize (distanceBetween bend_vector . parametric_circle) (0,2*pi) 0.01) (lerp (0.5 :: Double) (base,end))
         in Joint { joint_base = base,
                    joint_end = end,
                    joint_bend = joint_bend_result,
@@ -79,7 +79,7 @@ joint_ base end len bend_vector =
 -- A rotation matrix so that the transformed object's +Z vector points from base to end, and it's Y+ vector
 -- points along the specified vector.
 --
-jointMatrix :: Point3D -> Point3D -> Vector3D -> Matrix Float
+jointMatrix :: Point3D -> Point3D -> Vector3D -> Matrix Double
 jointMatrix base end vector = 
     let axis_vector = vectorNormalize $ vectorToFrom end base
         x_vector = vectorNormalize $ crossProduct (vectorNormalize vector) axis_vector

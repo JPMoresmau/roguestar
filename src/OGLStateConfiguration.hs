@@ -44,13 +44,13 @@ data OGLLightConfiguration = OGLLightConfiguration
 -- else to some reasonable default.
 --
 data OGLStateConfiguration = OGLStateConfiguration
-    { ogl_background_color :: Color4 Float,
+    { ogl_background_color :: Color4 GLfloat,
       ogl_depth_func :: Maybe ComparisonFunction,
       ogl_depth_mask :: Capability,
       ogl_shade_model :: ShadingModel,
       ogl_polygon_smooth :: Capability,
       ogl_lighting :: Capability,
-      ogl_light_model_ambient :: Color4 Float,
+      ogl_light_model_ambient :: Color4 GLfloat,
       ogl_light_0 :: Maybe OGLLightConfiguration,
       ogl_light_1 :: Maybe OGLLightConfiguration,
       ogl_light_2 :: Maybe OGLLightConfiguration,
