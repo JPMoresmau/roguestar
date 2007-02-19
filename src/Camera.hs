@@ -21,10 +21,10 @@
 --------------------------------------------------------------------------
 
 module Camera 
-    (Camera(..),
-     newCameraAnimation,
+    (newCameraAnimation,
      cameraLookAt,
-     lookAtCamera)
+     lookAtCamera,
+     module CameraData)
     where
 
 import Math3D
@@ -37,16 +37,9 @@ import Control.Monad
 import Tables
 import Data.Maybe
 import Time
-
-data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Show)
-
-instance AffineTransformable Camera where
-    transform mat camera = Camera { camera_spot = transform mat $ camera_spot camera,
-                                    camera_position = transform mat $ camera_position camera }
-
-instance Lerpable Camera where
-    lerp u (a,b) = Camera { camera_spot = lerp u (camera_spot a,camera_spot b),
-                            camera_position = lerp u (camera_position a,camera_position b) }
+import CameraData
+import Data.IORef
+import Globals
 
 -- |
 -- Take a function that renders a shape in the x-y plane (it's ok for the shape to extend along the z-axis,
@@ -80,12 +73,12 @@ cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_positi
 -- |
 -- The Camera animation.
 --
-newCameraAnimation :: IO (Animation () (CSN Camera))
-newCameraAnimation = 
+newCameraAnimation :: IORef RoguestarGlobals -> IO (Animation () (CSN Camera))
+newCameraAnimation globals_ref = 
     newAcceleratedLerpAnimation 
         (0,0) 
         (toCSN world_coordinates Camera {camera_spot=(Point3D 0 0 1), camera_position=origin_point_3d})
-        centerCoordinates
+        (centerCoordinates globals_ref)
         (\_ (x,y) -> return $ toCSN world_coordinates $ goalCamera [Point3D (fromIntegral x) 0 (fromIntegral y)])
         (\_ -> return ())
         (\x y -> return $ fromSeconds $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
@@ -96,11 +89,11 @@ camera_states :: [String]
 camera_states = ["player-turn"]  -- states that provide center-coordinates 
                                  -- if we get a bug where the camera stops moving, we probably need to add a state here
 
-centerCoordinates :: AniM i o (Maybe (Integer,Integer))
-centerCoordinates = 
-    do maybe_state <- animGetAnswer Fresh "state"
+centerCoordinates :: IORef RoguestarGlobals -> AniM i o (Maybe (Integer,Integer))
+centerCoordinates globals_ref = 
+    do maybe_state <- animGetAnswer globals_ref Fresh "state"
        if (maybe False (`elem` camera_states) maybe_state)  
-           then do maybe_table <- animGetTable Anything "center-coordinates" "0"
+           then do maybe_table <- animGetTable globals_ref Anything "center-coordinates" "0"
                    return $ do table <- maybe_table
 		               coords <- return $ tableSelect2Integer table ("axis","coordinate")
 		               maybe_x <- lookup "x" coords

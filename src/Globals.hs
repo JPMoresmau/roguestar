@@ -33,7 +33,7 @@ import Quality
 import Tables
 import DefaultKeymap
 import Math3D
-import Camera
+import CameraData
 import Models.LibraryData
 import AnimationCore
 

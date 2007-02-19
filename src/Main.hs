@@ -72,11 +72,11 @@ qualityFromArgs args = qualityFromArgs $ tail args
 main :: IO ()
 main = do (_,args) <- getArgsAndInitialize
 	  language <- return $ languageFromArgs args
-	  camera_animation <- newCameraAnimation
 	  globals_ref <- newIORef $ roguestar_globals_0 { global_quality = qualityFromArgs args,
 							  global_display_func = displayDispatch,
-							  global_language = language,
-							  global_camera_animation = camera_animation }
+							  global_language = language }
+          camera_animation <- newCameraAnimation globals_ref
+          modifyIORef globals_ref (\x -> x { global_camera_animation = camera_animation })
 	  printText globals_ref GUIMessage license_info
 	  initialWindowSize $= default_window_size
 	  initialDisplayMode $= display_mode

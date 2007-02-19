@@ -28,9 +28,7 @@ module AnimationCore
      CoordinateSystem,
      world_coordinates,
      animio,
-     animGetAnswer,
-     animGetTable,
-     module DriverData)
+     unsafeAnimIO)
     where
 
 import Time
@@ -43,7 +41,6 @@ import Data.List
 import Data.IORef
 import Tables
 import System.IO
-import DriverData
 
 type Animation i o = IORef (AnimationData i o)
 
@@ -54,12 +51,6 @@ data AnimationData i o = AnimationData { animdata_last_out :: Maybe (o,[Animated
                                          animdata_pending_events :: [i]  -- in reverse order of arrival
                                              }
 
-type GetAnswer = DataFreshness -> String -> IO (Maybe String)
-
-type GetTable = DataFreshness -> String -> String -> IO (Maybe RoguestarTable)
-
-type IOSystem = (GetAnswer,GetTable)
-
 newAnimation :: (i -> AniM i o o) -> IO (Animation i o)
 newAnimation switch = newIORef $ AnimationData { animdata_last_out = Nothing,
                                                  animdata_last_update = 0.0,
@@ -67,10 +58,10 @@ newAnimation switch = newIORef $ AnimationData { animdata_last_out = Nothing,
                                                  animdata_in_progress = False,
                                                  animdata_pending_events = [] }
 
-runAnimationWithContext :: IOSystem -> CSN Point3D -> Animation i o -> i -> IO (Maybe o)
-runAnimationWithContext iosystem camerapt animation i = 
+runAnimationWithContext :: CSN Point3D -> Animation i o -> i -> IO (Maybe o)
+runAnimationWithContext camerapt animation i = 
     do time <- getTime
-       result <- guardedRunAnimation iosystem time animation i
+       result <- guardedRunAnimation time animation i
        case result of
                    Just (o,ioactions) -> do runAnimationIOActions camerapt ioactions
                                             return $ Just o
@@ -83,8 +74,8 @@ runAnimationWithContext iosystem camerapt animation i =
 notifyAnimation :: Animation a b -> a -> IO ()
 notifyAnimation animation event = modifyIORef animation (\x -> x { animdata_pending_events = event : animdata_pending_events x })
 
-guardedRunAnimation :: IOSystem -> Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
-guardedRunAnimation iosystem secs animation i =
+guardedRunAnimation :: Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
+guardedRunAnimation secs animation i =
     do animation_data <- readIORef animation
        case (animdata_in_progress animation_data,
              animdata_last_update animation_data >= secs && null (animdata_pending_events animation_data),
@@ -92,15 +83,15 @@ guardedRunAnimation iosystem secs animation i =
                                    (True,_,result) -> do notifyAnimation animation i
                                                          return result
                                    (False,True,Just result) -> return $ Just result        -- use a cached result
-                                   _ -> do runPendingEvents iosystem secs animation
-                                           unguardedRunAnimation iosystem secs animation i  -- run the animation
+                                   _ -> do runPendingEvents secs animation
+                                           unguardedRunAnimation secs animation i  -- run the animation
 
-unguardedRunAnimation :: IOSystem -> Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
-unguardedRunAnimation iosystem secs animation i =
+unguardedRunAnimation :: Time -> Animation i o -> i -> IO (Maybe (o,[AnimatedIOAction]))
+unguardedRunAnimation secs animation i =
     do modifyIORef animation (\x -> x { animdata_in_progress = True })
        animdata <- readIORef animation
        let (AniM switch) = animdata_switch animdata i
-       (e,s) <- runStateT (runErrorT switch) $ (animationStartState iosystem secs animdata)
+       (e,s) <- runStateT (runErrorT switch) $ (animationStartState secs animdata)
        result <- case e of
               Left (AniMFail {anim_terminal_msg=msg}) -> 
                       do when (msg /= "") $ hPutStrLn stderr msg
@@ -117,11 +108,11 @@ unguardedRunAnimation iosystem secs animation i =
                                         animdata_last_out = result `mplus` animdata_last_out x })
        return result
 
-runPendingEvents :: IOSystem -> Time -> Animation i o -> IO ()
-runPendingEvents iosystem time animation =
+runPendingEvents :: Time -> Animation i o -> IO ()
+runPendingEvents time animation =
     do pending_events <- liftM (reverse . animdata_pending_events) $ readIORef animation
        modifyIORef animation (\x -> x { animdata_pending_events = [] })
-       mapM_ (unguardedRunAnimation iosystem time animation) pending_events
+       mapM_ (unguardedRunAnimation time animation) pending_events
 
 forceSwitch :: Animation i o -> (i -> AniM i o o) -> IO ()
 forceSwitch animation switch = modifyIORef animation (\x -> x { animdata_switch = switch })
@@ -136,9 +127,8 @@ forceSwitch animation switch = modifyIORef animation (\x -> x { animdata_switch 
 --
 animCall :: Animation a b -> a -> AniM i o (Maybe b)
 animCall animation a = 
-    do iosystem <- AniM $ liftM2 (,) (gets anim_getAnswer) (gets anim_getTable)
-       time <- animTime
-       result <- AniM $ liftIO $ guardedRunAnimation iosystem time animation a
+    do time <- animTime
+       result <- AniM $ liftIO $ guardedRunAnimation time animation a
        case result of
                    Just (o,ioactions) -> do mapM_ (\x -> animCSNio (toCSN world_coordinates $ animio_position x) (toCSN world_coordinates $ animio_action x)) ioactions
                                             return $ Just o
@@ -164,19 +154,15 @@ data AniMState i o = AniMState { anim_transformation_stack :: [Matrix Double],
                                  anim_io_actions :: [AnimatedIOAction],
                                  anim_switch :: i -> AniM i o o,
                                  anim_time :: Time,
-                                 anim_delta_time :: Time,
-                                 anim_getAnswer :: DataFreshness -> String -> IO (Maybe String),
-                                 anim_getTable :: DataFreshness -> String -> String -> IO (Maybe RoguestarTable) }
+                                 anim_delta_time :: Time }
 
-animationStartState :: IOSystem -> Time -> AnimationData i o -> AniMState i o
-animationStartState (getAnswer,getTable) time animdata = 
+animationStartState :: Time -> AnimationData i o -> AniMState i o
+animationStartState time animdata = 
     AniMState { anim_transformation_stack = [identityMatrix 4],
                 anim_io_actions = [],
                 anim_switch = animdata_switch animdata,
                 anim_time = time,
-                anim_delta_time = time - animdata_last_update animdata,
-                anim_getAnswer = getAnswer,
-                anim_getTable = getTable }
+                anim_delta_time = time - animdata_last_update animdata }
 
 data AniMTerminal i o = AniMTerminal { anim_terminal_retval :: o,
                                        anim_terminal_switch :: i -> AniM i o o,
@@ -214,7 +200,7 @@ instance Monad (AniM i o) where
   fail str = AniM $ fail str
 
 -- |
--- Switch and continue the current thread of execution.
+-- Switch but continue the current thread of execution.
 --
 animSoftSwitch :: (i -> AniM i o o) -> AniM i o ()
 animSoftSwitch newswitch = AniM $ modify (\x -> x { anim_switch = newswitch })
@@ -262,7 +248,7 @@ instance AffineTransformable (AniM i o a) where
                             result <- anim
                             animPop
                             return result
-                            
+
 animTransform :: AffineTransformable a => a -> AniM i o a
 animTransform a = liftM (`transform` a) animMatrix
 
@@ -362,22 +348,6 @@ animCSNio p io = AniM $ modify (\x -> x { anim_io_actions = (AnimatedIOAction { 
 --
 unsafeAnimIO :: IO a -> AniM i o a
 unsafeAnimIO io = AniM $ liftIO io
-
--- |
--- driverGetAnswer, embedded in the Animation Monad.
---
-animGetAnswer :: DataFreshness -> String -> AniM i o (Maybe String)
-animGetAnswer fresh name = 
-    do getAnswer <- AniM $ gets anim_getAnswer
-       unsafeAnimIO $ getAnswer fresh name
-
--- |
--- driverGetTable, embedded in the Animation Monad.
---
-animGetTable :: DataFreshness -> String -> String -> AniM i o (Maybe RoguestarTable)
-animGetTable fresh name the_id = 
-    do getTable <- AniM $ gets anim_getTable
-       unsafeAnimIO $ getTable fresh name the_id
 
 animTime :: AniM i o Time
 animTime = AniM $ gets anim_time

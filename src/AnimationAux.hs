@@ -3,13 +3,20 @@
 module AnimationAux 
     (newStepAnimation,
      newLerpAnimation,
-     newAcceleratedLerpAnimation)
+     newAcceleratedLerpAnimation,
+     animGetAnswer,
+     animGetTable,
+     DataFreshness(..))
     where
     
 import AnimationCore
+import Globals
 import Time
 import Math3D
 import Control.Monad
+import Data.IORef
+import Driver
+import Tables
     
 type GetA a o = AniM () o (Maybe a)
 type AToO a o = (a,o) -> a -> AniM () o o
@@ -99,3 +106,16 @@ newAcceleratedLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerp
     where accelerateLerp x | x < 0.5 = 0.5 * (2 * x) ^ 2
           accelerateLerp x = 1.0 - 0.5 * (2 * (1-x)) ^ 2
           accelerateTime fn x y = (return . (fromSeconds . (* 2) . sqrt . toSeconds)) =<< fn x y
+
+-- |
+-- driverGetAnswer, embedded in the Animation Monad.
+--
+animGetAnswer :: IORef RoguestarGlobals -> DataFreshness -> String -> AniM i o (Maybe String)
+animGetAnswer globals_ref freshness s = AnimationCore.unsafeAnimIO $ driverGetAnswer globals_ref freshness s
+
+-- |
+-- driverGetTable, embedded in the Animation Monad.
+--
+animGetTable :: IORef RoguestarGlobals -> DataFreshness -> String -> String -> AniM i o (Maybe RoguestarTable)
+animGetTable globals_ref freshness the_table_name the_table_id = 
+        AnimationCore.unsafeAnimIO $ driverGetTable globals_ref freshness the_table_name the_table_id
