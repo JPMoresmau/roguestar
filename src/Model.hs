@@ -52,7 +52,7 @@ import Data.List
 import ListUtils
 import Math3D
 import Data.Ratio
-import Graphics.Rendering.OpenGL.GL
+import Graphics.Rendering.OpenGL.GL as GL
 
 data RGB = RGB { red, green, blue :: Double } deriving (Show)
                 
@@ -363,3 +363,9 @@ instance AffineTransformable (IO a) where
     transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
                                                multMatrix (mat' :: GLmatrix Double)
                                                iofn
+    translate (Vector3D x y z) iofn = preservingMatrix $ do GL.translate $ Vector3 x y z
+                                                            iofn
+    scale (Vector3D x y z) iofn = preservingMatrix $ do GL.scale x y z
+                                                        iofn
+    rotate (Vector3D x y z) angle iofn = preservingMatrix $ do GL.rotate (inDegrees angle) (Vector3 x y z)
+                                                               iofn
