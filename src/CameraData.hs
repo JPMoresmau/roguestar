@@ -4,7 +4,7 @@ module CameraData
    
 import Math3D
 
-data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Show)
+data Camera = Camera { camera_spot, camera_position :: Point3D } deriving (Eq,Show)
 
 instance AffineTransformable Camera where
     transform mat camera = Camera { camera_spot = transform mat $ camera_spot camera,

@@ -2,7 +2,8 @@
 
 module AnimationCore
     (Animation,
-     newAnimation,
+     AnimationSource(..),
+     ioNewAnimation,
      runAnimationWithContext,
      AniM,
      animSoftSwitch,
@@ -51,8 +52,17 @@ data AnimationData i o = AnimationData { animdata_last_out :: Maybe (o,[Animated
                                          animdata_pending_events :: [i]  -- in reverse order of arrival
                                              }
 
-newAnimation :: (i -> AniM i o o) -> IO (Animation i o)
-newAnimation switch = newIORef $ AnimationData { animdata_last_out = Nothing,
+class (Monad m) => AnimationSource m where
+    newAnimation :: (i -> AniM i o o) -> m (Animation i o)
+    
+instance AnimationSource IO where
+    newAnimation = ioNewAnimation
+    
+instance AnimationSource (AniM i o) where
+    newAnimation = unsafeAnimIO . ioNewAnimation
+
+ioNewAnimation :: (i -> AniM i o o) -> IO (Animation i o)
+ioNewAnimation switch = newIORef $ AnimationData { animdata_last_out = Nothing,
                                                  animdata_last_update = 0.0,
                                                  animdata_switch = switch,
                                                  animdata_in_progress = False,
@@ -123,7 +133,8 @@ forceSwitch animation switch = modifyIORef animation (\x -> x { animdata_switch 
 -- Furthermore, Animations are non-reentrant because they are instanced and stateful.
 -- The Animation system will automatically detect mutually-recursive or self-referencing animCalls and
 -- provide the most recent result of an animation that is currently in progress.
--- In defense of this design, any other system with such a mutual dependency would need to retain one-step-old data anyway.
+-- In defense of this design, any other system with such a mutual dependency would need to retain 
+-- one-step-old data anyway.
 --
 animCall :: Animation a b -> a -> AniM i o (Maybe b)
 animCall animation a = 
@@ -267,6 +278,9 @@ type CoordinateSystem = CSN (Matrix Double)
 
 instance (AffineTransformable a,Lerpable a) => Lerpable (CSN a) where
     lerp u (a,b) = modifyCSN world_coordinates (lerp u) $ pairCSN (a,b)
+
+instance (AffineTransformable a,Eq a) => Eq (CSN a) where
+    (CSN a) == (CSN b) = a == b
 
 world_coordinates :: CoordinateSystem
 world_coordinates = CSN $ identityMatrix 4

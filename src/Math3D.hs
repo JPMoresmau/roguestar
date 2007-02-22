@@ -57,10 +57,8 @@ module Math3D
      matrixMultiply,
      matrixTranspose,
      matrixInverse,
-     Doubleable(..),
      AffineTransformable(..),
      transformHomogenous,
-     aMByNMatrix,
      translationMatrix,
      rotationMatrix,
      scaleMatrix,
@@ -81,8 +79,12 @@ module Math3D
      perlin_noise_function,
      synthesizePerlinNoise,
      Lerpable(..),
+     genericLerp,
      lerpBetween,
-     lerpBetweenBounded,
+     lerpBetweenMutated,
+     lerpBetweenClamped,
+     lerpBetweenClampedMutated,
+     lerp_mutator_continuous_1st,
      lerpMap,
      Angle,
      degrees,
@@ -105,6 +107,7 @@ import Data.Maybe
 import Control.Monad
 import ListUtils
 import System.Random
+import Data.Ratio
                 
 type XYZ = (Double,Double,Double)
 
@@ -308,7 +311,7 @@ planeNormal a b c = vectorSum [((a `vectorToFrom` b) `crossProduct` (c `vectorTo
 			       ((c `vectorToFrom` a) `crossProduct` (b `vectorToFrom` a))]
 
 -- |
--- The normal vector taken from an arbitrary number of points.
+-- The normal vector taken from an arbitrary number of points describing a polygon.
 --
 newell :: [Point3D] -> Vector3D
 newell points = vectorSum $ map newell_ $ loopedDoubles points
@@ -327,36 +330,53 @@ newell_ (Point3D x0 y0 z0,Point3D x1 y1 z1) =
 -- row_major - the matrix data, where the outer list represents columns (natural form)
 -- col_major - the matrix data, where the outer list represents rows (transposed form)
 --
-data Matrix a = Matrix { rows, cols :: Integer, row_major, col_major :: [[a]] }
+data Matrix a = Matrix { rows, cols :: Integer, row_major, col_major :: [[a]], matrix_inverse :: Matrix a }
 
 instance (Show a) => Show (Matrix a) where
     show m = show $ row_major m
-                
+
+class MatrixType a where
+    matrixInversePrim :: Matrix a -> Matrix a
+
+instance MatrixType Double where
+    matrixInversePrim = matrixInverseRealFrac
+    
+instance MatrixType Float where
+    matrixInversePrim = matrixInverseRealFrac
+    
+instance (Integral a) => MatrixType (Ratio a) where
+    matrixInversePrim = matrixInverseRealFrac
+    
+instance MatrixType Integer where
+    matrixInversePrim = error "matrixInversePrim: tried to take the inverse of an Integer matrix"
+    
+instance MatrixType Int where
+    matrixInversePrim = error "matrixInversePrim: tried to take the inverse of an Int matrix"
+
 -- |
 -- Constructs a matrix from list form.  The outer list represents columns, the inner lists represent
 -- rows.  (Such a list form can be formatted correctly in monospaced font and haskell syntax, so that
 -- it looks like a matrix as it would be normally written.)
 --
-matrix :: [[a]] -> Matrix a
+matrix :: (MatrixType a) => [[a]] -> Matrix a
 matrix dats = let row_lengths = map genericLength dats
 		  row_length = head row_lengths
 		  in (if all (== row_length) row_lengths
-		      then Matrix { rows=genericLength row_lengths, --the number of rows is the length of each column
-				    cols=row_length, --the number of columns is the length of each row
-				    row_major=dats,
-				    col_major=transpose dats }
+		      then unsafeMatrix dats
 		      else error "row lengths do not match")
 
-unsafeMatrix :: [[a]] -> Matrix a
-unsafeMatrix dats = Matrix { rows=genericLength dats, --the number of rows is the length of each column
-                             cols=genericLength $ head dats, --the number of columns is the length of each row
-		             row_major=dats,
-		             col_major=transpose dats }
+unsafeMatrix :: (MatrixType a) => [[a]] -> Matrix a
+unsafeMatrix dats = m
+    where m = Matrix { rows=genericLength dats, --the number of rows is the length of each column
+                       cols=genericLength $ head dats, --the number of columns is the length of each row
+		       row_major=dats,
+		       col_major=transpose dats,
+		       matrix_inverse = matrixInversePrim m }
 
 -- |
 -- identityMatrix n is the n by n identity matrix
 --
-identityMatrix :: (Num a,Integral i) => i -> Matrix a
+identityMatrix :: (MatrixType a,Num a,Integral i) => i -> Matrix a
 identityMatrix n = unsafeMatrix $ map (\x -> genericReplicate x 0 ++ [1] ++ genericReplicate (n-1-x) 0) [0..n-1]
 
 -- |
@@ -376,47 +396,36 @@ rowMajorForm mat = row_major mat
 colMajorForm :: Matrix a -> [[a]]
 colMajorForm mat = col_major mat
 
-aMByNMatrix :: String -> Integer -> Integer -> Matrix a -> Matrix a
-aMByNMatrix msg m n mat = if (m == rows mat && n == cols mat)
-			  then mat
-			  else error ("aMByNMatrix: not a " ++ show m ++ " by " ++ show n ++ " matrix; " ++ msg)
-
 -- |
 -- Adds two matrices.
 --
-matrixAdd :: (Num a) => Matrix a -> Matrix a -> Matrix a
+matrixAdd :: (MatrixType a,Num a) => Matrix a -> Matrix a -> Matrix a
 matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
 				      then map ((map (uncurry (+))).(uncurry zip)) $ zip (row_major m) (row_major n)
 				      else error "matrixAdd: dimension mismatch")
-		    in Matrix { rows=rows m,
-		                cols=cols m,
-		                row_major=new_row_major,
-		                col_major=transpose new_row_major }
+		    in unsafeMatrix new_row_major
 
 -- |
 -- Multiply two matrices.
 --
-matrixMultiply :: (Num a) => Matrix a -> Matrix a -> Matrix a
+matrixMultiply :: (MatrixType a,Num a) => Matrix a -> Matrix a -> Matrix a
 matrixMultiply m n | cols m /= rows n = error "matrixMultiply: dimension mismatch"
 matrixMultiply m n = let m_data = row_major m
 			 n_data = col_major n
 			 new_row_major = [[sum $ zipWith (*) m' n' | n' <- n_data] | m' <- m_data] 
-			 in Matrix { rows=rows m,
-				     cols=cols n,
-				     row_major = new_row_major,
-				     col_major = transpose new_row_major } -- this should force full evaluation
+			 in unsafeMatrix new_row_major
 
 -- |
 -- Transpose a matrix.
 --
-matrixTranspose :: Matrix a -> Matrix a
+matrixTranspose :: (MatrixType a) => Matrix a -> Matrix a
 matrixTranspose = unsafeMatrix . colMajorForm -- works because matrix expects row major form
                 
 -- |
 -- Returns the same matrix, with rows that have more leading zeroes below rows that have fewer.
 -- Used for Gaussian elimination.
 --
-sortMatrixByLeadingZeroes :: (Num a) => Matrix a -> Matrix a
+sortMatrixByLeadingZeroes :: (MatrixType a,Num a) => Matrix a -> Matrix a
 sortMatrixByLeadingZeroes m =
     let leadingZeroCount r = length $ takeWhile (== 0) r
         compareByLeadingZeroes l r = compare (leadingZeroCount l) (leadingZeroCount r)
@@ -430,16 +439,28 @@ sortMatrixByLeadingZeroes m =
 --
 -- Used for Gaussian elimination.
 --
-pickRowMatching :: (Num a,Fractional a) => Integer -> Integer -> Matrix a -> [a] -> Maybe [a]
+pickRowMatching :: (MatrixType a,Num a) => Integer -> Integer -> Matrix a -> [a] -> Maybe [a]
 pickRowMatching leading trailing m nonmatching =
     let rowMatches r = (all (== 0) $ genericTake leading r) && 
                        (all (== 0) $ genericTake trailing $ genericDrop (leading + 1) r) &&
                        ((r `genericIndex` leading) /= 0) &&
                        (not $ areScalarMultiples nonmatching r)
-        areScalarMultiples l r = let ratio_list = zipWith (\l' r' -> if r' == 0 then Nothing else Just $ l' / r') l r
-                                     one_ratio = fromMaybe Nothing $ find isJust ratio_list
-                                     in (isJust one_ratio) && (all (== one_ratio) ratio_list)
         in find rowMatches $ rowMajorForm m
+
+-- |
+-- Given two lists of numbers, are the elements of one list a constant multiple of the other?
+-- This requires that the lists have the same length.
+--
+areScalarMultiples :: (Num a) => [a] -> [a] -> Bool
+areScalarMultiples [] [] = True
+areScalarMultiples [] _ = False
+areScalarMultiples _ [] = False
+areScalarMultiples [_] [_] = True
+areScalarMultiples [_] (_:_) = False
+areScalarMultiples (_:_) [_] = False
+areScalarMultiples (a:a':as) (b:b':bs) = if a*b' == a'*b
+                                         then areScalarMultiples (a':as) (b':bs)
+                                         else False
 
 -- |
 -- Forces the specified matrix row to have the specified number of
@@ -462,42 +483,51 @@ forceLeadingZeroesAtRow row zeroes m =
 -- |
 -- Use Gaussian elimination to produce an upper triangular matrix.
 --
-toUpperTriangularMatrix :: (Num a,Real a,Fractional a) => Matrix a -> Maybe (Matrix a)
+toUpperTriangularMatrix :: Matrix Rational -> Maybe (Matrix Rational)
 toUpperTriangularMatrix m = 
-    liftM (coerceMatrix fromRational) $ foldM (\m' n -> forceLeadingZeroesAtRow n n m') (sortMatrixByLeadingZeroes $ coerceMatrix toRational m) [0..(min (rows m) (cols m) - 1)]
+    foldM (\m' n -> forceLeadingZeroesAtRow n n m') (sortMatrixByLeadingZeroes m) [0..(min (rows m) (cols m) - 1)]
 
-reduceMatrix :: Matrix a -> (Integer,Integer) -> Matrix a
+reduceMatrix :: (MatrixType a) => Matrix a -> (Integer,Integer) -> Matrix a
 reduceMatrix m (i,j) =
     let (above,below) = genericSplitAt j $ rowMajorForm m
         (left,right) = genericSplitAt i $ transpose $ above ++ tail below
         in unsafeMatrix $ transpose $ left ++ tail right
-                
-matrixMinor :: (Num a,Real a,Fractional a) => Matrix a -> (Integer,Integer) -> a
+
+matrixMinor :: Matrix Rational -> (Integer,Integer) -> Rational
 matrixMinor m ij = determinant $ reduceMatrix m ij
 
 -- |
 -- The cofactor of m at (i,j) is the element at (i,j) times the determinant of
 -- matrix m with row i and column j removed.
 --
-matrixCofactor :: (Num a,Fractional a,Real a) => Matrix a -> (Integer,Integer) -> a
+matrixCofactor :: Matrix Rational -> (Integer,Integer) -> Rational
 matrixCofactor m (0,0) | rows m == 1 && cols m == 1 = matrixAt m (0,0)
 matrixCofactor m (i,j) = (-1)^(i+j) * matrixMinor m (i,j)
 
--- |
--- Answers the inverse of this matrix.
---
 matrixInverse :: (Num a,Fractional a,Real a) => Matrix a -> Matrix a
-matrixInverse m | rows m /= cols m = error "matrixInverse: not a square matrix"
-matrixInverse m | determinant m == 0 = error "matrixInverse: det m = 0"
-matrixInverse m = 
+matrixInverse = matrix_inverse
+
+-- |
+-- Non-memoized inverse of a rational matrix.
+--
+matrixInverseRational :: Matrix Rational -> Matrix Rational
+matrixInverseRational m | rows m /= cols m = error "matrixInverseRational: not a square matrix"
+matrixInverseRational m | determinant m == 0 = error "matrixInverseRational: det m = 0"
+matrixInverseRational m = 
     let scale_factor = 1 / determinant m
         in matrixTranspose $ unsafeMatrix [[scale_factor * matrixCofactor m (i,j) | i <- [0..(cols m-1)]]
                                                                                   | j <- [0..(rows m-1)]]
 
 -- |
+-- Non-memoized inverse of a real-number matrix.
+--
+matrixInverseRealFrac :: (RealFrac a,MatrixType a) => Matrix a -> Matrix a
+matrixInverseRealFrac = coerceMatrix fromRational . matrixInverseRational . coerceMatrix toRational
+
+-- |
 -- Coerce a matrix from one type to another.
 --
-coerceMatrix :: (a -> b) -> Matrix a -> Matrix b
+coerceMatrix :: (MatrixType b) => (a -> b) -> Matrix a -> Matrix b
 coerceMatrix fn m = unsafeMatrix $ map (map fn) $ rowMajorForm m
 
 -- |
@@ -513,12 +543,12 @@ matrixAt m (i,j) = ((rowMajorForm m) `genericIndex` j) `genericIndex` i
 -- Replace a specific row in a matrix.
 -- An unsafe operation.
 --
-replaceRow :: Matrix a -> Integer -> [a] -> Matrix a
+replaceRow :: (MatrixType a) => Matrix a -> Integer -> [a] -> Matrix a
 replaceRow m n new_row =
     let (begin,rest) = genericSplitAt n $ rowMajorForm m
         in unsafeMatrix $ begin ++ [new_row] ++ (tail rest)
 
-determinant :: (Num a,Fractional a,Real a) => Matrix a -> a
+determinant :: Matrix Rational -> Rational
 determinant m | rows m /= cols m = error "determinant: not a square matrix"
 determinant m =
     fromMaybe 0 $ do m_upper_triangular <- toUpperTriangularMatrix m
@@ -563,18 +593,6 @@ genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
 			      y = (row_major m) !! 1 !! 0
 			      z = (row_major m) !! 2 !! 0
 			      in (x,y,z)
-                
-class Doubleable a where
-    toDouble :: a -> Double
-    fromDouble :: Double -> a
-
-instance Doubleable Double where
-    toDouble = id
-    fromDouble = id
-
-instance Doubleable Float where
-    toDouble = uncurry encodeFloat . decodeFloat
-    fromDouble = uncurry encodeFloat . decodeFloat
 
 class AffineTransformable a where
     transform :: Matrix Double -> a -> a
@@ -585,8 +603,8 @@ instance AffineTransformable a => AffineTransformable [a] where
 instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
     transform m (a,b) = (transform m a,transform m b)
                 
-instance (Doubleable a) => AffineTransformable (Matrix a) where
-    transform mat = coerceMatrix fromDouble . matrixMultiply mat . coerceMatrix toDouble
+instance (Fractional a,Real a,MatrixType a) => AffineTransformable (Matrix a) where
+    transform mat = coerceMatrix realToFrac . matrixMultiply mat . coerceMatrix realToFrac
 
 instance AffineTransformable Vector3D where
     transform = transformHomogenous
@@ -790,18 +808,37 @@ class Lerpable a where
 instance (Lerpable a,Lerpable b) => Lerpable (a,b) where
     lerp u ((a1,a2),(b1,b2)) = (lerp u (a1,b1),lerp u (a2,b2))
 
+genericLerp :: (Lerpable a,Real r) => r -> (a,a) -> a
+genericLerp u (a,b) = lerp (realToFrac u) (a,b)
+
 -- |
 -- lerp takes a parameter between 0 and 1, while lerpBetween takes a parameter between two arbitrary values.
 -- lerp u (a,b) == lerpBetween (0,u,1) (a,b)
 --
-lerpBetween :: (Lerpable a) => (Double,Double,Double) -> (a,a) -> a
-lerpBetween (l,u,r) = lerp $ (u-l) / (r-l)
+lerpBetween :: (Lerpable a,Real r,Fractional r) => (r,r,r) -> (a,a) -> a
+lerpBetween = lerpBetweenMutated id
+
+lerpBetweenMutated :: (Lerpable a,Real r,Fractional r) => (Double -> Double) -> (r,r,r) -> (a,a) -> a
+lerpBetweenMutated mutator (l,u,r) = lerp $ mutator $ realToFrac $ (u-l) / (r-l)
 
 -- |
 -- As lerpBetween, but constrains the parameter to the range 0 <= u <= 1.
 --
-lerpBetweenBounded :: (Lerpable a) => (Double,Double,Double) -> (a,a) -> a
-lerpBetweenBounded (l,u,r) = lerp $ (max 0 $ min 1 $ (u-l) / (r-l))
+lerpBetweenClamped :: (Lerpable a,Real r,Fractional r,Ord r) => (r,r,r) -> (a,a) -> a
+lerpBetweenClamped = lerpBetweenClampedMutated id
+
+lerpBetweenClampedMutated :: (Lerpable a,Real r,Fractional r,Ord r) => (Double -> Double) -> (r,r,r) -> (a,a) -> a
+lerpBetweenClampedMutated mutator (l,u,r) = lerp $ max 0 $ min 1 $ mutator $ realToFrac $ (u-l) / (r-l)
+
+-- |
+-- A lerp mutator that gives a continuous 1st derivitive to the entity's change over the parameter,
+-- assuming it had continuous change to begin with.
+--
+lerp_mutator_continuous_1st :: Double -> Double
+lerp_mutator_continuous_1st x | x < 0 = 0
+lerp_mutator_continuous_1st x | x > 1 = 1
+lerp_mutator_continuous_1st x | x <= 0.5 = (x*2)^2 / 2
+lerp_mutator_continuous_1st x = 1 - ((1-x)*2)^2 / 2
 
 -- |
 -- Given many entities, lerp between the two entities closest to the given point

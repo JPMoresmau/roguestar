@@ -1,9 +1,14 @@
 {-# OPTIONS_GHC -fglasgow-exts #-}
 
 module AnimationAux 
-    (newStepAnimation,
-     newLerpAnimation,
-     newAcceleratedLerpAnimation,
+    (instanceEdgeDetector,
+     instancePersistantAnimation,
+     instanceStatefulAnimation,
+     instanceHistoryTracker,
+     animStatefulHardSwitch,
+     animStatefulSoftSwitch,
+     instanceLerpAnimation,
+     instanceLerpAnimationMutated,
      animGetAnswer,
      animGetTable,
      DataFreshness(..))
@@ -14,98 +19,108 @@ import Globals
 import Time
 import Math3D
 import Control.Monad
+import Control.Monad.State
 import Data.IORef
 import Driver
 import Tables
+import Data.Maybe
     
+{-
 type GetA a o = AniM () o (Maybe a)
 type AToO a o = (a,o) -> a -> AniM () o o
 type RenderO a o = (a,o) -> AniM () o ()
 type LerpTime o = o -> o -> AniM () o Time
-    
-stepAnimation :: (Eq a) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> () -> AniM () o o
-stepAnimation a o getA atoO renderO _ = 
-    do newa <- getA
-       case newa of
-               Just newa' | a /= newa' -> do newo <- atoO (a,o) newa'
-                                             animHardSwitch () $ stepAnimation newa' newo getA atoO renderO
-               _ -> do renderO (a,o)
-                       return o
+-}
+
+type AniMState s i o a = StateT s (AniM i o) a
 
 -- |
--- A generic step animation.  
--- newStepAnimation a o getA atoO renderO
--- a is a representation of the object to be rendered.  The animation thread watches the value of a returned by getA.
--- If it changes, atoO is run to generate a new value for o, which will be returned until a changes again.
--- atoO recieves the old values of a and o in its first parameter and the value of a in its second parameter.
+-- Creates a stateful animation.
 --
-newStepAnimation :: (Eq a) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> IO (Animation () o)
-newStepAnimation a o getA atoO renderO = newAnimation $ stepAnimation a o getA atoO renderO
+instanceStatefulAnimation :: (AnimationSource m) => r -> s -> (a -> AniMState s a r r) -> m (a -> AniM i o r)
+instanceStatefulAnimation default_value initial_state fn = instanceAnimation default_value (statefulAnimation fn initial_state)
 
-data LerpAnimation o = LerpAnimation { lerpanim_start :: Time,
-                                       lerpanim_duration :: Time,
-                                       lerpanim_old :: LerpAnimation o,
-                                       lerpanim_new :: o }
-                     | LerpAnimationStill o -- since we lerp recursively against old (interrupted) lerps, keep an alternate representation of completed lerps
-                                            -- don't lerp recursively against every lerp we've ever done.
+statefulAnimation :: (i -> AniMState s i o o) -> s -> i -> AniM i o o
+statefulAnimation fn state x = do (o,s) <- runStateT (fn x) state
+                                  animTerminate (statefulAnimation fn s) o
+
+animStatefulHardSwitch :: i -> (i -> AniMState s i o o) -> AniMState s i o o
+animStatefulHardSwitch param fn = do s <- get
+                                     lift $ animHardSwitch param (statefulAnimation fn s) 
+
+animStatefulSoftSwitch :: (i -> AniMState s i o o) -> AniMState s i o ()
+animStatefulSoftSwitch fn = do state <- get
+                               lift $ animSoftSwitch $ statefulAnimation fn state
+
+instanceEdgeDetector :: (Eq a,AnimationSource m) => a -> m (a -> AniM i o ((a,a),Time))
+instanceEdgeDetector initial_value =
+    do instanceStatefulAnimation (error "edgeDetectionAnimation: failed") ((initial_value,initial_value),fromSeconds 0) edgeDetector
+           where edgeDetector :: (Eq a) => a -> AniMState ((a,a),Time) a ((a,a),Time) ((a,a),Time)
+                 edgeDetector x = do ((_,nowx),_) <- get
+                                     now <- lift animTime
+                                     when (nowx /= x) $ put ((nowx,x),now)
+                                     get
 
 -- |
--- Retrieve the most recent un-interpolated value of a LerpAnimation.
+-- Wraps a function that may fail.  If the function fails,
+-- the animation returns the most recent value of that function.
 --
-lerpAnimNewest :: LerpAnimation o -> o
-lerpAnimNewest (LerpAnimationStill o) = o
-lerpAnimNewest o = lerpanim_new o
-
-animLerp :: (Lerpable a) => LerpAnimation a -> (Double -> Double) -> AniM i o a
-animLerp (LerpAnimationStill x) _ = return x
-animLerp x lerpMutator = 
-    do oldx <- animLerp (lerpanim_old x) lerpMutator
-       time <- animTime
-       return $ lerp (lerpMutator $ toSeconds $ max 0 $ min 1 $ (time - lerpanim_start x) / (max 0.1 $ lerpanim_duration x)  :: Double) (oldx,lerpanim_new x)
-
-optimizeLerp :: LerpAnimation a -> AniM i o (LerpAnimation a)
-optimizeLerp x@(LerpAnimationStill _) = return x
-optimizeLerp x@(LerpAnimation {}) = 
-    do lerp_is_done <- liftM (lerpanim_start x + lerpanim_duration x <) animTime
-       if lerp_is_done
-           then return $ LerpAnimationStill $ lerpanim_new x
-           else liftM (\old -> x { lerpanim_old = old }) $ optimizeLerp $ lerpanim_old x
-
-lerpAnimation :: (Eq a,Lerpable o) => a -> LerpAnimation o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> (Double -> Double) -> () -> AniM () o o
-lerpAnimation a o getA atoO renderO lerpTimeO lerpMutator _ = 
-    do newa <- getA
-       secs <- animTime
-       case newa of
-               Just newa' | a /= newa' -> do newo <- atoO (a,lerpAnimNewest o) newa'
-                                             lerp_time <- lerpTimeO (lerpAnimNewest o) newo
-                                             o' <- optimizeLerp o
-                                             let newo' = LerpAnimation { lerpanim_start = secs,
-                                                                         lerpanim_duration = lerp_time,
-                                                                         lerpanim_old = o',
-                                                                         lerpanim_new = newo }
-                                             animHardSwitch () $ lerpAnimation newa' newo' getA atoO renderO lerpTimeO lerpMutator
-               _ -> do lerped_o <- animLerp o lerpMutator
-                       renderO (a,lerped_o)
-                       return lerped_o
+instancePersistantAnimation :: (AnimationSource m) => r -> (a -> AniM a (Maybe r) (Maybe r)) -> m (a -> AniM i o r)
+instancePersistantAnimation initial_value unwrapped_fn =
+    do fn <- instanceAnimation (error "persistantAnimation: wrapped animation failed") unwrapped_fn
+       let persistantAnimation param =
+               do maybe_value <- lift $ fn param
+                  when (isJust maybe_value) $ put $ fromJust maybe_value
+                  get
+       instanceStatefulAnimation (error "persistantAnimation: failed") initial_value persistantAnimation
 
 -- |
--- A generic linear-interpolated animation.  This works the same as newStepAnimation, with a new function,
--- lerpTime, which indicates how long the linear interpolation should take.  For example, this might be the
--- pythagorean distance between two points, or just a constant value.
+-- Answers an edge-detection history for a value.
+-- A function, given the current time, indicates when old values should be kept (True) or discarded (False).
+-- The history tracker is guaranteed never to return an empty list.
 --
-newLerpAnimation :: (Eq a,Lerpable o) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
-newLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerpAnimation a (LerpAnimationStill o) getA atoO renderO lerpTime id
+instanceHistoryTracker :: (Eq a,AnimationSource m) => a -> (Time -> ((a,a),Time) -> Bool) -> m (a -> AniM i o [((a,a),Time)])
+instanceHistoryTracker initial_value forgetfn = 
+    do edgeDetector <- instanceEdgeDetector initial_value
+       let historyTracker param = 
+               do value <- lift $ edgeDetector param
+                  time <- lift $ animTime
+                  history <- gets (takeWhile $ forgetfn time)
+                  when (Just value /= listToMaybe history) $ modify (const $ value : history)
+                  get
+       instanceStatefulAnimation (error "historyTracker: failed") [((initial_value,initial_value),fromSeconds 0)] historyTracker
 
 -- |
--- Another linear-interpolated animation.  This time, the interpolation is non-linear wrt time.  Intead, the animated
--- object accelerates to a maximum speed halfway through the interpolation, and the slows as it approaches the end.
--- No change should be needed to replace newLerpAnimation with newAcceleratedLerpAnimation.
+-- Instantiate a new animation to be called from another.
+-- The first parameter is a default value to return if the animation ever fails.
 --
-newAcceleratedLerpAnimation :: (Eq a,Lerpable o) => a -> o -> GetA a o -> AToO a o -> RenderO a o -> LerpTime o -> IO (Animation () o)
-newAcceleratedLerpAnimation a o getA atoO renderO lerpTime = newAnimation $ lerpAnimation a (LerpAnimationStill o) getA atoO renderO (accelerateTime lerpTime) accelerateLerp
-    where accelerateLerp x | x < 0.5 = 0.5 * (2 * x) ^ 2
-          accelerateLerp x = 1.0 - 0.5 * (2 * (1-x)) ^ 2
-          accelerateTime fn x y = (return . (fromSeconds . (* 2) . sqrt . toSeconds)) =<< fn x y
+instanceAnimation :: (AnimationSource m) => r -> (a -> AniM a r r) -> m (a -> AniM i o r)
+instanceAnimation default_value anim_fn =
+    do animation <- newAnimation anim_fn
+       return $ liftM (fromMaybe default_value) . animCall animation
+
+-- |
+-- Use a duration function to smoothly lerp a changing value.
+-- The duration function returns the time needed to lerp between two values.
+--
+instanceLerpAnimation :: (AnimationSource m,Eq a,Lerpable a) => a -> (a -> a -> Time) -> m (a -> AniM i o a)
+instanceLerpAnimation = instanceLerpAnimationMutated id
+
+instanceLerpAnimationMutated :: (AnimationSource m,Eq a,Lerpable a) => (Double->Double) -> a -> (a -> a -> Time) -> m (a -> AniM i o a)
+instanceLerpAnimationMutated mutator initial_value duration =
+    do historyTracker <- instanceHistoryTracker initial_value (\t_now ((x,y),t_then) -> t_now <= t_then + duration x y)
+       let lerpfn1 ((a,a'),_) | duration a a' == 0 =
+               do return a'
+           lerpfn1 ((a,a'),at) =
+               do time <- animTime
+                  return $ lerpBetweenClampedMutated mutator (at,time,at + duration a a') (a,a')
+           lerpfn2 aevent ((_,b'),bt) =
+               do b <- lerpfn1 aevent
+                  return ((b,b'),bt)
+       let lerpAnimation param =
+               do history <- liftM reverse $ historyTracker param
+                  lerpfn1 =<< foldM lerpfn2 (head history) (tail history)
+       instanceAnimation (error "lerpAnimation: failed") lerpAnimation
 
 -- |
 -- driverGetAnswer, embedded in the Animation Monad.

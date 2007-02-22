@@ -29,6 +29,7 @@ module Time
 
 import System.Time
 import Control.Monad
+import Data.Ratio
 
 data Time = Time Integer deriving (Show) -- in milliseconds
 
@@ -77,6 +78,14 @@ instance Fractional Time where
     (/) (Time x) (Time y) = Time $ (x * scale_factor) `div` y
     recip (Time x) = Time $ scale_factor `div` x
     fromRational x = Time $ round $ x * scale_factor
+    
+{-# RULES
+"realToFrac/Time->Float"    realToFrac   = toSeconds :: Time -> Float
+"realToFrac/Time->Double"   realToFrac   = toSeconds :: Time -> Double
+    #-}
+    
+instance Real Time where
+    toRational (Time x) = x % scale_factor
     
 instance Eq Time where
     (==) (Time x) (Time y) = x == y

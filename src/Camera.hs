@@ -61,7 +61,6 @@ lookAtCamera camera xyz_source rendering_fn =
             GL.rotate (inDegrees rotate_y) $ Vector3 0 1 0
             rendering_fn
             
-
 -- |
 -- Calls GLU's lookAt with this camera.
 --
@@ -75,22 +74,21 @@ cameraLookAt (Camera { camera_spot=(Point3D spot_x spot_y spot_z), camera_positi
 --
 newCameraAnimation :: IORef RoguestarGlobals -> IO (Animation () (CSN Camera))
 newCameraAnimation globals_ref = 
-    newAcceleratedLerpAnimation 
-        (0,0) 
-        (toCSN world_coordinates Camera {camera_spot=(Point3D 0 0 1), camera_position=origin_point_3d})
-        (centerCoordinates globals_ref)
-        (\_ (x,y) -> return $ toCSN world_coordinates $ goalCamera [Point3D (fromIntegral x) 0 (fromIntegral y)])
-        (\_ -> return ())
-        (\x y -> return $ fromSeconds $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
-            where limitTime x | x > 4 = 4 + log (x - 4)
-                  limitTime x = x
+    do animGoalCamera' <- instancePersistantAnimation initial_camera (const $ animGoalCamera globals_ref)
+       lerpCamera <- instanceLerpAnimationMutated  lerp_mutator_continuous_1st initial_camera
+                         (\x y -> fromSeconds $ limitTime $ distanceBetween (camera_position $ fromCSN world_coordinates x) (camera_position $ fromCSN world_coordinates y))
+       newAnimation $ const $ lerpCamera =<< animGoalCamera' ()
+           where limitTime x | x >= 8 = 0
+                 limitTime x | x > 4 = 8 - x
+                 limitTime x = x
+                 initial_camera = toCSN world_coordinates Camera { camera_spot=Point3D 0 0 1,camera_position=origin_point_3d }
 
 camera_states :: [String]
 camera_states = ["player-turn"]  -- states that provide center-coordinates 
-                                 -- if we get a bug where the camera stops moving, we probably need to add a state here
+                                 -- if we get a bug where the camera moves incorrectly, we probably need to add a state here
 
-centerCoordinates :: IORef RoguestarGlobals -> AniM i o (Maybe (Integer,Integer))
-centerCoordinates globals_ref = 
+animGoalCamera :: IORef RoguestarGlobals -> AniM i o (Maybe (CSN Camera))
+animGoalCamera globals_ref = 
     do maybe_state <- animGetAnswer globals_ref Fresh "state"
        if (maybe False (`elem` camera_states) maybe_state)  
            then do maybe_table <- animGetTable globals_ref Anything "center-coordinates" "0"
@@ -98,7 +96,8 @@ centerCoordinates globals_ref =
 		               coords <- return $ tableSelect2Integer table ("axis","coordinate")
 		               maybe_x <- lookup "x" coords
 		               maybe_y <- lookup "y" coords
-		               liftM2 (,) maybe_x maybe_y
+		               (x,y) <- liftM2 (,) maybe_x maybe_y
+		               return $ toCSN world_coordinates $ goalCamera [Point3D (fromInteger x) 0 (fromInteger y)]
            else return Nothing
 
 -- |

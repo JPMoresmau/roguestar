@@ -291,7 +291,7 @@ frame tex pts = let normals_smooth_one_way = map ((quadStripToNormals).(uncurry 
 		    in Union $ map (Strip tex . uncurry zip) $ loopedDoubles $ map (uncurry zip) $ zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
 
 instance AffineTransformable Model where
-    transform mat model = Transformation (aMByNMatrix "in Model.transform" 4 4 mat) model
+    transform mat model = Transformation mat model
 
 toVertex3 :: Point3D -> Vertex3 Double
 toVertex3 (Point3D x y z) = Vertex3 x y z
@@ -300,15 +300,15 @@ toNormal3 :: Vector3D -> Normal3 Double
 toNormal3 (Vector3D x y z) = Normal3 x y z
 
 toColor4_rgb :: Material -> Color4 GLfloat
-toColor4_rgb (Material { rgb=(Model.RGB r g b), alpha=a }) = Color4 (fromDouble r) (fromDouble g) (fromDouble b) (fromDouble $ fromMaybe 1 a)
+toColor4_rgb (Material { rgb=(Model.RGB r g b), alpha=a }) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) (realToFrac $ fromMaybe 1 a)
 
 toColor4_lum :: Material -> Color4 GLfloat
-toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 (fromDouble r) (fromDouble g) (fromDouble b) 0
+toColor4_lum (Material { lum=(Just (Model.RGB r g b))}) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) 0
 toColor4_lum _ = Color4 0 0 0 0
 
 materialToOpenGL :: Material -> IO ()
 materialToOpenGL c = 
-    let shininess = fromDouble $ fromMaybe 0 (shine c)
+    let shininess = realToFrac $ fromMaybe 0 (shine c)
 	in do materialShininess Front $= shininess*128
 	      materialSpecular Front $= Color4 shininess shininess shininess 1.0
 	      materialAmbientAndDiffuse Front $= toColor4_rgb c
