@@ -1,0 +1,11 @@
+RogueStar Animation and Graphics Library
+
+StatefulArrow - inspired by the YAMPA arrow, an arrow transformer that allows an arrow to 
+                self-modify when iterated over itself.
+
+SwitchedArrow - (unimplemented) an arrow transformer that implements switching
+
+ThreadedArrow - (unimplemented) an arrow transformer that implements threading
+                each thread has the ability to spawn a thread or die
+
+TestFunctions - some quick and dirty sanity tests, load this up in ghci
