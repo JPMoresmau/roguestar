@@ -3,7 +3,8 @@
 module RSAGL.StatefulArrow
     (StatefulArrow(..),
      StatefulFunction,
-     internally)
+     stateContext,
+     runStateMachine)
     where
 
 import Control.Arrow
@@ -35,7 +36,19 @@ instance (Arrow a) => ArrowTransformer StatefulArrow a where
 -- "Hide" a StateArrow inside a StatefulArrow.
 -- The StateArrow's internal state is fed back to it on each iteration.
 -- 
-internally :: (Arrow a) => StateArrow s a i o -> s -> StatefulArrow a i o
-internally sa s = StatefulArrow $
+stateContext :: (Arrow a) => StateArrow s a i o -> s -> StatefulArrow a i o
+stateContext sa s = StatefulArrow $
     proc i -> do (o,s') <- runState sa -< (i,s)
-                 returnA -< (o,internally sa s')
+                 returnA -< (o,stateContext sa s')
+
+runStateMachine :: (ArrowChoice a,ArrowApply a) => StatefulArrow a b b -> a [b] [b]
+runStateMachine stateful_arrow = 
+    proc x -> do runStateMachine_ -< (([],stateful_arrow),x)
+
+runStateMachine_ :: (ArrowChoice a,ArrowApply a) => a (([b],StatefulArrow a b b),[b]) [b]
+runStateMachine_ =
+    proc ((reversed_so_far,StatefulArrow stateful),x) -> 
+        do case x of
+                  [] -> returnA -< reverse reversed_so_far
+                  (i:is) -> do (o,stateful') <- app -< (stateful,i)
+                               runStateMachine_ -< ((o:reversed_so_far,stateful'),is)
