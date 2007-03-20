@@ -11,6 +11,7 @@ module RSAGL.TestFunctions
 
 import RSAGL.StatefulArrow
 import RSAGL.SwitchedArrow
+import RSAGL.ThreadedArrow
 import Control.Arrow.Operations
 import Control.Arrow
 
@@ -32,6 +33,11 @@ evenZeroesArrow_oddZeroes = proc x ->
               False -> switchTerminate evenZeroesArrow -< True
               True -> returnA -< False
 
+spawnPlusAndMinusAndDie :: Integer -> ThreadedFunction a [Integer] a [Integer]
+spawnPlusAndMinusAndDie i = proc _ ->
+    do spawnThreadsDelayed [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)] -< ()
+       killThread -< [i]
+
 -- |
 -- Sanity test of the StatefulArrow.
 --
@@ -48,3 +54,11 @@ addFive x = let (_,sf1) = runStatefulArrow (countingArrow x) 1
 evenZeroes :: [Bool] -> Bool
 evenZeroes = last . runStateMachine (switchedContext evenZeroesArrow)
 
+-- |
+-- Sanity test of the ThreadedArrow
+--
+spawningFun :: Int -> String
+spawningFun = unlines . map show . runStateMachine (threadedContext $ [spawnPlusAndMinusAndDie 0]) . flip replicate undefined
+
+main :: IO ()
+main = putStr $ spawningFun 5

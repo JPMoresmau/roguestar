@@ -30,7 +30,8 @@ type SwitchedFunction i o j p = SwitchedArrow i o (->) j p
 --
 -- This allows extra flexability when it comes to constructing state machines.
 --
-data SwitchedArrow i o a j p = SwitchedArrow (ErrorArrow (o,Switch a i o) a j p)
+
+newtype SwitchedArrow i o a j p = SwitchedArrow (ErrorArrow (o,Switch a i o) a j p)
 
 instance (Arrow a,ArrowChoice a) => Arrow (SwitchedArrow i o a) where
     (>>>) (SwitchedArrow sa1) (SwitchedArrow sa2) = SwitchedArrow $ sa1 >>> sa2
@@ -64,6 +65,6 @@ switchTerminatePrim switch =
 
 switchedContext :: (Arrow a,ArrowChoice a) => Switch a i o -> StatefulArrow a i o
 switchedContext (SwitchedArrow a) = StatefulArrow $ runError (switch) handler
-    where handler = proc (i,(o,newswitch)) -> do returnA -< (o,switchedContext newswitch)
+    where handler = proc (_,(o,newswitch)) -> do returnA -< (o,switchedContext newswitch)
           switch = proc i -> do o <- a -< i
                                 returnA -< (o,switchedContext $ SwitchedArrow a)
