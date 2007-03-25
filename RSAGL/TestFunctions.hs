@@ -24,18 +24,18 @@ countingArrow = stateContext $
 evenZeroesArrow :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow = proc x ->
      do case x of
-               False -> switchTerminate evenZeroesArrow_oddZeroes -< False
+               False -> switchTerminate -< (evenZeroesArrow_oddZeroes,False)
                True -> returnA -< True
 
 evenZeroesArrow_oddZeroes :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow_oddZeroes = proc x ->
     do case x of
-              False -> switchTerminate evenZeroesArrow -< True
+              False -> switchTerminate -< (evenZeroesArrow,True)
               True -> returnA -< False
 
 spawnPlusAndMinusAndDie :: Integer -> ThreadedFunction a [Integer] a [Integer]
 spawnPlusAndMinusAndDie i = proc _ ->
-    do spawnThreadsDelayed [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)] -< ()
+    do spawnThreadsDelayed -< [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)]
        killThread -< [i]
 
 -- |

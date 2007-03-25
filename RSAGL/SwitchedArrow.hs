@@ -5,8 +5,6 @@ module RSAGL.SwitchedArrow
      Switch,
      SwitchedFunction,
      ArrowSwitched(..),
-     switchContinuePrim,
-     switchTerminatePrim,
      switchedContext)
     where
 
@@ -44,24 +42,27 @@ instance (Arrow a,ArrowChoice a) => ArrowTransformer (SwitchedArrow i o) a where
 instance (ArrowChoice a) => ArrowChoice (SwitchedArrow i o a) where
     left (SwitchedArrow a) = SwitchedArrow $ left a
 
-class ArrowSwitched a where
-    switchContinue :: (Arrow b,ArrowChoice b) => a i o b i o -> a i o b i o
-    switchTerminate :: (Arrow b,ArrowChoice b) => a i o b i o -> a i o b o o
+instance (ArrowChoice a,ArrowApply a) => ArrowApply (SwitchedArrow i o a) where
+    app = SwitchedArrow $ proc (SwitchedArrow a,b) -> do app -< (a,b)
+
+class ArrowSwitched as where
+    switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => as i o a (as i o a i o,i) o
+    switchTerminate :: (Arrow a,ArrowChoice a) => as i o a (as i o a i o,o) o
 
 instance ArrowSwitched SwitchedArrow where
     switchContinue = switchContinuePrim
     switchTerminate = switchTerminatePrim
 
-switchContinuePrim :: (ArrowChoice b) => SwitchedArrow i o b i o -> SwitchedArrow i o b i o
-switchContinuePrim switch =
-    proc i -> do o <- switch -< i
-                 SwitchedArrow raise -< (o,switch)
-                 returnA -< o
+switchContinuePrim :: (Arrow a,ArrowChoice a,ArrowApply a) => SwitchedArrow i o a (Switch a i o,i) o
+switchContinuePrim =
+    proc (switch,i) -> do o <- app -< (switch,i)
+                          SwitchedArrow raise -< (o,switch)
+                          returnA -< o
 
-switchTerminatePrim :: (ArrowChoice b) => SwitchedArrow i o b i o -> SwitchedArrow i o b o o
-switchTerminatePrim switch = 
-    proc o -> do SwitchedArrow raise -< (o,switch)
-                 returnA -< o
+switchTerminatePrim :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a (Switch a i o,o) o
+switchTerminatePrim = 
+    proc (switch,o) -> do SwitchedArrow raise -< (o,switch)
+                          returnA -< o
 
 switchedContext :: (Arrow a,ArrowChoice a) => Switch a i o -> StatefulArrow a i o
 switchedContext (SwitchedArrow a) = StatefulArrow $ runError (switch) handler

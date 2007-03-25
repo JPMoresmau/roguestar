@@ -33,13 +33,19 @@ instance (ArrowChoice a) => Arrow (ThreadedArrow i o a) where
     arr = ThreadedArrow . arr
     first (ThreadedArrow f) = ThreadedArrow $ first f
 
+instance (Arrow a,ArrowChoice a) => ArrowTransformer (ThreadedArrow i o) a where
+    lift = ThreadedArrow . lift . lift
+
+instance (ArrowChoice a,ArrowApply a) => ArrowApply (ThreadedArrow i o a) where
+    app = ThreadedArrow $ proc (ThreadedArrow a,b) -> app -< (a,b)
+
 instance ArrowSwitched ThreadedArrow where
-    switchContinue ta@(ThreadedArrow cont) = proc i ->
-        do (ThreadedArrow $ lift $ substituteThreadPrim ta) -< ()
-           (ThreadedArrow $ switchContinuePrim cont) -< i
-    switchTerminate ta@(ThreadedArrow cont) = proc o ->
-        do (ThreadedArrow $ lift $ substituteThreadPrim ta) -< ()
-           (ThreadedArrow $ switchTerminate cont) -< o
+    switchContinue = proc (ta@(ThreadedArrow cont),i) ->
+        do ThreadedArrow $ lift $ substituteThreadPrim -< ta
+           (ThreadedArrow $ switchContinue) -< (cont,i)
+    switchTerminate = proc (ta@(ThreadedArrow cont),o) ->
+        do (ThreadedArrow $ lift $ substituteThreadPrim) -< ta
+           (ThreadedArrow $ switchTerminate) -< (cont,o)
 
 -- |
 -- An arrow that has a monoid result can be split into threads, the results of which are
@@ -49,33 +55,34 @@ instance ArrowSwitched ThreadedArrow where
 -- killThread ends the current thread immediately, returning the specified result.
 --
 class ArrowThreaded a where
-    spawnThreads :: (Arrow b,ArrowChoice b) => [a i o b i o] -> a i o b () ()
-
+    spawnThreads :: (Arrow b,ArrowChoice b) => a i o b [a i o b i o] ()
     killThread :: (Arrow b,ArrowChoice b,Monoid o) => a i o b o o
 
 instance ArrowThreaded ThreadedArrow where
     spawnThreads = spawnThreadsPrim
     killThread = killThreadPrim
 
-substituteThreadPrim :: (Arrow a) => ThreadedArrow i o a i o -> StateArrow (ThreadInfo a i o) a () ()
-substituteThreadPrim thread = fetch >>> arr substituteThreadPrim_ >>> store
-    where substituteThreadPrim_ thread_info = thread_info { ti_active_thread = Just thread }
+substituteThreadPrim :: (Arrow a) => StateArrow (ThreadInfo a i o) a (ThreadedSwitch a i o) ()
+substituteThreadPrim = 
+    proc thread -> do thread_info <- fetch -< ()
+                      store -< thread_info { ti_active_thread = Just thread }
 
-spawnThreadsPrim :: (Arrow a,ArrowChoice a) => [ThreadedSwitch a i o] -> ThreadedArrow i o a () ()
-spawnThreadsPrim threads = ThreadedArrow $ lift $ fetch >>> arr spawnThreadsPrim_ >>> store
-    where spawnThreadsPrim_ thread_info = thread_info { ti_waiting_threads = threads ++ ti_waiting_threads thread_info }
+spawnThreadsPrim :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a [ThreadedSwitch a i o] ()
+spawnThreadsPrim = ThreadedArrow $ lift $ 
+        proc threads -> do thread_info <- fetch -< ()
+                           store -< thread_info { ti_waiting_threads = threads ++ ti_waiting_threads thread_info }
 
 -- |
 -- Spawn the specified threads, but run them one step after this thread finishes.
--- This can prevent certain out-of-control loops when threads continuously spawn new threads.
+-- This can mitigate certain out-of-control loops when threads continuously spawn new threads.
 --
-spawnThreadsDelayed :: (Arrow (a i o b),ArrowThreaded a,ArrowSwitched a, Arrow b,ArrowChoice b,Monoid o) => [a i o b i o] -> a i o b () ()
-spawnThreadsDelayed threads = spawnThreads $ map delayThread_ threads
-    where delayThread_ thread = proc _ -> do switchTerminate thread -< mempty
+spawnThreadsDelayed :: (Arrow (at i o a),ArrowThreaded at,ArrowSwitched at, Arrow a,ArrowChoice a,Monoid o) => at i o a [at i o a i o] ()
+spawnThreadsDelayed = spawnThreads <<< (arr $ map delayThread_)
+    where delayThread_ thread = proc _ -> do switchTerminate -< (thread,mempty)
 
 killThreadPrim :: (Arrow a,ArrowChoice a,Monoid o) => ThreadedArrow i o a o o
 killThreadPrim = proc o ->
-    do switchTerminate (ThreadedArrow $ lift $ fetch >>> arr killThreadPrim_ >>> store >>> arr (const mempty)) -< o
+    do switchTerminate -< (ThreadedArrow $ lift $ fetch >>> arr killThreadPrim_ >>> store >>> arr (const mempty), o)
            where killThreadPrim_ thread_info = thread_info { ti_active_thread = Nothing }
 
 initialThreadedState :: [ThreadedSwitch a b c] -> ThreadInfo a b c
@@ -83,7 +90,7 @@ initialThreadedState threads = ThreadInfo { ti_active_thread = Nothing,
                                             ti_waiting_threads = threads,
                                             ti_completed_threads = [] }
 
-threadedContext :: (Monoid c,ArrowApply a,ArrowChoice a) => [ThreadedSwitch a b c] -> StatefulArrow a b c
+threadedContext :: (Monoid c,ArrowChoice a,ArrowApply a) => [ThreadedSwitch a b c] -> StatefulArrow a b c
 threadedContext = stateContext $
     proc i -> do threads <- fetch -< ()
                  (o,thread_result) <- lift (runState runThreads) -< (i,initialThreadedState threads)

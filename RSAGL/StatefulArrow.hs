@@ -13,7 +13,11 @@ import Control.Arrow.Operations
 import Control.Arrow.Transformer
 
 -- |
--- A StatefulArrow indicates the form it will take on its next iteration.
+-- A StatefulArrow is a form of automata or self-modifying program.
+--
+-- The assumption is that a StatefulArrow will be re-evaluated many times.
+-- The result of each iteration includes a new form of the StatefulArrow
+-- that will be evaluated on the next iteration.
 --
 data StatefulArrow a i o = StatefulArrow { runStatefulArrow :: (a i (o,StatefulArrow a i o)) }
 
