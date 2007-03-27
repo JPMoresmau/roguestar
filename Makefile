@@ -16,5 +16,6 @@ clean :
 	-rm -f RSAGL/*.hi
 	-rm -f RSAGL/*.o
 	-rm -f rsagl-tests
+	-rm -f rsagl.pdf
 
 .PHONY : clean doc tests all
