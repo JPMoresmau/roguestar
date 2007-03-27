@@ -3,13 +3,15 @@
 \label{MustBeAMonoid}
 
 A ThreadedArrow is an extension of the SwitchedArrow.  In addition to switching, a ThreadedArrow can spawn new
-switches that run independantly.  All switches recieve the same input.  The output type must be a monoid.
+threads that run independantly.  All threads recieve the same input.  The output type must be a monoid.
 \footnote{See http://haskell.org/ghc/docs/latest/html/libraries/base/Data-Monoid.html}  The output is then
 combined using Monoid's mappend function.  Finally, threads can terminate.  If all threads terminate,
 the result of the ThreadedArrow becomes mempty.
 
 While the ThreadedArrow has conceptual similarities to the threading systems provided by an operating system,
 it does not provide true parallelism or concurency.
+
+The ThreadedArrow could be used to model cellular automata or a non-deterministic state machine.
 
 \begin{code}
 {-# OPTIONS_GHC -farrows -fglasgow-exts #-}
