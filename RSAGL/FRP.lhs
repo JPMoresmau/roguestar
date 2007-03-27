@@ -56,7 +56,7 @@ instance ArrowSwitched FRP where
 
 instance ArrowThreaded FRP where
     spawnThreads = (FRP $ lift $ spawnThreads) <<< arr (map (\(FRP thread) -> statefulThread thread))
-    killThread = FRP $ lift killThread
+    killThreadIf = FRP $ lift killThreadIf
 
 absoluteTime :: (Arrow a,ArrowChoice a) => FRP i o a () Time
 absoluteTime = arr frpstate_absolute_time <<< (FRP $ lift $ lift $ fetch)

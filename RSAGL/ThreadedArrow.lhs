@@ -19,6 +19,7 @@ module RSAGL.ThreadedArrow
      ThreadedSwitch,
      ThreadedArrow,
      ArrowThreaded(..),
+     killThread,
      threadedContext,
      spawnThreadsDelayed)
     where
@@ -101,6 +102,9 @@ instance (ArrowChoice a) => Arrow (ThreadedArrow i o a) where
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (ThreadedArrow i o) a where
     lift = ThreadedArrow . lift . lift
 
+instance (ArrowChoice a) => ArrowChoice (ThreadedArrow i o a) where
+    left (ThreadedArrow a) = ThreadedArrow $ left a
+
 instance (ArrowChoice a,ArrowApply a) => ArrowApply (ThreadedArrow i o a) where
     app = ThreadedArrow $ proc (ThreadedArrow a,b) -> app -< (a,b)
 
@@ -120,16 +124,22 @@ There are two thread-related functions: spawnThreads and killThread.
 spawnThreads adds the specified threads to the waiting queue.  They will run immediately after
 the current thread.  The current thread continues indefinitely.
 
-killThreads ends the current thread immediately, returning the specified result.
+killThread ends the current thread immediately, returning the specified result.
+
+To provide flow control where it might not otherwise exist, killThreadIf executes
+only if the boolean parameter is True.  
 
 \begin{code}
 class ArrowThreaded a where
     spawnThreads :: (Arrow b,ArrowChoice b) => a i o b [a i o b i o] ()
-    killThread :: (Arrow b,ArrowChoice b,Monoid o) => a i o b o o
+    killThreadIf :: (Arrow b,ArrowChoice b,Monoid o) => a i o b (Bool,o) o
 
 instance ArrowThreaded ThreadedArrow where
     spawnThreads = spawnThreadsPrim
-    killThread = killThreadPrim
+    killThreadIf = killThreadIfPrim
+
+killThread :: (Arrow (a i o b),ArrowThreaded a,Arrow b,ArrowChoice b,Monoid o) => a i o b o o
+killThread = proc o -> do killThreadIf -< (True,o)
 
 substituteThreadPrim :: (Arrow a) => StateArrow (ThreadInfo a i o) a (ThreadedSwitch a i o) ()
 substituteThreadPrim = 
@@ -141,11 +151,13 @@ spawnThreadsPrim = ThreadedArrow $ lift $
         proc threads -> do thread_info <- fetch -< ()
                            store -< thread_info { ti_waiting_threads = threads ++ ti_waiting_threads thread_info }
 
-killThreadPrim :: (Arrow a,ArrowChoice a,Monoid o) => ThreadedArrow i o a o o
-killThreadPrim = proc o ->
-    do switchTerminate -< (ThreadedArrow $ lift $ 
-                           fetch >>> arr killThreadPrim_ >>> store >>> arr (const mempty), o)
-           where killThreadPrim_ thread_info = thread_info { ti_active_thread = Nothing }
+killThreadIfPrim :: (Arrow a,ArrowChoice a,Monoid o) => ThreadedArrow i o a (Bool,o) o
+killThreadIfPrim = proc (b,o) ->
+    do if b
+           then switchTerminate -< (ThreadedArrow $ lift $ 
+                                    fetch >>> arr killThreadPrim_ >>> store >>> arr (const mempty), o)
+           else returnA -< o
+    where killThreadPrim_ thread_info = thread_info { ti_active_thread = Nothing }
 \end{code}
 
 \subsection{Avoiding non-termination in spawnThreads}
