@@ -1,11 +1,7 @@
 RogueStar Animation and Graphics Library
 
-StatefulArrow - inspired by the YAMPA arrow, an arrow transformer that allows an arrow to 
-                self-modify when iterated over itself.
+The documentation for RSAGL can be built by typing:
 
-SwitchedArrow - (unimplemented) an arrow transformer that implements switching
+$ make
 
-ThreadedArrow - (unimplemented) an arrow transformer that implements threading
-                each thread has the ability to spawn a thread or die
-
-TestFunctions - some quick and dirty sanity tests, load this up in ghci
+This requires a working latex installation.  (latex,dvipdf)

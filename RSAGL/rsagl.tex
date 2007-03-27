@@ -1,0 +1,55 @@
+\documentclass{article}
+\author{Christopher Lane Hinson}
+\title{ RSAGL --- RogueStar Animation and Graphics Library }
+\date{ This document was automatically generated from the literate source \today. }
+
+\usepackage{listings}
+\lstloadlanguages{Haskell}
+\lstnewenvironment{code}
+    {\lstset{}%
+      \csname lst@SetFirstLabel\endcsname}
+    {\csname lst@SaveFirstLabel\endcsname}
+    \lstset{
+      basicstyle=\small\ttfamily,
+      flexiblecolumns=false,
+      basewidth={0.5em,0.45em},
+      linewidth=6.5in,
+      literate={+}{{$+$}}1 {/}{{$/$}}1 {*}{{$*$}}1 {=}{{$=$}}1
+               {>}{{$>$}}1 {<}{{$<$}}1 {\\}{{$\lambda$}}1
+               {->}{{$\rightarrow$}}2 {>=}{{$\geq$}}2 {<-}{{$\leftarrow$}}2
+               {<=}{{$\leq$}}2 {=>}{{$\Rightarrow$}}2 
+               {\ .}{{$\circ$}}2 {\ .\ }{{$\circ$}}2
+               {>>}{{>>}}2 {>>=}{{>>=}}2
+               {>>>}{{>>>}}3 {<<<}{{<<<}}3
+               {|}{{$\mid$}}1               
+    }
+
+\oddsidemargin 0.0in
+\pagestyle{headings}
+\hyphenation{Stateful-Arrow State-Arrow Threaded-Arrow Switched-Arrow}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The automatically generated documentation to the literate source code of RSAGL, 
+the RogueStar Animation and Graphics Library.  This library contains utilities
+to generate models and animations targeted at OpenGL using haskell's HOpenGL
+binding.
+\end{abstract}
+
+\tableofcontents
+
+\part{Functional Reactive Programming}
+\input{FRP.lhs}
+
+\part{Utilities}
+\input{Time.lhs}
+
+\part{Primitives for Functional Reactive Programming}
+\input{StatefulArrow.lhs}
+\input{SwitchedArrow.lhs}
+\input{ThreadedArrow.lhs}
+
+\end{document}
