@@ -12,9 +12,9 @@ execution of the current iteration of) the switched arrow.
 
 module RSAGL.SwitchedArrow
     (SwitchedArrow,
-     Switch,
      SwitchedFunction,
-     ArrowSwitched(..),
+     switchContinue,
+     switchTerminate,
      switchedContext)
     where
 
@@ -23,15 +23,6 @@ import Control.Arrow.Operations
 import Control.Arrow.Transformer.Error
 import Control.Arrow.Transformer
 import Control.Arrow
-\end{code}
-
-\label{Switch}
-A Switch is a SwitchedArrow of its own type, and can be passed to switchContinue or switchTerminate.
-A SwitchedArrow that does not match its own type is only a stage in the computation, and can't be used
-as a switch.
-
-\begin{code}
-type Switch a i o = SwitchedArrow i o a i o
 
 type SwitchedFunction i o j p = SwitchedArrow i o (->) j p
 \end{code}
@@ -39,7 +30,7 @@ type SwitchedFunction i o j p = SwitchedArrow i o (->) j p
 The SwitchedArrow is really a special case of the ErrorArrow with ArrowApply.
 
 \begin{code}
-newtype SwitchedArrow i o a j p = SwitchedArrow (ErrorArrow (o,Switch a i o) a j p)
+newtype SwitchedArrow i o a j p = SwitchedArrow (ErrorArrow (o,SwitchedArrow i o a i o) a j p)
 
 instance (Arrow a,ArrowChoice a) => Arrow (SwitchedArrow i o a) where
     (>>>) (SwitchedArrow sa1) (SwitchedArrow sa2) = SwitchedArrow $ sa1 >>> sa2
@@ -56,7 +47,8 @@ instance (ArrowChoice a,ArrowApply a) => ArrowApply (SwitchedArrow i o a) where
     app = SwitchedArrow $ proc (SwitchedArrow a,b) -> do app -< (a,b)
 \end{code}
 
-\subsection{The ArrowSwitched typeclass}
+\subsection{Switching operators}
+\label{SwitchingOperators}
 
 A switchable arrow has two switching operators: switchContinue and switchTerminate.
 
@@ -70,33 +62,26 @@ switchContinue, the new switch replaces the current switch the next time the arr
 executed.
 
 \begin{code}
-class ArrowSwitched as where
-    switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => as i o a (as i o a i o,i) o
-    switchTerminate :: (Arrow a,ArrowChoice a) => as i o a (as i o a i o,o) o
-
-instance ArrowSwitched SwitchedArrow where
-    switchContinue = switchContinuePrim
-    switchTerminate = switchTerminatePrim
-
-switchContinuePrim :: (Arrow a,ArrowChoice a,ArrowApply a) => SwitchedArrow i o a (Switch a i o,i) o
-switchContinuePrim =
+switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => SwitchedArrow i o a (SwitchedArrow i o a i o,i) o
+switchContinue =
     proc (switch,i) -> do o <- app -< (switch,i)
                           SwitchedArrow raise -< (o,switch)
                           returnA -< o
 
-switchTerminatePrim :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a (Switch a i o,o) o
-switchTerminatePrim = 
+switchTerminate :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a (SwitchedArrow i o a i o,o) o
+switchTerminate = 
     proc (switch,o) -> do SwitchedArrow raise -< (o,switch)
                           returnA -< o
 \end{code}
 
 \subsection{Embedding a SwitchedArrow as a StatefulArrow}
 \label{switchedContext}
+
 StatefulArrows and SwitchedArrows can both be thought of as automata or self-modifying programs.
 switchedContext allows a SwitchedArrow to appear to the outside world as a StatefulArrow.
 
 \begin{code}
-switchedContext :: (Arrow a,ArrowChoice a) => Switch a i o -> StatefulArrow a i o
+switchedContext :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> StatefulArrow a i o
 switchedContext (SwitchedArrow a) = StatefulArrow $ runError (switch) handler
     where handler = proc (_,(o,newswitch)) -> do returnA -< (o,switchedContext newswitch)
           switch = proc i -> do o <- a -< i

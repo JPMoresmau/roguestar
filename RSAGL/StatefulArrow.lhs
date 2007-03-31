@@ -13,6 +13,8 @@ module RSAGL.StatefulArrow
     (StatefulArrow(..),
      StatefulFunction,
      stateContext,
+     underlyingState,
+     statefulTransform,
      runStateMachine)
     where
 
@@ -21,6 +23,7 @@ import Control.Arrow.Transformer.State
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
 
+type StatefulFunction = StatefulArrow (->)
 data StatefulArrow a i o = StatefulArrow { runStatefulArrow :: (a i (o,StatefulArrow a i o)) }
 
 instance (Arrow a) => Arrow (StatefulArrow a) where
@@ -32,8 +35,6 @@ instance (Arrow a) => Arrow (StatefulArrow a) where
     first (StatefulArrow sf) = StatefulArrow $
         proc (b,d) -> do (c,sf') <- sf -< b
                          returnA -< ((c,d),first sf')
-
-type StatefulFunction = StatefulArrow (->)
 
 instance (Arrow a) => ArrowTransformer StatefulArrow a where
     lift f = StatefulArrow $ f &&& (arr $ const $ lift f)
@@ -49,6 +50,31 @@ stateContext :: (Arrow a) => StateArrow s a i o -> s -> StatefulArrow a i o
 stateContext sa s = StatefulArrow $
     proc i -> do (o,s') <- runState sa -< (i,s)
                  returnA -< (o,stateContext sa s')
+\end{code}
+
+\subsection{Allowing underlying state}
+
+underlyingState allows a StatefulArrow to be both explicitly and implicitly stateful.
+
+\begin{code}
+underlyingState :: (Arrow a,ArrowApply a) => StatefulArrow (StateArrow s a) i o -> s -> StatefulArrow a i o
+underlyingState sa s = flip stateContext (sa,s) $
+    proc i -> do (StatefulArrow sa',s') <- fetch -< ()
+                 ((o,sa''),s'') <- lift app -< (runState sa',(i,s'))
+                 store -< (sa'',s'')
+                 returnA -< o
+\end{code}
+
+\subsection{Transforming the underlying type of a StatefulArrow}
+
+\begin{code}
+
+statefulTransform :: (Arrow a,Arrow b) => (forall j p. a j p -> b j p) -> 
+                                          StatefulArrow a i o -> StatefulArrow b i o
+statefulTransform f (StatefulArrow a) = StatefulArrow $
+    proc i -> do (o,a') <- f a -< i
+                 returnA -< (o,statefulTransform f a')
+
 \end{code}
 
 \subsection{Using a StatefulArrow as a state machine}

@@ -9,13 +9,14 @@ module RSAGL.Tests
     (main)
     where
 
-import RSAGL.StatefulArrow
-import RSAGL.SwitchedArrow
-import RSAGL.ThreadedArrow
+import RSAGL.StatefulArrow as StatefulArrow
+import RSAGL.SwitchedArrow as SwitchedArrow
+import RSAGL.ThreadedArrow as ThreadedArrow
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
+import Data.Monoid
 
 --
 -- State machine that adds its input to its state
@@ -32,13 +33,13 @@ countingArrow = stateContext $
 evenZeroesArrow :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow = proc x ->
      do case x of
-               False -> switchTerminate -< (evenZeroesArrow_oddZeroes,False)
+               False -> SwitchedArrow.switchTerminate -< (evenZeroesArrow_oddZeroes,False)
                True -> returnA -< True
 
 evenZeroesArrow_oddZeroes :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow_oddZeroes = proc x ->
     do case x of
-              False -> switchTerminate -< (evenZeroesArrow,True)
+              False -> SwitchedArrow.switchTerminate -< (evenZeroesArrow,True)
               True -> returnA -< False
 
 --
@@ -47,9 +48,12 @@ evenZeroesArrow_oddZeroes = proc x ->
 -- All other integers die out after spawning.
 --
 spawnPlusAndMinusAndDie :: Integer -> ThreadedFunction () (Set Integer) () (Set Integer)
-spawnPlusAndMinusAndDie i = proc _ ->
-    do spawnThreadsDelayed -< [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)]
-       killThreadIf -< (i `mod` 3 /= 0 || i == 0,Set.singleton i)
+spawnPlusAndMinusAndDie i = step1
+    where step1 = proc () ->
+              do ThreadedArrow.switchTerminate -< (step2,mempty)
+          step2 = proc () ->
+              do spawnThreads -< [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)]
+                 killThreadIf -< (i `mod` 3 /= 0 || i == 0,Set.singleton i)
 
 --
 -- Sanity test of the StatefulArrow.
@@ -89,13 +93,13 @@ main = do putStrLn "add five test (sanity test of StatefulArrow)"
           (evenZeroes [True,True,False,True,False]) `test` True
           putStrLn "odd zeroes test (sanity test of SwitchedArrow)"
           evenZeroes [True,True,True,False,False,True,False,True] `test` False
-          putStrLn "spawning test 0 (sanity test of ThreadedArrow)"
-          spawnPMD 0 `test` Set.fromList [0]
           putStrLn "spawning test 1 (sanity test of ThreadedArrow)"
-          spawnPMD 1 `test` Set.fromList [-1,1]
+          spawnPMD 1 `test` Set.fromList [0]
           putStrLn "spawning test 2 (sanity test of ThreadedArrow)"
-          spawnPMD 2 `test` Set.fromList [0,-2,2]
+          spawnPMD 2 `test` Set.fromList [-1,1]
           putStrLn "spawning test 3 (sanity test of ThreadedArrow)"
-          spawnPMD 3 `test` Set.fromList [-3,-1,1,3]
-          putStrLn "spawning test 4 (does killThreadIf block correctly?)"
-          spawnPMD 4 `test` Set.fromList [-4,-3,-2,0,2,3,4]
+          spawnPMD 3 `test` Set.fromList [0,-2,2]
+          putStrLn "spawning test 4 (sanity test of ThreadedArrow)"
+          spawnPMD 4 `test` Set.fromList [-3,-1,1,3]
+          putStrLn "spawning test 5 (does killThreadIf block correctly?)"
+          spawnPMD 5 `test` Set.fromList [-4,-3,-2,0,2,3,4]

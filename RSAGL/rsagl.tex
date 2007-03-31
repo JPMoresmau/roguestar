@@ -1,5 +1,5 @@
 \documentclass{article}
-\author{Christopher Lane Hinson}
+\author{Christopher Lane Hinson $<$lane@downstairspeople.org$>$}
 \title{ RSAGL --- RogueStar Animation and Graphics Library }
 \date{ This document was automatically generated from the literate source \today. }
 
@@ -35,21 +35,25 @@
 \begin{abstract}
 The automatically generated documentation to the literate source code of RSAGL, 
 the RogueStar Animation and Graphics Library.  This library contains utilities
-to generate models and animations targeted at OpenGL using haskell's HOpenGL
-binding.
+to generate models and animations targeted at OpenGL using Haskell's HOpenGL
+binding.  Roguestar and RSAGL are available at http://roguestar.downstairspeople.org/.
 \end{abstract}
 
 \tableofcontents
 
 \part{Functional Reactive Programming}
-\input{FRP.lhs}
 
 \part{Utilities}
+
 \input{Time.lhs}
 
-\part{Primitives for Functional Reactive Programming}
+\part{Arrow Primitives for Functional Reactive Programming}
+
+This section contains arrow transformers used to create the RSAGL FRP arrow.
+
 \input{StatefulArrow.lhs}
 \input{SwitchedArrow.lhs}
 \input{ThreadedArrow.lhs}
+\input{FRPBase.lhs}
 
 \end{document}
