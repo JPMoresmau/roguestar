@@ -15,12 +15,13 @@ module RSAGL.SwitchedArrow
      SwitchedFunction,
      switchContinue,
      switchTerminate,
-     switchedContext)
+     statefulForm)
     where
 
-import RSAGL.StatefulArrow
+import RSAGL.StatefulArrow as StatefulArrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer.Error
+import Control.Arrow.Transformer.State
 import Control.Arrow.Transformer
 import Control.Arrow
 
@@ -48,7 +49,8 @@ instance (ArrowChoice a,ArrowApply a) => ArrowApply (SwitchedArrow i o a) where
 \end{code}
 
 \subsection{Switching operators}
-\label{SwitchingOperators}
+\label{switchContinue}
+\label{switchTerminate}
 
 A switchable arrow has two switching operators: switchContinue and switchTerminate.
 
@@ -74,16 +76,31 @@ switchTerminate =
                           returnA -< o
 \end{code}
 
-\subsection{Embedding a SwitchedArrow as a StatefulArrow}
-\label{switchedContext}
+\subsection{The StatefulArrow form of a SwitchedArrow}
+\label{statefulForm}
 
 StatefulArrows and SwitchedArrows can both be thought of as automata or self-modifying programs.
-switchedContext allows a SwitchedArrow to appear to the outside world as a StatefulArrow.
+statefulForm allows a SwitchedArrow to appear to the outside world as a StatefulArrow.
 
 \begin{code}
-switchedContext :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> StatefulArrow a i o
-switchedContext (SwitchedArrow a) = StatefulArrow $ runError (switch) handler
-    where handler = proc (_,(o,newswitch)) -> do returnA -< (o,switchedContext newswitch)
+statefulForm :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> StatefulArrow a i o
+statefulForm (SwitchedArrow a) = StatefulArrow $ runError (switch) handler
+    where handler = proc (_,(o,newswitch)) -> do returnA -< (o,statefulForm newswitch)
           switch = proc i -> do o <- a -< i
-                                returnA -< (o,switchedContext $ SwitchedArrow a)
+                                returnA -< (o,statefulForm $ SwitchedArrow a)
+\end{code}
+
+\subsection{Mixing SwitchedArrows and StateArrows}
+
+These are the StateArrow-related combinators introduced with StatefulArrow
+\footnote{Page \pageref{withState}}
+
+\begin{code}
+withState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
+                SwitchedArrow i o (StateArrow s a) i o -> s -> StatefulArrow a i o
+withState switch s = StatefulArrow.withState (statefulForm switch) s
+
+withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
+                        SwitchedArrow i o (StateArrow s a) i o -> StatefulArrow a (i,s) (o,s)
+withExposedState switch = StatefulArrow.withExposedState (statefulForm switch)
 \end{code}

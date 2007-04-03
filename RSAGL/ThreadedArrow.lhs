@@ -23,7 +23,7 @@ module RSAGL.ThreadedArrow
      RSAGL.ThreadedArrow.switchTerminate,
      spawnThreads,
      killThreadIf,
-     threadedContext)
+     RSAGL.ThreadedArrow.statefulForm)
     where
 
 import Control.Arrow
@@ -89,7 +89,7 @@ storeCurrentThread = fetch >>> arr storeCurrentThread_ >>> store
 
 runThread :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a i o -> StateArrow (ThreadInfo a i o) a i o
 runThread (ThreadedArrow thread) = 
-    let (StatefulArrow switched_form) = switchedContext thread
+    let (StatefulArrow switched_form) = SwitchedArrow.statefulForm thread
         in proc i -> do (o,_) <- switched_form -< i
                         storeCurrentThread -< ()
                         returnA -< o
@@ -104,7 +104,8 @@ runThreads = proc i ->
            Nothing -> returnA -< mempty
 \end{code}
 
-The ThreadedArrow implements the same switching semantics as SwitchedArrow.\footnote{Page \pageref{SwitchingOperators}}
+The ThreadedArrow implements the same switching semantics as SwitchedArrow.
+\footnote{Page \pageref{switchContinue}}
 
 \begin{code}
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow i o a (ThreadedArrow i o a i o,i) o
@@ -124,7 +125,8 @@ substituteThread =
 \end{code}
 
 \subsection{Threading Operators}
-\label{ThreadingOperators}
+\label{spawnThreads}
+\label{killThreadIf}
 
 There are two thread-related functions: spawnThreads and killThread.
 
@@ -149,13 +151,14 @@ killThreadIf = proc (b,o) ->
     where killThreadPrim_ thread_info = thread_info { ti_active_thread = Nothing }
 \end{code}
 
-\subsection{Embedding a ThreadedArrow as a StatefulArrow}
+\subsection{The StatefulArrow form of a ThreadedArrow}
 
-Like the SwitchedArrow \footnote{page \pageref{switchedContext}} a ThreadedArrow can be made to appear as a StatefulArrow.
+statefulForm transforms a set of ThreadedArrow threads into a StatefulArrow
+\footnote{See also page \pageref{statefulForm}}.
 
 \begin{code}
-threadedContext :: (Monoid o,ArrowChoice a,ArrowApply a) => [ThreadedArrow i o a i o] -> StatefulArrow a i o
-threadedContext = stateContext $
+statefulForm :: (Monoid o,ArrowChoice a,ArrowApply a) => [ThreadedArrow i o a i o] -> StatefulArrow a i o
+statefulForm = stateContext $
     proc i -> do threads <- fetch -< ()
                  (o,thread_result) <- lift (runState runThreads) -< (i,initialThreadedState threads)
                  store -< ti_completed_threads thread_result

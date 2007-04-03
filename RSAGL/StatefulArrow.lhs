@@ -13,7 +13,8 @@ module RSAGL.StatefulArrow
     (StatefulArrow(..),
      StatefulFunction,
      stateContext,
-     underlyingState,
+     withState,
+     withExposedState,
      statefulTransform,
      runStateMachine)
     where
@@ -40,41 +41,44 @@ instance (Arrow a) => ArrowTransformer StatefulArrow a where
     lift f = StatefulArrow $ f &&& (arr $ const $ lift f)
 \end{code}
 
-\subsection{Embedding a StateArrow as a StatefulArrow}
+\subsection{Mixing StatefulArrows and StateArrows}
+\label{withState}
+\label{withExposedState}
 
 stateContext allows a StateArrow to be run as a StatefulArrow, where the StateArrow's 
 explicit state becomes the StatefulArrow's implicit state.
+
+withState allows a StatefulArrow to be both explicitly and implicitly stateful.
+The StatefulArrow does the work of retaining the explicit state between iterations.
+
+withExposedState exposes the state to the caller by explicitly routing the state
+as an input and output of the arrow.
 
 \begin{code}
 stateContext :: (Arrow a) => StateArrow s a i o -> s -> StatefulArrow a i o
 stateContext sa s = StatefulArrow $
     proc i -> do (o,s') <- runState sa -< (i,s)
                  returnA -< (o,stateContext sa s')
-\end{code}
 
-\subsection{Allowing underlying state}
-
-underlyingState allows a StatefulArrow to be both explicitly and implicitly stateful.
-
-\begin{code}
-underlyingState :: (Arrow a,ArrowApply a) => StatefulArrow (StateArrow s a) i o -> s -> StatefulArrow a i o
-underlyingState sa s = flip stateContext (sa,s) $
+withState :: (Arrow a,ArrowApply a) => StatefulArrow (StateArrow s a) i o -> s -> StatefulArrow a i o
+withState sa s = flip stateContext (sa,s) $
     proc i -> do (StatefulArrow sa',s') <- fetch -< ()
                  ((o,sa''),s'') <- lift app -< (runState sa',(i,s'))
                  store -< (sa'',s'')
                  returnA -< o
+
+withExposedState :: (Arrow a,ArrowApply a) => StatefulArrow (StateArrow s a) i o -> StatefulArrow a (i,s) (o,s)
+withExposedState (StatefulArrow sa) = StatefulArrow $ (arr $ \((o,sa'),s') -> ((o,s'),withExposedState sa')) <<< runState sa
 \end{code}
 
 \subsection{Transforming the underlying type of a StatefulArrow}
 
 \begin{code}
-
 statefulTransform :: (Arrow a,Arrow b) => (forall j p. a j p -> b j p) -> 
                                           StatefulArrow a i o -> StatefulArrow b i o
 statefulTransform f (StatefulArrow a) = StatefulArrow $
     proc i -> do (o,a') <- f a -< i
                  returnA -< (o,statefulTransform f a')
-
 \end{code}
 
 \subsection{Using a StatefulArrow as a state machine}

@@ -69,13 +69,13 @@ addFive x = let (_,sf1) = runStatefulArrow (countingArrow x) 1
 --Sanity test of the SwitchedArrow.
 --
 evenZeroes :: [Bool] -> Bool
-evenZeroes = last . runStateMachine (switchedContext evenZeroesArrow)
+evenZeroes = last . runStateMachine (SwitchedArrow.statefulForm evenZeroesArrow)
 
 --
 -- Sanity test of the ThreadedArrow
 --
 spawnPMD :: Int -> Set Integer
-spawnPMD n = (!! n) $ runStateMachine (threadedContext $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
+spawnPMD n = (!! n) $ runStateMachine (ThreadedArrow.statefulForm $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
 
 test :: (Eq a,Show a) => a -> a -> IO ()
 test actual expected | actual == expected = 
@@ -103,3 +103,4 @@ main = do putStrLn "add five test (sanity test of StatefulArrow)"
           spawnPMD 4 `test` Set.fromList [-3,-1,1,3]
           putStrLn "spawning test 5 (does killThreadIf block correctly?)"
           spawnPMD 5 `test` Set.fromList [-4,-3,-2,0,2,3,4]
+

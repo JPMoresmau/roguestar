@@ -41,7 +41,27 @@ binding.  Roguestar and RSAGL are available at http://roguestar.downstairspeople
 
 \tableofcontents
 
+\subsection{Audience}
+
+This paper is intended to support people wishing to understand the technical workings of
+the RSAGL library.  It is assumed that the reader possesses a fair understanding
+of the Haskell programming language, arrows, OpenGL, and linear algebra.
+
+To learn about the Haskell functional programming language, see http://www.haskell.org/.
+
+To learn about arrows, see http://www.haskell.org/arrows/.
+
+To learn about OpenGL, see http://www.opengl.org/.  RSAGL interfaces with OpenGL via the
+HOpenGL binding.  To learn about HOpenGL, see http://www.haskell.org/HOpenGL/.
+
+To learn about linear algebra, a free textbook is available at http://joshua.smcvt.edu/linearalgebra/.
+
 \part{Functional Reactive Programming}
+
+The RSAGL FRP arrow is designed to support the functional reactive programming paradigm
+specifically with OpenGL.
+
+\input{FRP.lhs}
 
 \part{Utilities}
 

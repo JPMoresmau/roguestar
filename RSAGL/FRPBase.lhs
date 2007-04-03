@@ -7,7 +7,15 @@ The FRPBase arrow is a composite of the Stateful and Threaded arrows intended to
 
 module RSAGL.FRPBase
     (FRPBase,
-     statefulFRPBase)
+     RSAGL.FRPBase.switchContinue,
+     RSAGL.FRPBase.switchTerminate,
+     RSAGL.FRPBase.spawnThreads,
+     RSAGL.FRPBase.killThreadIf,
+     RSAGL.FRPBase.frpBaseContext,
+     RSAGL.FRPBase.withState,
+     RSAGL.FRPBase.withExposedState,
+     RSAGL.FRPBase.statefulContext,
+     RSAGL.FRPBase.statefulForm)
     where
 
 import Data.Monoid
@@ -55,39 +63,57 @@ killThreadIf = FRPBase $ lift ThreadedArrow.killThreadIf
 
 \subsection{Embedding one FRPBase instance in another}
 
-The frpContext combinator allows a differently-typed FRPBase to be embedded in another.  
-Using frpContext, a thread can instantiate a group of threads that die whenever the calling thread 
+The frpBaseContext combinator allows a differently-typed FRPBase thread group to be embedded in another.  
+Using frpBaseContext, a thread can instantiate a group of threads that die whenever the calling thread 
 dies or switches.  That is, the thread group is part of the state of the calling thread.
 
 \begin{code}
-frpContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => [FRPBase j p a j p] -> FRPBase i o a j p
-frpContext threads = FRPBase $ statefulTransform lift (statefulFRPBase threads)
+frpBaseContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => [FRPBase j p a j p] -> FRPBase i o a j p
+frpBaseContext threads = FRPBase $ statefulTransform lift (RSAGL.FRPBase.statefulForm threads)
 \end{code}
 
 \subsection{Embedding explicit underlying state}
 
-The stateContext combinator allows an FRPBase arrow to be embedded in another, with added state
-information.  
+The withState and withExposedState combinators are implemented in terms of the
+StatefulArrow combinators of the same name\footnote{See page \pageref{withState}}.
 
 \begin{code}
-stateContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => 
+withState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => 
                 [FRPBase j p (StateArrow s a) j p] -> s -> FRPBase i o a j p
-stateContext threads s = FRPBase $ statefulTransform lift $ underlyingState (statefulFRPBase threads) s
+withState threads s = FRPBase $ statefulTransform lift $ StatefulArrow.withState (RSAGL.FRPBase.statefulForm threads) s
+
+withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) =>
+                [FRPBase j p (StateArrow s a) j p] -> FRPBase i o a (j,s) (p,s)
+withExposedState threads = statefulContext $ StatefulArrow.withExposedState $ RSAGL.FRPBase.statefulForm threads
 \end{code}
 
-\subsection{Embedding the FRP arrow as a StatefulArrow}
+\subsection{Embedding a StatefulArrow in an FRPBase arrow}
+\label{statefulContext}
 
-The FRPBase arrow can be made to appear as a StatefulArrow using statefulFRP.
+The statefulContext combinator allows a StatefulArrow to be embedded in an FRPBase, with
+the provision that the StatefulArrow does not have access to the threading operators.
 
 \begin{code}
-statefulFRPBase :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => [FRPBase i o a i o] -> StatefulArrow a i o
-statefulFRPBase = threadedContext . map (\(FRPBase x) -> statefulThread x)
+statefulContext :: (Arrow a,ArrowChoice a,ArrowApply a) =>
+                       StatefulArrow a j p -> FRPBase i o a j p
+statefulContext = FRPBase . statefulTransform lift
 \end{code}
 
-\subsection{Underlying mechanism}
+\subsection{The StatefulArrow form of an FRPBase arrow}
 
-The underlying mechanism of the FRPBase arrow is the layering of a StatefulArrow over a ThreadedArrow,
-allowing both implicitly and explicitly stateful functions.  statefulThread implements this.
+The FRPBase arrow can be made to appear as a StatefulArrow using statefulForm.
+\footnote{See \pageref{statefulForm}}
+
+\begin{code}
+statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => [FRPBase i o a i o] -> StatefulArrow a i o
+statefulForm = ThreadedArrow.statefulForm . map (\(FRPBase x) -> statefulThread x)
+\end{code}
+
+\subsection{Essential mechanism}
+
+The essential mechanism of the FRPBase arrow is the layering of a StatefulArrow over a ThreadedArrow,
+allowing threads that are both implicitly and explicitly stateful.  statefulThread implements this.
+In the event of an explicit switch, all implicit state is lost.
 
 \begin{code}
 statefulThread :: (Arrow a,ArrowChoice a) => 
