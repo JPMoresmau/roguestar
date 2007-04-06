@@ -15,7 +15,9 @@ module RSAGL.SwitchedArrow
      SwitchedFunction,
      switchContinue,
      switchTerminate,
-     statefulForm)
+     statefulForm,
+     RSAGL.SwitchedArrow.withState,
+     RSAGL.SwitchedArrow.withExposedState)
     where
 
 import RSAGL.StatefulArrow as StatefulArrow
@@ -97,8 +99,11 @@ These are the StateArrow-related combinators introduced with StatefulArrow
 
 \begin{code}
 withState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
-                SwitchedArrow i o (StateArrow s a) i o -> s -> StatefulArrow a i o
-withState switch s = StatefulArrow.withState (statefulForm switch) s
+                SwitchedArrow i o (StateArrow s a) i o -> (i -> s) -> StatefulArrow a i o
+withState switch2 f = StatefulArrow.withState (statefulForm switch1) undefined
+    where switch1 = proc i ->
+              do lift store -< f i
+                 RSAGL.SwitchedArrow.switchContinue -< (switch2,i)
 
 withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                         SwitchedArrow i o (StateArrow s a) i o -> StatefulArrow a (i,s) (o,s)
