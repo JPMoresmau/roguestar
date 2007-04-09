@@ -14,6 +14,7 @@ import RSAGL.ThreadedArrow as ThreadedArrow
 import RSAGL.FRP as FRP
 import RSAGL.Edge as Edge
 import RSAGL.Time
+import RSAGL.Angle
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
@@ -147,6 +148,27 @@ testEdgep = test "testEdgep"
                  [[False],[False],[False],[True],[True],[True],[False],[False],[True],[False],[False],[False],
                   [True],[True],[True],[False]]
 
+testRadiansToDegrees :: IO ()
+testRadiansToDegrees = testClose "testRadiansToDegrees"
+                          (toDegrees $ fromRadians (pi/6))
+                          30
+                          0.001
+
+testDegreesToRadians = testClose "testDegreesToRadians"
+                          (toRadians $ fromDegrees 270)
+                          (-pi/2)
+                          0.001
+
+testAngleAdd = testClose "testAngleAdd"
+                   (toDegrees $ fromDegrees 100 + fromDegrees 90)
+                   (-170)
+                   0.001
+
+testAngleSubtract = testClose "testAngleSubtract"
+                        (toDegrees $ fromDegrees (-20) - fromDegrees 400)
+                        (-60)
+                        0.001
+
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
                        do putStrLn $ "Test Case Passed: " ++ name
@@ -156,6 +178,16 @@ test name actual expected =
                           putStrLn $ "expected: " ++ show expected
                           putStrLn $ "actual:   " ++ show actual
                           putStrLn ""
+
+testClose :: (Eq a,Show a,Num a,Ord a) => String -> a -> a -> a -> IO ()
+testClose name actual expected closeness | abs (actual - expected) < closeness =
+    do putStrLn $ "Test Case Passed: " ++ name
+testClose name actual expected closeness = 
+    do putStrLn ""
+       putStrLn $ "TEST CASE FAILED: " ++ name
+       putStrLn $ "expected: " ++ show expected
+       putStrLn $ "actual: " ++ show actual
+       putStrLn ""
 
 main :: IO ()
 main = do test "add five test (sanity test of StatefulArrow)" 
@@ -181,3 +213,7 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testEdgeMap
           testHistory
           testEdgep
+          testRadiansToDegrees
+          testDegreesToRadians
+          testAngleAdd
+          testAngleSubtract
