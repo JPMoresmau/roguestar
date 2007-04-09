@@ -1,6 +1,6 @@
 \documentclass{article}
 \author{Christopher Lane Hinson $<$lane@downstairspeople.org$>$}
-\title{ RSAGL --- RogueStar Animation and Graphics Library }
+\title{ RSAGL Literate Source Document }
 \date{ This document was automatically generated from the literate source \today. }
 
 \usepackage{listings}
@@ -26,7 +26,7 @@
 
 \oddsidemargin 0.0in
 \pagestyle{headings}
-\hyphenation{Stateful-Arrow State-Arrow Threaded-Arrow Switched-Arrow}
+\hyphenation{Stateful-Arrow State-Arrow Threaded-Arrow Switched-Arrow loop-ed-Dou-bles loop-ed-Con-sec-u-tives}
 
 \begin{document}
 
@@ -56,17 +56,17 @@ HOpenGL binding.  To learn about HOpenGL, see http://www.haskell.org/HOpenGL/.
 
 To learn about linear algebra, a free textbook is available at http://joshua.smcvt.edu/linearalgebra/.
 
+\part{Three-Dimensional Mathematics Toolset}
+
+\input{Vector.lhs}
+
 \part{Functional Reactive Programming}
 
-The RSAGL FRP arrow is designed to support the functional reactive programming paradigm
+The RSAGL FRP arrow transformer is designed to support the functional reactive programming paradigm
 specifically with OpenGL.
 
 \input{FRP.lhs}
 \input{Edge.lhs}
-
-\part{Utilities}
-
-\input{Time.lhs}
 
 \part{Arrow Primitives for Functional Reactive Programming}
 
@@ -76,5 +76,18 @@ This section contains arrow transformers used to create the RSAGL FRP arrow.
 \input{SwitchedArrow.lhs}
 \input{ThreadedArrow.lhs}
 \input{FRPBase.lhs}
+
+\part{Numeric Types}
+
+\input{Time.lhs}
+\input{Angle.lhs}
+
+\part{Utilities}
+
+\input{ListUtils.lhs}
+
+\part{License}
+
+\input{../LICENSE}
 
 \end{document}

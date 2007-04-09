@@ -15,11 +15,14 @@ import RSAGL.FRP as FRP
 import RSAGL.Edge as Edge
 import RSAGL.Time
 import RSAGL.Angle
+import RSAGL.ListUtils
+import RSAGL.Vector
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
+import Test.QuickCheck hiding (test)
 
 --
 -- State machine that adds its input to its state
@@ -154,20 +157,99 @@ testRadiansToDegrees = testClose "testRadiansToDegrees"
                           30
                           0.001
 
+testDegreesToRadians :: IO ()
 testDegreesToRadians = testClose "testDegreesToRadians"
                           (toRadians $ fromDegrees 270)
                           (-pi/2)
                           0.001
 
+testAngleAdd :: IO ()
 testAngleAdd = testClose "testAngleAdd"
                    (toDegrees $ fromDegrees 100 + fromDegrees 90)
                    (-170)
                    0.001
 
+testAngleSubtract :: IO ()
 testAngleSubtract = testClose "testAngleSubtract"
                         (toDegrees $ fromDegrees (-20) - fromDegrees 400)
                         (-60)
                         0.001
+
+testDoubles :: IO ()
+testDoubles = test "testDoubles"
+                             (doubles [1,2,3,4])
+                             [(1,2),(2,3),(3,4)]
+
+testLoopedDoubles :: IO ()
+testLoopedDoubles = test "testLoopedDoubles"
+                             (loopedDoubles [1,2,3,4])
+                             [(1,2),(2,3),(3,4),(4,1)]
+
+testConsecutives :: IO ()
+testConsecutives = test "testConsecutives"
+                             (consecutives 3 [1,2,3,4])
+                             [[1,2,3],[2,3,4]]
+
+testShortConsecutives :: IO ()
+testShortConsecutives = test "testShortConsecutives"
+                            (consecutives 3 [1,2])
+                            []
+
+testLoopedConsecutives :: IO ()
+testLoopedConsecutives = test "testLoopedConsecutives"
+                             (loopedConsecutives 3 [1,2,3,4])
+                             [[1,2,3],[2,3,4],[3,4,1],[4,1,2]]
+
+testShortLoopedConsecutives :: IO ()
+testShortLoopedConsecutives = test "testShortLoopedConsecutives"
+                             (loopedConsecutives 3 [1,2])
+                             [[1,2,1],[2,1,2]]
+
+testAngleBetween :: IO ()
+testAngleBetween = testClose "testAngleBetween"
+                   (angleBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
+                   (fromDegrees 90)
+                   (fromDegrees 0.001)
+
+testDistanceBetween :: IO ()
+testDistanceBetween = testClose "testDistanceBetween"
+                      (distanceBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
+                      (sqrt 3)
+                      0.001
+
+-- we just test that the right-hand rule is observed
+testCrossProduct :: IO ()
+testCrossProduct =
+    do let (x,y,z) = toXYZ $ crossProduct (vector3d (1,0,0)) (vector3d (0,1,0))
+       testClose "testCrossProduct(x)" x 0.0 0.001
+       testClose "testCrossProduct(y)" y 0.0 0.001
+       testClose "testCrossProduct(z)" z 1.0 0.001
+
+-- here we use quickCheck to confirm that the crossProduct always yields a vector orthagonal
+-- to the parameters.
+quickCheckCrossProductByAngleBetween :: IO ()
+quickCheckCrossProductByAngleBetween = 
+    do putStr "quickCheckCrossProductByAngleBetween: "
+       quickCheck _qccpbab
+           where _qccpbab (v1,v2) = let cp = crossProduct (vector3d v1) (vector3d v2)
+                                        a1 = toRadians $ angleBetween cp (vector3d v1)
+                                        a2 = toRadians $ angleBetween cp (vector3d v2)
+                                        in abs (a1 - (pi/2)) < 0.001 &&
+                                           abs (a2 - (pi/2)) < 0.001
+
+testVectorAverage :: IO ()
+testVectorAverage =
+    do let (x,y,z) = toXYZ $ vectorAverage [vector3d (0.1,0,0),vector3d (0,-2,0),vector3d (0,0,5)]
+       testClose "testVectorAverage(x)" x 0.57735 0.001
+       testClose "testVectorAverage(y)" y (-0.57735) 0.001
+       testClose "testVectorAverage(z)" z 0.57735 0.001
+
+testNewell :: IO ()
+testNewell =
+    do let (x,y,z) = toXYZ $ newell [point3d (1,0,0),point3d (0,1,0),point3d (0,0,-1)]
+       testClose "testNewell(x)" x (-0.57735) 0.001
+       testClose "testNewell(y)" y (-0.57735) 0.001
+       testClose "testNewell(z)" z 0.57735 0.001
 
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
@@ -217,3 +299,15 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testDegreesToRadians
           testAngleAdd
           testAngleSubtract
+          testDoubles
+          testLoopedDoubles
+          testConsecutives
+          testShortConsecutives
+          testLoopedConsecutives
+          testShortLoopedConsecutives
+          testAngleBetween
+          testDistanceBetween
+          testCrossProduct
+          quickCheckCrossProductByAngleBetween
+          testVectorAverage
+          testNewell

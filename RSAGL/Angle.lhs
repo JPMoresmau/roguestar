@@ -1,6 +1,7 @@
 \section{RSAGL.Angle}
 
-RSAGL.Angle supports unitless representation of angular values.
+RSAGL.Angle supports manipulation of angular values, including
+angular arithmetic and trigonometry.
 
 \begin{code}
 module RSAGL.Angle

@@ -2,6 +2,15 @@ RogueStar Animation and Graphics Library
 
 The documentation for RSAGL can be built by typing:
 
-$ make
+$ make doc
 
 This requires a working latex installation.  (latex,dvipdf)
+
+
+
+The test suite can be built by typing:
+
+$ make tests
+$ ./rsagl-tests
+
+This generates a the binary rsagl-tests.

@@ -1,4 +1,4 @@
-\section{FRP, the Functional Reactive Programming Arrow}
+\section{The Functional Reactive Programming Arrow: RSAGL.FRP}
 
 Functional Reactive Programming is a paradigm within functional programming.
 \footnote{For more information about functional reactive programming in haskell, see http://www.haskell.org/frp/}

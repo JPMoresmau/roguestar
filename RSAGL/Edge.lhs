@@ -1,4 +1,4 @@
-\section{Edge Detection in FRP programs}
+\section{Edge Detection in FRP programs: RSAGL.Edge}
 
 Edge detection works for all inputs that implement Eq, and is simply a mechanism to observe when a value changes.
 
