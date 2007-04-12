@@ -17,11 +17,13 @@ import RSAGL.Time
 import RSAGL.Angle
 import RSAGL.ListUtils
 import RSAGL.Vector
+import RSAGL.Matrix
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
+import Data.Maybe
 import Test.QuickCheck hiding (test)
 
 --
@@ -251,6 +253,141 @@ testNewell =
        testClose "testNewell(y)" y (-0.57735) 0.001
        testClose "testNewell(z)" z 0.57735 0.001
 
+type Double2 = (Double,Double)
+type Double22 = (Double2,Double2)
+type Double3 = (Double,Double,Double)
+type Double33 = (Double3,Double3,Double3)
+type Double4 = (Double,Double,Double,Double)
+type Double44 = (Double4,Double4,Double4,Double4)
+
+d2ToMatrix :: Double22 -> Matrix Rational
+d2ToMatrix ((a,b),(c,d)) = coerceMatrix toRational $ matrix $ [[a,b],[c,d]]
+
+d3ToMatrix :: Double33 -> Matrix Rational
+d3ToMatrix ((a,b,c),(d,e,f),(g,h,i)) = coerceMatrix toRational $ matrix $ [[a,b,c],[d,e,f],[g,h,i]]
+
+d4ToMatrix :: Double44 -> Matrix Rational
+d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = coerceMatrix toRational $ matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
+
+testDeterminant2 :: IO ()
+testDeterminant2 =
+   do test "testDeterminant2-1"
+           (determinant $ matrix [[1,5],[3,0]])
+           (-15 :: Rational)
+      test "testDeterminant2-2"
+           (determinant $ matrix [[-2,0],[0.5,1]])
+           (-2 :: Rational)
+      test "testDeterminant2-3"
+           (determinant $ matrix [[0,0.5],[0.5,0.5]])
+           (-0.25 :: Rational)
+
+testDeterminant3 :: IO ()
+testDeterminant3 =
+   do test "testDeterminant3-1"
+           (determinant $ matrix [[5,-1,0.5],[-3,4,2],[0,0,-1]])
+           (-17 :: Rational)
+      test "testDeterminant3-2"
+           (determinant $ matrix [[0.5,-0.5,-2.0/3.0],
+                                  [-2.5,-1.0,-3.0],
+                                  [-0.5,0.5,-4.0/3.0]])
+           (3.5 :: Rational)
+
+testDeterminant4 :: IO ()
+testDeterminant4 =
+   do test "testDeterminant4-1"
+           (determinant $ matrix [[1.5,-1.0,0.5,-2.0],[1.0,1.5,1.0,1.0],[1.5,1.0,0.5,-0.5],[1.0,1.5,1.0,0.0]])
+           (2 :: Rational)
+
+quickCheckMatrixDeterminant2 :: IO ()
+quickCheckMatrixDeterminant2 =
+    do putStr "quickCheckMatrixDeterminant2: "
+       quickCheck _qcmi
+           where _qcmi :: Double22 -> Bool
+                 _qcmi m = 
+                     determinant (matrixTranspose mat) == determinant mat
+                         where mat = d2ToMatrix m
+
+quickCheckMatrixDeterminant3 :: IO ()
+quickCheckMatrixDeterminant3 =
+    do putStr "quickCheckMatrixDeterminant3: "
+       quickCheck _qcmi
+           where _qcmi :: Double33 -> Bool
+                 _qcmi m = 
+                     determinant (matrixTranspose mat) == determinant mat
+                         where mat = d3ToMatrix m
+
+quickCheckMatrixDeterminant4 :: IO ()
+quickCheckMatrixDeterminant4 =
+    do putStr "quickCheckMatrixDeterminant4: "
+       quickCheck _qcmi
+           where _qcmi :: Double44 -> Bool
+                 _qcmi m = 
+                     determinant (matrixTranspose mat) == determinant mat
+                         where mat = d4ToMatrix m
+
+quickCheckMatrixMultiplyDeterminant2 :: IO ()
+quickCheckMatrixMultiplyDeterminant2 =
+    do putStr "quickCheckMatrixMultiplyDeterminant2: "
+       quickCheck _qcmmd 
+            where _qcmmd :: (Double22,Double22) -> Bool
+                  _qcmmd (m1,m2) =
+                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                           where mat1 = d2ToMatrix m1
+                                 mat2 = d2ToMatrix m2
+
+quickCheckMatrixMultiplyDeterminant3 :: IO ()
+quickCheckMatrixMultiplyDeterminant3 =
+    do putStr "quickCheckMatrixMultiplyDeterminant3: "
+       quickCheck _qcmmd 
+            where _qcmmd :: (Double33,Double33) -> Bool
+                  _qcmmd (m1,m2) =
+                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                           where mat1 = d3ToMatrix m1
+                                 mat2 = d3ToMatrix m2
+
+quickCheckMatrixMultiplyDeterminant4 :: IO ()
+quickCheckMatrixMultiplyDeterminant4 =
+    do putStr "quickCheckMatrixMultiplyDeterminant4: "
+       quickCheck _qcmmd 
+            where _qcmmd :: (Double44,Double44) -> Bool
+                  _qcmmd (m1,m2) =
+                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                           where mat1 = d4ToMatrix m1
+                                 mat2 = d4ToMatrix m2
+
+quickCheckMatrixInverse2 :: IO ()
+quickCheckMatrixInverse2 =
+    do putStr "quickCheckMatrixInverse2: "
+       quickCheck _qcmi
+           where _qcmi :: Double22 -> Bool
+                 _qcmi ((a,b),(e,f)) = 
+                     if determinant mat == 0
+                     then True
+                     else matrixInversePrim (matrixInversePrim mat) == mat
+                         where mat = coerceMatrix toRational $ matrix [[a,b],[e,f]]
+
+quickCheckMatrixInverse3 :: IO ()
+quickCheckMatrixInverse3 =
+    do putStr "quickCheckMatrixInverse3: "
+       quickCheck _qcmi
+           where _qcmi :: Double33 -> Bool
+                 _qcmi ((a,b,c),(e,f,g),(i,j,k)) = 
+                     if determinant mat == 0
+                     then True
+                     else matrixInversePrim (matrixInversePrim mat) == mat
+                         where mat = coerceMatrix toRational $ matrix [[a,b,c],[e,f,g],[i,j,k]]
+
+quickCheckMatrixInverse4 :: IO ()
+quickCheckMatrixInverse4 =
+    do putStr "quickCheckMatrixInverse4: "
+       quickCheck _qcmi
+           where _qcmi :: Double44 -> Bool
+                 _qcmi ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = 
+                     if determinant mat == 0
+                     then True
+                     else matrixInversePrim (matrixInversePrim mat) == mat
+                         where mat = coerceMatrix toRational $ matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
+
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
                        do putStrLn $ "Test Case Passed: " ++ name
@@ -311,3 +448,15 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckCrossProductByAngleBetween
           testVectorAverage
           testNewell
+          testDeterminant2
+          testDeterminant3
+          testDeterminant4
+          quickCheckMatrixDeterminant2
+          quickCheckMatrixDeterminant3
+          quickCheckMatrixDeterminant4
+          quickCheckMatrixMultiplyDeterminant2
+          quickCheckMatrixMultiplyDeterminant3
+          quickCheckMatrixMultiplyDeterminant4
+          quickCheckMatrixInverse2
+          quickCheckMatrixInverse3
+          quickCheckMatrixInverse4
