@@ -24,7 +24,10 @@ module RSAGL.FRP
      integral,
      derivative,
      absoluteTime,
-     threadTime)
+     threadTime,
+     frpContext,
+     RSAGL.FRP.withState,
+     RSAGL.FRP.withExposedState)
     where
 
 import RSAGL.Time
@@ -32,7 +35,6 @@ import RSAGL.StatefulArrow as StatefulArrow
 import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.FRPBase as FRPBase
 import Data.Monoid
-import Data.Maybe
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
@@ -153,7 +155,7 @@ integral initial_value = statefulContext_ $ SwitchedArrow.withState integral'
 
 derivative :: (Arrow a,ArrowChoice a,ArrowApply a,Real fi,Fractional fo) => FRP i o a fi fo
 derivative = statefulContext_ $ SwitchedArrow.withState derivative' (\(i,_) -> (i,0))
-    where derivative' = proc p@(i,frpstate@FRPState{ frpstate_delta_time=delta_t }) ->
+    where derivative' = proc (i,frpstate@FRPState{ frpstate_delta_time=delta_t }) ->
               do (old_value,old_derivative) <- lift fetch -< ()
                  let new_derivative = if delta_t == 0
                                       then old_derivative

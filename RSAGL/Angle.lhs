@@ -17,13 +17,21 @@ module RSAGL.Angle
      toRadians,
      toDegrees,
      scaleAngle,
-     zero_angle)
+     zero_angle,
+     angularIncrements)
     where
 
 newtype Angle = Radians Double deriving (Show)
 
 zero_angle :: Angle
 zero_angle = Radians 0
+\end{code}
+
+angularIncrements answers n equa-angular values from 0 to 2*pi.
+
+\begin{code}
+angularIncrements :: Integer -> [Angle]
+angularIncrements subdivisions = map (fromRadians . (2*pi*) . (/ fromInteger subdivisions) . fromInteger) [0 .. subdivisions - 1]
 \end{code}
 
 \subsection{Type coercion for Angles}
@@ -89,9 +97,6 @@ toBoundedAngle x = x
 \subsection{Instances for angular values}
 
 \begin{code}
---instance Lerpable Angle where
---    lerp u (a,b) = a + scaleAngle u (b - a)
-
 instance Eq Angle where
     (==) x y = case (toRadians x,toRadians y) of
                    (x',y') | abs x' == pi && abs y' == pi -> True
@@ -110,10 +115,10 @@ signum answers -pi, 0, or pi.  negate and abs work by reflecting the angle over 
 instance Num Angle where
     (+) x y = toBoundedAngle $ Radians $ toRadians x + toRadians y
     (-) x y = toBoundedAngle $ Radians $ toRadians x - toRadians y
-    (*) x y = undefined
+    (*) = error "instance Num Angle, (*): multiplication over Angles is undefined"
     abs = toBoundedAngle . Radians . abs . toRadians
     negate = toBoundedAngle . Radians . negate . toRadians
     signum = Radians . (*pi) . signum . toRadians . toBoundedAngle
-    fromInteger = undefined
+    fromInteger = error "instance Num Angle, (toInteger): undefined.  You probably tried to use a literal angle.  Use fromDegrees instead."
 \end{code}
 

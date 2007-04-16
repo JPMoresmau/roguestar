@@ -23,7 +23,6 @@ import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
-import Data.Maybe
 import Test.QuickCheck hiding (test)
 
 --
@@ -210,8 +209,8 @@ testShortLoopedConsecutives = test "testShortLoopedConsecutives"
 testAngleBetween :: IO ()
 testAngleBetween = testClose "testAngleBetween"
                    (angleBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
-                   (fromDegrees 90)
-                   (fromDegrees 0.001)
+                   (fromDegrees (90))
+                   (fromDegrees (0.001))
 
 testDistanceBetween :: IO ()
 testDistanceBetween = testClose "testDistanceBetween"
@@ -234,8 +233,8 @@ quickCheckCrossProductByAngleBetween =
     do putStr "quickCheckCrossProductByAngleBetween: "
        quickCheck _qccpbab
            where _qccpbab (v1,v2) = let cp = crossProduct (vector3d v1) (vector3d v2)
-                                        a1 = toRadians $ angleBetween cp (vector3d v1)
-                                        a2 = toRadians $ angleBetween cp (vector3d v2)
+                                        a1 = toRadians $ angleBetween cp (vector3d v1) :: Double
+                                        a2 = toRadians $ angleBetween cp (vector3d v2) :: Double
                                         in abs (a1 - (pi/2)) < 0.001 &&
                                            abs (a2 - (pi/2)) < 0.001
 
@@ -401,7 +400,7 @@ test name actual expected =
 testClose :: (Eq a,Show a,Num a,Ord a) => String -> a -> a -> a -> IO ()
 testClose name actual expected closeness | abs (actual - expected) < closeness =
     do putStrLn $ "Test Case Passed: " ++ name
-testClose name actual expected closeness = 
+testClose name actual expected _ = 
     do putStrLn ""
        putStrLn $ "TEST CASE FAILED: " ++ name
        putStrLn $ "expected: " ++ show expected

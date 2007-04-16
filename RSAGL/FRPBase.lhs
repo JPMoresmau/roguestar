@@ -19,15 +19,11 @@ module RSAGL.FRPBase
     where
 
 import Data.Monoid
-import qualified Data.Set as Set
 import Control.Arrow
-import Control.Arrow.Operations
 import Control.Arrow.Transformer
 import Control.Arrow.Transformer.State
 import RSAGL.StatefulArrow as StatefulArrow
-import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.ThreadedArrow as ThreadedArrow
-import RSAGL.Time
 \end{code}
 
 FRPBase is a composite arrow in which the StatefulArrow is layered on top of the ThreadedArrow.

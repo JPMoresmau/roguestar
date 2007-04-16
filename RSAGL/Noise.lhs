@@ -1,6 +1,22 @@
 \section{Generating Noise: RSAGL.Noise}
+\ref{RSAGLNoise}
 
 \begin{code}
+module RSAGL.Noise
+    (NoiseFunction,
+     noiseAt,
+     composeNoiseFunctions,
+     noiseFunction,
+     perlin_noise_function,
+     synthesizePerlinNoise)
+    where
+
+import RSAGL.Interpolation
+import RSAGL.Vector
+import RSAGL.Affine
+import RSAGL.Matrix
+import Data.Array
+
 data NoiseFunctionElem = NoiseFunctionElem { nf_transformation_in :: Matrix Double,
                                              nf_transformation_out :: Double,
                                              nf_function :: Point3D -> Double }

@@ -17,13 +17,11 @@ module RSAGL.Edge
     where
 
 import RSAGL.FRP as FRP
-import RSAGL.StatefulArrow as StatefulArrow
 import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.Time
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
-import Control.Arrow.Transformer.State
 
 \end{code}
 

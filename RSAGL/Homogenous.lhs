@@ -1,6 +1,7 @@
 \section{Representing objects in homogenous coordinates: RSAGL.Homogenous}
 
-Entities such as points and vectors that can be represented as matrices.
+Entities such as points and vectors that can be represented as matrices.  The Homogenous typeclass is
+an easy way to implement affine transformations on these types.
 
 toHomogenous always results in a column matrix, while fromHomogenous always expects a row matrix.
 This means that (fromHomogenous . toHomogenous) is not an identity function.
@@ -8,8 +9,12 @@ Instead, (fromHomogenous . matrixTranspose . toHomogenous) is an identity functi
 
 \begin{code}
 module RSAGL.Homogenous
-    (Homogenous(..))
+    (Homogenous(..),
+     transformHomogenous)
     where
+
+import RSAGL.Vector
+import RSAGL.Matrix
 
 class Homogenous a where
     toHomogenous :: a -> Matrix Double
@@ -37,9 +42,13 @@ instance Homogenous Point3D where
                                            [1.0]]
     fromHomogenous m = point3d $ genericFromHomogenous m
 
-genericFromHomogenous :: Matrix Double -> (Double,Double,Double)
-genericFromHomogenous m = let x = (row_major m) !! 0 !! 0
-			      y = (row_major m) !! 1 !! 0
-			      z = (row_major m) !! 2 !! 0
+genericFromHomogenous :: Matrix Double -> XYZ
+genericFromHomogenous m = let x = (rowMajorForm m) !! 0 !! 0
+			      y = (rowMajorForm m) !! 1 !! 0
+			      z = (rowMajorForm m) !! 2 !! 0
 			      in (x,y,z)
+
+transformHomogenous :: (Homogenous a, Homogenous b) => Matrix Double -> a -> b
+transformHomogenous transformation_matrix entity = 
+    fromHomogenous $ matrixMultiply transformation_matrix $ toHomogenous entity
 \end{code}

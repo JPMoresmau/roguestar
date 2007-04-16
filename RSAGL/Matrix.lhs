@@ -4,10 +4,15 @@
 module RSAGL.Matrix
     (Matrix,
      matrix,
+     rowMajorForm,
+     colMajorForm,
      rowAt,
      matrixAt,
      coerceMatrix,
      identityMatrix,
+     translationMatrix,
+     rotationMatrix,
+     scaleMatrix,
      xyzMatrix,
      matrixAdd,
      matrixMultiply,
@@ -18,12 +23,9 @@ module RSAGL.Matrix
     where
 
 import Data.List
-import Data.Array
-import Data.Maybe
 import Data.Ratio
 import RSAGL.Angle
 import RSAGL.Vector
-import Control.Monad
 \end{code}
 
 The Matrix data structure stores copies of the matrix in both row-major and column-major form,

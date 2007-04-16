@@ -5,8 +5,11 @@ module RSAGL.ListUtils
     (doubles,
      loopedDoubles,
      consecutives,
-     loopedConsecutives)
+     loopedConsecutives,
+     dropRandomElements)
     where
+
+import System.Random
 \end{code}
 
 pairify converts a list of length two into a list of tuple pairs.
@@ -54,4 +57,19 @@ consecutives 3 [1,2,3,4] = [[1,2,3],[2,3,4],[3,4,1],[4,1,2]]
 \begin{code}
 loopedConsecutives :: Int -> [a] -> [[a]]
 loopedConsecutives n elems = consecutives n $ take (n + length elems - 1) $ cycle elems
+\end{code}
+
+dropRandomElements removes some elements of a list at random.  The first parameter is the number of elements out of 100 that should be included (not dropped).  The second is a random seed, and the third is the list to be operated on.
+
+\begin{code}
+dropRandomElements :: Int -> StdGen -> [a] -> [a]
+dropRandomElements percent _ _ | percent > 100 = error "dropRandomElements: percent > 100"
+dropRandomElements percent _ _ | percent < 0 = error "dropRandomElements: percent < 100"
+dropRandomElements _ _ [] = []
+dropRandomElements percent rand_ints things = 
+    let (next_int,next_gen) = next rand_ints
+	rest = dropRandomElements percent next_gen (tail things)
+	in if (next_int `mod` 100 < percent)
+	   then ((head things) : rest)
+	   else rest
 \end{code}

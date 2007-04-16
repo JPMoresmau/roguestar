@@ -1,8 +1,25 @@
+\begin{code}
 module RSAGL.Interpolation
-    ()
+    (Lerpable(..),
+     genericLerp,
+     lerpBetween,
+     lerpBetweenMutated,
+     lerpBetweenClamped,
+     lerpBetweenClampedMutated,
+     lerp_mutator_continuous_1st,
+     lerpMap,
+     interpolateGrid,
+     interpolate3DPolyline,
+     interpolateLooped3DPolyline,
+     interpolate2DPolyline)
     where
 
-\begin{code}
+import RSAGL.Angle
+import RSAGL.Vector
+import Data.List
+import Control.Monad
+import RSAGL.ListUtils
+
 -- |
 -- Class of things subject to linear interpolation.
 --
@@ -65,7 +82,11 @@ lerpMap u pts =
                 
 lerpNumber :: (Num n) => n -> (n,n) -> n
 lerpNumber u (a,b) = (1-u)*a + u*b
+\end{code}
 
+\subsection{Lerpable entities from RSAGL}
+
+\begin{code}
 instance Lerpable Double where
    lerp = lerpNumber
 
@@ -80,32 +101,53 @@ instance Lerpable Point2D where
                 
 instance (Lerpable a) => Lerpable (Maybe a) where
    lerp u (a,b) = liftM2 (curry $ lerp u) a b
+
+instance Lerpable Angle where
+    lerp u (a,b) = a + scaleAngle u (b - a)
 \end{code}
 
+\subsection{Interpolating geometric data}
+
+interpolateGrid uses a simple interpolation function to smooth out a grid of 3D vertex data.
+
+We hereby define that each sublist of the vertex data represents a polyline of longitude, and that lines drawn between lists represent polylines of latitude.
+
+The boolean parameters indicate whether or not longitudinal and latitudinal lines are looped polylines.  For looped polylines, an extra point is interpolated between the first and last points in the polyline.
+
 \begin{code}
-interpolateBetween3d :: [Point3D] -> [Point3D]
-interpolateBetween3d pts | length pts < 4 = head pts :
+interpolateGrid :: (Bool,Bool) -> [[Point3D]] -> [[Point3D]]
+interpolateGrid (loop_long,loop_lat) = transpose . map (interpolateFn loop_lat) . transpose . map (interpolateFn loop_long)
+    where interpolateFn True = interpolateLooped3DPolyline
+          interpolateFn False = interpolate3DPolyline
+\end{code}
+
+The following functions interpolate polylines to smooth them.  The goal here is to be as true as possible to the original
+polyline while making it appear to be smoother.
+
+\begin{code}
+interpolate3DPolyline :: [Point3D] -> [Point3D]
+interpolate3DPolyline pts | length pts < 4 = head pts :
 					    (concatMap 
-					     (\(p1,p2) -> [lerp (0.5 :: Double) (p1,p2),p2]) $ 
+					     (\(p1,p2) -> [lerp 0.5 (p1,p2),p2]) $ 
 					    doubles pts)
-interpolateBetween3d pts = let len = length pts
-			       begin = take 3 pts
-			       end = drop (len-2) pts
-			       in (take 3 $ interpolateBetween3d begin) ++ 
-				      (concatMap (\x -> [goodInterpolateFn x,x !! 2]) $ consecutives 4 pts) ++ 
-				      (drop 2 $ interpolateBetween3d end)
+interpolate3DPolyline pts = let len = length pts
+			        begin = take 3 pts
+			        end = drop (len-2) pts
+			        in (take 3 $ interpolate3DPolyline begin) ++ 
+				       (concatMap (\x -> [interpolate4 x,x !! 2]) $ consecutives 4 pts) ++ 
+				       (drop 2 $ interpolate3DPolyline end)
 
-loopedInterpolateBetween3d :: [Point3D] -> [Point3D]
-loopedInterpolateBetween3d pts | length pts < 4 = (concatMap
-						   (\(p1,p2) -> [lerp (0.5 :: Double) (p1,p2),p2]) $
+interpolateLooped3DPolyline :: [Point3D] -> [Point3D]
+interpolateLooped3DPolyline pts | length pts < 4 = (concatMap
+						   (\(p1,p2) -> [lerp 0.5 (p1,p2),p2]) $
 						  loopedDoubles pts)
-loopedInterpolateBetween3d pts = (concatMap (\x -> [goodInterpolateFn x,x !! 2]) $ loopedConsecutives 4 pts)
+interpolateLooped3DPolyline pts = (concatMap (\x -> [interpolate4 x,x !! 2]) $ loopedConsecutives 4 pts)
 
-interpolateBetween2d :: [Point2D] -> [Point2D]
-interpolateBetween2d = map to2d . interpolateBetween3d . map to3d
+interpolate2DPolyline :: [Point2D] -> [Point2D]
+interpolate2DPolyline = map to2d . interpolate3DPolyline . map to3d
 
-goodInterpolateFn :: [Point3D] -> Point3D
-goodInterpolateFn [p0,p1,p2,p3] = 
+interpolate4 :: [Point3D] -> Point3D
+interpolate4 [p0,p1,p2,p3] = 
     let (Point3D x y z) = lerp (0.5 :: Double) (p1,p2)
 	simple = vectorAdd (vectorToFrom p1 p0) (vectorToFrom p2 p3)
 	scaled = maybe (Vector3D 0 0 0) (vectorScaleTo (vectorLength (vectorToFrom p1 p2) / 9)) $ aNonZeroVector simple
@@ -113,5 +155,5 @@ goodInterpolateFn [p0,p1,p2,p3] =
 			      then simple
 			      else scaled
 	in Point3D (x+x'/2) (y+y'/2) (z+z'/2)
-goodInterpolateFn _ = error "goodInterpolateFn: works only on lists of 4"
+interpolate4 _ = error "interpolate4: works only on lists of 4"
 \end{code}
