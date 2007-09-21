@@ -103,6 +103,14 @@ moveAction str =
 	     action_execute = \globals_ref -> driverAction globals_ref ["move",str]
 	    })
 
+turnAction :: String -> (String,Action)
+turnAction str =
+    ("turn-" ++ str,
+     Action {
+             action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverGetAnswer globals_ref Fresh "state",
+             action_execute = \globals_ref -> driverAction globals_ref ["turn",str]
+            })
+
 reroll_action :: (String,Action)
 reroll_action =
     ("reroll",
@@ -151,12 +159,16 @@ select_base_class_actions = map (\x -> (x,selectBaseClassAction x)) select_base_
 move_actions :: [(String,Action)]
 move_actions = map moveAction eight_directions
 
+turn_actions :: [(String,Action)]
+turn_actions = map turnAction eight_directions
+
 all_actions :: [(String,Action)]
 all_actions = [quitAction] ++
               select_race_actions ++ 
 	      [reroll_action] ++
 	      select_base_class_actions ++
-	      move_actions
+	      move_actions ++
+              turn_actions
 
 -- |
 -- Answer a complete list of all actions whose action_valid functions answer True.

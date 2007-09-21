@@ -66,4 +66,12 @@ default_keymap = filterKeymap
 		  ("u","move-nw"),
 		  ("b","move-se"),
 		  ("n","move-sw"),
+		  ("K","turn-n"),
+		  ("J","turn-s"),
+		  ("H","turn-e"),
+		  ("L","turn-w"),
+		  ("Y","turn-ne"),
+		  ("U","turn-nw"),
+		  ("B","turn-se"),
+		  ("N","turn-sw"),
 		  ("#quit","quit")]
