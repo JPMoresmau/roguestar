@@ -201,6 +201,9 @@ dbDispatch ["action","select-class",class_name] =
 dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\x -> dbWalkCreature (fromJust $ stringToFacing direction) x >> done)
 
+dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
+    dbRequiresPlayerTurnState (\x -> dbTurnCreature (fromJust $ stringToFacing direction) x >> done)
+
 dbDispatch ["query","player-stats"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
 dbDispatch ["query","center-coordinates"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates

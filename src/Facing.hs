@@ -22,7 +22,8 @@ module Facing
     (Facing(..),
      facingToRelative,
      facingToRelative7,
-     stringToFacing)
+     stringToFacing,
+     facingDistance)
     where
 
 data Facing = North
@@ -68,7 +69,7 @@ facingToRelative Here = (0,0)
 
 -- |
 -- In relative coordinates, roughly seven integral steps in the specified direction.
--- Note: 7 is a small integer such that the square root of 5^2 is quite close to 7.
+-- Note: 7 is a small integer such that the square root of 2*5^2 is quite close to 7.
 --
 facingToRelative7 :: Facing -> (Integer,Integer)
 facingToRelative7 North = (0,7)
@@ -80,3 +81,12 @@ facingToRelative7 SouthWest = (-5,-5)
 facingToRelative7 West = (-7,0)
 facingToRelative7 NorthWest = (-5,5)
 facingToRelative7 Here = (0,0)
+
+-- |
+-- The distance between two facings, between 0 and 4.
+--
+facingDistance :: Facing -> Facing -> Integer
+facingDistance Here _ = 0
+facingDistance _ Here = 0
+facingDistance a b = toInteger $ if enum_distance > 4 then 8 - enum_distance else enum_distance
+    where enum_distance = abs $ fromEnum a - fromEnum b

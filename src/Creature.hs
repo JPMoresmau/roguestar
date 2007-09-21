@@ -23,6 +23,7 @@ module Creature
      runCreatureGenerationTest, 
      creatureTests,
      dbNewCreature,
+     dbTurnCreature,
      dbWalkCreature)
     where
 
@@ -77,18 +78,31 @@ dbNewCreature faction species =
 -- Causes the creature to walk in the specified facing direction.
 dbWalkCreature :: Facing -> CreatureRef -> DB ()
 dbWalkCreature facing creature_ref =
-    do (_,loc0) <- liftM fromJust $ dbWhere creature_ref
-       let (_         ,loc') = case loc0 of
-                                         DBCoordinateLocation (x,y) -> (True, 
-                                                                        DBCoordinateFacingLocation ((x+delta_x,y+delta_y),facing))
-                                         DBCoordinateFacingLocation ((x,y),old_facing) -> (old_facing == facing,
-                                                                                           DBCoordinateFacingLocation ((x+delta_x,y+delta_y),facing))
+    do dbTurnCreature facing creature_ref
+       loc <- liftM (snd . fromJust) $ dbWhere creature_ref
+       let loc' = case loc of
+                      DBCoordinateLocation (x,y) ->
+                          DBCoordinateLocation ((x+delta_x,y+delta_y))
+                      DBCoordinateFacingLocation ((x,y),old_facing) -> 
+                          DBCoordinateFacingLocation ((x+delta_x,y+delta_y),old_facing)
            (delta_x,delta_y) = facingToRelative facing
---           movement_cost = case (delta_x,delta_y) of
---                                                  (0,0) -> 0%1
---                                                  (_,0) -> 1%1
---                                                  (0,_) -> 1%1
---                                                  (_,_) -> 7%5
+--           movement_cost = case (abs delta_x,abs delta_y) of
+--                               (0,0) -> 0%1
+--                               (1,0) -> x%1
+--                               (0,1) -> y%1
+--                               (1,1) -> 7%5
+--                               _ -> error "dbWalkCreature: facingToRelative should only answer in the range -1..1
+       dbMoveTo creature_ref loc'
+
+dbTurnCreature :: Facing -> CreatureRef -> DB ()
+dbTurnCreature facing creature_ref =
+    do loc <- liftM (snd . fromJust) $ dbWhere creature_ref
+       let loc' = case loc of
+                          DBCoordinateLocation xy ->
+                              DBCoordinateFacingLocation (xy,facing)
+                          DBCoordinateFacingLocation (xy,_) ->
+                              DBCoordinateFacingLocation (xy,facing)
+--         movement_cost = facingDistance old_facing facing % 4
        dbMoveTo creature_ref loc'
 
 creatureTests :: [TestCase]

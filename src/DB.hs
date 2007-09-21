@@ -44,7 +44,8 @@ module DB
      dbNextRandomIntegerStream,
      dbSetStartingRace,
      dbGetStartingRace,
-     dbMoveTo)
+     dbMoveTo,
+     dbMove)
     where
 
 import DBData
@@ -281,11 +282,17 @@ dbMoveInto container item location =
 -- Moves the object within its parent.  (The object has the same parent after the action).
 --
 dbMoveTo :: (DBRef a) => a -> DBLocation -> DB ()
-dbMoveTo item location =
-    do where_it_is <- dbWhere item
-       case where_it_is of
-                  Just (container,_) -> dbMoveInto container item location
-                  Nothing -> error "dbMoveTo: but it doesn't have a location to start with"
+dbMoveTo a l = dbMove a (const l)
+
+-- |
+-- Moves the object within its parent.  (The object has the same parent after the action).
+--
+dbMove :: (DBRef a) => a -> (DBLocation -> DBLocation) -> DB ()
+dbMove item f =
+   do where_it_is <- dbWhere item
+      case where_it_is of
+          Just (container,loc) -> dbMoveInto container item (f loc)
+          Nothing -> error "dbMove: but it doesn't have a location to start with"
 
 -- |
 -- Returns the (parent,object's location) of this object.
