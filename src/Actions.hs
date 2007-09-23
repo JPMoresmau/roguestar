@@ -25,6 +25,7 @@ module Actions
 
 import System.Exit
 import Control.Monad
+import Control.Monad.Error
 import Driver
 import Data.IORef
 import Data.List
@@ -34,19 +35,24 @@ import Tables
 import Data.Maybe
 import System.IO
 
-data Action = Action { action_valid :: IORef RoguestarGlobals -> IO Bool, 
-		       action_execute :: IORef RoguestarGlobals -> IO () }
+type Action = IORef RoguestarGlobals -> ErrorT String IO (IO ())
 
-quitAction :: (String,Action)
-quitAction = ("quit",
-              Action { action_valid = \_ -> return True,
-                       action_execute = \_ -> exitWith ExitSuccess })
+actionValid :: IORef RoguestarGlobals -> Action -> IO Bool
+actionValid globals_ref action = 
+    do result <- runErrorT $ action globals_ref
+       return $ either (const False) (const True) result
 
-selectRaceAction :: String -> Action
-selectRaceAction = selectTableAction ("player-races","0","name") "race-selection" "select-race"
+executeAction :: IORef RoguestarGlobals -> Action -> IO ()
+executeAction globals_ref action =
+    do result <- runErrorT $ action globals_ref
+       either (\s -> printText globals_ref Untranslated ("unable to execute action: " ++ s))
+              (id)
+              result
+       return ()
 
-selectBaseClassAction :: String -> Action
-selectBaseClassAction = selectTableAction ("base-classes","0","class") "class-selection" "select-class"
+quit_action :: (String,Action)
+quit_action = ("quit",
+               \_ -> return $ exitWith ExitSuccess)
 
 -- |
 -- Constructs an action such that the action is valid only if it is listed in
@@ -79,45 +85,49 @@ selectBaseClassAction = selectTableAction ("base-classes","0","class") "class-se
 --
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
-    Action { action_valid = valid,
-             action_execute = execute }
-    where valid globals_ref = 
-	      do state <- driverGetAnswer globals_ref Fresh "state"
-                 case state of 
-                            Nothing -> return False
-		            Just x | x == allowed_state -> 
-		                do maybe_table <- driverGetTable globals_ref Fresh the_table_name the_table_id
-		                   case maybe_table of 
-		                                    Nothing -> return False
-		                                    Just table -> return $ action_param `elem` tableSelect1 table the_table_header
-		            Just _ -> return False
-	  execute globals_ref = 
-	      do driverAction globals_ref [action_name, action_param]
-	         printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
+    \globals_ref ->
+        do state <- maybe (fail "") return =<< (lift $ driverGetAnswer globals_ref Fresh "state")
+           guard $ state == allowed_state
+           table <- maybe (fail "") return =<< (lift $ driverGetTable globals_ref Fresh the_table_name the_table_id)
+           guard $ action_param `elem` tableSelect1 table the_table_header
+           return $ do driverAction globals_ref [action_name, action_param]
+                       printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
+
+-- |
+-- An action that depends on the state of the game and an arbitrary constant parameter.
+-- For example, actions that operate directionally are parameterized
+-- on the eight directions (n,s,w,e,nw,ne,sw,se).
+--
+-- i.e., parameterizedAction "player-turn" "move" "nw" becomes 
+-- ("move-nw",driverAction _ ["move","nw"])
+--
+parameterizedAction :: String -> String -> String -> (String,Action)
+parameterizedAction allowed_state action_name parameter =
+    (action_name ++ "-" ++ parameter,
+     \globals_ref ->
+         do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer globals_ref Fresh "state")
+            return $ driverAction globals_ref [action_name,parameter])
 
 moveAction :: String -> (String,Action)
-moveAction str =
-    ("move-" ++ str,
-     Action {
-	     action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverGetAnswer globals_ref Fresh "state",
-	     action_execute = \globals_ref -> driverAction globals_ref ["move",str]
-	    })
+moveAction = parameterizedAction "player-turn" "move"
 
 turnAction :: String -> (String,Action)
-turnAction str =
-    ("turn-" ++ str,
-     Action {
-             action_valid = \globals_ref -> liftM (== Just "player-turn") $ driverGetAnswer globals_ref Fresh "state",
-             action_execute = \globals_ref -> driverAction globals_ref ["turn",str]
-            })
+turnAction = parameterizedAction "player-turn" "turn"
 
 reroll_action :: (String,Action)
 reroll_action =
     ("reroll",
-     Action {
-	     action_valid = \globals_ref -> liftM (== Just "class-selection") $ driverGetAnswer globals_ref Fresh "state",
-	     action_execute = \globals_ref -> driverAction globals_ref ["reroll"]
-            })
+     \globals_ref ->
+         do guard =<< (liftM (== Just "class-selection") $ lift $ driverGetAnswer globals_ref Fresh "state")
+            return $ driverAction globals_ref ["reroll"])
+
+selectRaceAction :: String -> (String,Action)
+selectRaceAction s = 
+    (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
+
+selectBaseClassAction :: String -> (String,Action)
+selectBaseClassAction s = 
+    (s,selectTableAction ("base-classes","0","class") "class-selection" "select-class" s)
 
 select_race_action_names :: [String]
 select_race_action_names = ["anachronid",
@@ -133,6 +143,9 @@ select_race_action_names = ["anachronid",
 			    "recreant",
 			    "reptilian"]
 
+select_race_actions :: [(String,Action)]
+select_race_actions = map selectRaceAction select_race_action_names
+
 select_base_class_action_names :: [String]
 select_base_class_action_names = ["barbarian",
 				  "consular",
@@ -147,14 +160,11 @@ select_base_class_action_names = ["barbarian",
 				  "thief",
 				  "warrior"]
 
+select_base_class_actions :: [(String,Action)]
+select_base_class_actions = map selectBaseClassAction select_base_class_action_names
+
 eight_directions :: [String]
 eight_directions = ["n","ne","nw","e","w","se","sw","s"]
-
-select_race_actions :: [(String,Action)]
-select_race_actions = map (\x -> (x,selectRaceAction x)) select_race_action_names
-
-select_base_class_actions :: [(String,Action)]
-select_base_class_actions = map (\x -> (x,selectBaseClassAction x)) select_base_class_action_names
 
 move_actions :: [(String,Action)]
 move_actions = map moveAction eight_directions
@@ -163,19 +173,25 @@ turn_actions :: [(String,Action)]
 turn_actions = map turnAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = [quitAction] ++
+all_actions = [quit_action] ++
               select_race_actions ++ 
 	      [reroll_action] ++
 	      select_base_class_actions ++
 	      move_actions ++
               turn_actions
 
+lookupAction :: String -> (String,Action)
+lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action named " ++ x) $ lookup x all_actions)
+
 -- |
--- Answer a complete list of all actions whose action_valid functions answer True.
+-- Answer a complete list of all actions that can be run at this time.
+-- Accepts an optional list of action names to choose from; if Nothing,
+-- uses all concievable actions as that list.
 --
-getValidActions :: IORef RoguestarGlobals -> IO [String]
-getValidActions globals_ref = 
-    do valid_action_pairs <- filterM ((\x -> action_valid x globals_ref) . snd) all_actions
+getValidActions :: IORef RoguestarGlobals -> Maybe [String] -> IO [String]
+getValidActions globals_ref actions_list = 
+    do valid_action_pairs <- filterM (actionValid globals_ref . snd) $ 
+                                 maybe all_actions (map lookupAction) actions_list
        return $ map fst valid_action_pairs
 
 -- |
@@ -185,13 +201,13 @@ getValidActions globals_ref =
 --
 takeUserInputAction :: IORef RoguestarGlobals -> [String] -> IO Bool
 takeUserInputAction _ [] = return False
-takeUserInputAction globals_ref action_names = 
-    do valid_actions <- getValidActions globals_ref
-       let single_valid_action = intersect action_names valid_actions
-	   executeAction = do action_execute (fromJust $ lookup (head single_valid_action) all_actions) globals_ref
-			      return True
-       case length single_valid_action of
-				       0 -> return False
-				       1 -> executeAction
-				       _ -> do printTranslated globals_ref GUIMessage (["action-bindings-warning"] ++ single_valid_action)
-					       executeAction
+takeUserInputAction globals_ref action_names =
+    do valid_actions <- getValidActions globals_ref (Just action_names)
+       let action = map lookupAction valid_actions
+       case length action of
+           0 -> return False
+	   1 -> do executeAction globals_ref $ snd $ head action
+                   return True
+	   _ -> do printTranslated globals_ref GUIMessage (["action-bindings-warning"] ++ map fst action)
+		   executeAction globals_ref $ snd $ head action
+                   return True

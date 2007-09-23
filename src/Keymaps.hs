@@ -31,7 +31,7 @@ import Globals
 
 validKeyMap :: IORef RoguestarGlobals -> IO [(String,String)]
 validKeyMap globals_ref =
-    do valid_actions <- getValidActions globals_ref
+    do valid_actions <- getValidActions globals_ref Nothing
        globals <- readIORef globals_ref
        return $ filter (\x -> snd x `elem` valid_actions) $ global_keymap globals
 
