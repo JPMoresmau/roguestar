@@ -259,43 +259,43 @@ type Double33 = (Double3,Double3,Double3)
 type Double4 = (Double,Double,Double,Double)
 type Double44 = (Double4,Double4,Double4,Double4)
 
-d2ToMatrix :: Double22 -> Matrix Rational
-d2ToMatrix ((a,b),(c,d)) = coerceMatrix toRational $ matrix $ [[a,b],[c,d]]
+d2ToMatrix :: Double22 -> Matrix
+d2ToMatrix ((a,b),(c,d)) = matrix $ [[a,b],[c,d]]
 
-d3ToMatrix :: Double33 -> Matrix Rational
-d3ToMatrix ((a,b,c),(d,e,f),(g,h,i)) = coerceMatrix toRational $ matrix $ [[a,b,c],[d,e,f],[g,h,i]]
+d3ToMatrix :: Double33 -> Matrix
+d3ToMatrix ((a,b,c),(d,e,f),(g,h,i)) = matrix $ [[a,b,c],[d,e,f],[g,h,i]]
 
-d4ToMatrix :: Double44 -> Matrix Rational
-d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = coerceMatrix toRational $ matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
+d4ToMatrix :: Double44 -> Matrix
+d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
 testDeterminant2 :: IO ()
 testDeterminant2 =
    do test "testDeterminant2-1"
            (determinant $ matrix [[1,5],[3,0]])
-           (-15 :: Rational)
+           (-15)
       test "testDeterminant2-2"
            (determinant $ matrix [[-2,0],[0.5,1]])
-           (-2 :: Rational)
+           (-2)
       test "testDeterminant2-3"
            (determinant $ matrix [[0,0.5],[0.5,0.5]])
-           (-0.25 :: Rational)
+           (-0.25)
 
 testDeterminant3 :: IO ()
 testDeterminant3 =
    do test "testDeterminant3-1"
            (determinant $ matrix [[5,-1,0.5],[-3,4,2],[0,0,-1]])
-           (-17 :: Rational)
-      test "testDeterminant3-2"
+           (-17)
+      testClose "testDeterminant3-2" 0.001
            (determinant $ matrix [[0.5,-0.5,-2.0/3.0],
                                   [-2.5,-1.0,-3.0],
                                   [-0.5,0.5,-4.0/3.0]])
-           (3.5 :: Rational)
+           3.5
 
 testDeterminant4 :: IO ()
 testDeterminant4 =
    do test "testDeterminant4-1"
            (determinant $ matrix [[1.5,-1.0,0.5,-2.0],[1.0,1.5,1.0,1.0],[1.5,1.0,0.5,-0.5],[1.0,1.5,1.0,0.0]])
-           (2 :: Rational)
+           2
 
 quickCheckMatrixDeterminant2 :: IO ()
 quickCheckMatrixDeterminant2 =
@@ -303,7 +303,7 @@ quickCheckMatrixDeterminant2 =
        quickCheck _qcmi
            where _qcmi :: Double22 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) == determinant mat
+                     determinant (matrixTranspose mat) `equalClose` determinant mat
                          where mat = d2ToMatrix m
 
 quickCheckMatrixDeterminant3 :: IO ()
@@ -312,7 +312,7 @@ quickCheckMatrixDeterminant3 =
        quickCheck _qcmi
            where _qcmi :: Double33 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) == determinant mat
+                     determinant (matrixTranspose mat) `equalClose` determinant mat
                          where mat = d3ToMatrix m
 
 quickCheckMatrixDeterminant4 :: IO ()
@@ -321,7 +321,7 @@ quickCheckMatrixDeterminant4 =
        quickCheck _qcmi
            where _qcmi :: Double44 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) == determinant mat
+                     determinant (matrixTranspose mat) `equalClose` determinant mat
                          where mat = d4ToMatrix m
 
 quickCheckMatrixMultiplyDeterminant2 :: IO ()
@@ -330,7 +330,7 @@ quickCheckMatrixMultiplyDeterminant2 =
        quickCheck _qcmmd 
             where _qcmmd :: (Double22,Double22) -> Bool
                   _qcmmd (m1,m2) =
-                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                       (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d2ToMatrix m1
                                  mat2 = d2ToMatrix m2
 
@@ -340,7 +340,7 @@ quickCheckMatrixMultiplyDeterminant3 =
        quickCheck _qcmmd 
             where _qcmmd :: (Double33,Double33) -> Bool
                   _qcmmd (m1,m2) =
-                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                       (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d3ToMatrix m1
                                  mat2 = d3ToMatrix m2
 
@@ -350,7 +350,7 @@ quickCheckMatrixMultiplyDeterminant4 =
        quickCheck _qcmmd 
             where _qcmmd :: (Double44,Double44) -> Bool
                   _qcmmd (m1,m2) =
-                       determinant (mat1 `matrixMultiply` mat2) == determinant mat1 * determinant mat2
+                       (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d4ToMatrix m1
                                  mat2 = d4ToMatrix m2
 
@@ -360,10 +360,10 @@ quickCheckMatrixInverse2 =
        quickCheck _qcmi
            where _qcmi :: Double22 -> Bool
                  _qcmi ((a,b),(e,f)) = 
-                     if determinant mat == 0
+                     if determinant mat `equalClose` 0
                      then True
-                     else matrixInversePrim (matrixInversePrim mat) == mat
-                         where mat = coerceMatrix toRational $ matrix [[a,b],[e,f]]
+                     else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
+                         where mat = matrix [[a,b],[e,f]]
 
 quickCheckMatrixInverse3 :: IO ()
 quickCheckMatrixInverse3 =
@@ -371,10 +371,10 @@ quickCheckMatrixInverse3 =
        quickCheck _qcmi
            where _qcmi :: Double33 -> Bool
                  _qcmi ((a,b,c),(e,f,g),(i,j,k)) = 
-                     if determinant mat == 0
+                     if determinant mat `equalClose` 0
                      then True
-                     else matrixInversePrim (matrixInversePrim mat) == mat
-                         where mat = coerceMatrix toRational $ matrix [[a,b,c],[e,f,g],[i,j,k]]
+                     else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
+                         where mat = matrix [[a,b,c],[e,f,g],[i,j,k]]
 
 quickCheckMatrixInverse4 :: IO ()
 quickCheckMatrixInverse4 =
@@ -382,10 +382,10 @@ quickCheckMatrixInverse4 =
        quickCheck _qcmi
            where _qcmi :: Double44 -> Bool
                  _qcmi ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = 
-                     if determinant mat == 0
+                     if determinant mat `equalClose` 0
                      then True
-                     else matrixInversePrim (matrixInversePrim mat) == mat
-                         where mat = coerceMatrix toRational $ matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
+                     else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
+                         where mat = matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
@@ -396,6 +396,13 @@ test name actual expected =
                           putStrLn $ "expected: " ++ show expected
                           putStrLn $ "actual:   " ++ show actual
                           putStrLn ""
+
+equalClose :: (Eq a,Num a,Ord a,Fractional a) => a -> a -> Bool
+equalClose actual expected = abs (actual - expected) < 0.01
+
+matrixEqualClose :: Matrix -> Matrix -> Bool
+matrixEqualClose m n = and $ List.map and $ zipWith (zipWith equalClose)
+    (rowMajorForm m) (rowMajorForm n)
 
 testClose :: (Eq a,Show a,Num a,Ord a) => String -> a -> a -> a -> IO ()
 testClose name actual expected closeness | abs (actual - expected) < closeness =

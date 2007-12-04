@@ -1,407 +1,274 @@
-\section{Modeling: RSAGL.Model}
+\section{Haskell as a 3D Modelling Language: RSAGL.Model}
 
-RSAGL.Model allows Haskell to be used as a 3D modelling language.
+RSAGL.Model seeks to provide a complete set of high-level modelling primitives for OpenGL.
 
 \begin{code}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fglasgow-exts #-}
 
 module RSAGL.Model
-    (Material(..),
-     Texture(..),
-     Point3D,
-     Point2D,
-     Vector3D,
-     proceduralTexture,
-     Model,
-     modelSize,
-     scaleModel,
-     rgbColor,
-     rgbShine,
-     rgbLum,
-     flatTriangle,
-     strip,
-     toOpenGL,
-     frame,
-     extrude,
-     sor,
-     deformedSor,
-     RSAGL.Model.union,
-     decomposeModel)
+    (Model,
+     Modeling,
+     generalSurface,
+     extractModel,
+     toIntermediateModel,
+     intermediateModelToOpenGL,
+     modelingToOpenGL,
+     sphere,
+     disc,
+     adaptive,
+     fixed,
+     attribute,
+     withAttribute,
+     model,
+     RGBFunction,RGBAFunction,
+     pigment,specular,emissive,transparent,
+     affine,
+     deform,
+     sphericalCoordinates,
+     cylindricalCoordinates)
     where
 
-import Data.Maybe
-import Data.List
-import RSAGL.ListUtils
+import Control.Applicative
+import RSAGL.ApplicativeWrapper
+import Data.Traversable
+import RSAGL.Deformation
 import RSAGL.Vector
-import RSAGL.Affine
-import RSAGL.Matrix
-import RSAGL.Homogenous
+import RSAGL.Surface
+import RSAGL.Material
+import RSAGL.Tesselation
+import RSAGL.Optimization
 import RSAGL.Interpolation
+import RSAGL.Matrix
+import RSAGL.Affine
 import RSAGL.Angle
-import RSAGL.Noise
-import Data.Ratio
-import Graphics.Rendering.OpenGL.GL as GL
+import Data.List as List
+import Data.Maybe
+import Control.Monad.State
+import Data.Monoid
+import Graphics.Rendering.OpenGL.GL.VertexSpec
+import Graphics.Rendering.OpenGL.GL.BasicTypes
 \end{code}
 
-\subsection{Defining Colors}
+\subsection{Modeling Primitives}
 
-Colors are defined by the RGB data structure, with complement values in the range of 0.0 (dark) to 1.0 (bright).
+A ModeledSurface consists of several essential fields: \texttt{ms_surface} is the geometric surface.  .
+
+\texttt{ms_material} defaults to invisible if no material is ever applied.  The functions \texttt{pigment}, \texttt{transparent}, \texttt{emissive}, and \texttt{specular} apply material properties to a surface.
+
+Scope is controlled by \texttt{model} and \texttt{withAttribute}.  \texttt{model} creates a block of modeling operations that don't affect any surfaces outside of that block.  \texttt{withAttribute} restricts all operations to a subset of surfaces defined by \texttt{attribute}.
+
+\texttt{ms_tesselation} describes how the model will be tesselated into polygons before being sent to OpenGL.
+By default, the \texttt{adaptive} model is used, which adapts to the contour and material of each surface.
+\texttt{fixed} can be used to crudely force the tesselation of objects.
 
 \begin{code}
-data RGB = RGB { red, green, blue :: Double } deriving (Show)
+type Model attr = [ModeledSurface attr]
 
-instance Xyz RGB where
-    toXYZ c = (red c,green c,blue c)
+data ModeledSurface attr = ModeledSurface {
+    ms_surface :: Surface SurfaceVertex3D,
+    ms_material :: Material,
+    ms_affine_transform :: Maybe Matrix,
+    ms_tesselation :: Maybe ModelTesselation,
+    ms_tesselation_hint_complexity :: Integer,
+    ms_attributes :: attr }
 
-instance Lerpable RSAGL.Model.RGB where
-    lerp u (a,b) = RSAGL.Model.RGB { red = lerp u (red a,red b),
-                                     green = lerp u (green a,green b),
-                                     blue = lerp u (blue a,blue b) }
+data ModelTesselation = Adaptive
+                      | Fixed (Integer,Integer)
+
+type Modeling attr = State (Model attr) ()
+
+extractModel :: Modeling attr -> Model attr
+extractModel m = execState m []
+
+appendSurface :: (Monoid attr) => Surface SurfaceVertex3D -> Modeling attr
+appendSurface s = modify $ mappend $ [ModeledSurface {
+    ms_surface = s,
+    ms_material = mempty,
+    ms_affine_transform = Nothing,
+    ms_tesselation = Nothing,
+    ms_tesselation_hint_complexity = 0,
+    ms_attributes = mempty }]
+
+generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Vector3D)) -> Modeling attr
+generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs <*> uv_identity 
+generalSurface (Left points) = appendSurface $ generateNormals points
+
+generateNormals :: Surface Point3D -> Surface SurfaceVertex3D
+generateNormals s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s) <*> uv_identity
+
+tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
+tesselationHintComplexity i = modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
+
+model :: Modeling attr -> Modeling attr
+model actions = modify (execState actions [] ++)
+
+attribute :: (Monoid attr) => attr -> Modeling attr
+attribute attr = modify (map $ \m -> m { ms_attributes = attr `mappend` ms_attributes m })
+
+withAttribute :: (attr -> Bool) -> Modeling attr -> Modeling attr
+withAttribute f actions = modify (\m -> execState actions (goods m) ++ bads m)
+    where goods = filter (f . ms_attributes)
+          bads = filter (not . f . ms_attributes)
+
+material :: (ApplicativeWrapper ((->)SurfaceVertex3D) a) -> (MaterialSurface a -> Material) -> Modeling attr
+material vertexwise_f material_constructor | isPure vertexwise_f = modify (map $ \m ->
+    m { ms_material = ms_material m `mappend` (material_constructor $ pure $ fromJust $ fromPure vertexwise_f) })
+material vertexwise_f material_constructor = modify (map $ \m ->
+    m { ms_material = ms_material m `mappend` (material_constructor $ 
+                          wrapApplicative $ fmap (toApplicative vertexwise_f) $ ms_surface m) })
+
+type RGBFunction = ApplicativeWrapper ((->) SurfaceVertex3D) RGB
+type RGBAFunction = ApplicativeWrapper ((->) SurfaceVertex3D) RGBA
+
+pigment :: RGBFunction -> Modeling attr
+pigment rgbf = material rgbf diffuseLayer
+
+specular :: GLfloat -> RGBFunction -> Modeling attr
+specular shininess rgbf = material rgbf (flip specularLayer shininess)
+
+emissive :: RGBFunction -> Modeling attr
+emissive rgbf = material rgbf emissiveLayer
+
+transparent :: RGBAFunction -> Modeling attr
+transparent rgbaf = material rgbaf transparentLayer
+
+adaptive :: Modeling attr
+adaptive = modify (map $ \m -> m { ms_tesselation = ms_tesselation m `mplus` (Just Adaptive) })
+
+fixed :: (Integer,Integer) -> Modeling attr
+fixed x = modify (map $ \m -> m { ms_tesselation = ms_tesselation m `mplus` (Just $ Fixed x) })
+
+instance AffineTransformable (Modeling attr) where
+    transform mx m = m >> affine (transform mx)
+
+affine :: (forall a. (AffineTransformable a) => a -> a) -> Modeling attr
+affine f = modify $ map (\x -> x { ms_affine_transform = Just $ f $ fromMaybe (identityMatrix 4) $ ms_affine_transform x })
+
+deform :: (DeformationClass dc) => dc -> Modeling attr
+deform dc = 
+    do finishModeling
+       case deformation dc of
+                (Left f) -> modify (map $ \m -> m { ms_surface = generateNormals $ fmap f $ ms_surface m })
+                (Right f) -> modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
+  where sv3df f (sv3d@(SurfaceVertex3D _ _ uv)) = let (p,v) = f sv3d in SurfaceVertex3D p (vectorNormalize v) uv
 \end{code}
 
-\subsection{Defining Materials}
+\subsection{Coordinate System Alternatives for Parametric Surface Models}
 
 \begin{code}
-data Material = Material { rgb :: RSAGL.Model.RGB, 
-                           alpha :: Maybe Double, 
-                           shine :: Maybe Double, 
-                           lum :: Maybe RSAGL.Model.RGB } deriving (Show)
+sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
+sphericalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ (v*pi - (pi/2)) * (1 - 0.5^10))))
 
-instance Lerpable Material where
-    lerp u (a,b) = Material { rgb = lerp u (rgb a,rgb b),
-                              alpha = lerp u (alpha a,alpha b),
-                              shine = lerp u (shine a,shine b),
-                              lum = lerp u (lum a,lum b) }
+cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
+cylindricalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
 \end{code}
 
-rgbColor describes a simple material with a diffuse RGB color, no transparency, no shininess, and no luminance.
-
-The use of Maybe types when dealing with alpha, shine, and lum allows us to optimize some operations, both
-by not specifying the irrelevant information to OpenGL, and by, for example not using those values in interpolation
-functions.
+\subsection{Simple Geometric Shapes}
 
 \begin{code}
-rgbColor :: (Double,Double,Double) -> Material
-rgbColor (r,g,b) = Material { rgb=RSAGL.Model.RGB r g b, 
-                              alpha=Nothing, 
-                              shine=Nothing, 
-                              lum=Nothing }
+sphere :: (Monoid attr) => Point3D -> Double -> Modeling attr
+sphere (Point3D x y z) radius = model $ do
+    generalSurface $ Right $
+        sphericalCoordinates $ (\(u,v) -> 
+            let sinev = sine v
+                cosinev = cosine v
+                sineu = sine u
+                cosineu = cosine u
+                point = Point3D (x + radius * cosinev * cosineu)
+                                (y + radius * sinev)
+                                (z + radius * cosinev * sineu)
+                vector = Vector3D (cosinev * cosineu)
+                                  (sinev)
+                                  (cosinev * sineu)
+                in (point,vector))
+    tesselationHintComplexity 1
+
+disc :: (Monoid attr) => Double -> Double -> Modeling attr
+disc inner_radius outer_radius = model $ 
+    do generalSurface $ Right $
+        cylindricalCoordinates $ (\(u,v) -> 
+             (Point3D (lerp v (outer_radius,inner_radius) * cosine u)
+                      0
+                      (lerp v (outer_radius,inner_radius) * sine u),
+              up))
+       tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius)) ^ 2
+           where up = Vector3D 0 1 0
 \end{code}
 
-rgbShine describes a material with color and shininess.  Shininess is in the range (0.0..1.0).
+\subsection{Rendering Models to OpenGL}
 
 \begin{code}
-rgbShine :: Double -> (Double,Double,Double) -> Material
-rgbShine the_shine (r,g,b) = Material { rgb=RSAGL.Model.RGB r g b, 
-                                        alpha=Nothing, 
-                                        shine=Just the_shine, 
-                                        lum=Nothing }
-\end{code}
+finishModeling :: Modeling attr
+finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
+    where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v uv) -> SurfaceVertex3D p (vectorNormalize v) uv) $
+                                                     transform (fromJust $ ms_affine_transform m) (ms_surface m),
+                               ms_affine_transform = Nothing }
 
-rgbLum describes a material with color and luminance.  
+data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
 
-\begin{code}
-rgbLum :: Double -> (Double,Double,Double) -> Material
-rgbLum l (r,g,b) = Material { rgb=RSAGL.Model.RGB r g b,
-			      alpha=Nothing,
-			      shine=Nothing,
-			      lum=Just $ RSAGL.Model.RGB (l*r) (l*g) (l*b) }
-\end{code}
+data IntermediateModeledSurface = IntermediateModeledSurface [TesselatedSurface SingleMaterialSurfaceVertex3D] [MaterialLayer]
 
-\subsection{Defining textures}
+data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
 
-Texture can descrobe a sold texture or a procedural texture.  Procedural textures are typically generated using RSAGL.Noise.
-\footnote{See page \pageref{RSAGLNoise}}
+data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 
-A procedural texture is generated at runtime and defined by a mathematical function that maps points in 3-space to colors.
+data MaterialVertex3D = MaterialVertex3D (IO ()) Bool
 
-\begin{code}
-data Texture = SolidTexture Material
-             | ProceduralTexture (Point3D -> Material)
+intermediateModelToOpenGL :: IntermediateModel -> IO ()
+intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
 
-instance AffineTransformable Texture where
-    transform _ (SolidTexture mat) = SolidTexture mat
-    transform m (ProceduralTexture fn) = ProceduralTexture (\p -> fn $ transform (matrixInverse m) p) -- note: inferior asymptotic complexity
+modelingToOpenGL :: Integer -> Modeling attr -> IO ()
+modelingToOpenGL n modeling = intermediateModelToOpenGL $ toIntermediateModel n modeling
 
-instance Show Texture where
-    show (SolidTexture mat) = "SolidTexture " ++ show mat
-    show (ProceduralTexture _) = "ProceduralTexture _"
-\end{code}
+toIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
+toIntermediateModel n modeling = IntermediateModel $ map (\(m,c) -> intermediateModeledSurface c m) complexity_map
+    where complexity_map = zip ms $ allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
+          ms = extractModel (modeling >> finishModeling)
+          extraComplexity m = normalSurfaceArea (ms_surface m) * fromInteger (ms_tesselation_hint_complexity m * materialComplexity (ms_material m))
+          normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler 
 
-proceduralTexture combines a noise function with a material map to make a procedural texture.  A material map is like a description
-of a piecewise linear function that must cover the entire range of the nosie function.  For example, for a rainbow pattern, you
-might use:  [(0,red),(0.2,orange),(0.4,red),(0.6,green),(0.8,blue),(0.9,indigo),(1.0,violet)].
+intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
+intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface tesselations layers) = 
+    foldr (>>) (return ()) $ zipWith layerToOpenGL tesselations layers
 
-\begin{code}
-proceduralTexture :: NoiseFunction -> [(Double,Material)] -> Texture
-proceduralTexture nf material_map = ProceduralTexture (\p -> lerpMap (noiseAt nf p) material_map)
-\end{code}
+intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
+intermediateModeledSurface n m = IntermediateModeledSurface (selectLayers (genericLength layers) tesselation) layers
+    where layers = toLayers $ ms_material m
+          opengl_material_layers :: [Surface (IO ())]
+          opengl_material_layers = map (either id (const $ pure $ return ()) . unwrapApplicative . materialLayerToOpenGL) layers
+          relevance_layers :: [Surface Bool]
+          relevance_layers = map (toApplicative . materialLayerRelevant) layers
+          the_surface = zipSurface (MultiMaterialSurfaceVertex3D) (ms_surface m) $ 
+                                  sequenceA $ zipWith (zipSurface MaterialVertex3D) opengl_material_layers relevance_layers
+          tesselation = case fromMaybe Adaptive $ ms_tesselation m of
+                             Adaptive -> optimizeSurface msv3d_ruler the_surface (n `div` genericLength layers)
+                             Fixed uv -> tesselateSurface the_surface uv
 
-\subsection{Describing Models}
+selectLayers :: Integer -> TesselatedSurface MultiMaterialSurfaceVertex3D -> [TesselatedSurface SingleMaterialSurfaceVertex3D]
+selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv3d mv3ds) -> SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..n]
 
-The Model data structure describes Models in the simplest forms OpenGL allows, either as triangles or quadralateral strips.
-Models can also be unioned in a tree structure.
+layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
+layerToOpenGL tesselation layer = 
+    (materialLayerToOpenGLWrapper layer) $ foldr (>>) (return ()) $ map (tesselatedElementToOpenGL vertexToOpenGL) tesselation
+        where vertexToOpenGL (SingleMaterialSurfaceVertex3D 
+                                    (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz) _) 
+                                    (MaterialVertex3D material_io_action _)) =
+                  do material_io_action
+                     normal $ Normal3 vx vy vz
+                     vertex $ Vertex3 px py pz
 
-\begin{code}
-data Model = Triangle Texture (Point3D,Vector3D) (Point3D,Vector3D) (Point3D,Vector3D)
-	   | Strip Texture [((Point3D,Vector3D),(Point3D,Vector3D))]
-	   | Union [Model]
-	   | Transformation (RSAGL.Matrix.Matrix Double) Model
-	   deriving (Show) -- only important for debugging, remember model designers might want to look at this
-\end{code}
+sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_ruler (SurfaceVertex3D p1 _ _) (SurfaceVertex3D p2 _ _) =
+    distanceBetween p1 p2
 
-\subsection{Modelling with simple triangles}
+sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_normal_ruler (SurfaceVertex3D _ v1 _) (SurfaceVertex3D _ v2 _) =
+    distanceBetween v1 v2
 
-flatTriangle describes a simple flat triangle.  Such triangles constructed edge-to-edge will be seen to have sharp edges.
-Care must be taken that the triangle is correctly oriented, or backface culling will remove it from the scene entirely.
-If this happens, or a shape seems to be inside out, simply reverse the order of the vertices.
+msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
+msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2 _) =
+    sv3d_ruler p1 p2
 
-\begin{code}
-flatTriangle :: Texture -> Point3D -> Point3D -> Point3D -> Model
-flatTriangle tex p1 p2 p3 = 
-    let n = newell [p1,p2,p3]
-	in Triangle tex (p1,n) (p2,n) (p3,n)
-\end{code}
-
-\subsection{Modelling with quadralateral strips}
-
-Generates a strip of connected quadralaters defined by two polylines, as 'GL_QUAD_STRIP'.  Normals are automatically calculated.
-
-\begin{code}
-strip :: Texture -> [(Point3D,Point3D)] -> Model
-strip tex pts = let normals = quadStripToNormals pts
-		    (pts_l,pts_r) = unzip pts
-		    result = zip (zip pts_l normals) (zip pts_r normals)
-		    in Strip tex result
-\end{code}
-
-quadStripToNormals generates normal vectors for initial, final, and each interior edge of a quadralateral strip.
-
-\begin{code}
-quadStripToNormals :: [(Point3D,Point3D)] -> [Vector3D]
-quadStripToNormals pts = let flat_normals = quadStripToFlatNormals pts
-			     smooth_normals = quadStripToSmoothNormals pts
-			     first_normal = head $ flat_normals
-			     last_normal = last $ flat_normals
-			     in [first_normal] ++ smooth_normals ++ [last_normal]
-\end{code}
-
-quadStripToSmoothNormals generates a normal for each interior edge in a quadralateral strip.
-If there are n vertex pairs, there will be n minus 2 normals.
-
-\begin{code}
-quadStripToSmoothNormals :: [(Point3D,Point3D)] -> [Vector3D]
-quadStripToSmoothNormals pts = map vectorAverage $ consecutives 2 $ quadStripToFlatNormals pts
-\end{code}
-
-quadStripToFlatNormals generates a normal for each face in a quadralateral strip.  If there are n vertex pairs, then there will be n minus 1 normals.
-
-\begin{code}
-quadStripToFlatNormals :: [(Point3D,Point3D)] -> [Vector3D]
-quadStripToFlatNormals [] = []
-quadStripToFlatNormals [(_,_)] = []
-quadStripToFlatNormals ((pl0,pr0):(pl1,pr1):pts) = (vectorNormalize $ newell [pl0,pr0,pr1,pl1]):(quadStripToFlatNormals ((pl1,pr1):pts))
-\end{code}
-
-\subsection{Modelling with Extrusions}
-
-Extrude a figure, usually in the XY plane, along a polyline.
-
-\begin{description}
-\item[subdivisions] is the number of frames of the figure that will be generated
-   this is completely independent of the number of vertices in the polylines
-   therefore the polyline can be extremely intricate, but you must increase 
-   the number of subdivisions to actually model that intricacy. 
-\item[up] the figure will always be oriented so that it's +Y axis is rotated to point as much as possible toward the up vector
-\item[figure] is a list of vertices of a figure to be extruded
-\item[polyline] is a list of (vertex,thickness) pairs, where vertex is a vertex of the polyline and
-   thickness is a scaling factor (usually 1.0) representing how large the figure should be at that vertex.
-\end{description}
-
-\begin{code}
-extrude :: Texture -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Double)] -> Model
-extrude tex subdivs up figure polyline =
-  let points = map (\subdiv -> extrude_ subdiv subdivs up figure polyline) [0..subdivs]
-      in frame tex $ transpose points
-
-extrude_ :: Integer -> Integer -> Vector3D -> [Point3D] -> [(Point3D,Double)] -> [Point3D]
-extrude_ 0 _ up figure polyline = extrude1Frame 0.0 up figure $ head $ doubles polyline
-extrude_ subdiv subdivs up figure polyline | subdiv == subdivs = extrude1Frame 1.0 up figure $ last $ doubles polyline
-extrude_ subdiv subdivs up figure polyline =
-  let segments = doubles polyline
-      distance_into_polyline = ((subdiv * genericLength segments) % subdivs)
-      polyline_index = max 0 $ min (genericLength segments) $ floor distance_into_polyline
-      segment = segments `genericIndex` polyline_index
-      in extrude1Frame (fromRational distance_into_polyline - fromInteger polyline_index) up figure segment
-
-extrude1Frame :: Double -> Vector3D -> [Point3D] -> ((Point3D,Double),(Point3D,Double)) -> [Point3D]
-extrude1Frame fraction_of_segment up figure ((a,a_scale),(b,b_scale)) = 
-  let to_point = vectorToFrom 
-                     (RSAGL.Affine.translate (vectorScaleTo (fraction_of_segment * distanceBetween a b) $ vectorToFrom b a) a) 
-                     origin_point_3d
-      scale_factor = fraction_of_segment * b_scale + (1 - fraction_of_segment) * a_scale
-      z_vector = vectorScaleTo scale_factor $ vectorToFrom b a
-      x_vector = vectorScaleTo scale_factor $ crossProduct z_vector up
-      y_vector = vectorScaleTo scale_factor $ crossProduct x_vector z_vector
-      transformation_matrix = xyzMatrix x_vector y_vector z_vector
-      in map (RSAGL.Affine.translate to_point) $ (map (RSAGL.Affine.transform transformation_matrix) figure :: [Point3D])     
-\end{code}
-
-\subsection{Modelling with surfaces of revolution}
-
-sor constructs a surface of revolution.  In a SOR, a two dimensional frame is rotated around the Y axis.  This is the computer graphics equivalent of a potter's wheel.  The second parameter indicates the number of subdivisions.  The third parameter  is the two dimensional frame.
-
-\begin{code}
-sor :: Texture -> Integer -> [Point2D] -> Model
-sor = deformedSor id
-\end{code}
-
-As a SOR, but apply a deformation function to all points in the SOR.
-
-\begin{code}
-deformedSor :: (Point3D -> Point3D) -> Texture -> Integer -> [Point2D] -> Model
-deformedSor dfn tex subdivisions pts = RSAGL.Model.union $ deformedSorUnion dfn tex subdivisions pts
-
-deformedSorUnion :: (Point3D -> Point3D) -> Texture -> Integer -> [Point2D] -> [Model]
-deformedSorUnion _ _ subdivisions _ | subdivisions < 3 = error "sor: requires at least 3 subdivisions"
-deformedSorUnion dfn tex subdivisions pts = 
-    let points = map ((\m -> map (transformHomogenous m) pts) . rotationMatrix (Vector3D 0 1 0)) $ 
-                     reverse $ angularIncrements subdivisions
-        in frameUnion tex $ map (map dfn) points
-\end{code}
-
-frame contructs a surface from a sequence of polyline tails.  This is like wrapping a closed loop of cloth around a wire frame.
-The result is always a union of longitudinal elements.
-
-\begin{code}
-frame :: Texture -> [[Point3D]] -> Model
-frame t ps = RSAGL.Model.union $ frameUnion t ps
-
-frameUnion :: Texture -> [[Point3D]] -> [Model]
-frameUnion tex pts = 
-     let normals_smooth_one_way = map ((quadStripToNormals).(uncurry zip)) $ loopedDoubles pts :: [[Vector3D]]
-	 normals_smooth_both_ways = map (map vectorAverage . transpose) $ loopedConsecutives 2 normals_smooth_one_way
-	 in map (Strip tex . uncurry zip) $ 
-                loopedDoubles $ map (uncurry zip) $ 
-                zip pts ((last normals_smooth_both_ways) : normals_smooth_both_ways)
-\end{code}
-
-\subsection{Unions of Models}
-
-union takes a list of Models and combines them into a single Model.
-decomposeModel takes a model and recursively decomposes it into its primitive components.
-
-\begin{code}
-union :: [Model] -> Model
-union = Union
-
-decomposeModel :: Model -> [Model]
-decomposeModel (Union u) = concatMap decomposeModel u
-decomposeModel m = [m]
-\end{code}
-
-\subsection{Transformations of models}
-
-Transformations to a model can be performed in two ways.  Normally a model is transformed by adding the transformation
-information to the model and then passing that information to OpenGL when the model is drawn.  However, the pretransform
-function can apply an affine transformation to a model on a per-vertex basis.
-
-\begin{code}
-instance AffineTransformable Model where
-    transform mat model = Transformation mat model
-
-pretransform :: RSAGL.Matrix.Matrix Double -> Model -> Model
-pretransform m (Transformation m' model) = pretransform (matrixMultiply m m') model
-pretransform m (Triangle tex (p1,v1) (p2,v2) (p3,v3)) = 
-    Triangle (transform m tex) (transform m p1,vectorNormalize $ transform m v1) (transform m p2,vectorNormalize $ transform m v2) (transform m p3,vectorNormalize $ transform m v3)
-pretransform m (Strip tex pts) = 
-    Strip (transform m tex) $ map (\((p1,v1),(p2,v2)) -> ((transform m p1,vectorNormalize $ transform m v1),(transform m p2,vectorNormalize $ transform m v2))) pts
-pretransform m (Union models) = Union $ map (pretransform m) models
-\end{code}
-
-modelSize answers the greatest distance of any point from the origin of the Model.
-
-\begin{code}
-modelSize :: Model -> Double
-modelSize (Triangle _ (p1,_) (p2,_) (p3,_)) = maximum $ map (distanceBetween origin_point_3d) [p1,p2,p3]
-modelSize (Strip _ pts) = maximum $ map (distanceBetween origin_point_3d) $ concatMap (\((p1,_),(p2,_)) -> [p1,p2]) pts
-modelSize (Union models) = maximum $ map modelSize models
-modelSize transformedModel@(Transformation {}) = modelSize $ pretransform (identityMatrix 4) transformedModel
-\end{code}
-
-scaleModel forces a model to be the specified size, as defined by modelSize.
-
-\begin{code}
-scaleModel :: Double -> Model -> Model
-scaleModel scalar model = scale' (scalar / modelSize model) model
-\end{code}
-
-\subsection{Rendering Models in OpenGL}
-
-\begin{code}
-toOpenGL :: Model -> IO ()
-toOpenGL (Triangle tex (p1,v1) (p2,v2) (p3,v3)) =
-    renderPrimitive Triangles drawTriangle
-	where drawTriangle = do colorOpenGL tex
-                                colorOpenGLAt tex p1
-				normal $ toNormal3 v1
-				vertex $ toVertex3 p1
-                                colorOpenGLAt tex p2
-				normal $ toNormal3 v2
-				vertex $ toVertex3 p2
-                                colorOpenGLAt tex p3
-				normal $ toNormal3 v3
-				vertex $ toVertex3 p3
-toOpenGL (Strip tex the_strip) =
-    renderPrimitive QuadStrip $ drawStrip the_strip
-	where drawStrip pts = do colorOpenGL tex
-				 drawStrip_ pts
-	      drawStrip_ pts@(((p0,v0),(p1,v1)):((p2,v2),(p3,v3)):_) =
-		  do colorOpenGLAt tex p0
-                     normal $ toNormal3 v0
-		     vertex $ toVertex3 p0
-                     colorOpenGLAt tex p1
-		     normal $ toNormal3 v1
-		     vertex $ toVertex3 p1
-                     colorOpenGLAt tex p2
-		     normal $ toNormal3 v2
-		     vertex $ toVertex3 p2
-                     colorOpenGLAt tex p3
-		     normal $ toNormal3 v3
-		     vertex $ toVertex3 p3
-		     drawStrip_ $ tail pts
-	      drawStrip_ ((_,_):[]) = return ()
-	      drawStrip_ [] = return ()
-toOpenGL (Union things) = mapM_ toOpenGL things
-toOpenGL (Transformation mat thing) = transform mat $ toOpenGL thing
-
-toVertex3 :: Point3D -> Vertex3 Double
-toVertex3 (Point3D x y z) = Vertex3 x y z
-
-toNormal3 :: Vector3D -> Normal3 Double
-toNormal3 (Vector3D x y z) = Normal3 x y z
-
-toColor4_rgb :: Material -> Color4 GLfloat
-toColor4_rgb (Material { rgb=(RSAGL.Model.RGB r g b), alpha=a }) = 
-    Color4 (realToFrac r) (realToFrac g) (realToFrac b) (realToFrac $ fromMaybe 1 a)
-
-toColor4_lum :: Material -> Color4 GLfloat
-toColor4_lum (Material { lum=(Just (RSAGL.Model.RGB r g b))}) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) 0
-toColor4_lum _ = Color4 0 0 0 0
-
-materialToOpenGL :: Material -> IO ()
-materialToOpenGL c = 
-    let shininess = realToFrac $ fromMaybe 0 (shine c)
-	in do materialShininess Front $= shininess*128
-	      materialSpecular Front $= Color4 shininess shininess shininess 1.0
-	      materialAmbientAndDiffuse Front $= toColor4_rgb c
-              materialEmission Front $= toColor4_lum c
-
-colorOpenGL :: Texture -> IO ()
-colorOpenGL (SolidTexture c) = materialToOpenGL c
-colorOpenGL _ = return ()
-
-colorOpenGLAt :: Texture -> Point3D -> IO ()
-colorOpenGLAt (ProceduralTexture ptfn) pt = materialToOpenGL $ ptfn pt
-colorOpenGLAt _ _ = return ()
+instance ConcavityDetection MultiMaterialSurfaceVertex3D where
+    toPoint3D (MultiMaterialSurfaceVertex3D (SurfaceVertex3D p _ _) _) = p
 \end{code}

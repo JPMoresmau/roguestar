@@ -6,13 +6,18 @@ module RSAGL.ListUtils
      loopedDoubles,
      consecutives,
      loopedConsecutives,
-     dropRandomElements)
+     dropRandomElements,
+     matrixMultiplyImpl,
+     loopList,
+     shiftR,
+     zeroToOne)
     where
 
+import Data.Array
 import System.Random
 \end{code}
 
-pairify converts a list of length two into a list of tuple pairs.
+pairify converts a list of length two into a pair.
 
 \begin{code}
 pairify :: [a] -> (a,a)
@@ -41,12 +46,11 @@ consecutives 3 [1,2,3,4] = [[1,2,3],[2,3,4]]
 
 \begin{code}
 consecutives :: Int -> [a] -> [[a]]
-consecutives n elems = let taken = take n elems
-			   in if (length taken == n)
-			      then (taken : (consecutives n $ tail elems))
-			      else []
+consecutives n xs = let taken = take n xs
+			in if (length taken == n)
+			   then (taken : (consecutives n $ tail xs))
+			   else []
 \end{code}
-
 
 loopedConsecutives answers a list containing every sequence of n consecutive
 elements in the parameter, in a circular way so that the first
@@ -56,7 +60,7 @@ consecutives 3 [1,2,3,4] = [[1,2,3],[2,3,4],[3,4,1],[4,1,2]]
 
 \begin{code}
 loopedConsecutives :: Int -> [a] -> [[a]]
-loopedConsecutives n elems = consecutives n $ take (n + length elems - 1) $ cycle elems
+loopedConsecutives n xs = consecutives n $ take (n + length xs - 1) $ cycle xs
 \end{code}
 
 dropRandomElements removes some elements of a list at random.  The first parameter is the number of elements out of 100 that should be included (not dropped).  The second is a random seed, and the third is the list to be operated on.
@@ -72,4 +76,39 @@ dropRandomElements percent rand_ints things =
 	in if (next_int `mod` 100 < percent)
 	   then ((head things) : rest)
 	   else rest
+\end{code}
+
+matrixMultiplyImpl implements matrix multiplication over arbitrary types with arbitrary operations.
+\footnote{matrixMultiplyImpl is used by matrixMultiply, \pageref{howtoUseMatrixMultiplyImpl}.}
+
+\begin{code}
+matrixMultiplyImpl :: (b -> c -> c) -> c -> (a -> a -> b) -> [[a]] -> [[a]] -> [[c]]
+matrixMultiplyImpl addOp zero multiplyOp m n = [[foldr addOp zero $ zipWith multiplyOp m' n' | n' <- n] | m' <- m]
+\end{code}
+
+loopList appends the first element of a list to the end of the list.  The result is a list of one greater length.
+
+shiftR shifts every element of a list to the right, recyling the last element as the first.  The result is a list of the same length.
+
+\begin{code}
+loopList :: [a] -> [a]
+loopList ps = ps ++ [head ps]
+
+shiftR :: [a] -> [a]
+shiftR ps = last ps : init ps
+\end{code}
+
+zeroToOne creates a list of numbers from 0.0 to 1.0, using n steps.
+
+\begin{code}
+zeroToOne :: Integer -> [Double]
+zeroToOne n | n <= 1000 = ztos ! n
+zeroToOne n = zeroToOnePrim n
+
+zeroToOnePrim :: Integer -> [Double]
+zeroToOnePrim n = map (*x) [0..(fromInteger $ n-1)]
+    where x = recip (fromInteger $ n - 1)
+
+ztos :: Array Integer [Double]
+ztos = listArray (0,1000) $ map (zeroToOnePrim) [0 .. 1000]
 \end{code}

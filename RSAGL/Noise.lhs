@@ -3,67 +3,18 @@
 
 \begin{code}
 module RSAGL.Noise
-    (NoiseFunction,
-     noiseAt,
-     composeNoiseFunctions,
-     noiseFunction,
-     perlin_noise_function,
-     synthesizePerlinNoise)
+    (perlinTurbulence,perlinNoise)
     where
 
 import RSAGL.Interpolation
 import RSAGL.Vector
-import RSAGL.Affine
-import RSAGL.Matrix
-import Data.Array
+import Data.Array.Unboxed
 
-data NoiseFunctionElem = NoiseFunctionElem { nf_transformation_in :: Matrix Double,
-                                             nf_transformation_out :: Double,
-                                             nf_function :: Point3D -> Double }
-
-type NoiseFunction = [NoiseFunctionElem]
-
-instance AffineTransformable NoiseFunctionElem where
-    transform m nf = nf { nf_transformation_in = (matrixInverse m) `matrixMultiply` (nf_transformation_in nf) }
-
-noiseAt :: NoiseFunction -> Point3D -> Double
-noiseAt nf p = sum $ map (flip noiseAt_ p) nf
-
-noiseAt_ :: NoiseFunctionElem -> Point3D -> Double
-noiseAt_ nf p = nf_transformation_out nf * (nf_function nf $ transform (nf_transformation_in nf) p)
-
--- |
--- Compose noise functions by (function,amplitude) by addition.  If the amplitudes
--- do not sum to 1, they will be scaled uniformly so that they do.
---
-composeNoiseFunctions :: [(NoiseFunction,Double)] -> NoiseFunction
-composeNoiseFunctions nfs =
-    let total_amplitude_adjustment = 1 / (sum $ map (abs . snd) nfs)
-        in concatMap (\(nf,amp) -> map (\nfe -> nfe { nf_transformation_out = nf_transformation_out nfe * total_amplitude_adjustment * amp }) nf) nfs
-
-noiseFunction :: (Point3D -> Double) -> NoiseFunction
-noiseFunction fn = [NoiseFunctionElem { nf_transformation_in = identityMatrix 4,
-                                        nf_transformation_out = 1.0,
-                                        nf_function = \pt -> fn pt }]
-
-perlin_noise_function :: NoiseFunction
-perlin_noise_function = noiseFunction perlinNoise
-
--- |
--- Given a range of lengths, synthesize a noise function from
--- layers of noise, with each layer having a frequency a given multiple
--- of the layer before it, so that the synthesized noise function contains
--- layers with many frequencies that are visible at those lengths.
---
-synthesizePerlinNoise :: Double -> (Double,Double) -> NoiseFunction
-synthesizePerlinNoise _ (l,r) | l > r = error "synthesizePerlinNoise: right length greater than left"
-synthesizePerlinNoise m (l,r) = 
-    let middle = sqrt $ l * r
-        left_lengths = takeWhile (\x -> (x > l) && (x < r)) $ tail $ iterate (/ m) middle
-        right_lengths = takeWhile (\x -> (x > l) && (x < r)) $ tail $ iterate (* m) middle
-        lengths = left_lengths ++ [middle] ++ right_lengths
-        perlin_layers = map (\x -> (scale (Vector3D x x x) perlin_noise_function,x)) lengths
-        in composeNoiseFunctions perlin_layers
+perlinTurbulence :: Double -> Point3D -> Point3D
+perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perlinNoise y') (z + s*perlinNoise z')
+    where x' = Point3D (x+100) y z
+          y' = Point3D x (y+100) z
+          z' = Point3D x y (z+100)
 
 -- |
 -- Intellectual property note:
@@ -75,33 +26,31 @@ synthesizePerlinNoise m (l,r) =
 --
 perlinNoise :: Point3D -> Double
 perlinNoise (Point3D x0 y0 z0) =
-   let toFloorForm (int_part,frac_part) = if frac_part < 0
-                                          then (int_part - 1,1+frac_part)
-                                          else (int_part,frac_part)
-       (x,x') = toFloorForm $ properFraction x0
-       (y,y') = toFloorForm $ properFraction y0
-       (z,z') = toFloorForm $ properFraction z0
+   let (x,x') = properFraction x0 :: (Int,Double)
+       (y,y') = properFraction y0 :: (Int,Double)
+       (z,z') = properFraction z0 :: (Int,Double)
        (u,v,w) = (fade x',fade y',fade z')
-       x_ = fromInteger $ x `mod` 256
-       y_ = fromInteger $ y `mod` 256
-       z_ = fromInteger $ z `mod` 256
+       x_ = x `mod` 256
+       y_ = y `mod` 256
+       z_ = z `mod` 256
        a = pRandom x_ + y_
        aa = pRandom a + z_
        ab = pRandom (a+1) + z_
        b = pRandom (x_+1) + y_
        ba = pRandom b + z_
        bb = pRandom (b+1) + z_
-       in lerp w
-          (lerp v (lerp u (grad (pRandom aa) x' y' z', grad (pRandom ba) (x'-1) y' z'),
-                   lerp u (grad (pRandom ab) x' (y'-1) z', grad (pRandom bb) (x'-1) (y'-1) z')),
-           lerp v (lerp u (grad (pRandom $ aa + 1) x' y' (z'-1), grad (pRandom $ ba + 1) (x'-1) y' (z'-1)),
-                   lerp u (grad (pRandom $ ab + 1) x' (y'-1) (z'-1), grad (pRandom $ bb + 1) (x'-1) (y'-1) (z'-1))))
-          / 0.75 / 2 + 0.5
-                  
+       f n = let nn = n * 3 in nn / (1 + abs nn)  -- 3 is arbitrary but gives good results, this function forces the result into the range -1..1
+       in f $ lerp w
+            (lerp v (lerp u (grad (pRandom aa) x' y' z', grad (pRandom ba) (x'-1) y' z'),
+                     lerp u (grad (pRandom ab) x' (y'-1) z', grad (pRandom bb) (x'-1) (y'-1) z')),
+             lerp v (lerp u (grad (pRandom $ aa + 1) x' y' (z'-1), grad (pRandom $ ba + 1) (x'-1) y' (z'-1)),
+                     lerp u (grad (pRandom $ ab + 1) x' (y'-1) (z'-1), grad (pRandom $ bb + 1) (x'-1) (y'-1) (z'-1))))
+
+
 pRandom :: Int -> Int
 pRandom n = ps ! n
 
-ps :: Array Int Int
+ps :: UArray Int Int
 ps = listArray (0,511) $ map (fromInteger . (`mod` 256))
                        [646370,406894,78264,638200,196322,307448,596541,107030,4793,565585,576423,650262,571446,43108,
                         633076,111437,2644,155222,536760,617862,571480,161909,102722,312579,206645,141133,181676,284524,
@@ -141,7 +90,7 @@ ps = listArray (0,511) $ map (fromInteger . (`mod` 256))
                         621266,151110,491050,286744,318109,512264,657031,75195,347477,130041,487029,214386,534258,263018,
                         656301,295905,337297,158244,729,487635,684616,253937]
 
-fade :: (Num a) => a -> a
+fade :: Double -> Double
 fade t = t ^ 3 * (t * (t * 6 - 15) + 10)
 
 grad :: Int -> Double -> Double -> Double -> Double

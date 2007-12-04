@@ -1,16 +1,20 @@
 RogueStar Animation and Graphics Library
 
+-----	Documentation
+
 The documentation for RSAGL can be built by typing:
 
 $ make doc
 
-This requires a working latex installation.  (latex,dvipdf)
+This requires a working latex installation.  (/usr/bin/pdflatex)
 
+-----	The Partial Monad
 
+You need to have the Partial monad installed in a directory parallel to rsagl.
 
-The test suite can be built by typing:
+$ darcs get --partial http://www.downstairspeople.org/darcs/partial
+
+-----	Running Tests
 
 $ make tests
 $ ./rsagl-tests
-
-This generates a the binary rsagl-tests.

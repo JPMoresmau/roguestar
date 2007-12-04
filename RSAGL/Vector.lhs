@@ -6,6 +6,8 @@ module RSAGL.Vector
      origin_point_3d,
      Point2D(..),
      Vector3D(..),
+     Ray3D(..),
+     SurfaceVertex3D(..),
      zero_vector,
      point3d,
      point2d,
@@ -58,7 +60,7 @@ uncurry3d fn (x,y,z) = fn x y z
 \subsection{Points in 3-space}
 
 \begin{code}
-data Point3D = Point3D Double Double Double
+data Point3D = Point3D !Double !Double !Double
 	     deriving (Read,Show,Eq)
 
 origin_point_3d :: Point3D
@@ -80,7 +82,7 @@ instance Xyz Point3D where
 \subsection{Points in 2-space}
 
 \begin{code}
-data Point2D = Point2D Double Double
+data Point2D = Point2D !Double !Double
 	     deriving (Read,Show,Eq)
 
 point2d :: (Double,Double) -> Point2D
@@ -93,7 +95,7 @@ points2d = map point2d
 \subsection{Vectors in 3-space}
 
 \begin{code}
-data Vector3D = Vector3D Double Double Double
+data Vector3D = Vector3D !Double !Double !Double
 	      deriving (Read,Show,Eq)
 
 zero_vector :: Vector3D
@@ -104,6 +106,24 @@ vector3d = uncurry3d Vector3D
                 
 instance Xyz Vector3D where
     toXYZ (Vector3D x y z) = (x,y,z)
+\end{code}
+
+\subsection{Rays in 3-space}
+
+A \texttt{Ray3D} has a endpoint and direction.
+
+\begin{code}
+data Ray3D = Ray3D Point3D Vector3D
+\end{code}
+
+A \texttt{SurfaceVertex3D} is a point on a 3-dimensional surface, which has a position in three-dimensional, 
+normal vector (orientation), and a position in the two-dimensional space of the surface.
+
+\subsection{Surface Vertices in 3-space}
+
+\begin{code}
+data SurfaceVertex3D = SurfaceVertex3D Point3D Vector3D (Double,Double)
+    deriving (Read,Show)
 \end{code}
 
 \subsection{Conversion between 2- and 3- dimensional points}
@@ -137,7 +157,7 @@ crossProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 
 distanceBetween :: (Xyz xyz) => xyz -> xyz -> Double
 distanceBetween a b = vectorLength $ vectorToFrom a b
-                
+
 vectorAdd :: Vector3D -> Vector3D -> Vector3D
 vectorAdd (Vector3D ax ay az) (Vector3D bx by bz) = Vector3D (ax+bx) (ay+by) (az+bz)
 

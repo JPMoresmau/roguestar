@@ -37,17 +37,17 @@ angularIncrements subdivisions = map (fromRadians . (2*pi*) . (/ fromInteger sub
 \subsection{Type coercion for Angles}
 
 \begin{code}
-fromRadians :: (Real a) => a -> Angle
-fromRadians = Radians . realToFrac
+fromRadians :: Double -> Angle
+fromRadians = Radians
 
-fromDegrees :: (Real a) => a -> Angle
-fromDegrees = Radians . ((*) (pi/180)) . realToFrac
+fromDegrees :: Double -> Angle
+fromDegrees = Radians . ((*) (pi/180))
 \end{code}
 
 toDegrees answers the angle in the range of -180 .. 180, inclusive.
 
 \begin{code}
-toDegrees :: (Fractional a,Floating a) => Angle -> a
+toDegrees :: Angle -> Double
 toDegrees x = let x' = toRadians x
                   in x' * 180 / pi
 \end{code}
@@ -55,31 +55,31 @@ toDegrees x = let x' = toRadians x
 toRadians answers the angle in the range of -pi .. pi, inclusive.
 
 \begin{code}
-toRadians :: (Fractional a) => Angle -> a
+toRadians :: Angle -> Double
 toRadians x = let (Radians x') = toBoundedAngle x
-                  in realToFrac x'
+                  in x'
 \end{code}
 
 \subsection{Manipulating Angular values}
 
 \begin{code}
 scaleAngle :: Double -> Angle -> Angle
-scaleAngle x = Radians . (* x) . toRadians
+scaleAngle x = Radians . (*x) . toRadians
 
 sine :: Angle -> Double
-sine = sin . toRadians
+sine (Radians x) = sin x
 
 arcSine :: Double -> Angle
 arcSine = fromRadians . asin
 
 cosine :: Angle -> Double
-cosine = cos . toRadians
+cosine (Radians x) = cos x
 
 arcCosine :: Double -> Angle
 arcCosine = fromRadians . acos
 
 tangent :: Angle -> Double
-tangent = tan . toRadians
+tangent (Radians x) = tan x
 
 arcTangent :: Double -> Angle
 arcTangent = fromRadians . atan
@@ -89,9 +89,8 @@ toBoundedAngle forces the angle into the range (-pi..pi).
 
 \begin{code}
 toBoundedAngle :: Angle -> Angle
-toBoundedAngle (Radians x) | x > pi = toBoundedAngle $ Radians $ x - (2*pi)
-toBoundedAngle (Radians x) | x < (-pi) = toBoundedAngle $ Radians $ x + (2*pi)
-toBoundedAngle x = x
+toBoundedAngle (Radians x) = Radians $ if bounded > pi then bounded - 2*pi else bounded
+    where bounded = x - (2*pi)*(fromInteger $ floor $ x/(2*pi))
 \end{code}
 
 \subsection{Instances for angular values}
@@ -102,7 +101,7 @@ instance Eq Angle where
                    (x',y') | abs x' == pi && abs y' == pi -> True
                    (x',y') | x' == y' -> True
                    _ -> False
-    
+
 instance Ord Angle where
     compare x y = case () of
                       _ | x == y -> EQ
@@ -113,12 +112,12 @@ signum answers -pi, 0, or pi.  negate and abs work by reflecting the angle over 
 
 \begin{code}
 instance Num Angle where
-    (+) x y = toBoundedAngle $ Radians $ toRadians x + toRadians y
-    (-) x y = toBoundedAngle $ Radians $ toRadians x - toRadians y
+    (+) (Radians x) (Radians y) = Radians $ x + y
+    (-) (Radians x) (Radians y) = Radians $ x - y
     (*) = error "instance Num Angle, (*): multiplication over Angles is undefined"
-    abs = toBoundedAngle . Radians . abs . toRadians
-    negate = toBoundedAngle . Radians . negate . toRadians
-    signum = Radians . (*pi) . signum . toRadians . toBoundedAngle
+    abs = Radians . abs . toRadians
+    negate (Radians x) = Radians (-x)
+    signum = Radians . (*pi) . signum . toRadians
     fromInteger = error "instance Num Angle, (toInteger): undefined.  You probably tried to use a literal angle.  Use fromDegrees instead."
 \end{code}
 

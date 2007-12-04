@@ -17,8 +17,8 @@ import RSAGL.Vector
 import RSAGL.Matrix
 
 class Homogenous a where
-    toHomogenous :: a -> Matrix Double
-    fromHomogenous :: Matrix Double -> a
+    toHomogenous :: a -> Matrix
+    fromHomogenous :: Matrix -> a
 
 instance Homogenous Vector3D where
     toHomogenous (Vector3D x y z) = matrix [[x],
@@ -42,13 +42,13 @@ instance Homogenous Point3D where
                                            [1.0]]
     fromHomogenous m = point3d $ genericFromHomogenous m
 
-genericFromHomogenous :: Matrix Double -> XYZ
+genericFromHomogenous :: Matrix -> XYZ
 genericFromHomogenous m = let x = (rowMajorForm m) !! 0 !! 0
 			      y = (rowMajorForm m) !! 1 !! 0
 			      z = (rowMajorForm m) !! 2 !! 0
 			      in (x,y,z)
 
-transformHomogenous :: (Homogenous a, Homogenous b) => Matrix Double -> a -> b
+transformHomogenous :: (Homogenous a, Homogenous b) => Matrix -> a -> b
 transformHomogenous transformation_matrix entity = 
     fromHomogenous $ matrixMultiply transformation_matrix $ toHomogenous entity
 \end{code}

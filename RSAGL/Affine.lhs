@@ -8,11 +8,7 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 
 \begin{code}
 module RSAGL.Affine
-    (AffineTransformable(..),
-     rotateX,
-     rotateY,
-     rotateZ,
-     scale')
+    (AffineTransformable(..))
     where
 
 import Graphics.Rendering.OpenGL.GL as GL
@@ -22,22 +18,35 @@ import RSAGL.Angle
 import RSAGL.Homogenous
 
 class AffineTransformable a where
-    transform :: RSAGL.Matrix.Matrix Double -> a -> a
+    transform :: RSAGL.Matrix.Matrix -> a -> a
     scale :: Vector3D -> a -> a
     scale vector = transform $ scaleMatrix vector
     translate :: Vector3D -> a -> a
     translate vector = transform $ translationMatrix vector
     rotate :: Vector3D -> Angle -> a -> a
     rotate vector angle = transform $ rotationMatrix vector angle
+    rotateX :: Angle -> a -> a
+    rotateX = RSAGL.Affine.rotate (Vector3D 1 0 0)
+    rotateY :: Angle -> a -> a
+    rotateY = RSAGL.Affine.rotate (Vector3D 0 1 0)
+    rotateZ :: Angle -> a -> a
+    rotateZ = RSAGL.Affine.rotate (Vector3D 0 0 1)
+    scale' :: Double -> a -> a
+    scale' x = RSAGL.Affine.scale (Vector3D x x x)
+    inverseTransform :: RSAGL.Matrix.Matrix -> a -> a
+    inverseTransform m = transform (matrixInverse m)
 
 instance AffineTransformable a => AffineTransformable [a] where
+    scale v = map (RSAGL.Affine.scale v)
+    translate v = map (RSAGL.Affine.translate v)
+    rotate angle vector = map (RSAGL.Affine.rotate angle vector)
     transform m = map (transform m)
 
 instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
     transform m (a,b) = (transform m a,transform m b)
 
-instance (Fractional a,Real a,MatrixType a) => AffineTransformable (RSAGL.Matrix.Matrix a) where
-    transform mat = coerceMatrix realToFrac . matrixMultiply mat . coerceMatrix realToFrac
+instance AffineTransformable RSAGL.Matrix.Matrix where
+    transform mat = matrixMultiply mat
 
 instance AffineTransformable Vector3D where
     transform = transformHomogenous
@@ -54,6 +63,11 @@ instance AffineTransformable Point2D where
     scale (Vector3D x1 y1 _) (Point2D x2 y2) = Point2D (x1*x2) (y1*y2)
     translate (Vector3D x1 y1 _) (Point2D x2 y2) = Point2D (x1+x2) (y1+y2)
 
+instance AffineTransformable SurfaceVertex3D where
+    transform m (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.transform m p) (RSAGL.Affine.transform m v) uv
+    scale vector (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.scale vector p) (RSAGL.Affine.scale vector v) uv
+    translate vector (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.translate vector p) (RSAGL.Affine.translate vector v) uv
+
 instance AffineTransformable (IO a) where
     transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
                                                multMatrix (mat' :: GLmatrix Double)
@@ -67,20 +81,4 @@ instance AffineTransformable (IO a) where
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
         do GL.rotate (toDegrees angle) (Vector3 x y z)
            iofn
-\end{code}
-
-\subsection{Common transformations}
-
-\begin{code}
-rotateX :: (AffineTransformable a) => Angle -> a -> a
-rotateX = RSAGL.Affine.rotate (Vector3D 1 0 0)
-
-rotateY :: (AffineTransformable a) => Angle -> a -> a
-rotateY = RSAGL.Affine.rotate (Vector3D 0 1 0)
-
-rotateZ :: (AffineTransformable a) => Angle -> a -> a
-rotateZ = RSAGL.Affine.rotate (Vector3D 0 0 1)
-
-scale' :: (AffineTransformable a) => Double -> a -> a
-scale' x = RSAGL.Affine.scale (Vector3D x x x)
 \end{code}
