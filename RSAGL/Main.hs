@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports -O0 #-}
 
 module RSAGL.Main
     (main,
@@ -18,18 +18,11 @@ import System.Exit
 --
 -- Import your model above and replace "error . . ." with your model below to view it.
 --
-test_model :: Modeling ()
---test_model = error "Please define a model in RSAGL.Main.model"
-test_model = planet_ring_moon
-
-use_display_lists :: Bool
-use_display_lists = False
+test_model :: IntermediateModel
+test_model = toIntermediateModel 2000 (planet_ring_moon :: Modeling ())
 
 main :: IO ()
 main = displayModel
-
-display_function :: IO ()
-display_function = modelingToOpenGL 1000 test_model
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -50,8 +43,7 @@ displayModel =
        window <- createWindow "RSAGL Test Mode"
        reshapeCallback $= Just rsaglReshapeCallback
        counter <- newIORef 0
-       display_list <- defineNewList Compile display_function
-       displayCallback $= rsaglDisplayCallback counter display_list
+       displayCallback $= rsaglDisplayCallback counter
        addTimerCallback timer_callback_millis (rsaglTimerCallback window)
        mainLoop
 
@@ -60,8 +52,8 @@ rsaglReshapeCallback (Size width height) = do matrixMode $= Projection
 					      loadIdentity
 					      viewport $= (Position 0 0,Size width height)
 
-rsaglDisplayCallback :: (IORef Integer) -> DisplayList -> IO ()
-rsaglDisplayCallback counter display_list = 
+rsaglDisplayCallback :: (IORef Integer) -> IO ()
+rsaglDisplayCallback counter = 
     do secs <- liftM (fromRadians . (*(2*pi))) $ cycleSeconds 60
        matrixMode $= Projection
        rescaleNormal $= Enabled
@@ -87,10 +79,8 @@ rsaglDisplayCallback counter display_list =
        (position $ Light 0) $= (Vertex4 (realToFrac $ 300 * sine secs) 100 (realToFrac $ 100 * cosine secs) 1)
        preservingMatrix $
            do lookAt (Vertex3 (sine (scaleAngle 3 secs)) 1 (2 * cosine (scaleAngle 3 secs))) (Vertex3 0 0 0) (Vector3 0 1 0)
-              if use_display_lists
-                  then callList display_list
-                  else display_function
-	      swapBuffers
+              intermediateModelToOpenGL test_model
+       swapBuffers
        modifyIORef counter (+1)
        frames <- readIORef counter
        when (frames >= 1000) $ exitWith ExitSuccess

@@ -8,6 +8,7 @@ RSAGL.Model seeks to provide a complete set of high-level modelling primitives f
 module RSAGL.Model
     (Model,
      Modeling,
+     IntermediateModel,
      generalSurface,
      extractModel,
      toIntermediateModel,
