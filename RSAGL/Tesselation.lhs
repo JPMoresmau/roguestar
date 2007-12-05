@@ -118,7 +118,7 @@ instance ConcavityDetection Point3D where
     toPoint3D = id
 
 instance ConcavityDetection SurfaceVertex3D where
-    toPoint3D (SurfaceVertex3D p _ _) = p
+    toPoint3D = sv3d_position
 
 isConcaveQuadStrip :: (ConcavityDetection a) => [a] -> Bool
 isConcaveQuadStrip (r0:l0:r1:l1:rest) = isConcave [r0,l0,l1,r1] || isConcaveQuadStrip (r1:l1:rest)

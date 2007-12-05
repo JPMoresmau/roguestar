@@ -15,7 +15,7 @@ import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Affine
 
-type Deformation = Either (SurfaceVertex3D -> Point3D) (SurfaceVertex3D -> (Point3D,Vector3D))
+type Deformation = Either (SurfaceVertex3D -> Point3D) (SurfaceVertex3D -> SurfaceVertex3D)
 
 class DeformationClass a where
     deformation :: a -> Deformation
@@ -24,24 +24,18 @@ instance (DeformationClass a,DeformationClass b) => DeformationClass (Either a b
     deformation = either deformation deformation
 
 instance DeformationClass Matrix where
-    deformation m = Right (\(SurfaceVertex3D p v _) -> (transform m p,transform m v))
+    deformation m = Right (\s -> transform m s)
 
 instance DeformationClass (Point3D -> Point3D) where
-    deformation f = Left (\(SurfaceVertex3D p _ _) -> f p)
+    deformation f = Left (\(SurfaceVertex3D p _) -> f p)
 
-instance DeformationClass (Point3D -> (Point3D,Vector3D)) where
-    deformation f = Right (\(SurfaceVertex3D p _ _) -> f p)
-
-instance DeformationClass ((Point3D,Vector3D) -> Point3D) where
-    deformation f = Left (\(SurfaceVertex3D p v _) -> f (p,v))
-
-instance DeformationClass ((Point3D,Vector3D) -> (Point3D,Vector3D)) where
-    deformation f = Right (\(SurfaceVertex3D p v _) -> f (p,v)) where
-
-instance DeformationClass (SurfaceVertex3D -> (Point3D,Vector3D)) where
-    deformation f = Right f
+instance DeformationClass (Point3D -> SurfaceVertex3D) where
+    deformation f = Right (\(SurfaceVertex3D p _) -> f p)
 
 instance DeformationClass (SurfaceVertex3D -> Point3D) where
     deformation f = Left f
+
+instance DeformationClass (SurfaceVertex3D -> SurfaceVertex3D) where
+    deformation f = Right f
 \end{code}
 

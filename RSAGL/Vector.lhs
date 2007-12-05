@@ -114,15 +114,16 @@ A \texttt{Ray3D} has a endpoint and direction.
 
 \begin{code}
 data Ray3D = Ray3D Point3D Vector3D
+    deriving (Read,Show)
 \end{code}
 
-A \texttt{SurfaceVertex3D} is a point on a 3-dimensional surface, which has a position in three-dimensional, 
-normal vector (orientation), and a position in the two-dimensional space of the surface.
+A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a position and a normal vector.
 
 \subsection{Surface Vertices in 3-space}
 
 \begin{code}
-data SurfaceVertex3D = SurfaceVertex3D Point3D Vector3D (Double,Double)
+data SurfaceVertex3D = SurfaceVertex3D { sv3d_position :: Point3D, 
+                                         sv3d_normal :: Vector3D }
     deriving (Read,Show)
 \end{code}
 

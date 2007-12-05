@@ -91,11 +91,11 @@ appendSurface s = modify $ mappend $ [ModeledSurface {
     ms_attributes = mempty }]
 
 generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Vector3D)) -> Modeling attr
-generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs <*> uv_identity 
+generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs
 generalSurface (Left points) = appendSurface $ generateNormals points
 
 generateNormals :: Surface Point3D -> Surface SurfaceVertex3D
-generateNormals s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s) <*> uv_identity
+generateNormals s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s)
 
 tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
 tesselationHintComplexity i = modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
@@ -151,7 +151,7 @@ deform dc =
        case deformation dc of
                 (Left f) -> modify (map $ \m -> m { ms_surface = generateNormals $ fmap f $ ms_surface m })
                 (Right f) -> modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
-  where sv3df f (sv3d@(SurfaceVertex3D _ _ uv)) = let (p,v) = f sv3d in SurfaceVertex3D p (vectorNormalize v) uv
+  where sv3df f sv3d = let SurfaceVertex3D p v = f sv3d in SurfaceVertex3D p (vectorNormalize v)
 \end{code}
 
 \subsection{Coordinate System Alternatives for Parametric Surface Models}
@@ -201,7 +201,7 @@ disc inner_radius outer_radius = model $
 \begin{code}
 finishModeling :: Modeling attr
 finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
-    where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v uv) -> SurfaceVertex3D p (vectorNormalize v) uv) $
+    where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v) -> SurfaceVertex3D p (vectorNormalize v)) $
                                                      transform (fromJust $ ms_affine_transform m) (ms_surface m),
                                ms_affine_transform = Nothing }
 
@@ -252,18 +252,18 @@ layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLaye
 layerToOpenGL tesselation layer = 
     (materialLayerToOpenGLWrapper layer) $ foldr (>>) (return ()) $ map (tesselatedElementToOpenGL vertexToOpenGL) tesselation
         where vertexToOpenGL (SingleMaterialSurfaceVertex3D 
-                                    (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz) _) 
+                                    (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
                                     (MaterialVertex3D material_io_action _)) =
                   do material_io_action
                      normal $ Normal3 vx vy vz
                      vertex $ Vertex3 px py pz
 
 sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
-sv3d_ruler (SurfaceVertex3D p1 _ _) (SurfaceVertex3D p2 _ _) =
+sv3d_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
     distanceBetween p1 p2
 
 sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
-sv3d_normal_ruler (SurfaceVertex3D _ v1 _) (SurfaceVertex3D _ v2 _) =
+sv3d_normal_ruler (SurfaceVertex3D _ v1) (SurfaceVertex3D _ v2) =
     distanceBetween v1 v2
 
 msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
@@ -271,5 +271,5 @@ msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2
     sv3d_ruler p1 p2
 
 instance ConcavityDetection MultiMaterialSurfaceVertex3D where
-    toPoint3D (MultiMaterialSurfaceVertex3D (SurfaceVertex3D p _ _) _) = p
+    toPoint3D (MultiMaterialSurfaceVertex3D (SurfaceVertex3D p _) _) = p
 \end{code}

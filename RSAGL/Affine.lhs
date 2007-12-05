@@ -64,9 +64,9 @@ instance AffineTransformable Point2D where
     translate (Vector3D x1 y1 _) (Point2D x2 y2) = Point2D (x1+x2) (y1+y2)
 
 instance AffineTransformable SurfaceVertex3D where
-    transform m (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.transform m p) (RSAGL.Affine.transform m v) uv
-    scale vector (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.scale vector p) (RSAGL.Affine.scale vector v) uv
-    translate vector (SurfaceVertex3D p v uv) = SurfaceVertex3D (RSAGL.Affine.translate vector p) (RSAGL.Affine.translate vector v) uv
+    transform m (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.transform m p) (RSAGL.Affine.transform m v)
+    scale vector (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.scale vector p) (RSAGL.Affine.scale vector v)
+    translate vector (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.translate vector p) (RSAGL.Affine.translate vector v)
 
 instance AffineTransformable (IO a) where
     transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat

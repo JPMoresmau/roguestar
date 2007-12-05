@@ -59,18 +59,18 @@ pattern _ [(_,constant_pattern)] = constant_pattern
 pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpColorMap (realToFrac $ f sv3d) color_map) $ sv3d)
 
 cloudy :: (ColorClass a) => Double -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-cloudy wave_length = pattern (\(SurfaceVertex3D p _ _) -> perlinNoise (scale' frequency p) * 0.5 + 0.5)
+cloudy wave_length = pattern (\(SurfaceVertex3D p _) -> perlinNoise (scale' frequency p) * 0.5 + 0.5)
     where frequency = recip wave_length
 
 spherical :: (ColorClass a) => Point3D -> Double -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-spherical center radius = pattern (\(SurfaceVertex3D p _ _) -> distanceBetween center p / radius)
+spherical center radius = pattern (\(SurfaceVertex3D p _) -> distanceBetween center p / radius)
 
 directional :: (ColorClass a) => Vector3D -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-directional vector = pattern (\(SurfaceVertex3D _ v _) -> dotProduct (vectorNormalize v) (vectorNormalize vector))
+directional vector = pattern (\(SurfaceVertex3D _ v) -> dotProduct (vectorNormalize v) (vectorNormalize vector))
 
 gradient :: (ColorClass a) => Point3D -> Vector3D -> [(GLfloat,ColorFunction a)] -> ColorFunction a
 gradient center vector = pattern
-    (\(SurfaceVertex3D p _ _) -> dotProduct vector (vectorToFrom p center) * l)
+    (\(SurfaceVertex3D p _) -> dotProduct vector (vectorToFrom p center) * l)
         where l = recip (vectorLength vector) ^ 2
 
 lerpColorMap :: (ColorClass a) => GLfloat -> [(GLfloat,ColorFunction a)] -> ColorFunction a
@@ -108,7 +108,7 @@ metallic rgbf =
 
 \begin{code}
 bumps :: (Point3D -> Double) -> Modeling attr
-bumps f = deform $ (\(p,v) -> translate (vectorScale (f p) v) p)
+bumps f = deform $ (\(SurfaceVertex3D p v) -> translate (vectorScale (f p) v) p)
 
 waves :: Double -> Double -> Modeling attr
 waves wave_length amplitude = bumps (\(Point3D x y z) -> sin ((x+y+z) / wave_length * 2*pi) * amplitude)
