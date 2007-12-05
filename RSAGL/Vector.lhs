@@ -30,14 +30,17 @@ module RSAGL.Vector
      vectorNormalize,
      vectorAverage,
      vectorLength,
+     vectorLengthSquared,
      newell,
      Xyz(..),
      XYZ,
-     vectorString)
+     vectorString,
+     randomXYZ)
     where
 
 import RSAGL.Angle
 import RSAGL.ListUtils
+import System.Random
 
 \end{code}
 
@@ -48,6 +51,7 @@ type XYZ = (Double,Double,Double)
 
 class Xyz a where
     toXYZ :: a -> XYZ
+    fromXYZ :: XYZ -> a
 
 vectorString :: Xyz a => a -> String
 vectorString xyz = let (x,y,z) = toXYZ xyz
@@ -77,6 +81,7 @@ points3d_2 = map (\(l,r) -> (point3d l,point3d r))
 
 instance Xyz Point3D where
     toXYZ (Point3D x y z) = (x,y,z)
+    fromXYZ (x,y,z) = Point3D x y z
 \end{code}
 
 \subsection{Points in 2-space}
@@ -106,6 +111,7 @@ vector3d = uncurry3d Vector3D
                 
 instance Xyz Vector3D where
     toXYZ (Vector3D x y z) = (x,y,z)
+    fromXYZ (x,y,z) = Vector3D x y z
 \end{code}
 
 \subsection{Rays in 3-space}
@@ -172,7 +178,10 @@ vectorToFrom a b =
         in Vector3D (ax - bx) (ay - by) (az - bz)
 
 vectorLength :: Vector3D -> Double
-vectorLength (Vector3D x y z) = sqrt (x*x + y*y + z*z)
+vectorLength = sqrt . vectorLengthSquared
+
+vectorLengthSquared :: Vector3D -> Double
+vectorLengthSquared (Vector3D x y z) = (x*x + y*y + z*z)
 
 vectorScale :: Double -> Vector3D -> Vector3D
 vectorScale s (Vector3D x y z) = Vector3D (x*s) (y*s) (z*s)
@@ -199,8 +208,7 @@ where the length of the element vectors is not reflected in the result.
 
 \begin{code}
 vectorAverage :: [Vector3D] -> Vector3D
-vectorAverage vects = maybe (Vector3D 0 0 0) vectorNormalize $
-		      aNonZeroVector $ vectorSum $ map vectorNormalize vects
+vectorAverage vects = vectorNormalize $ vectorSum $ map vectorNormalize vects
 \end{code}
 
 \subsection{Generating normal vectors}
@@ -218,4 +226,15 @@ newell points = vectorNormalize $ vectorSum $ map newell_ $ loopedDoubles points
                ((y0 - y1)*(z0 + z1))
                ((z0 - z1)*(x0 + x1))
                ((x0 - x1)*(y0 + y1)))
+\end{code}
+
+\subsection{Randomly Generated Coordinates}
+
+\texttt{randomXYZ} can generate random coordinates within the cube where x, y, and z are each in the range (lo,hi).
+
+\begin{code}
+randomXYZ :: (RandomGen g,Xyz p) => (Double,Double) -> g -> (p,g)
+randomXYZ lohi g = (fromXYZ (x,y,z),g')
+    where (g_,g') = split g
+          (x:y:z:_) = randomRs lohi g_
 \end{code}

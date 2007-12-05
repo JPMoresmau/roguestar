@@ -10,6 +10,7 @@ module RSAGL.ModelingExtras
      glass,
      plastic,
      metallic,
+     pattern,
      cloudy,
      spherical,
      directional,
@@ -31,6 +32,7 @@ import RSAGL.Vector
 import RSAGL.Material
 import RSAGL.Affine
 import RSAGL.Model
+import System.Random
 \end{code}
 
 \subsection{Colors}
@@ -54,24 +56,26 @@ gray256 x = rgb256 x x x
 \begin{code}
 type ColorFunction a = ApplicativeWrapper ((->) SurfaceVertex3D) a
 
-pattern :: (ColorClass a) => (SurfaceVertex3D -> Double) -> [(GLfloat,ColorFunction a)] -> ColorFunction a
+type Pattern = SurfaceVertex3D -> Double
+
+pattern :: (ColorClass a) => Pattern -> [(GLfloat,ColorFunction a)] -> ColorFunction a
 pattern _ [(_,constant_pattern)] = constant_pattern
 pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpColorMap (realToFrac $ f sv3d) color_map) $ sv3d)
 
-cloudy :: (ColorClass a) => Double -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-cloudy wave_length = pattern (\(SurfaceVertex3D p _) -> perlinNoise (scale' frequency p) * 0.5 + 0.5)
+cloudy :: Int -> Double -> Pattern
+cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) * 0.5 + 0.5
     where frequency = recip wave_length
+          offset = vectorNormalize $ fst $ randomXYZ (-1000.0*wave_length,1000.0*wave_length) (mkStdGen seed)
 
-spherical :: (ColorClass a) => Point3D -> Double -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-spherical center radius = pattern (\(SurfaceVertex3D p _) -> distanceBetween center p / radius)
+spherical :: Point3D -> Double -> Pattern
+spherical center radius (SurfaceVertex3D p _) = distanceBetween center p / radius
 
-directional :: (ColorClass a) => Vector3D -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-directional vector = pattern (\(SurfaceVertex3D _ v) -> dotProduct (vectorNormalize v) (vectorNormalize vector))
+directional :: Vector3D -> Pattern
+directional vector (SurfaceVertex3D _ v) = dotProduct (vectorNormalize v) normalized_vector
+    where normalized_vector = vectorNormalize vector
 
-gradient :: (ColorClass a) => Point3D -> Vector3D -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-gradient center vector = pattern
-    (\(SurfaceVertex3D p _) -> dotProduct vector (vectorToFrom p center) * l)
-        where l = recip (vectorLength vector) ^ 2
+gradient :: Point3D -> Vector3D -> Pattern
+gradient center vector (SurfaceVertex3D p _) = dotProduct vector (vectorToFrom p center) / vectorLengthSquared vector
 
 lerpColorMap :: (ColorClass a) => GLfloat -> [(GLfloat,ColorFunction a)] -> ColorFunction a
 lerpColorMap _ [] = error "lerpColorMap: empty color map"
@@ -107,9 +111,9 @@ metallic rgbf =
 \texttt{waves} is a deformation that makes little waves in a surface.
 
 \begin{code}
-bumps :: (Point3D -> Double) -> Modeling attr
-bumps f = deform $ (\(SurfaceVertex3D p v) -> translate (vectorScale (f p) v) p)
+bumps :: Pattern -> Modeling attr
+bumps f = deform $ (\(sv3d@(SurfaceVertex3D p v)) -> translate (vectorScale (f sv3d) v) p)
 
-waves :: Double -> Double -> Modeling attr
-waves wave_length amplitude = bumps (\(Point3D x y z) -> sin ((x+y+z) / wave_length * 2*pi) * amplitude)
+waves :: Double -> Double -> Pattern
+waves wave_length amplitude (SurfaceVertex3D (Point3D x y z) _) = sin ((x+y+z) / wave_length * 2*pi) * amplitude
 \end{code}
