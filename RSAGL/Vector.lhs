@@ -6,7 +6,6 @@ module RSAGL.Vector
      origin_point_3d,
      Point2D(..),
      Vector3D(..),
-     Ray3D(..),
      SurfaceVertex3D(..),
      zero_vector,
      point3d,
@@ -39,7 +38,7 @@ module RSAGL.Vector
     where
 
 import RSAGL.Angle
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 import System.Random
 
 \end{code}
@@ -112,15 +111,6 @@ vector3d = uncurry3d Vector3D
 instance Xyz Vector3D where
     toXYZ (Vector3D x y z) = (x,y,z)
     fromXYZ (x,y,z) = Vector3D x y z
-\end{code}
-
-\subsection{Rays in 3-space}
-
-A \texttt{Ray3D} has a endpoint and direction.
-
-\begin{code}
-data Ray3D = Ray3D Point3D Vector3D
-    deriving (Read,Show)
 \end{code}
 
 A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a position and a normal vector.

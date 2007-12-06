@@ -1,4 +1,4 @@
-module RSAGL.RSAGLColors (amber,amethyst,azure,beige,black,blackbody,blue,brass,bronze,burgundy,burnt_sienna,camouflage_green,cardinal,carnation,carrot,chartreuse,chartreuse_yellow,cobalt,copper,coral,corn,crimson,cyan,emerald,eggplant,fern_green,firebrick,forest_green,fuchsia,gold,goldenrod,green,indigo,jade,lavender,lemon,lilac,magenta,maroon,mauve,midnight_blue,mint_green,mustard,ochre,olive,orange,orchid,pink,puce,purple,red,royal_blue,royal_purple,rust,safety_orange,saffron,sapphire,salmon,sea_green,sepia,shamrock,silver,slate_gray,tan_color,teal,ultramarine,vermillion,violet,viridian,wheat,white,yellow) where
+module RSAGL.RSAGLColors (amber,amethyst,azure,beige,black,blackbody,blue,brass,bronze,brown,burgundy,burnt_sienna,camouflage_green,cardinal,carnation,carrot,chartreuse,chartreuse_yellow,cobalt,copper,coral,corn,crimson,cyan,dark_brown,emerald,eggplant,fern_green,firebrick,forest_green,fuchsia,gold,goldenrod,green,indigo,jade,lavender,lemon,lilac,magenta,maroon,mauve,midnight_blue,mint_green,mustard,ochre,olive,orange,orchid,pale_brown,pink,puce,purple,red,royal_blue,royal_purple,rust,safety_orange,saffron,sapphire,salmon,sea_green,sepia,shamrock,silver,slate_gray,tan_color,teal,ultramarine,vermillion,violet,viridian,wheat,white,yellow) where
 
 import RSAGL.Material
 
@@ -28,6 +28,9 @@ brass = rgb256 181 166 66
 
 bronze :: RGB
 bronze = rgb256 205 127 50
+
+brown :: RGB
+brown = rgb256 150 75 0
 
 burgundy :: RGB
 burgundy = rgb256 128 1 32
@@ -70,6 +73,9 @@ crimson = rgb256 220 20 60
 
 cyan :: RGB
 cyan = rgb256 1 255 255
+
+dark_brown :: RGB
+dark_brown = rgb256 101 67 33
 
 emerald :: RGB
 emerald = rgb256 80 200 120
@@ -142,6 +148,9 @@ orange = rgb256 255 160 1
 
 orchid :: RGB
 orchid = rgb256 218 112 214
+
+pale_brown :: RGB
+pale_brown = rgb256 152 118 84
 
 pink :: RGB
 pink = rgb256 255 192 203

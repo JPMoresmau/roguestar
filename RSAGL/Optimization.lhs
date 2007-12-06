@@ -7,7 +7,7 @@ module RSAGL.Optimization
      estimateSurfaceArea)
     where
 
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 import RSAGL.Surface
 import RSAGL.Curve
 import Data.List as List

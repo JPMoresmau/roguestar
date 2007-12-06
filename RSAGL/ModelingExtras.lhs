@@ -115,5 +115,6 @@ bumps :: Pattern -> Modeling attr
 bumps f = deform $ (\(sv3d@(SurfaceVertex3D p v)) -> translate (vectorScale (f sv3d) v) p)
 
 waves :: Double -> Double -> Pattern
-waves wave_length amplitude (SurfaceVertex3D (Point3D x y z) _) = sin ((x+y+z) / wave_length * 2*pi) * amplitude
+waves wave_length amplitude (SurfaceVertex3D (Point3D x y z) _) = (wave_f x + wave_f y + wave_f z) * amplitude / 3
+    where wave_f u = sin (u / wave_length * 2*pi)
 \end{code}

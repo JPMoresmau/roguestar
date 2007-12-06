@@ -8,12 +8,13 @@ The \texttt{Deformation} typeclass describes any affine or non-affine transforma
 {-# OPTIONS_GHC -fglasgow-exts #-}
 
 module RSAGL.Deformation
-    (Deformation,DeformationClass(..))
+    (Deformation,DeformationClass(..),constrain)
     where
 
 import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Affine
+import RSAGL.Auxiliary
 
 type Deformation = Either (SurfaceVertex3D -> Point3D) (SurfaceVertex3D -> SurfaceVertex3D)
 

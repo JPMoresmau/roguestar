@@ -24,7 +24,7 @@ module RSAGL.Matrix
 import Data.List
 import RSAGL.Angle
 import RSAGL.Vector
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 \end{code}
 
 The Matrix data structure stores copies of the matrix in both row-major and column-major form,

@@ -12,7 +12,7 @@ module RSAGL.Tesselation
 
 import RSAGL.Vector
 import RSAGL.Angle
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 import RSAGL.Surface
 import Data.List
 import Control.Arrow

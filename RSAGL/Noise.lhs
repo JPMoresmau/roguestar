@@ -26,9 +26,10 @@ perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perli
 --
 perlinNoise :: Point3D -> Double
 perlinNoise (Point3D x0 y0 z0) =
-   let (x,x') = properFraction x0 :: (Int,Double)
-       (y,y') = properFraction y0 :: (Int,Double)
-       (z,z') = properFraction z0 :: (Int,Double)
+   let (x,x') = ffloormod x0 :: (Int,Double)
+       (y,y') = ffloormod y0 :: (Int,Double)
+       (z,z') = ffloormod z0 :: (Int,Double)
+       ffloormod t = (floor $ t,t - (fromIntegral $ floor $ t))
        (u,v,w) = (fade x',fade y',fade z')
        x_ = x `mod` 256
        y_ = y `mod` 256
@@ -39,7 +40,7 @@ perlinNoise (Point3D x0 y0 z0) =
        b = pRandom (x_+1) + y_
        ba = pRandom b + z_
        bb = pRandom (b+1) + z_
-       f n = let nn = n * 3 in nn / (1 + abs nn)  -- 3 is arbitrary but gives good results, this function forces the result into the range -1..1
+       f n = let nn = n in nn / (1 + abs nn)  -- this function forces the result into the range -1..1
        in f $ lerp w
             (lerp v (lerp u (grad (pRandom aa) x' y' z', grad (pRandom ba) (x'-1) y' z'),
                      lerp u (grad (pRandom ab) x' (y'-1) z', grad (pRandom bb) (x'-1) (y'-1) z')),

@@ -17,7 +17,7 @@ module RSAGL.Curve
     where
 
 import RSAGL.Vector
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 import RSAGL.Affine
 import Data.List
 import Control.Applicative

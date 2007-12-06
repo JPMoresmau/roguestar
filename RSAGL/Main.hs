@@ -19,7 +19,7 @@ import System.Exit
 -- Import your model above and replace "error . . ." with your model below to view it.
 --
 test_model :: IntermediateModel
-test_model = toIntermediateModel 2000 (planet_ring_moon :: Modeling ())
+test_model = toIntermediateModel 40000 (planet_ring_moon :: Modeling ())
 
 main :: IO ()
 main = displayModel
@@ -73,9 +73,9 @@ rsaglDisplayCallback counter =
        lighting $= Enabled
        lightModelAmbient $= (Color4 0 0 0 1)
        (light $ Light 0) $= Enabled
-       (ambient $ Light 0) $= (Color4 0 0 0 1.0 :: Color4 Float)
+       (ambient $ Light 0) $= (Color4 0.2 0.2 0.2 1.0 :: Color4 Float)
        (GLUT.specular $ Light 0) $= (Color4 1.0 1.0 1.0 1.0 :: Color4 Float)
-       (diffuse $ Light 0) $= (Color4 1 1 1 1.0 :: Color4 Float)
+       (diffuse $ Light 0) $= (Color4 0.8 0.8 0.8 1.0 :: Color4 Float)
        (position $ Light 0) $= (Vertex4 (realToFrac $ 300 * sine secs) 100 (realToFrac $ 100 * cosine secs) 1)
        preservingMatrix $
            do lookAt (Vertex3 (sine (scaleAngle 3 secs)) 1 (2 * cosine (scaleAngle 3 secs))) (Vertex3 0 0 0) (Vector3 0 1 0)

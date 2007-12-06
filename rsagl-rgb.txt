@@ -7,6 +7,7 @@ blackbody		0    0    0
 blue			1    1    255
 brass			181  166  66
 bronze			205  127  50
+brown			150  75   0
 burgundy		128  1    32
 burnt_sienna		233  116  81  
 camouflage_green	120  134  107
@@ -21,6 +22,7 @@ coral			255  127  80
 corn			251  236  93
 crimson			220  20   60
 cyan			1    255  255
+dark_brown		101  67   33
 emerald			80   200  120
 eggplant		153  1    102
 fern_green		79   121  66  
@@ -45,6 +47,7 @@ ochre			204  119  34
 olive			128  128  1
 orange			255  160  1
 orchid			218  112  214
+pale_brown		152  118  84
 pink			255  192  203
 puce			204  136  153
 purple			160  92   240
