@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports -O0 #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 module RSAGL.Main
     (main,
@@ -15,11 +15,9 @@ import Control.Monad
 import RSAGL.Angle
 import System.Exit
 
---
--- Import your model above and replace "error . . ." with your model below to view it.
---
+{-# NOINLINE test_model #-}
 test_model :: IntermediateModel
-test_model = toIntermediateModel 40000 (planet_ring_moon :: Modeling ())
+test_model = toIntermediateModel 4000 (planet_ring_moon :: Modeling ())
 
 main :: IO ()
 main = displayModel

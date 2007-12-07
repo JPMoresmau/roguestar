@@ -107,7 +107,7 @@ zero_vector = Vector3D 0 0 0
 
 vector3d :: (Double,Double,Double) -> Vector3D
 vector3d = uncurry3d Vector3D
-                
+
 instance Xyz Vector3D where
     toXYZ (Vector3D x y z) = (x,y,z)
     fromXYZ (x,y,z) = Vector3D x y z
