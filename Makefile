@@ -12,13 +12,13 @@ rsagl-tests :
 optimized : rsagl-tests-optimized rsagl-modelview-optimized
 
 rsagl-tests-optimized :
-	ghc -Wall -fno-warn-type-defaults -O2 --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
+	ghc -threaded -Wall -fno-warn-type-defaults -O2 --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
 
 rsagl-modelview:
 	ghc -prof -auto-all -lglut -Wall -Werror -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
 
 rsagl-modelview-optimized:
-	ghc -lglut -Wall -fno-warn-type-defaults -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-optimized
+	ghc -threaded -lglut -Wall -fno-warn-type-defaults -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-optimized
 
 colors:
 	ghc -lglut -O2 --make RSAGL/ProcessColors.hs -main-is RSAGL.ProcessColors.main -o rsagl-process-colors

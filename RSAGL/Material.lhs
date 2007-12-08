@@ -6,7 +6,7 @@
 module RSAGL.Material
     (module RSAGL.Color,
      MaterialLayer,MaterialSurface,Material,
-     toLayers,materialLayerToOpenGL,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
+     toLayers,materialLayerSurface,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
      diffuseLayer,RSAGL.Material.specularLayer,transparentLayer,emissiveLayer)
     where
 
@@ -16,6 +16,7 @@ import Control.Applicative
 import RSAGL.Color
 import RSAGL.ApplicativeWrapper
 import RSAGL.Surface
+import Data.DeepSeq
 import Graphics.Rendering.OpenGL.GL.Colors
 import Graphics.Rendering.OpenGL.GL.StateVar
 import Graphics.Rendering.OpenGL.GL.VertexSpec
@@ -36,6 +37,13 @@ data MaterialLayer =
   | EmissiveLayer (MaterialSurface RGB)
   | SpecularLayer (MaterialSurface RGB) GLfloat
   | CompoundLayer (MaterialSurface RGB) RGB RGB GLfloat
+
+instance DeepSeq MaterialLayer where
+    deepSeq (DiffuseLayer msrgb) = deepSeq msrgb
+    deepSeq (TransparentLayer msrgba) = deepSeq msrgba
+    deepSeq (EmissiveLayer msrgb) = deepSeq msrgb
+    deepSeq (SpecularLayer msrgb shininess) = deepSeq (msrgb,shininess)
+    deepSeq (CompoundLayer msrgb spec emis shininess) = deepSeq (msrgb,spec,emis,shininess)
 
 data Material = Material [MaterialLayer]
 
@@ -96,18 +104,12 @@ isTransparentRelevant :: RGBA -> Bool
 isTransparentRelevant (RGBA 0 _) = False
 isTransparentRelevant _ = True
 
-rgbToOpenGL :: RGB -> IO ()
-rgbToOpenGL (RGB r g b) = color $ Color4 r g b 1
-
-rgbaToOpenGL :: RGBA -> IO ()
-rgbaToOpenGL (RGBA a (RGB r g b)) = color $ Color4 r g b a
-
-materialLayerToOpenGL :: MaterialLayer -> MaterialSurface (IO ())
-materialLayerToOpenGL (DiffuseLayer msrgb) = fmap rgbToOpenGL msrgb
-materialLayerToOpenGL (TransparentLayer msrgba) = fmap rgbaToOpenGL msrgba
-materialLayerToOpenGL (EmissiveLayer msrgb) = fmap rgbToOpenGL msrgb
-materialLayerToOpenGL (SpecularLayer msrgb _) = fmap rgbToOpenGL msrgb
-materialLayerToOpenGL (CompoundLayer msrgb _ _ _) = fmap rgbToOpenGL msrgb
+materialLayerSurface :: MaterialLayer -> MaterialSurface RGBA
+materialLayerSurface (DiffuseLayer msrgb) = fmap toRGBA msrgb
+materialLayerSurface (TransparentLayer msrgba) = msrgba
+materialLayerSurface (EmissiveLayer msrgb) = fmap toRGBA msrgb
+materialLayerSurface (SpecularLayer msrgb _) = fmap toRGBA msrgb
+materialLayerSurface (CompoundLayer msrgb _ _ _) = fmap toRGBA msrgb
 
 materialLayerRelevant :: MaterialLayer -> MaterialSurface Bool
 materialLayerRelevant (DiffuseLayer {}) = pure True

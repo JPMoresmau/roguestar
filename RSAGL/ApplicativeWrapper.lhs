@@ -3,6 +3,8 @@
 \texttt{ApplicativeWrapper} is a simple wrapper over the Applicative typeclass that retains information about the purity of the wrapper data structure type.
 
 \begin{code}
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 module RSAGL.ApplicativeWrapper
     (ApplicativeWrapper(..),
      fromPure,
@@ -14,6 +16,7 @@ module RSAGL.ApplicativeWrapper
 
 import Control.Applicative
 import Data.Maybe
+import Data.DeepSeq
 
 newtype ApplicativeWrapper f a = ApplicativeWrapper (Either (f a) a)
 
@@ -25,6 +28,9 @@ instance (Applicative f) => Applicative (ApplicativeWrapper f) where
     pure = ApplicativeWrapper . Right
     (ApplicativeWrapper (Right f)) <*> (ApplicativeWrapper (Right a)) = ApplicativeWrapper $ Right $ f a
     f <*> a = wrapApplicative $ toApplicative f <*> toApplicative a
+
+instance (DeepSeq (f a),DeepSeq a) => DeepSeq (ApplicativeWrapper f a) where
+    deepSeq (ApplicativeWrapper ethr) = deepSeq ethr
 
 fromPure :: (Applicative f) => ApplicativeWrapper f a -> Maybe a
 fromPure = either (const Nothing) Just . unwrapApplicative

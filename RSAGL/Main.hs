@@ -14,10 +14,13 @@ import RSAGL.Time
 import Control.Monad
 import RSAGL.Angle
 import System.Exit
+import RSAGL.QualityControl
 
-{-# NOINLINE test_model #-}
-test_model :: IntermediateModel
-test_model = toIntermediateModel 4000 (planet_ring_moon :: Modeling ())
+test_model :: Modeling ()
+test_model = planet_ring_moon
+
+quality_level :: Integer
+quality_level = 32000
 
 main :: IO ()
 main = displayModel
@@ -41,7 +44,8 @@ displayModel =
        window <- createWindow "RSAGL Test Mode"
        reshapeCallback $= Just rsaglReshapeCallback
        counter <- newIORef 0
-       displayCallback $= rsaglDisplayCallback counter
+       qo <- mkQuality (flip toIntermediateModel test_model) [100,200..quality_level]
+       displayCallback $= rsaglDisplayCallback counter qo
        addTimerCallback timer_callback_millis (rsaglTimerCallback window)
        mainLoop
 
@@ -50,8 +54,8 @@ rsaglReshapeCallback (Size width height) = do matrixMode $= Projection
 					      loadIdentity
 					      viewport $= (Position 0 0,Size width height)
 
-rsaglDisplayCallback :: (IORef Integer) -> IO ()
-rsaglDisplayCallback counter = 
+rsaglDisplayCallback :: (IORef Integer) -> QualityCache Integer IntermediateModel -> IO ()
+rsaglDisplayCallback counter qo =
     do secs <- liftM (fromRadians . (*(2*pi))) $ cycleSeconds 60
        matrixMode $= Projection
        rescaleNormal $= Enabled
@@ -77,11 +81,11 @@ rsaglDisplayCallback counter =
        (position $ Light 0) $= (Vertex4 (realToFrac $ 300 * sine secs) 100 (realToFrac $ 100 * cosine secs) 1)
        preservingMatrix $
            do lookAt (Vertex3 (sine (scaleAngle 3 secs)) 1 (2 * cosine (scaleAngle 3 secs))) (Vertex3 0 0 0) (Vector3 0 1 0)
-              intermediateModelToOpenGL test_model
+              intermediateModelToOpenGL =<< getQuality qo quality_level
        swapBuffers
        modifyIORef counter (+1)
-       frames <- readIORef counter
-       when (frames >= 1000) $ exitWith ExitSuccess
+       --frames <- readIORef counter
+       --when (frames >= 1000) $ exitWith ExitSuccess
 
 rsaglTimerCallback :: Window -> IO ()
 rsaglTimerCallback window = 

@@ -15,15 +15,17 @@ import RSAGL.FRP as FRP
 import RSAGL.Edge as Edge
 import RSAGL.Time
 import RSAGL.Angle
-import RSAGL.ListUtils
+import RSAGL.Auxiliary
 import RSAGL.Vector
 import RSAGL.Matrix
+import RSAGL.QualityControl
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
 import Test.QuickCheck hiding (test)
+import Control.Concurrent
 
 --
 -- State machine that adds its input to its state
@@ -414,6 +416,32 @@ testClose name actual expected _ =
        putStrLn $ "actual: " ++ show actual
        putStrLn ""
 
+testQualityObject :: IO ()
+testQualityObject =
+    do qo <- mkQualityObject naiveFib qs
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+       threadDelay 1000000
+       print =<< getQualityObject qo 100
+        where qs = [1..100]
+              naiveFib :: Integer -> Integer
+              naiveFib 0 = 0
+              naiveFib 1 = 1
+              naiveFib n = naiveFib (n-1) + naiveFib (n-2)
+
 main :: IO ()
 main = do test "add five test (sanity test of StatefulArrow)" 
                (addFive 2) 7
@@ -466,3 +494,4 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckMatrixInverse2
           quickCheckMatrixInverse3
           quickCheckMatrixInverse4
+          testQualityObject

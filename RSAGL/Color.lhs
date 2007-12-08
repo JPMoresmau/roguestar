@@ -8,10 +8,14 @@ module RSAGL.Color
      rgba256,
      ColorClass(..),
      addRGB,
-     scaleRGB)
+     scaleRGB,
+     rgbToOpenGL,
+     rgbaToOpenGL)
     where
 
 import RSAGL.Interpolation
+import Data.DeepSeq
+import Graphics.Rendering.OpenGL.GL.VertexSpec
 \end{code}
 
 \texttt{addColor} paints a color on top of another color using the additive color system.  For example, \texttt{red `addColor` green == yellow}.
@@ -21,11 +25,17 @@ import RSAGL.Interpolation
 \texttt{rgb256} works for colors specified in hexadecimal.  For example, X11 ForestGreen is \texttt{rgb256 0x22 0x8B 0x22}.
 
 \begin{code}
-data RGB = RGB { rgb_red, rgb_green, rgb_blue :: Float }
+data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !Float }
     deriving (Eq,Show)
 
-data RGBA = RGBA { rgba_a :: Float, rgba_rgb :: RGB }
+data RGBA = RGBA { rgba_a :: !Float, rgba_rgb :: !RGB }
     deriving (Eq,Show)
+
+instance DeepSeq RGB where
+    deepSeq = seq
+
+instance DeepSeq RGBA where
+    deepSeq = seq
 
 class ColorClass c where
     rgb :: Float -> Float -> Float -> c
@@ -36,6 +46,8 @@ class ColorClass c where
     clampColor :: c -> c
     mapRGB :: (Float -> Float) -> c -> c
     brightness :: c -> Float
+    colorToOpenGL :: c -> IO ()
+    toRGBA :: c -> RGBA
 
 instance ColorClass RGB where
     rgb = RGB
@@ -46,6 +58,8 @@ instance ColorClass RGB where
     clampColor = mapRGB (min 1 . max 0)
     mapRGB f (RGB r g b) = RGB (f r) (f g) (f b)
     brightness (RGB r g b) = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    colorToOpenGL = rgbToOpenGL
+    toRGBA = RGBA 1
 
 instance ColorClass RGBA where
     rgb = rgba 1.0
@@ -56,6 +70,8 @@ instance ColorClass RGBA where
     clampColor (RGBA a rgb_color) = RGBA (min 1 $ max 0 a) $ clampColor rgb_color
     mapRGB f (RGBA a rgb_color) = RGBA a $ mapRGB f rgb_color
     brightness (RGBA a rgb_color) = brightness rgb_color * a
+    colorToOpenGL = rgbaToOpenGL
+    toRGBA = id
 
 i2f256 :: (Integral i) => i -> Float
 i2f256 = (/ 255) . fromIntegral
@@ -80,4 +96,10 @@ instance Lerpable RGB where
 
 instance Lerpable RGBA where
     lerp u = lerpColor (realToFrac u)
+
+rgbToOpenGL :: RGB -> IO ()
+rgbToOpenGL (RGB r g b) = color $! Color4 r g b 1
+
+rgbaToOpenGL :: RGBA -> IO ()
+rgbaToOpenGL (RGBA a (RGB r g b)) = color $! Color4 r g b a
 \end{code}

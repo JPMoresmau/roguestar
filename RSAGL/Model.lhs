@@ -42,10 +42,12 @@ import RSAGL.Interpolation
 import RSAGL.Matrix
 import RSAGL.Affine
 import RSAGL.Angle
+import RSAGL.Color
 import Data.List as List
 import Data.Maybe
 import Control.Monad.State
 import Data.Monoid
+import Data.DeepSeq
 import Graphics.Rendering.OpenGL.GL.VertexSpec
 import Graphics.Rendering.OpenGL.GL.BasicTypes
 \end{code}
@@ -87,7 +89,7 @@ appendSurface s = modify $ mappend $ [ModeledSurface {
     ms_material = mempty,
     ms_affine_transform = Nothing,
     ms_tesselation = Nothing,
-    ms_tesselation_hint_complexity = 0,
+    ms_tesselation_hint_complexity = 1,
     ms_attributes = mempty }]
 
 generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Vector3D)) -> Modeling attr
@@ -152,6 +154,12 @@ deform dc =
                 (Left f) -> modify (map $ \m -> m { ms_surface = generateNormals $ fmap f $ ms_surface m })
                 (Right f) -> modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
   where sv3df f sv3d = let SurfaceVertex3D p v = f sv3d in SurfaceVertex3D p (vectorNormalize v)
+
+finishModeling :: Modeling attr
+finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
+    where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v) -> SurfaceVertex3D p (vectorNormalize v)) $
+                                                     transform (fromJust $ ms_affine_transform m) (ms_surface m),
+                               ms_affine_transform = Nothing }
 \end{code}
 
 \subsection{Coordinate System Alternatives for Parametric Surface Models}
@@ -182,7 +190,7 @@ sphere (Point3D x y z) radius = model $ do
                                   (sinev)
                                   (cosinev * sineu)
                 in (point,vector))
-    tesselationHintComplexity 1
+    tesselationHintComplexity 2
 
 disc :: (Monoid attr) => Double -> Double -> Modeling attr
 disc inner_radius outer_radius = model $ 
@@ -192,28 +200,34 @@ disc inner_radius outer_radius = model $
                       0
                       (lerp v (outer_radius,inner_radius) * sine u),
               up))
-       tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius)) ^ 2
+       tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
            where up = Vector3D 0 1 0
 \end{code}
 
 \subsection{Rendering Models to OpenGL}
 
 \begin{code}
-finishModeling :: Modeling attr
-finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
-    where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v) -> SurfaceVertex3D p (vectorNormalize v)) $
-                                                     transform (fromJust $ ms_affine_transform m) (ms_surface m),
-                               ms_affine_transform = Nothing }
-
 data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
+
+instance DeepSeq IntermediateModel where
+    deepSeq (IntermediateModel ms) = deepSeq ms
 
 data IntermediateModeledSurface = IntermediateModeledSurface [TesselatedSurface SingleMaterialSurfaceVertex3D] [MaterialLayer]
 
+instance DeepSeq IntermediateModeledSurface where
+    deepSeq (IntermediateModeledSurface ts ml) = deepSeq (ts,ml)
+
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
+
+instance DeepSeq SingleMaterialSurfaceVertex3D where
+    deepSeq (SingleMaterialSurfaceVertex3D sv3d mv3d) = deepSeq (sv3d,mv3d)
 
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 
-data MaterialVertex3D = MaterialVertex3D (IO ()) Bool
+data MaterialVertex3D = MaterialVertex3D RGBA Bool
+
+instance DeepSeq MaterialVertex3D where
+    deepSeq (MaterialVertex3D cm b) = deepSeq (cm,b)
 
 intermediateModelToOpenGL :: IntermediateModel -> IO ()
 intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
@@ -235,28 +249,33 @@ intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface tesselations laye
 intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
 intermediateModeledSurface n m = IntermediateModeledSurface (selectLayers (genericLength layers) tesselation) layers
     where layers = toLayers $ ms_material m
-          opengl_material_layers :: [Surface (IO ())]
-          opengl_material_layers = map (either id (const $ pure $ return ()) . unwrapApplicative . materialLayerToOpenGL) layers
+          color_material_layers :: [Surface RGBA]
+          color_material_layers = map (toApplicative . materialLayerSurface) layers
           relevance_layers :: [Surface Bool]
           relevance_layers = map (toApplicative . materialLayerRelevant) layers
           the_surface = zipSurface (MultiMaterialSurfaceVertex3D) (ms_surface m) $ 
-                                  sequenceA $ zipWith (zipSurface MaterialVertex3D) opengl_material_layers relevance_layers
+                                  sequenceA $ zipWith (zipSurface MaterialVertex3D) color_material_layers relevance_layers
           tesselation = case fromMaybe Adaptive $ ms_tesselation m of
                              Adaptive -> optimizeSurface msv3d_ruler the_surface (n `div` genericLength layers)
                              Fixed uv -> tesselateSurface the_surface uv
 
 selectLayers :: Integer -> TesselatedSurface MultiMaterialSurfaceVertex3D -> [TesselatedSurface SingleMaterialSurfaceVertex3D]
-selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv3d mv3ds) -> SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..n]
+selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv3d mv3ds) -> 
+                                                 SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..(n-1)]
 
 layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
 layerToOpenGL tesselation layer = 
-    (materialLayerToOpenGLWrapper layer) $ foldr (>>) (return ()) $ map (tesselatedElementToOpenGL vertexToOpenGL) tesselation
-        where vertexToOpenGL (SingleMaterialSurfaceVertex3D 
-                                    (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
-                                    (MaterialVertex3D material_io_action _)) =
-                  do material_io_action
+    (materialLayerToOpenGLWrapper layer) $ foldr (>>) (return ()) $ map (tesselatedElementToOpenGL toOpenGL) tesselation
+        where vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
+                                                  (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
+                                                  (MaterialVertex3D color_material _)) =
+                  do rgbaToOpenGL color_material
                      normal $ Normal3 vx vy vz
                      vertex $ Vertex3 px py pz
+              vertexToOpenGL (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz)) _) =
+                  do normal $ Normal3 vx vy vz
+                     vertex $ Vertex3 px py pz
+              toOpenGL = if isPure $ materialLayerSurface layer then vertexToOpenGL else vertexToOpenGLWithMaterialColor
 
 sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
 sv3d_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =

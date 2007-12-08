@@ -8,11 +8,13 @@ module RSAGL.Auxiliary
      loopList,
      shiftR,
      zeroToOne,
-     constrain)
+     constrain,
+     debugTime)
     where
 
 import Data.Array
 import System.Random
+import System.CPUTime
 
 -- pairify converts a list of length two into a pair.
 
@@ -99,3 +101,14 @@ ztos = listArray (0,1000) $ map (zeroToOnePrim) [0 .. 1000]
 
 constrain :: (a -> Bool) -> (a -> a) -> a -> a
 constrain f g x = if f x then g x else x
+
+-- debugTime prints a statement indicating how long an IO action takes to complete
+
+debugTime :: String -> IO a -> IO a
+debugTime msg io_action =
+    do print $ "debugTime: starting " ++ msg
+       start_time <- getCPUTime
+       result <- io_action
+       end_time <- getCPUTime
+       print $ "debugTime: done with " ++ msg ++ " " ++ show (end_time - start_time)
+       return result

@@ -20,6 +20,7 @@ import RSAGL.Vector
 import RSAGL.Auxiliary
 import RSAGL.Affine
 import Data.List
+import Data.DeepSeq
 import Control.Applicative
 \end{code}
 
@@ -32,7 +33,6 @@ We also allow two curves to be zipped together.
 We can take the derivative of a curve an arbitrary number of times, but this will run up against the precision of the underlying data types, including Double.
 
 \begin{code}
-
 data Curve a =
     Curve (Double -> a)
   | forall p. Derivative (p -> p -> a) (Double -> p -> p) (Curve p)
@@ -52,6 +52,11 @@ instance (AffineTransformable a) => AffineTransformable (Curve a) where
     translate v = fmap (translate v)
     rotate vector angle = fmap (rotate vector angle)
     transform m = fmap (transform m)
+
+instance DeepSeq (Curve a) where
+    deepSeq (Curve f) = seq f
+    deepSeq (Derivative sub sca src) = seq sub . seq sca . deepSeq src
+    deepSeq (Zip f x y) = seq f . deepSeq (x,y)
 
 zipCurve :: (x -> y -> z) -> Curve x -> Curve y -> Curve z
 zipCurve f (Curve x) (Curve y) = Curve $ (\n -> f (x n) (y n))

@@ -37,6 +37,7 @@ module RSAGL.Vector
      randomXYZ)
     where
 
+import Data.DeepSeq
 import RSAGL.Angle
 import RSAGL.Auxiliary
 import System.Random
@@ -121,6 +122,9 @@ A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a posit
 data SurfaceVertex3D = SurfaceVertex3D { sv3d_position :: Point3D, 
                                          sv3d_normal :: Vector3D }
     deriving (Read,Show)
+
+instance DeepSeq SurfaceVertex3D where
+    deepSeq (SurfaceVertex3D p v) = seq p . seq v
 \end{code}
 
 \subsection{Conversion between 2- and 3- dimensional points}

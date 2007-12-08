@@ -15,6 +15,7 @@ import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.Surface
 import Data.List
+import Data.DeepSeq
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd
 \end{code}
@@ -27,6 +28,10 @@ type TesselatedSurface a = [TesselatedElement a]
 data TesselatedElement a = TesselatedTriangleFan [a]
                          | TesselatedQuadStrip [a]
     deriving (Read,Show)
+
+instance (DeepSeq a) => DeepSeq (TesselatedElement a) where
+    deepSeq (TesselatedTriangleFan as) = deepSeq as
+    deepSeq (TesselatedQuadStrip as) = deepSeq as
 
 instance Functor TesselatedElement where
     fmap f (TesselatedTriangleFan as) = TesselatedTriangleFan $ fmap f as
