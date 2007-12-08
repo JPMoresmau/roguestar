@@ -46,6 +46,7 @@ displayModel =
        counter <- newIORef 0
        qo <- mkQuality (flip toIntermediateModel test_model) [100,200..quality_level]
        displayCallback $= rsaglDisplayCallback counter qo
+       idleCallback $= (Just $ return ())
        addTimerCallback timer_callback_millis (rsaglTimerCallback window)
        mainLoop
 

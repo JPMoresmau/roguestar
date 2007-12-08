@@ -418,24 +418,24 @@ testClose name actual expected _ =
 
 testQualityObject :: IO ()
 testQualityObject =
-    do qo <- mkQualityObject naiveFib qs
-       print =<< getQualityObject qo 100
+    do qo <- mkQuality naiveFib qs
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
        threadDelay 1000000
-       print =<< getQualityObject qo 100
+       print =<< getQuality qo 100
         where qs = [1..100]
               naiveFib :: Integer -> Integer
               naiveFib 0 = 0
