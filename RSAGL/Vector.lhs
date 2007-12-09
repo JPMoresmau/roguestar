@@ -20,6 +20,7 @@ module RSAGL.Vector
      angleBetween,
      crossProduct,
      distanceBetween,
+     distanceBetweenSquared,
      aNonZeroVector,
      vectorAdd,
      vectorSum,
@@ -158,6 +159,9 @@ crossProduct (Vector3D ax ay az) (Vector3D bx by bz) =
 
 distanceBetween :: (Xyz xyz) => xyz -> xyz -> Double
 distanceBetween a b = vectorLength $ vectorToFrom a b
+
+distanceBetweenSquared :: (Xyz xyz) => xyz -> xyz -> Double
+distanceBetweenSquared a b = vectorLengthSquared $ vectorToFrom a b
 
 vectorAdd :: Vector3D -> Vector3D -> Vector3D
 vectorAdd (Vector3D ax ay az) (Vector3D bx by bz) = Vector3D (ax+bx) (ay+by) (az+bz)

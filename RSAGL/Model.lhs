@@ -209,15 +209,24 @@ disc inner_radius outer_radius = model $
 \begin{code}
 data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
 
+instance AffineTransformable IntermediateModel where
+    transform m (IntermediateModel ms) = IntermediateModel $ transform m ms
+
 instance DeepSeq IntermediateModel where
     deepSeq (IntermediateModel ms) = deepSeq ms
 
 data IntermediateModeledSurface = IntermediateModeledSurface [TesselatedSurface SingleMaterialSurfaceVertex3D] [MaterialLayer]
 
+instance AffineTransformable IntermediateModeledSurface where
+    transform m (IntermediateModeledSurface ts ml) = IntermediateModeledSurface (transform m ts) ml
+
 instance DeepSeq IntermediateModeledSurface where
     deepSeq (IntermediateModeledSurface ts ml) = deepSeq (ts,ml)
 
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
+
+instance AffineTransformable SingleMaterialSurfaceVertex3D where
+    transform m (SingleMaterialSurfaceVertex3D sv3d mv3d) = SingleMaterialSurfaceVertex3D (transform m sv3d) mv3d
 
 instance DeepSeq SingleMaterialSurfaceVertex3D where
     deepSeq (SingleMaterialSurfaceVertex3D sv3d mv3d) = deepSeq (sv3d,mv3d)

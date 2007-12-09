@@ -9,6 +9,8 @@ can be represented in coordinate system neutral form.
 
 module RSAGL.CSN
     (CoordinateSystem,
+     CoordinateSystemClass(..),
+     root_coordinate_system,
      migrate,
      CSN,
      importCSN,
@@ -19,7 +21,11 @@ module RSAGL.CSN
      remoteM,
      importA,
      exportA,
-     remoteA)
+     remoteA,
+     Distance,
+     measure,
+     distance,
+     distanceSquared)
     where
 
 import Control.Monad
@@ -28,6 +34,7 @@ import Control.Arrow
 import Control.Arrow.Operations
 import RSAGL.Matrix
 import RSAGL.Affine
+import RSAGL.Vector
 \end{code}
 
 \subsection{Coordinate Systems}
@@ -47,8 +54,13 @@ instance AffineTransformable CoordinateSystem where
 migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
 migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
 
-class (AffineTransformable csc) => CoordinateSystemClass csc where
-    coordinateSystem :: csc -> CoordinateSystem
+class CoordinateSystemClass csc where
+    getCoordinateSystem :: csc -> CoordinateSystem
+    storeCoordinateSystem :: CoordinateSystem -> csc -> csc
+
+instance CoordinateSystemClass CoordinateSystem where
+    getCoordinateSystem = id
+    storeCoordinateSystem cs = const cs
 
 root_coordinate_system :: CoordinateSystem
 root_coordinate_system = CoordinateSystem $ identityMatrix 4
@@ -75,10 +87,10 @@ remoteCSN :: (AffineTransformable a,AffineTransformable b) => CoordinateSystem -
 remoteCSN context f = exportCSN context . f . importCSN context
 
 exportM :: (Monad m,MonadState s m,CoordinateSystemClass s,AffineTransformable a) => a -> m (CSN a)
-exportM a = liftM (flip exportCSN a) $ gets coordinateSystem
+exportM a = liftM (flip exportCSN a) $ gets getCoordinateSystem
 
 importM :: (Monad m,MonadState s m,CoordinateSystemClass s,AffineTransformable a) => CSN a -> m a
-importM a = liftM (flip importCSN a) $ gets coordinateSystem
+importM a = liftM (flip importCSN a) $ gets getCoordinateSystem
 
 remoteM :: (Monad m,MonadState s m,CoordinateSystemClass s,AffineTransformable a,AffineTransformable b) => CoordinateSystem -> (a -> b) -> a -> m b
 remoteM context f a = 
@@ -87,39 +99,61 @@ remoteM context f a =
 
 exportA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a) => arr a (CSN a)
 exportA = proc a ->
-    do cs <- arr coordinateSystem <<< fetch -< ()
+    do cs <- arr getCoordinateSystem <<< fetch -< ()
        returnA -< exportCSN cs a
 
 importA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a) => arr (CSN a) a
 importA = proc a ->
-    do cs <- arr coordinateSystem <<< fetch -< ()
+    do cs <- arr getCoordinateSystem <<< fetch -< ()
        returnA -< importCSN cs a
 
 remoteA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a,AffineTransformable b) => arr (CoordinateSystem, (a -> b), a) b
 remoteA = proc (context,f,a) ->
     do csn <- exportA -< a
        importA -< remoteCSN context f csn
-
-remoteA_ :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a,AffineTransformable b) => CoordinateSystem -> (a -> b) -> arr a b
-remoteA_ context f = remoteA <<< arr (\a -> (context,f,a))
 \end{code}
 
-\subsection{Affine Transformation in Monads and Arrows}
+\subsection{Affine Transformation in State Monads and State Arrows}
 
 \begin{code}
-transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => m a -> (forall at. AffineTransformable at => at -> at) -> m a
-transformM action affine_transformation =
-    do s <- get
-       modify affine_transformation
+transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => (CoordinateSystem -> CoordinateSystem) -> m a -> m a
+transformM affine_transformation action =
+    do s <- liftM getCoordinateSystem get
+       modify (storeCoordinateSystem (affine_transformation s))
        a <- action
-       put s
+       modify (storeCoordinateSystem s)
        return a
 
-transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (forall at. AffineTransformable at => at -> at,a) b
+transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (CoordinateSystem -> CoordinateSystem,a) b
 transformA action = proc (affine_transformation,a) ->
     do s <- fetch -< ()
-       store -< affine_transformation s
+       store -< storeCoordinateSystem (affine_transformation $ getCoordinateSystem s) s
        b <- action -< a
-       store -< s
+       s' <- fetch -< ()
+       store -< storeCoordinateSystem (getCoordinateSystem s) s'
        returnA -< b
+\end{code}
+
+\subsection{Coordinate System Neutral Distance}
+
+Since we can't make scalar values \texttt{AffineTransformable}, but it is useful to measure distances in a space that is subject to affine transformations,
+we define distance in terms of the elements being measured.
+
+\begin{code}
+data Distance = forall p. (AffineTransformable p,Xyz p) => Distance p p
+
+measure :: (AffineTransformable p,Xyz p) => p -> p -> Distance
+measure = Distance
+
+distance :: Distance -> Double
+distance (Distance p1 p2) = distanceBetween p1 p2
+
+distanceSquared :: Distance -> Double
+distanceSquared (Distance p1 p2) = distanceBetweenSquared p1 p2
+
+instance AffineTransformable Distance where
+    transform m (Distance p1 p2) = Distance (transform m p1) (transform m p2)
+    scale v (Distance p1 p2) = Distance (scale v p1) (scale v p2)
+    rotate a v (Distance p1 p2) = Distance (rotate a v p1) (rotate a v p2)
+    translate v (Distance p1 p2) = Distance (translate v p1) (translate v p2)
 \end{code}

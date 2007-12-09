@@ -13,6 +13,7 @@ module RSAGL.Tesselation
 import RSAGL.Vector
 import RSAGL.Auxiliary
 import RSAGL.Surface
+import RSAGL.Affine
 import Data.List
 import Data.DeepSeq
 import Control.Arrow
@@ -27,6 +28,10 @@ type TesselatedSurface a = [TesselatedElement a]
 data TesselatedElement a = TesselatedTriangleFan [a]
                          | TesselatedQuadStrip [a]
     deriving (Read,Show)
+
+instance (AffineTransformable a) => AffineTransformable (TesselatedElement a) where
+    transform m (TesselatedTriangleFan as) = TesselatedTriangleFan $ transform m as
+    transform m (TesselatedQuadStrip as) = TesselatedTriangleFan $ transform m as
 
 instance (DeepSeq a) => DeepSeq (TesselatedElement a) where
     deepSeq (TesselatedTriangleFan as) = deepSeq as

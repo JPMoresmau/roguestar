@@ -8,7 +8,8 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 
 \begin{code}
 module RSAGL.Affine
-    (AffineTransformable(..))
+    (AffineTransformable(..),
+     WrappedAffine(..),wrapAffine,unwrapAffine)
     where
 
 import Graphics.Rendering.OpenGL.GL as GL
@@ -81,4 +82,20 @@ instance AffineTransformable (IO a) where
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
         do GL.rotate (toDegrees_ angle) (Vector3 x y z)
            iofn
+\end{code}
+
+\texttt{WrappedAffine} stores up affine transformations that are commited only when the entity is unwrapped.  This is an optimization when the entity in question is expensive
+to transform.
+
+\begin{code}
+data WrappedAffine a = WrappedAffine (RSAGL.Matrix.Matrix) a
+
+wrapAffine :: (AffineTransformable a) => a -> WrappedAffine a
+wrapAffine = WrappedAffine (identityMatrix 4)
+
+unwrapAffine :: (AffineTransformable a) => WrappedAffine a -> a
+unwrapAffine (WrappedAffine m a) = transform m a
+
+instance (AffineTransformable a) => AffineTransformable (WrappedAffine a) where
+    transform t (WrappedAffine m a) = WrappedAffine (transform t m) a
 \end{code}
