@@ -16,25 +16,24 @@ import Data.Array
 import System.Random
 import System.CPUTime
 
--- pairify converts a list of length two into a pair.
-
-pairify :: [a] -> (a,a)
-pairify (m:n:[]) = (m,n)
-pairify _ = error "pairify only works on lists of length two"
-
 -- doubles transforms a list to a list of adjacent elements.
 
 -- doubles [1,2,3,4,5] = [(1,2),(2,3),(3,4),(4,5)]
 
 doubles :: [a] -> [(a,a)]
-doubles = (map pairify) . (consecutives 2)
+doubles [] = []
+doubles [_] = []
+doubles (x:y:zs) = (x,y) : doubles (y:zs)
 
 -- loopedDoubles transforms a list to a list of adjacent elements, looping back to the beginning of the list.
 
 -- loopedDoubles [1,2,3,4,5] = [(1,2),(2,3),(3,4),(4,5),(5,1)]
 
 loopedDoubles :: [a] -> [(a,a)]
-loopedDoubles = (map pairify) . (loopedConsecutives 2)
+loopedDoubles as = loopedDoubles_ (head as) as
+    where loopedDoubles_ _ [] = []
+          loopedDoubles_ a [x] = [(x,a)]
+          loopedDoubles_ a (x:y:zs) = (x,y) : loopedDoubles_ a (y:zs)
 
 -- consecutives answers a list containing every sequence of n consecutive
 -- elements in the parameter.

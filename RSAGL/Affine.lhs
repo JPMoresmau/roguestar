@@ -79,6 +79,6 @@ instance AffineTransformable (IO a) where
         do GL.scale x y z
            iofn
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
-        do GL.rotate (toDegrees angle) (Vector3 x y z)
+        do GL.rotate (toDegrees_ angle) (Vector3 x y z)
            iofn
 \end{code}

@@ -11,7 +11,6 @@ module RSAGL.Tesselation
     where
 
 import RSAGL.Vector
-import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.Surface
 import Data.List
@@ -119,7 +118,7 @@ class ConcavityDetection a where
     toPoint3D :: a -> Point3D
 
 instance ConcavityDetection Point3D where
-    isConcave = any ((> fromDegrees 90) . uncurry angleBetween) . doubles . map newell . loopedConsecutives 3
+    isConcave = any ((<= 0) . uncurry dotProduct) . doubles . map newell . loopedConsecutives 3
     toPoint3D = id
 
 instance ConcavityDetection SurfaceVertex3D where

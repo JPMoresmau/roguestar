@@ -85,8 +85,8 @@ rsaglDisplayCallback counter qo =
               intermediateModelToOpenGL =<< getQuality qo quality_level
        swapBuffers
        modifyIORef counter (+1)
-       --frames <- readIORef counter
-       --when (frames >= 1000) $ exitWith ExitSuccess
+       frames <- readIORef counter
+       when (frames >= 1000) $ exitWith ExitSuccess
 
 rsaglTimerCallback :: Window -> IO ()
 rsaglTimerCallback window = 
