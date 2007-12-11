@@ -46,9 +46,9 @@ fromDegrees :: Double -> Angle
 fromDegrees = Radians . ((*) (pi/180))
 \end{code}
 
-\texttt{toDegrees} answers the angle in the range of -180 .. 180, inclusive.
+\texttt{toDegrees} answers the angle in the range of -180 to 180, inclusive.
 
-\texttt{toDegrees} answers the angle in degrees with no range limitation.
+\texttt{toDegrees\_} answers the angle in degrees with no range limitation.
 
 \begin{code}
 toDegrees :: Angle -> Double
@@ -59,9 +59,9 @@ toDegrees_ :: Angle -> Double
 toDegrees_ (Radians x) = x * 180 / pi
 \end{code}
 
-toRadians answers the angle in the range of -pi .. pi, inclusive.
+\texttt{toRadians} answers the angle in the range of -pi .. pi, inclusive.
 
-toRadians_ answers the angle in radians with no range limitation.
+\texttt{toRadians\_} answers the angle in radians with no range limitation.
 
 \begin{code}
 toRadians :: Angle -> Double

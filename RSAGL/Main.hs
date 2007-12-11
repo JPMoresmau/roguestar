@@ -12,15 +12,28 @@ import RSAGL.Model
 import Models.PlanetRingMoon
 import RSAGL.Time
 import Control.Monad
+import Control.Monad.Trans
 import RSAGL.Angle
 import System.Exit
 import RSAGL.QualityControl
+import RSAGL.Scene
+import RSAGL.Animation
+import RSAGL.Vector
+import RSAGL.RSAGLColors
 
 test_model :: Modeling ()
 test_model = planet_ring_moon
 
-quality_level :: Integer
-quality_level = 32000
+test_quality :: Integer
+test_quality = 3000
+
+testScene :: QualityCache Integer IntermediateModel -> AniM ((),Camera)
+testScene qo = 
+    do rotf <- rotationM (Vector3D (-1) 1 1) (fromDegrees 25)
+       im <- lift $ getQuality qo test_quality
+       accumulateSceneM Local $ sceneObject im
+       accumulateSceneM Local $ lightSource $ DirectionalLight (Vector3D 1 1 1) white blackbody
+       return ((),rotf $ PerspectiveCamera (Point3D 1 1 (-1)) (Point3D 0 0 0) (Vector3D 0 1 0) (fromDegrees 60))
 
 main :: IO ()
 main = displayModel
@@ -44,7 +57,7 @@ displayModel =
        window <- createWindow "RSAGL Test Mode"
        reshapeCallback $= Just rsaglReshapeCallback
        counter <- newIORef 0
-       qo <- mkQuality (flip toIntermediateModel test_model) [100,200..quality_level]
+       qo <- mkQuality (flip toIntermediateModel test_model) [100,200..test_quality]
        displayCallback $= rsaglDisplayCallback counter qo
        idleCallback $= (Just $ return ())
        addTimerCallback timer_callback_millis (rsaglTimerCallback window)
@@ -54,35 +67,16 @@ rsaglReshapeCallback :: Size -> IO ()
 rsaglReshapeCallback (Size width height) = do matrixMode $= Projection
 					      loadIdentity
 					      viewport $= (Position 0 0,Size width height)
+                                              matrixMode $= Modelview 0
 
 rsaglDisplayCallback :: (IORef Integer) -> QualityCache Integer IntermediateModel -> IO ()
 rsaglDisplayCallback counter qo =
-    do secs <- liftM (fromRadians . (*(2*pi))) $ cycleSeconds 60
-       matrixMode $= Projection
-       rescaleNormal $= Enabled
-       loadIdentity
-       (Size width height) <- get windowSize
-       perspective (60) 
-                   ((fromInteger $ toInteger width)/(fromInteger $ toInteger height)) 
-                   (0.1) 
-                   (100)
-       matrixMode $= Modelview 0
-       loadIdentity
+    do loadIdentity
        color (Color4 0.0 0.0 0.0 0.0 :: Color4 Double)
-       clear [ColorBuffer,DepthBuffer]
-       cullFace $= Just Front
-       depthFunc $= Just Lequal
-       depthMask $= Enabled
-       lighting $= Enabled
-       lightModelAmbient $= (Color4 0 0 0 1)
-       (light $ Light 0) $= Enabled
-       (ambient $ Light 0) $= (Color4 0.2 0.2 0.2 1.0 :: Color4 Float)
-       (GLUT.specular $ Light 0) $= (Color4 1.0 1.0 1.0 1.0 :: Color4 Float)
-       (diffuse $ Light 0) $= (Color4 0.8 0.8 0.8 1.0 :: Color4 Float)
-       (position $ Light 0) $= (Vertex4 (realToFrac $ 300 * sine secs) 100 (realToFrac $ 100 * cosine secs) 1)
-       preservingMatrix $
-           do lookAt (Vertex3 (sine (scaleAngle 3 secs)) 1 (2 * cosine (scaleAngle 3 secs))) (Vertex3 0 0 0) (Vector3 0 1 0)
-              intermediateModelToOpenGL =<< getQuality qo quality_level
+       clear [ColorBuffer]
+       the_scene <- liftM snd $ runAniM (testScene qo)
+       (Size w h) <- GLUT.get windowSize
+       sceneToOpenGL (fromIntegral w / fromIntegral h) (0.1,30) the_scene
        swapBuffers
        modifyIORef counter (+1)
        frames <- readIORef counter

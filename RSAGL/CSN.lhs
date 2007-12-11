@@ -22,15 +22,16 @@ module RSAGL.CSN
      importA,
      exportA,
      remoteA,
+     transformM,
+     transformA,
      Distance,
      measure,
      distance,
      distanceSquared)
     where
 
-import Control.Monad
-import Control.Monad.State
 import Control.Arrow
+import Control.Monad.State
 import Control.Arrow.Operations
 import RSAGL.Matrix
 import RSAGL.Affine
@@ -61,6 +62,10 @@ class CoordinateSystemClass csc where
 instance CoordinateSystemClass CoordinateSystem where
     getCoordinateSystem = id
     storeCoordinateSystem cs = const cs
+
+instance (CoordinateSystemClass csc) => CoordinateSystemClass (a,csc) where
+    getCoordinateSystem = getCoordinateSystem . snd
+    storeCoordinateSystem cs = second (storeCoordinateSystem cs)
 
 root_coordinate_system :: CoordinateSystem
 root_coordinate_system = CoordinateSystem $ identityMatrix 4

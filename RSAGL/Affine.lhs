@@ -7,9 +7,12 @@ Defaults are provided for all methods of AffineTransformable except transform.
 The IO monad itself is AffineTransformable.  This is done by wrapping the IO action in an OpenGL transformation.
 
 \begin{code}
+{-# OPTIONS_GHC -fglasgow-exts #-}
+
 module RSAGL.Affine
     (AffineTransformable(..),
-     WrappedAffine(..),wrapAffine,unwrapAffine)
+     WrappedAffine(..),wrapAffine,unwrapAffine,
+     inverseTransformation)
     where
 
 import Graphics.Rendering.OpenGL.GL as GL
@@ -36,6 +39,9 @@ class AffineTransformable a where
     scale' x = RSAGL.Affine.scale (Vector3D x x x)
     inverseTransform :: RSAGL.Matrix.Matrix -> a -> a
     inverseTransform m = transform (matrixInverse m)
+
+inverseTransformation :: (AffineTransformable b) => (forall a. (AffineTransformable a) => a -> a) -> b -> b
+inverseTransformation f = transform (matrixInverse $ f $ identityMatrix 4)
 
 instance AffineTransformable a => AffineTransformable [a] where
     scale v = map (RSAGL.Affine.scale v)
