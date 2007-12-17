@@ -23,7 +23,7 @@ module RSAGL.Surface
 import RSAGL.Affine
 import RSAGL.Curve
 import Data.List
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Control.Applicative
 \end{code}
 
@@ -56,8 +56,8 @@ instance (AffineTransformable a) => AffineTransformable (Surface a) where
     rotate vector angle = fmap (rotate vector angle)
     transform m = fmap (transform m)
 
-instance DeepSeq (Surface a) where
-    deepSeq (Surface uv vu) = deepSeq (uv,vu)
+instance NFData (Surface a) where
+    rnf (Surface uv vu) = rnf (uv,vu)
 
 zipSurface :: (x -> y -> z) -> Surface x -> Surface y -> Surface z
 zipSurface f (Surface xuv xvu) (Surface yuv yvu) =

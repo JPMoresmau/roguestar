@@ -20,7 +20,7 @@ import RSAGL.Vector
 import RSAGL.Auxiliary
 import RSAGL.Affine
 import Data.List
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Control.Applicative
 \end{code}
 
@@ -53,10 +53,10 @@ instance (AffineTransformable a) => AffineTransformable (Curve a) where
     rotate vector angle = fmap (rotate vector angle)
     transform m = fmap (transform m)
 
-instance DeepSeq (Curve a) where
-    deepSeq (Curve f) = seq f
-    deepSeq (Derivative sub sca src) = seq sub . seq sca . deepSeq src
-    deepSeq (Zip f x y) = seq f . deepSeq (x,y)
+instance NFData (Curve a) where
+    rnf (Curve f) = seq f ()
+    rnf (Derivative sub sca src) = sub `seq` sca `seq` rnf src
+    rnf (Zip f x y) = f `seq` rnf (x,y)
 
 zipCurve :: (x -> y -> z) -> Curve x -> Curve y -> Curve z
 zipCurve f (Curve x) (Curve y) = Curve $ (\n -> f (x n) (y n))

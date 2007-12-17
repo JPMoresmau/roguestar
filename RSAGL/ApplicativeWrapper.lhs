@@ -16,7 +16,7 @@ module RSAGL.ApplicativeWrapper
 
 import Control.Applicative
 import Data.Maybe
-import Data.DeepSeq
+import Control.Parallel.Strategies
 
 newtype ApplicativeWrapper f a = ApplicativeWrapper (Either (f a) a)
 
@@ -29,8 +29,8 @@ instance (Applicative f) => Applicative (ApplicativeWrapper f) where
     (ApplicativeWrapper (Right f)) <*> (ApplicativeWrapper (Right a)) = ApplicativeWrapper $ Right $ f a
     f <*> a = wrapApplicative $ toApplicative f <*> toApplicative a
 
-instance (DeepSeq (f a),DeepSeq a) => DeepSeq (ApplicativeWrapper f a) where
-    deepSeq (ApplicativeWrapper ethr) = deepSeq ethr
+instance (NFData (f a),NFData a) => NFData (ApplicativeWrapper f a) where
+    rnf (ApplicativeWrapper ethr) = either rnf rnf ethr
 
 fromPure :: (Applicative f) => ApplicativeWrapper f a -> Maybe a
 fromPure = either (const Nothing) Just . unwrapApplicative

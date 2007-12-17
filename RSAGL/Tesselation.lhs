@@ -15,7 +15,7 @@ import RSAGL.Auxiliary
 import RSAGL.Surface
 import RSAGL.Affine
 import Data.List
-import Data.DeepSeq
+import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd
 \end{code}
@@ -33,9 +33,9 @@ instance (AffineTransformable a) => AffineTransformable (TesselatedElement a) wh
     transform m (TesselatedTriangleFan as) = TesselatedTriangleFan $ transform m as
     transform m (TesselatedQuadStrip as) = TesselatedTriangleFan $ transform m as
 
-instance (DeepSeq a) => DeepSeq (TesselatedElement a) where
-    deepSeq (TesselatedTriangleFan as) = deepSeq as
-    deepSeq (TesselatedQuadStrip as) = deepSeq as
+instance (NFData a) => NFData (TesselatedElement a) where
+    rnf (TesselatedTriangleFan as) = rnf as
+    rnf (TesselatedQuadStrip as) = rnf as
 
 instance Functor TesselatedElement where
     fmap f (TesselatedTriangleFan as) = TesselatedTriangleFan $ fmap f as

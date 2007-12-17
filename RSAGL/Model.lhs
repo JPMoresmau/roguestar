@@ -47,7 +47,7 @@ import Data.List as List
 import Data.Maybe
 import Control.Monad.State
 import Data.Monoid
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
 import Graphics.Rendering.OpenGL.GL.BasicTypes
 \end{code}
@@ -212,31 +212,31 @@ data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
 instance AffineTransformable IntermediateModel where
     transform m (IntermediateModel ms) = IntermediateModel $ transform m ms
 
-instance DeepSeq IntermediateModel where
-    deepSeq (IntermediateModel ms) = deepSeq ms
+instance NFData IntermediateModel where
+    rnf (IntermediateModel ms) = rnf ms
 
 data IntermediateModeledSurface = IntermediateModeledSurface [TesselatedSurface SingleMaterialSurfaceVertex3D] [MaterialLayer]
 
 instance AffineTransformable IntermediateModeledSurface where
     transform m (IntermediateModeledSurface ts ml) = IntermediateModeledSurface (transform m ts) ml
 
-instance DeepSeq IntermediateModeledSurface where
-    deepSeq (IntermediateModeledSurface ts ml) = deepSeq (ts,ml)
+instance NFData IntermediateModeledSurface where
+    rnf (IntermediateModeledSurface ts ml) = rnf (ts,ml)
 
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
 
 instance AffineTransformable SingleMaterialSurfaceVertex3D where
     transform m (SingleMaterialSurfaceVertex3D sv3d mv3d) = SingleMaterialSurfaceVertex3D (transform m sv3d) mv3d
 
-instance DeepSeq SingleMaterialSurfaceVertex3D where
-    deepSeq (SingleMaterialSurfaceVertex3D sv3d mv3d) = deepSeq (sv3d,mv3d)
+instance NFData SingleMaterialSurfaceVertex3D where
+    rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)
 
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
 
-instance DeepSeq MaterialVertex3D where
-    deepSeq (MaterialVertex3D cm b) = deepSeq (cm,b)
+instance NFData MaterialVertex3D where
+    rnf (MaterialVertex3D cm b) = rnf (cm,b)
 
 intermediateModelToOpenGL :: IntermediateModel -> IO ()
 intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
@@ -245,18 +245,18 @@ modelingToOpenGL :: Integer -> Modeling attr -> IO ()
 modelingToOpenGL n modeling = intermediateModelToOpenGL $ toIntermediateModel n modeling
 
 toIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
-toIntermediateModel n modeling = IntermediateModel $ map (\(m,c) -> intermediateModeledSurface c m) complexity_map
-    where complexity_map = zip ms $ allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
+toIntermediateModel n modeling = IntermediateModel $ (zipWith intermediateModeledSurface complexities ms `using` parList rnf)
+    where complexities = allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
           ms = extractModel (modeling >> finishModeling)
           extraComplexity m = normalSurfaceArea (ms_surface m) * fromInteger (ms_tesselation_hint_complexity m * materialComplexity (ms_material m))
-          normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler 
+          normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler
 
 intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
 intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface tesselations layers) = 
     foldr (>>) (return ()) $ zipWith layerToOpenGL tesselations layers
 
 intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
-intermediateModeledSurface n m = IntermediateModeledSurface (selectLayers (genericLength layers) tesselation) layers
+intermediateModeledSurface n m = IntermediateModeledSurface (selectLayers (genericLength layers) tesselation `using` parList rnf) layers
     where layers = toLayers $ ms_material m
           color_material_layers :: [Surface RGBA]
           color_material_layers = map (toApplicative . materialLayerSurface) layers

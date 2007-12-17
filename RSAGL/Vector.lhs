@@ -38,7 +38,7 @@ module RSAGL.Vector
      randomXYZ)
     where
 
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import RSAGL.Angle
 import RSAGL.Auxiliary
 import System.Random
@@ -83,6 +83,8 @@ points3d_2 = map (\(l,r) -> (point3d l,point3d r))
 instance Xyz Point3D where
     toXYZ (Point3D x y z) = (x,y,z)
     fromXYZ (x,y,z) = Point3D x y z
+
+instance NFData Point3D
 \end{code}
 
 \subsection{Points in 2-space}
@@ -113,6 +115,8 @@ vector3d = uncurry3d Vector3D
 instance Xyz Vector3D where
     toXYZ (Vector3D x y z) = (x,y,z)
     fromXYZ (x,y,z) = Vector3D x y z
+
+instance NFData Vector3D
 \end{code}
 
 A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a position and a normal vector.
@@ -124,8 +128,8 @@ data SurfaceVertex3D = SurfaceVertex3D { sv3d_position :: Point3D,
                                          sv3d_normal :: Vector3D }
     deriving (Read,Show)
 
-instance DeepSeq SurfaceVertex3D where
-    deepSeq (SurfaceVertex3D p v) = seq p . seq v
+instance NFData SurfaceVertex3D where
+    rnf (SurfaceVertex3D p v) = rnf (p,v)
 \end{code}
 
 \subsection{Conversion between 2- and 3- dimensional points}

@@ -16,7 +16,7 @@ import Control.Applicative
 import RSAGL.Color
 import RSAGL.ApplicativeWrapper
 import RSAGL.Surface
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.Colors
 import Graphics.Rendering.OpenGL.GL.StateVar
 import Graphics.Rendering.OpenGL.GL.VertexSpec
@@ -38,12 +38,12 @@ data MaterialLayer =
   | SpecularLayer (MaterialSurface RGB) GLfloat
   | CompoundLayer (MaterialSurface RGB) RGB RGB GLfloat
 
-instance DeepSeq MaterialLayer where
-    deepSeq (DiffuseLayer msrgb) = deepSeq msrgb
-    deepSeq (TransparentLayer msrgba) = deepSeq msrgba
-    deepSeq (EmissiveLayer msrgb) = deepSeq msrgb
-    deepSeq (SpecularLayer msrgb shininess) = deepSeq (msrgb,shininess)
-    deepSeq (CompoundLayer msrgb spec emis shininess) = deepSeq (msrgb,spec,emis,shininess)
+instance NFData MaterialLayer where
+    rnf (DiffuseLayer msrgb) = rnf msrgb
+    rnf (TransparentLayer msrgba) = rnf msrgba
+    rnf (EmissiveLayer msrgb) = rnf msrgb
+    rnf (SpecularLayer msrgb shininess) = rnf (msrgb,shininess)
+    rnf (CompoundLayer msrgb spec emis shininess) = rnf (msrgb,spec,emis,shininess)
 
 data Material = Material [MaterialLayer]
 

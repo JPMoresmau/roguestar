@@ -5,7 +5,7 @@ module RSAGL.QualityControl
     (QualityCache,mkQuality,getQuality)
     where
 
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Data.Map as Map
 import Control.Concurrent
 import Control.Monad
@@ -25,24 +25,20 @@ quality model appears, which is gradually replaced by higher and higher qualitie
 \begin{code}
 data QualityCache q a = QualityCache (q -> a) (MVar [q]) (MVar (Map q a))
 
-mkQuality :: (Ord q,DeepSeq a) => (q -> a) -> [q] -> IO (QualityCache q a)
-mkQuality f qs = 
-    do qo <- liftM2 (QualityCache f) (newMVar qs) (newMVar $ singleton (head qs) $ f $ head qs)
-       forkIO $ completeQuality qo (head qs)
-       return qo
+mkQuality :: (Ord q,NFData a) => (q -> a) -> [q] -> IO (QualityCache q a)
+mkQuality f qs = liftM2 (QualityCache f) (newMVar qs) (newMVar $ singleton (head qs) $ f $ head qs)
 
-completeQuality :: (Ord q,DeepSeq a) => QualityCache q a -> q -> IO ()
+completeQuality :: (Ord q,NFData a) => QualityCache q a -> q -> IO ()
 completeQuality (qo@(QualityCache f quality_mvar map_mvar)) want_q =
     do qualities <- takeMVar quality_mvar  -- block on the quality_mvar
        case qualities of
-           (q:qs) | q < want_q -> do new_elem <- return $!! f q
+           (q:qs) | q < want_q -> do new_elem <- return $| rnf $ f q
                                      modifyMVar_ map_mvar (return . Map.insert q new_elem)
-                                     threadDelay 250000 -- delay until the next call to completeQuality to back off from 100% cpu usage
                                      putMVar quality_mvar qs
                                      completeQuality qo want_q
            _ -> putMVar quality_mvar qualities
 
-getQuality :: (Ord q,DeepSeq a) => QualityCache q a -> q -> IO a
+getQuality :: (Ord q,NFData a) => QualityCache q a -> q -> IO a
 getQuality (qo@(QualityCache _ quality_mvar mv)) q = 
     do m <- readMVar mv
        case Map.lookup q m of

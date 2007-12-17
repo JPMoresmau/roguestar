@@ -14,7 +14,7 @@ module RSAGL.Color
     where
 
 import RSAGL.Interpolation
-import Data.DeepSeq
+import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
 \end{code}
 
@@ -31,11 +31,9 @@ data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !Float }
 data RGBA = RGBA { rgba_a :: !Float, rgba_rgb :: !RGB }
     deriving (Eq,Show)
 
-instance DeepSeq RGB where
-    deepSeq = seq
+instance NFData RGB where
 
-instance DeepSeq RGBA where
-    deepSeq = seq
+instance NFData RGBA where
 
 class ColorClass c where
     rgb :: Float -> Float -> Float -> c

@@ -1,21 +1,21 @@
 module Models.PlanetRingMoon
-    (planet_ring_moon)
+    (planet,ring,moon)
     where
 
 import RSAGL.Model
 import RSAGL.Vector
-import Data.Monoid
 import RSAGL.ModelingExtras
 import RSAGL.RayTrace
 import RSAGL.Deformation
 
-planet_ring_moon :: (Monoid attr) => Modeling attr
-planet_ring_moon = model $
-    do model $ do disc 0.75 1.0
+ring :: Modeling ()
+ring = model $ do disc 0.75 1.0
                   transparent $ pure $ alpha 0.25 purple
                   specular 2 $ pure purple
                   bumps $ waves 0.2 0.01
-       model $ do sphere (Point3D 0 0 0) 0.65
+
+planet :: Modeling ()
+planet=model $ do sphere (Point3D 0 0 0) 0.65
                   deform $ constrain (\(SurfaceVertex3D (Point3D x y z) _) -> x > 0 && y > 0 && z > 0) $ 
                                shadowDeform (Vector3D (-1) (-1) (-1)) (map (plane (Point3D 0 0 0)) [Vector3D 1 0 0,Vector3D 0 1 0,Vector3D 0 0 1])
                   let land_vs_water land water = pattern (cloudy 26 0.4) [(0,water),(0.5,water),(0.51,land),(1,land)]
@@ -29,5 +29,7 @@ planet_ring_moon = model $
                   pigment $ planet_interior (pure blackbody) (pure blackbody) $ cities (pure black) planet_surface
                   emissive $ planet_interior (pure yellow) (pure red) $ cities (pure $ scaleRGB 0.2 white) (pure blackbody)
                   specular 20 $ planet_interior (pure blackbody) (pure blackbody) $ land_vs_water (pure blackbody) (pure white)
-       model $ do sphere (Point3D 0 0 4) 0.2
+
+moon :: Modeling ()
+moon = model $ do sphere (Point3D 0 0 0) 0.2
                   pigment $ pattern (cloudy 8 0.05) [(0.0,pure silver),(1.0,pure black)]
