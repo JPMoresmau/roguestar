@@ -45,11 +45,15 @@ import RSAGL.Angle
 import RSAGL.Color
 import Data.List as List
 import Data.Maybe
-import Control.Monad.State
+import Control.Monad.State hiding (get)
 import Data.Monoid
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
 import Graphics.Rendering.OpenGL.GL.BasicTypes
+import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
+import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
+import Graphics.Rendering.OpenGL.GL.Polygons
+import Control.Arrow hiding (pure)
 \end{code}
 
 \subsection{Modeling Primitives}
@@ -73,6 +77,7 @@ data ModeledSurface attr = ModeledSurface {
     ms_affine_transform :: Maybe Matrix,
     ms_tesselation :: Maybe ModelTesselation,
     ms_tesselation_hint_complexity :: Integer,
+    ms_two_sided :: Bool,
     ms_attributes :: attr }
 
 data ModelTesselation = Adaptive
@@ -90,6 +95,7 @@ appendSurface s = modify $ mappend $ [ModeledSurface {
     ms_affine_transform = Nothing,
     ms_tesselation = Nothing,
     ms_tesselation_hint_complexity = 1,
+    ms_two_sided = False,
     ms_attributes = mempty }]
 
 generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Vector3D)) -> Modeling attr
@@ -101,6 +107,9 @@ generateNormals s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry cr
 
 tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
 tesselationHintComplexity i = modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
+
+twoSided :: (Monoid attr) => Bool -> Modeling attr
+twoSided two_sided = modify (map $ \m -> m { ms_two_sided = two_sided })
 
 model :: Modeling attr -> Modeling attr
 model actions = modify (execState actions [] ++)
@@ -199,9 +208,9 @@ disc inner_radius outer_radius = model $
              (Point3D (lerp v (outer_radius,inner_radius) * cosine u)
                       0
                       (lerp v (outer_radius,inner_radius) * sine u),
-              up))
+              Vector3D 0 1 0))
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
-           where up = Vector3D 0 1 0
+       twoSided True
 \end{code}
 
 \subsection{Rendering Models to OpenGL}
@@ -210,18 +219,18 @@ disc inner_radius outer_radius = model $
 data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
 
 instance AffineTransformable IntermediateModel where
-    transform m (IntermediateModel ms) = IntermediateModel $ transform m ms
+    transform m (IntermediateModel ms) = IntermediateModel $ parMap rnf (transform m) ms
 
 instance NFData IntermediateModel where
     rnf (IntermediateModel ms) = rnf ms
 
-data IntermediateModeledSurface = IntermediateModeledSurface [TesselatedSurface SingleMaterialSurfaceVertex3D] [MaterialLayer]
+data IntermediateModeledSurface = IntermediateModeledSurface [(TesselatedSurface SingleMaterialSurfaceVertex3D,MaterialLayer)] Bool
 
 instance AffineTransformable IntermediateModeledSurface where
-    transform m (IntermediateModeledSurface ts ml) = IntermediateModeledSurface (transform m ts) ml
+    transform m (IntermediateModeledSurface layers two_sided) = IntermediateModeledSurface (parMap rnf (first (transform m)) layers) two_sided
 
 instance NFData IntermediateModeledSurface where
-    rnf (IntermediateModeledSurface ts ml) = rnf (ts,ml)
+    rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
 
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
 
@@ -252,11 +261,18 @@ toIntermediateModel n modeling = IntermediateModel $ (zipWith intermediateModele
           normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler
 
 intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
-intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface tesselations layers) = 
-    foldr (>>) (return ()) $ zipWith layerToOpenGL tesselations layers
+intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface layers two_sided) = 
+    do lmts <- get lightModelTwoSide
+       cf <- get cullFace
+       lightModelTwoSide $= (if two_sided then Enabled else Disabled)
+       cullFace $= (if two_sided then Nothing else Just Front)
+       foldr (>>) (return ()) $ map (uncurry layerToOpenGL) layers
+       lightModelTwoSide $= lmts
+       cullFace $= cf
 
 intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
-intermediateModeledSurface n m = IntermediateModeledSurface (selectLayers (genericLength layers) tesselation `using` parList rnf) layers
+intermediateModeledSurface n m = IntermediateModeledSurface (zip (selectLayers (genericLength layers) tesselation `using` parList rnf) layers)
+                                                            (ms_two_sided m)
     where layers = toLayers $ ms_material m
           color_material_layers :: [Surface RGBA]
           color_material_layers = map (toApplicative . materialLayerSurface) layers
