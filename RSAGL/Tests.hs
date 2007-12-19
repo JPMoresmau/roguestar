@@ -168,13 +168,13 @@ testDegreesToRadians = testClose "testDegreesToRadians"
 
 testAngleAdd :: IO ()
 testAngleAdd = testClose "testAngleAdd"
-                   (toDegrees $ fromDegrees 100 + fromDegrees 90)
+                   (toDegrees $ fromDegrees 100 `angleAdd` fromDegrees 90)
                    (-170)
                    0.001
 
 testAngleSubtract :: IO ()
 testAngleSubtract = testClose "testAngleSubtract"
-                        (toDegrees $ fromDegrees (-20) - fromDegrees 400)
+                        (toDegrees $ fromDegrees (-20) `angleSubtract` fromDegrees 400)
                         (-60)
                         0.001
 
@@ -210,9 +210,9 @@ testShortLoopedConsecutives = test "testShortLoopedConsecutives"
 
 testAngleBetween :: IO ()
 testAngleBetween = testClose "testAngleBetween"
-                   (angleBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
-                   (fromDegrees (90))
-                   (fromDegrees (0.001))
+                   (toDegrees $ angleBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
+                   90
+                   0.001
 
 testDistanceBetween :: IO ()
 testDistanceBetween = testClose "testDistanceBetween"

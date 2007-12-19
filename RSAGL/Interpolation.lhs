@@ -121,7 +121,7 @@ instance Lerpable Point2D where
    lerp u (Point2D ax ay,Point2D bx by) = Point2D (lerp u (ax,bx)) (lerp u (ay,by))
 
 instance Lerpable Angle where
-    lerp u (a,b) = a + scaleAngle u (b - a)
+    lerp u (a,b) = a `angleAdd` scaleAngle u (b `angleSubtract` a)
 
 instance (Lerpable a) => Lerpable (Maybe a) where
    lerp = lerpAPure

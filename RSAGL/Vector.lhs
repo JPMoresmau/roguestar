@@ -171,7 +171,7 @@ vectorAdd :: Vector3D -> Vector3D -> Vector3D
 vectorAdd (Vector3D ax ay az) (Vector3D bx by bz) = Vector3D (ax+bx) (ay+by) (az+bz)
 
 vectorSum :: [Vector3D] -> Vector3D
-vectorSum vectors = foldr vectorAdd (Vector3D 0 0 0) vectors
+vectorSum vectors = foldr vectorAdd zero_vector vectors
 
 vectorToFrom :: (Xyz xyz) => xyz -> xyz -> Vector3D
 vectorToFrom a b = 
