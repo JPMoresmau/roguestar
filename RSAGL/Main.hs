@@ -28,7 +28,7 @@ import RSAGL.Matrix
 import RSAGL.Interpolation
 
 test_quality :: Integer
-test_quality = 2^14
+test_quality = 2^13
 
 testScene :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel -> AniM ((),Camera)
 testScene qo_planet qo_ring qo_moon =

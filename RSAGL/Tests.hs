@@ -26,6 +26,8 @@ import Data.List as List
 import Data.Monoid
 import Test.QuickCheck hiding (test)
 import Control.Concurrent
+import RSAGL.RK4
+
 
 --
 -- State machine that adds its input to its state
@@ -87,15 +89,16 @@ spawnPMD :: Int -> Set Integer
 spawnPMD n = (!! n) $ runStateMachine (ThreadedArrow.statefulForm $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
 
 testIntegral :: IO ()
-testIntegral = test "testIntegral"
+testIntegral = testClose "testIntegral"
                   (frpTest [arr (\x -> [x]) <<< threadTime] (replicate 16 ()))
-                  [[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]] 
+                  (List.map (List.map fromSeconds) [[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]])
+                  (listEqualClose $ listEqualClose timeEqualClose)
 
 testDerivative :: IO ()
 testDerivative = test "testDerivative"
                     (frpTest [arr (\x -> [x]) <<< derivative]
-                             [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0])
-                    [[0],[10],[20],[30],[40],[50],[60],[70]]
+                             [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0 :: Double])
+                    (List.map (List.map perSecond) [[0],[10],[20],[30],[40],[50],[60],[70]])
 
 testInitial :: IO ()
 testInitial = test "testInitial"
@@ -116,8 +119,8 @@ testEdgeMap = test "testEdgeMap"
                  [[4],[4],[4],[8],[2],[6],[18],[10],[10],[10],[6]]
 
 testHistory :: IO ()
-testHistory = test "testHistory"
-                 (frpTest [history (fromSeconds 0.3)]
+testHistory = testClose "testHistory"
+                 (frpTest [history (fromSeconds 0.31)]
                           [2,3,1,1,2,2,2,7,7,7,7,7])
                  [[edge0],
                   [edge1,edge0],
@@ -131,21 +134,22 @@ testHistory = test "testHistory"
                   [edge4,edge3],
                   [edge4,edge3],
                   [edge4,edge3]]
+                 (listEqualClose $ listEqualClose $ edgeEqualClose (==))
     where edge0 = Edge { edge_previous = 2,
                          edge_next = 2,
-                         edge_changed = 0.0 }
+                         edge_changed = fromSeconds 0.0 }
           edge1 = Edge { edge_previous = 2,
                          edge_next = 3,
-                         edge_changed = 0.1 }
+                         edge_changed = fromSeconds 0.1 }
           edge2 = Edge { edge_previous = 3,
                          edge_next = 1,
-                         edge_changed = 0.2 }
+                         edge_changed = fromSeconds 0.2 }
           edge3 = Edge { edge_previous = 1,
                          edge_next = 2,
-                         edge_changed = 0.4 }
+                         edge_changed = fromSeconds 0.4 }
           edge4 = Edge { edge_previous = 2,
                          edge_next = 7,
-                         edge_changed = 0.7 }
+                         edge_changed = fromSeconds 0.7 }
 
 testEdgep :: IO ()
 testEdgep = test "testEdgep"
@@ -158,25 +162,25 @@ testRadiansToDegrees :: IO ()
 testRadiansToDegrees = testClose "testRadiansToDegrees"
                           (toDegrees $ fromRadians (pi/6))
                           30
-                          0.001
+                          equalClose
 
 testDegreesToRadians :: IO ()
 testDegreesToRadians = testClose "testDegreesToRadians"
                           (toRadians $ fromDegrees 270)
                           (-pi/2)
-                          0.001
+                          equalClose
 
 testAngleAdd :: IO ()
 testAngleAdd = testClose "testAngleAdd"
                    (toDegrees $ fromDegrees 100 `angleAdd` fromDegrees 90)
                    (-170)
-                   0.001
+                   equalClose
 
 testAngleSubtract :: IO ()
 testAngleSubtract = testClose "testAngleSubtract"
                         (toDegrees $ fromDegrees (-20) `angleSubtract` fromDegrees 400)
                         (-60)
-                        0.001
+                        equalClose
 
 testDoubles :: IO ()
 testDoubles = test "testDoubles"
@@ -212,21 +216,21 @@ testAngleBetween :: IO ()
 testAngleBetween = testClose "testAngleBetween"
                    (toDegrees $ angleBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
                    90
-                   0.001
+                   equalClose
 
 testDistanceBetween :: IO ()
 testDistanceBetween = testClose "testDistanceBetween"
                       (distanceBetween (vector3d (-1,1,0)) (vector3d (0,0,1)))
                       (sqrt 3)
-                      0.001
+                      equalClose
 
 -- we just test that the right-hand rule is observed
 testCrossProduct :: IO ()
 testCrossProduct =
     do let (x,y,z) = toXYZ $ crossProduct (vector3d (1,0,0)) (vector3d (0,1,0))
-       testClose "testCrossProduct(x)" x 0.0 0.001
-       testClose "testCrossProduct(y)" y 0.0 0.001
-       testClose "testCrossProduct(z)" z 1.0 0.001
+       testClose "testCrossProduct(x)" x 0.0 equalClose
+       testClose "testCrossProduct(y)" y 0.0 equalClose
+       testClose "testCrossProduct(z)" z 1.0 equalClose
 
 -- here we use quickCheck to confirm that the crossProduct always yields a vector orthagonal
 -- to the parameters.
@@ -243,16 +247,16 @@ quickCheckCrossProductByAngleBetween =
 testVectorAverage :: IO ()
 testVectorAverage =
     do let (x,y,z) = toXYZ $ vectorAverage [vector3d (0.1,0,0),vector3d (0,-2,0),vector3d (0,0,5)]
-       testClose "testVectorAverage(x)" x 0.57735 0.001
-       testClose "testVectorAverage(y)" y (-0.57735) 0.001
-       testClose "testVectorAverage(z)" z 0.57735 0.001
+       testClose "testVectorAverage(x)" x 0.57735 equalClose
+       testClose "testVectorAverage(y)" y (-0.57735) equalClose
+       testClose "testVectorAverage(z)" z 0.57735 equalClose
 
 testNewell :: IO ()
 testNewell =
     do let (x,y,z) = toXYZ $ newell [point3d (1,0,0),point3d (0,1,0),point3d (0,0,-1)]
-       testClose "testNewell(x)" x (-0.57735) 0.001
-       testClose "testNewell(y)" y (-0.57735) 0.001
-       testClose "testNewell(z)" z 0.57735 0.001
+       testClose "testNewell(x)" x (-0.57735) equalClose
+       testClose "testNewell(y)" y (-0.57735) equalClose
+       testClose "testNewell(z)" z 0.57735 equalClose
 
 type Double2 = (Double,Double)
 type Double22 = (Double2,Double2)
@@ -287,11 +291,11 @@ testDeterminant3 =
    do test "testDeterminant3-1"
            (determinant $ matrix [[5,-1,0.5],[-3,4,2],[0,0,-1]])
            (-17)
-      testClose "testDeterminant3-2" 0.001
+      testClose "testDeterminant3-2" 3.5
            (determinant $ matrix [[0.5,-0.5,-2.0/3.0],
                                   [-2.5,-1.0,-3.0],
                                   [-0.5,0.5,-4.0/3.0]])
-           3.5
+           equalClose
 
 testDeterminant4 :: IO ()
 testDeterminant4 =
@@ -400,14 +404,28 @@ test name actual expected =
                           putStrLn ""
 
 equalClose :: (Eq a,Num a,Ord a,Fractional a) => a -> a -> Bool
+equalClose actual expected | abs (actual * expected) > 0.01 = abs ((expected - actual) / expected) < 0.01
 equalClose actual expected = abs (actual - expected) < 0.01
+
+listEqualClose :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+listEqualClose f xs ys | length xs == length ys = and $ zipWith f xs ys
+listEqualClose _ _ _ = False
 
 matrixEqualClose :: Matrix -> Matrix -> Bool
 matrixEqualClose m n = and $ List.map and $ zipWith (zipWith equalClose)
     (rowMajorForm m) (rowMajorForm n)
 
-testClose :: (Eq a,Show a,Num a,Ord a) => String -> a -> a -> a -> IO ()
-testClose name actual expected closeness | abs (actual - expected) < closeness =
+timeEqualClose :: Time -> Time -> Bool
+timeEqualClose t1 t2 = equalClose (toSeconds t1) (toSeconds t2)
+
+edgeEqualClose :: (a -> a -> Bool) -> Edge a -> Edge a -> Bool
+edgeEqualClose f x y =
+    (edge_previous x `f` edge_previous y) &&
+    (edge_next x `f` edge_next y) &&
+    (edge_changed x `timeEqualClose` edge_changed y)
+
+testClose :: (Show a) => String -> a -> a -> (a -> a -> Bool) -> IO ()
+testClose name actual expected f | f actual expected =
     do putStrLn $ "Test Case Passed: " ++ name
 testClose name actual expected _ = 
     do putStrLn ""
@@ -441,6 +459,12 @@ testQualityObject =
               naiveFib 0 = 0
               naiveFib 1 = 1
               naiveFib n = naiveFib (n-1) + naiveFib (n-2)
+
+testRK4 :: IO ()
+testRK4 = testClose "testRK4" 
+                    (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0 (fromSeconds 0) (fromSeconds 1) 100)
+                    (sin 1.0 :: Double)
+                    equalClose
 
 main :: IO ()
 main = do test "add five test (sanity test of StatefulArrow)" 
@@ -494,4 +518,5 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckMatrixInverse2
           quickCheckMatrixInverse3
           quickCheckMatrixInverse4
+          testRK4
           testQualityObject

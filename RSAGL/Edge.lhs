@@ -16,6 +16,7 @@ module RSAGL.Edge
      started)
     where
 
+import RSAGL.AbstractVector
 import RSAGL.FRP as FRP
 import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.Time
@@ -90,7 +91,7 @@ after which it can be forgotten.
 \begin{code}
 history :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => Time -> FRP i o a e [Edge e]
 history t = edgeFold [] history' <<< edge
-    where history' n h = n : takeWhile ((>= edge_changed n - t) . edge_changed) h
+    where history' n h = n : takeWhile ((>= edge_changed n `sub` t) . edge_changed) h
 \end{code}
 
 edgeMap is equivalent to \texttt{arr}, but more efficient, possibly, because the mapping function is only 

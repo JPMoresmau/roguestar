@@ -30,6 +30,7 @@ module RSAGL.FRP
      RSAGL.FRP.withExposedState)
     where
 
+import RSAGL.AbstractVector
 import RSAGL.Time
 import RSAGL.StatefulArrow as StatefulArrow
 import RSAGL.SwitchedArrow as SwitchedArrow
@@ -143,25 +144,24 @@ If the derivative is taken of a value that is measured in meters, then the resul
 will be in meters per second.
 
 \begin{code}
-integral :: (Arrow a,ArrowChoice a,ArrowApply a,Real fi,Fractional fo) => fo -> FRP i o a fi fo
-integral initial_value = statefulContext_ $ SwitchedArrow.withState integral' 
-                                                (\(i,_) -> (initial_value,realToFrac i))
-    where integral' = proc (i,frpstate@FRPState{ frpstate_delta_time=delta_t }) -> 
-              do (old_accum,old_value) <- lift fetch -< ()
-                 let new_value = realToFrac i
-                     new_accum = old_accum + (new_value + old_value) / 2 * realToFrac delta_t
-                 lift store -< (new_accum,new_value)
+integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector av) => av -> FRP i o a (Rate av) av
+integral initial_value = statefulContext_ $ SwitchedArrow.withState integral'
+                                                (\(i,_) -> (initial_value,i))
+    where integral' = proc (new_rate,frpstate@FRPState{ frpstate_delta_time=delta_t }) -> 
+              do (old_accum,old_rate) <- lift fetch -< ()
+                 let new_accum = old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t)
+                 lift store -< (new_accum,new_rate)
                  returnA -< (new_accum,frpstate)
 
-derivative :: (Arrow a,ArrowChoice a,ArrowApply a,Real fi,Fractional fo) => FRP i o a fi fo
-derivative = statefulContext_ $ SwitchedArrow.withState derivative' (\(i,_) -> (i,0))
-    where derivative' = proc (i,frpstate@FRPState{ frpstate_delta_time=delta_t }) ->
-              do (old_value,old_derivative) <- lift fetch -< ()
-                 let new_derivative = if delta_t == 0
-                                      then old_derivative
-                                      else realToFrac (i - old_value) / realToFrac delta_t
-                 lift store -< (i,new_derivative)
-                 returnA -< (new_derivative,frpstate)
+derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector av) => FRP i o a av (Rate av)
+derivative = statefulContext_ $ SwitchedArrow.withState derivative' (\(i,_) -> (i,zero))
+    where derivative' = proc (new_value,frpstate@FRPState{ frpstate_delta_time=delta_t }) ->
+              do (old_value,old_rate) <- lift fetch -< ()
+                 let new_rate = if delta_t == zero
+                                then old_rate
+                                else (new_value `sub` old_value) `per` delta_t
+                 lift store -< (new_value,new_rate)
+                 returnA -< (new_rate,frpstate)
 \end{code}
 
 \subsection{Getting the time}
@@ -177,5 +177,5 @@ threadTime answers the time since the current thread first executed.
 
 \begin{code}
 threadTime :: (Arrow a,ArrowChoice a,ArrowApply a) => FRP i o a () Time
-threadTime = integral 0 <<< arr (const 1)
+threadTime = integral zero <<< arr (const $ perSecond $ fromSeconds 1)
 \end{code}

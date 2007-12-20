@@ -2,118 +2,83 @@
 
 RSAGL.Time provides a fixed-point (as opposed to a floating-point number) representation of time.
 This is necessary because the Float and Double types are inadequate to precisely represent large
-quantities of time.  Furthermore, it matters what unit (seconds, milliseconds, days) the time is
-represented with, a potential source of errors.  RSAGL.Time is unitless.
-
-RSAGL.Time provides several functions that allow the time to be accessed as Float or Double values,
-but in a way that mitigates floating-point precision issues.  For example, cycleSeconds and secondsSince.
-
-RSAGL.Time could (should) be generalized to a generic fixed-point number representation, with the time-specific code 
-remaining in RSAGL.Time.
+quantities of time.
 
 This time library is designed to support real-time animation.
 
 \begin{code}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module RSAGL.Time
     (Time,
-     getTime,
-     secondsSince,
-     toSeconds,
+     Rate,
+     minute,
+     day,
+     month,
+     year,
      fromSeconds,
-     cycleSeconds)
+     toSeconds,
+     getTime,
+     over,
+     rate,
+     perSecond,
+     per)
     where
 
+import RSAGL.AbstractVector
 import System.Time
 import Control.Monad
+import Data.Fixed
 import Data.Ratio
 
-newtype Time = Time Integer deriving (Show)
+newtype Time = Time Pico deriving (Show,Eq,Ord,AbstractVector)
+newtype Rate a = Rate a deriving (Show,Eq,Ord,AbstractVector)
 \end{code}
 
-\subsection{Getting the current time}
+\subsection{Getting and Constructing Time}
 
 getTime gets the current, absolute time, using Haskell's standard time facilities.
 
 \begin{code}
+minute :: Time
+minute = fromSeconds 60
+
+hour :: Time
+hour = scalarMultiply 60 minute
+
+day :: Time
+day = scalarMultiply 24 hour
+
+month :: Time
+month = scalarMultiply 30.43 day
+
+year :: Time
+year = scalarMultiply 365.25 month
+
+fromSeconds :: Double -> Time
+fromSeconds = Time . realToFrac
+
+toSeconds :: Time -> Double
+toSeconds (Time t) = realToFrac t
+
 getTime :: IO Time
 getTime = 
     do (TOD secs picos) <- getClockTime
-       return $ Time $ (secs * scale_factor) 
-                       + ((picos * scale_factor) `div` 1000000000000)
+       return $ Time $ fromIntegral secs + fromRational (picos%(resolution (undefined :: E12)))
 \end{code}
 
-\subsection{Time as a cyclical value}
-
-cycleSeconds divides the time into n-seconds-long cycles, and answers the fraction of the cycle at this moment.
-It rises from 0 to 1, and then cuts back to 0 at the beginning of the next cycle.
+\subsection{Rate as Change over Time}
 
 \begin{code}
-cycleSeconds :: (Integral a,Num b,Fractional b) => a -> IO b
-cycleSeconds secs = 
-    do (Time t) <- getTime
-       return $ (toSeconds $ Time $ t `mod` (toInteger secs * scale_factor)) 
-                / (fromIntegral secs)
-\end{code}
+over :: (AbstractVector a) => Rate a -> Time -> a
+over (Rate a) (Time t) = realToFrac t `scalarMultiply` a
 
-\subsection{Getting elapsed time}
+rate :: (AbstractVector a) => (a,Time) -> (a,Time) -> Rate a
+rate (x,t1) (y,t2) = (y `sub` x) `per` (t2 `sub` t1)
 
-secondsSince answers the time elapsed since the specified Time, in seconds.
+perSecond :: a -> Rate a
+perSecond a = Rate a
 
-\begin{code}
-secondsSince :: (Num b,Fractional b) => Time -> IO b
-secondsSince old_time = liftM (toSeconds . (subtract old_time)) getTime
-\end{code}
-
-\subsection{Coercion to and from seconds}
-
-Be aware that floating-point number types might not be able to precisely represent large quantities of time.
-
-\begin{code}
-toSeconds :: (Num a,Fractional a) => Time -> a
-toSeconds (Time x) = fromInteger x / scale_factor
-
-fromSeconds :: (Real a) => a -> Time
-fromSeconds x = Time $ round $ toRational $ x * scale_factor
-\end{code}
-
-\begin{code}
-scale_factor :: (Num a) => a
-scale_factor = 1000000
-\end{code}
-
-\subsection{Instances}
-
-RSAGL.Time implements several useful typeclasses in the Num hierarchy.
-Note that when you use fromInteger, toRational, and so on you are working
-with time in seconds.
-
-\begin{code}
-instance Num Time where
-    (+) (Time x) (Time y) = Time $ x + y
-    (-) (Time x) (Time y) = Time $ x - y
-    (*) (Time x) (Time y) = Time $ (x * y) `div` scale_factor
-    negate (Time x) = Time (-x)
-    abs (Time x) = Time $ abs x
-    signum (Time x) = Time $ signum x * scale_factor
-    fromInteger x = Time $ x * scale_factor
-    
-instance Fractional Time where
-    (/) (Time x) (Time y) = Time $ (x * scale_factor) `div` y
-    recip (Time x) = Time $ scale_factor `div` x
-    fromRational x = Time $ round $ x * scale_factor
-    
-{-# RULES
-"realToFrac/Time->Float"    realToFrac   = toSeconds :: Time -> Float
-"realToFrac/Time->Double"   realToFrac   = toSeconds :: Time -> Double
-    #-}
-    
-instance Real Time where
-    toRational (Time x) = x % scale_factor
-    
-instance Eq Time where
-    (==) (Time x) (Time y) = x == y
-    
-instance Ord Time where
-    compare (Time x) (Time y) = compare x y
-
+per :: (AbstractVector a) => a -> Time -> Rate a
+per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
 \end{code}

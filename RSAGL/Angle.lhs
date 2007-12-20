@@ -99,7 +99,7 @@ angleAdd :: Angle -> Angle -> Angle
 angleAdd (Radians x) (Radians y) = Radians $ x + y
 
 angleSubtract :: Angle -> Angle -> Angle
-angleSubtract (Radians x) (Radians y) = Radians $ x - y
+angleSubtract (Radians x) (Radians y) = toBoundedAngle $ Radians $ x - y
 
 angleNegate :: Angle -> Angle
 angleNegate (Radians x) = Radians $ negate x
