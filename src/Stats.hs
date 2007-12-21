@@ -29,8 +29,7 @@ import DB
 -- Randomly generate 1 statistic.
 --
 generate1Stat :: Integer -> Integer -> DB Integer
-generate1Stat average deviation = do dieRoll <- (deviation `d` 3)
-				     return (dieRoll + average - 2*deviation)
+generate1Stat average deviation = roll $ concat [[average-i..average+i] | i <- [0..deviation]]
 
 --
 -- Randomly generate statistics.

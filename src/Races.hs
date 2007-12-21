@@ -97,17 +97,17 @@ anachronid :: Species
 anachronid = Species {
 		      averages = Stats { strength=1, dexterity=1, constitution=(-2), intelligence=(-2), perception=0, charisma=(-2), mindfulness=0 },
 		      distributions = (stats 3),
-		      attribute_generator = ([percentFemale 5,
+		      attribute_generator = ([female 0.05,
 					      AttributeAlways $ FavoredClass Barbarian] ++ 
 		                             (multipleAttribute SpeedTrait (3,5))),
 		      species_name = "anachronid"
 		     }
 
 female_anachronid :: Species
-female_anachronid = anachronid { attribute_generator = [percentFemale 100] ++ (attribute_generator anachronid) }
+female_anachronid = anachronid { attribute_generator = [female 1] ++ (attribute_generator anachronid) }
 
 male_anachronid :: Species
-male_anachronid = anachronid { attribute_generator = [percentMale 100,AttributeAlways NoKillPenalty] ++ (attribute_generator anachronid) }
+male_anachronid = anachronid { attribute_generator = [male 1,AttributeAlways NoKillPenalty] ++ (attribute_generator anachronid) }
 
 -- |
 -- Androsynths are androids, created by the Ascendants to be their physical bodies before
@@ -145,7 +145,7 @@ ascendant = Species {
 		     averages = Stats { strength=(-4), dexterity=(-1), constitution=(-1), intelligence=2, perception=(-1), charisma=1, mindfulness=4 },
 		     distributions = (stats 4),
 		     attribute_generator = [AttributeAlways $ FavoredClass Shepherd,
-					    percentMale 45], -- also: very high resistance to kinetic energy
+					    male 0.45], -- also: very high resistance to kinetic,fire,cold
 		     species_name = "ascendant"
 		    }
 
@@ -161,7 +161,7 @@ caduceator :: Species
 caduceator = Species {
 		      averages = Stats { strength=(-1), dexterity=2, constitution=(-1), intelligence=(-2), perception=(-2), charisma=2, mindfulness=2 },
 		      distributions = (stats 5),
-		      attribute_generator = [percentMale 60,
+		      attribute_generator = [male 0.6,
 					     AttributeAlways $ FavoredClass Consular,
 					     AttributeAlways DoesNotValueMoney], -- also: vulnerability to heat and cold
 		      species_name = "caduceator"
@@ -176,7 +176,7 @@ encephalon :: Species
 encephalon = Species {
 		      averages = Stats { strength=(-10), dexterity=(-10), constitution=20, intelligence=20, perception=(-10), charisma=(-5), mindfulness=(-5) },
 		      distributions = (stats 5),
-		      attribute_generator = [percentMale 95,
+		      attribute_generator = [male 0.95,
 					     AttributeAlways $ FavoredClass Engineer,
 					     AttributeAlways DoesNotValueMoney],
 		      species_name = "encephalon"
@@ -197,7 +197,7 @@ hellion = Species {
 		   attribute_generator = [AttributeAlways $ FavoredClass Scout,
 					  AttributeAlways $ FavoredClass Marine,
 					  AttributeAlways $ FavoredClass Thief,
-					  percentMale 65],
+					  male 0.65],
 		   species_name = "hellion"
 		  }
 
@@ -210,7 +210,7 @@ goliath :: Species
 goliath = Species {
 		   averages = Stats { strength=3, dexterity=(-1), constitution=4, intelligence=(-2), perception=0, charisma=(-4), mindfulness=(-3) },
 		   distributions = (stats 4),
-		   attribute_generator = ([percentMale 55,
+		   attribute_generator = ([male 0.55,
 					   AttributeAlways $ FavoredClass Barbarian,
 					   AttributeAlways $ FavoredClass Warrior,
 					   AttributeAlways $ FavoredClass Scout] ++
@@ -227,7 +227,7 @@ kraken :: Species
 kraken = Species {
 		  averages = Stats { strength=2, dexterity=2, constitution=4, intelligence=0, perception=(-2), charisma=4, mindfulness=0 },
 		  distributions = (stats 2) { mindfulness=6 },
-		  attribute_generator = ([percentMale 45,
+		  attribute_generator = ([male 0.5,
 					  AttributeAlways $ FavoredClass Privateer,
 					  AttributeAlways WaterSurvivalSkill]),
 		  species_name = "kraken"
@@ -248,7 +248,7 @@ myrmidon = Species {
 		    attribute_generator = [AttributeAlways $ FavoredClass Barbarian,
 					   AttributeAlways $ FavoredClass Engineer,
 					   AttributeAlways $ FavoredClass Warrior,
-					   percentFemale 100],
+					   female 1],
 		    species_name = "myrmidon"
 		   }
 
@@ -301,7 +301,7 @@ reptilian :: Species
 reptilian = Species {
 		     averages = Stats { strength=1, dexterity=1, constitution=1, intelligence=(-4), perception=0, charisma=2, mindfulness=(-4) },
 		     distributions = (stats 3),
-		     attribute_generator = ([percentMale 35,
+		     attribute_generator = ([male 0.35,
 					     AttributeAlways $ FavoredClass Warrior,
 					     AttributeAlways $ FavoredClass Consular] ++
 					    (multipleAttribute ToughnessTrait (2,3)) ++

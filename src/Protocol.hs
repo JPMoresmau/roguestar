@@ -155,7 +155,7 @@ dbDispatch ["query","visible-terrain"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
        return ("begin-table visible-terrain 0 x y terrain-type\n" ++
-	       (unlines $ map (\ (terrain_type,(x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
+	       (unlines $ map (\(terrain_type,Position (x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
 
 dbDispatch ["query","visible-objects"] = 
@@ -166,28 +166,34 @@ dbDispatch ["query","visible-objects"] =
                (unlines $ table_rows) ++
                "end-table")
         where dbObjectToTableRow obj_ref = 
-                do maybe_loc <- dbWhere obj_ref
-                   return $ case (toCoordinateFacingLocation . snd =<< maybe_loc :: Maybe ((Integer,Integer),Facing))
-                                 of
-                                 Just ((x,y),facing) -> unwords [show $ toUID obj_ref,show x,show y,show facing]
-                                 Nothing -> ""
+                do loc <- dbWhere obj_ref
+                   return $ case (position loc,facing loc) of
+                                 (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,maybe "Here" show maybe_face]
+                                 _ -> ""
 
-dbDispatch ["query","object-details"] =
+dbDispatch ["query","object-details"] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
-     objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
-     liftM (concat . intersperse "\n") $ mapM dbObjectToTable objects
-     where dbObjectToTable obj_ref =
-             do table_data <- dbGetObjectTableData obj_ref
-                return ("begin-table object-details " ++ (show $ toUID obj_ref) ++ " property value\n" ++
-                        table_data ++
-                        "end-table")
-           dbGetObjectTableData (DBCreatureRef creature_ref) = liftM creatureToTableData $ dbGetCreature creature_ref
-           dbGetObjectTableData (DBToolRef tool_ref) = liftM toolToTableData $ dbGetTool tool_ref
-           dbGetObjectTableData (DBPlaneRef _) = error "implausible case"
-           creatureToTableData creature = "object-type creature\n" ++
-                                          (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
-           toolToTableData tool = "object-type tool\n" ++
-                                  (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ toolData tool)
+     visibles <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+     let creature_refs = mapMaybe toCreatureRef visibles
+     let tool_refs = mapMaybe toToolRef visibles
+     creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
+     tools <- liftM (zip tool_refs)$ mapRO dbGetTool tool_refs
+     return $ unlines $ (map creatureToTableData creatures ++
+                         map toolToTableData tools)
+     where objectTableWrapper obj_ref table_data =
+               ("begin-table object-details " ++
+                   (show $ toUID obj_ref) ++
+                   " property value\n" ++
+                   table_data ++
+                   "end-table")
+           creatureToTableData :: (CreatureRef,Creature) -> String
+           creatureToTableData (ref,creature) = objectTableWrapper ref $
+               "object-type creature\n" ++
+               (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
+           toolToTableData :: (ToolRef,Tool) -> String
+           toolToTableData (ref,tool) = objectTableWrapper ref $
+               "object-type tool\n" ++
+               (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ toolData tool)
 
 dbDispatch ["action","select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
@@ -199,7 +205,7 @@ dbDispatch ["action","select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
 
 dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\x -> dbWalkCreature (fromJust $ stringToFacing direction) x >> done)
+    dbRequiresPlayerTurnState (\x -> dbStepCreature (fromJust $ stringToFacing direction) x >> done)
 
 dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\x -> dbTurnCreature (fromJust $ stringToFacing direction) x >> done)
@@ -285,16 +291,18 @@ baseClassesTable creature =
 
 dbQueryCenterCoordinates :: CreatureRef -> DB String
 dbQueryCenterCoordinates creature_ref =
-    do maybe_loc <- dbWhere creature_ref
-       case (return . snd) =<< maybe_loc of
-		Just (DBCoordinateLocation (x,y)) -> return (begin_table ++
-							     "x " ++ show x ++ "\n" ++
-							     "y " ++ show y ++ "\n" ++
-							     "end-table")
-                Just (DBCoordinateFacingLocation ((x,y),facing)) -> return (begin_table ++
-                                                                            "x " ++ show x ++ "\n" ++
-                                                                            "y " ++ show y ++ "\n" ++
-                                                                            "facing " ++ show facing ++ "\n" ++
-                                                                            "end-table")
+    do loc <- dbWhere creature_ref
+       case (position loc,facing loc) of
+		(Just (Position (x,y)),Nothing) -> 
+                    return (begin_table ++
+			    "x " ++ show x ++ "\n" ++
+			    "y " ++ show y ++ "\n" ++
+			    "end-table")
+                (Just (Position (x,y)),Just face) -> 
+                    return (begin_table ++
+                           "x " ++ show x ++ "\n" ++
+                           "y " ++ show y ++ "\n" ++
+                           "facing " ++ show face ++ "\n" ++
+                           "end-table")
 		_ -> return (begin_table ++ "end-table")
 	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"

@@ -28,6 +28,7 @@ import Character
 import CharacterData
 import DB
 import DBData
+import Facing
 import TerrainData
 import Data.Maybe
 import ToolData
@@ -59,11 +60,9 @@ dbCreateStartingPlane creature =
 dbBeginGame :: Creature -> CharacterClass -> DB ()
 dbBeginGame creature character_class = 
     do let first_level_creature = applyCharacterClass character_class creature
-       creature_ref <- dbAddCreature first_level_creature 
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 plane_ref
-       dbMoveInto plane_ref creature_ref (DBCoordinateLocation landing_site)
-       a_phase_pistol <- dbAddTool phase_pistol
-       phaser_spot <- pickRandomClearSite 200 30 2 plane_ref
-       dbMoveInto plane_ref a_phase_pistol (DBCoordinateLocation phaser_spot)
+       creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
+       phaser_position <- pickRandomClearSite 200 30 2 plane_ref
+       dbAddTool phase_pistol (Dropped plane_ref phaser_position)
        dbSetState $ DBPlayerCreatureTurn creature_ref

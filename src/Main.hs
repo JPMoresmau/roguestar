@@ -26,9 +26,8 @@ import System
 import System.Random
 import List
 import Tests
-import Dice
 import Creature
-import InsidenessMap
+import HierarchicalDatabase
 import Control.Monad
 import TerrainData
 import HopList
@@ -53,7 +52,6 @@ program_id_string = (program_name ++ " " ++ program_version_number ++ " (" ++ pr
 runByArgs :: String -> IO ()
 
 runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ 
-						   testDice ++ 
 						   creatureTests ++
 						   insidenessTests ++
 						   hopListTests ++
@@ -96,5 +94,6 @@ runByArgs invalidArgument = do putStrLn ("Error: unrecognized argument: " ++ inv
 -- Each argument corresponds to a particular "runByArgs" command.  Run them all in order.
 --
 main :: IO ()
-main = do args <- getArgs
-	  mapM_ runByArgs args
+main =
+    do args <- getArgs
+       mapM_ runByArgs args

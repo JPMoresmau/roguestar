@@ -67,10 +67,6 @@ castRays src@(src_x,src_y) dests opacityFn =
 
 -- |
 -- Facade function to castRayForOpacity.
--- Casts a ray with a brightness of 5 from point a to point b through a medium defined
--- by opacityFn.
---
--- castRay a b 5 opacityFn
 --
 castRay :: (Integer,Integer) -> (Integer,Integer) -> Integer -> ((Integer,Integer) -> Integer) -> Bool
 castRay (ax,ay) (bx,by) brightness opacityFn =
@@ -82,9 +78,6 @@ castRay (ax,ay) (bx,by) brightness opacityFn =
 
 data Ray = Ray { ray_origin :: !(Float,Float),
 		 ray_delta :: !(Float,Float) }
-
---integerToFloatOpacityGrid :: ((Integer,Integer) -> Integer) -> ((Float,Float) -> Float)
---integerToFloatOpacityGrid fn (x,y) = fromInteger $ fn (round x, round y)
 
 integerToFloatOpacityGrid :: ((Integer,Integer) -> Integer) -> ((Float,Float) -> Float)
 integerToFloatOpacityGrid fn (x,y) =
@@ -104,16 +97,12 @@ integerToFloatOpacityGrid fn (x,y) =
          x_part_inv * y_part     * cf +
          x_part     * y_part_inv * fc +
          x_part_inv * y_part_inv * cc
-      
+
 
 -- |
--- Cast a ray from point a to b, through a medium with variable opacity defined by opacityFn, 
--- determining whether or not a ray of vision from point a will reach point b.
+-- Cast a ray from point a to b, through a medium with variable opacity.
 --
--- Opacity a percentage of the light or sound that will pass through a given square.
---
--- If a ray ends with a brightness less than 1, then is considered completely blocked, otherwise it is
--- considered to have passed.
+-- A ray passes if it ends with a brightness greater than 1.
 --
 castRayForOpacity :: Float -> (Float,Float) -> (Float,Float) -> Float -> ((Float,Float)->Float) -> Bool
 castRayForOpacity fineness a@(ax,ay) b@(bx,by) brightness rawOpacityFn =
@@ -121,7 +110,7 @@ castRayForOpacity fineness a@(ax,ay) b@(bx,by) brightness rawOpacityFn =
 	opacityFn = \ x -> (1 - rawOpacityFn x / 100) ** fineness
 	lengthSquared (x1,y1) (x2,y2) = (x1-x2)^2 + (y1-y2)^2
 	goal_length = minimum $ List.map (lengthSquared a) [(bx - signum (bx-ax),by),(bx,by - signum (by-ay)),(bx - signum (bx-ax),by + signum (by-ay))]
-	in all (> 1) $ 
+	in all (> 1) $
 	   scanl (\ bright pt -> bright * opacityFn pt) brightness $
 	   takeWhile ( \ pt -> lengthSquared a pt < goal_length) $
 	   rayToPoints ray
@@ -142,22 +131,21 @@ setRayLength new_distance ray@(Ray { ray_delta=(dx,dy) }) =
 	in ray { ray_delta=(scalar*dx,scalar*dy) }
 
 -- |
--- Moves a ray by its ray_delta.
+-- Advances a ray by its ray_delta.
 --
 incrementRay :: Ray -> Ray
 incrementRay ray@(Ray {ray_origin=(ax,ay), ray_delta=(dx,dy)}) =
     ray { ray_origin=(ax+dx,ay+dy) }
 
 -- |
--- Transforms a ray from point a to point b into a list of points,
--- where seglength is the distance to each subsequent point,
--- such that all points lie on the ray.  The result is an infinite
--- list.
+-- Transforms a ray from point a to point b into a stream of points,
+-- beginning with the origin of the ray.
+--
 rayToPoints :: Ray -> [(Float,Float)]
 rayToPoints ray = List.map ray_origin $ iterate (incrementRay) ray
 
 sampleDensityFunction :: (Integer,Integer) -> Integer
-sampleDensityFunction (x,y) = (abs x + abs y) `mod` 10
+sampleDensityFunction (x,y) = (abs x + abs y)
 
 gridRayCasterTests :: [TestCase]
 gridRayCasterTests = [easyRayTest,hardRayTest,tooHardRayTest,stressLazyRayTest]
@@ -168,12 +156,12 @@ easyRayTest = (if castRay (4,5) (-3,-1) 100 sampleDensityFunction
 	       else return (Failed "easyRayTest"))
 
 hardRayTest :: TestCase
-hardRayTest = (if castRay (0,25) (25,0) (25^2+1) sampleDensityFunction
+hardRayTest = (if castRay (10,0) (0,10) 5 sampleDensityFunction
 	       then return (Passed "hardRayTest")
 	       else return (Failed "hardRayTest"))
 
 tooHardRayTest :: TestCase
-tooHardRayTest = (if castRay (0,10) (0,-10) 10 sampleDensityFunction
+tooHardRayTest = (if castRay (10,0) (0,10) 4 sampleDensityFunction
 		  then return (Failed "tooHardRayTest")
 		  else return (Passed "tooHardRayTest"))
 

@@ -19,19 +19,11 @@
 --------------------------------------------------------------------------
 
 module PlaneData
-    (Plane,
-     UninstancedPlane(..),
-     InstancedPlane(..))
+    (Plane(..))
     where
 
 import TerrainData
 
-data UninstancedPlane = UninstancedPlane
-    { plane_tg_data :: TerrainGenerationData }
-    deriving (Read,Show)
-
-data InstancedPlane = InstancedPlane
+data Plane = Plane
     { plane_terrain :: TerrainMap }
     deriving (Read,Show)
-
-type Plane = Either UninstancedPlane InstancedPlane

@@ -6,9 +6,7 @@ HS_FLAGS = 	-hidir products/ \
 		--make src/Main.hs \
 		-o products/roguestar-engine
 
-default : ghc
-
-release : ghc-release
+default : roguestar-engine
 
 update :
 	darcs pull --all
@@ -25,16 +23,13 @@ clean :
 doc :
 	${MAKE} -C haddock
 
-ghc :
+roguestar-engine :
 	@echo "warning: you're building with development flags on (-Werror, no optimization)"
 	@echo "         did you want to 'make release' ?"
-	ghc 	-Werror ${HS_FLAGS}
+	ghc-6.8.2 	-Werror ${HS_FLAGS} -prof -auto-all
 
-ghc-prof :
-	ghc	${HS_FLAGS} -prof -auto-all
-
-ghc-release :
-	ghc	-O2 -fvia-c ${HS_FLAGS}
+release :
+	ghc	-O2 ${HS_FLAGS}
 
 check:
 	${MAKE} clean

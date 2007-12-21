@@ -26,8 +26,8 @@ module RandomUtils
 import Data.List
 import Data.Maybe
 
-pick :: Integer -> [a] -> a
-pick seed elems = elems `genericIndex` (seed `mod` (genericLength elems))
+pick :: [a] -> Integer -> a
+pick elems seed = elems `genericIndex` (seed `mod` (genericLength elems))
 
 weightedPick :: Integer -> [(Integer,a)] -> a
 weightedPick seed elems = let (weights,values) = unzip elems

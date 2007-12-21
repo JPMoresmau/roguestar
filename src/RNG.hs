@@ -19,15 +19,10 @@
 --------------------------------------------------------------------------
 
 -- |
--- Why do we need our own random number generation facilities?  Simply
--- because we can't guarantee that the system's random number generator
--- will be identical from one version of the system to the next, and we
--- certainly can't guarantee that between different implementations of
--- the system.  Having our own RNG facility means that we can write
--- a seed value to a save file and generate the same psuedo-random
--- sequence in a completely different environment.  Thus, a map may be
--- defined entirely by its psuedo-random seed.
-
+-- Don't depend on any external source of psuedo-random numbers, because
+-- we want to be able to save a psuedo-random seed and know that we can
+-- generate the same psuedo-random sequence when we reload it.
+--
 module RNG
     (randomIntegerStream,
      randomIntegerStreamStream,
@@ -40,8 +35,8 @@ import ListUtils
 
 -- |
 -- Generates the next in a sequence of psuedo-random Integers.
--- These numbers should not be used raw.  (Due to Insufficient 
--- "random-ness" of the least significant bit.)  Use a 
+-- These numbers should not be used raw.  (Due to insufficient
+-- "random-ness" of the least significant bit.)  Use a
 -- randomIntegerStream[Stream].
 --
 nextRandomSeed :: Integer -> Integer

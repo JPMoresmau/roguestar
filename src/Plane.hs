@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------
 --  roguestar-engine: the space-adventure roleplaying game backend.       
---  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
+--  Copyright (C) 2006,2007 Christopher Lane Hinson <lane@downstairspeople.org>  
 --                                                                        
 --  This program is free software; you can redistribute it and/or modify  
 --  it under the terms of the GNU General Public License as published by  
@@ -21,10 +21,8 @@
 module Plane
     (dbNewPlane,
      dbGetCurrentPlane,
-     dbGetInstancedPlane,
      pickRandomClearSite,
-     dbGetPlanarLocation,
-     dbGetEnclosingPlane)
+     dbGetPlanarLocation)
     where
 
 import Grids
@@ -35,50 +33,31 @@ import TerrainData
 import PlaneData
 import Control.Monad
 import Data.Maybe
+import Data.List
 
 dbNewPlane :: TerrainGenerationData -> DB PlaneRef
-dbNewPlane tg_data = dbAddPlane $ Left $ UninstancedPlane tg_data
+dbNewPlane tg_data = 
+    do rns <- dbNextRandomIntegerStream
+       dbAddPlane (Plane { plane_terrain = generateTerrain tg_data rns }) ()
 
 -- |
--- Recursively searches upward (through parents) for an object that is in a plane, and answers
--- the object's 
-dbGetPlanarLocation :: DBRef a => a -> DB (Maybe (PlaneRef,(Integer,Integer)))
-dbGetPlanarLocation object_ref =
-    do parent_info <- dbWhere object_ref
-       case parent_info of
-			Just (DBPlaneRef plane_ref,DBCoordinateLocation location) -> return $ Just (plane_ref,location)
-			Just (DBPlaneRef plane_ref,DBCoordinateFacingLocation location) -> return $ Just (plane_ref,fst location)
-			Just (someplace,_) -> dbGetPlanarLocation someplace
-			Nothing -> return Nothing
-
-dbGetEnclosingPlane :: DBRef a => a -> DB (Maybe PlaneRef)
-dbGetEnclosingPlane object_ref = do parent_plane_info <- dbGetPlanarLocation object_ref 
-				    case parent_plane_info of
-							   Just (plane_ref,_) -> return $ Just plane_ref
-							   Nothing -> return Nothing
+-- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
+-- returns the position of this object on that plane.
+--
+dbGetPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (PlaneRef,Position))
+dbGetPlanarLocation ref =
+    liftM (fmap location . listToMaybe . mapMaybe coerceParent) $ dbGetAncestors ref
 
 -- |
 -- Gets the current plane of interest based on whose turn it is.
 --
-dbGetCurrentPlane :: DB (Maybe PlaneRef)
+dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
 dbGetCurrentPlane = 
     do state <- dbState
        case state of
-		  DBPlayerCreatureTurn creature_ref -> dbGetEnclosingPlane creature_ref
+		  DBPlayerCreatureTurn creature_ref -> 
+                      liftM (fmap fst) $ dbGetPlanarLocation creature_ref
 		  _ -> return Nothing
-
-dbGetInstancedPlane :: PlaneRef -> DB InstancedPlane
-dbGetInstancedPlane ref = do rns <- dbNextRandomIntegerStream
-			     dbModPlane (instantiatePlane rns) ref
-			     plane <- dbGetPlane ref
-			     return $ either (\_ -> error "plane should be instanced") id plane
-
-instantiatePlane :: [Integer] -> Plane -> Plane
-instantiatePlane _ instanced_plane@(Right {}) = instanced_plane
-instantiatePlane rns (Left uninstanced_plane) =
-    Right InstancedPlane {
-			  plane_terrain = generateTerrain (plane_tg_data uninstanced_plane) rns
-			 }
 
 -- |
 -- Selects sites at random until one seems reasonably clear.  It begins at
@@ -88,22 +67,26 @@ instantiatePlane rns (Left uninstanced_plane) =
 -- A site is considered clear if there are no objects at all within object_clear squares, and
 -- no difficult terrain (mountain,water,lava,etc) within terrain_clear squares.
 --
-pickRandomClearSite :: Integer -> Integer -> Integer -> PlaneRef -> DB (Integer,Integer)
-pickRandomClearSite = pickRandomClearSite_ 0
-
-pickRandomClearSite_ :: Integer -> Integer -> Integer -> Integer -> PlaneRef -> DB (Integer,Integer)
-pickRandomClearSite_ search_diameter max_tries object_clear terrain_clear plane_ref =
-    do x0 <- 1 `d` (2*search_diameter+1)
-       y0 <- 1 `d` (2*search_diameter+1)
-       let x' = x0 - search_diameter - 1
-       let y' = y0 - search_diameter - 1
-       terrain <- liftM plane_terrain $ dbGetInstancedPlane plane_ref
-       let terrain_is_clear = all (not . (`elem` difficult_terrains)) $
-			          concat [[gridAt terrain (x,y) | x <- [x'-terrain_clear..x'+terrain_clear]] |
-				                                  y <- [y'-terrain_clear..y'+terrain_clear]]
-       clutter_locations <- liftM (mapMaybe (toCoordinateLocation . snd)) $ dbGetContents plane_ref
-       let clutter_is_clear = not $ (x',y') `elem` clutter_locations 
-       case terrain_is_clear && clutter_is_clear of
-			                         True -> return (x',y')
-			                         False | search_diameter == max_tries -> pickRandomClearSite_ 0 max_tries (max 0 $ object_clear - 1) (max 0 terrain_clear - 1) plane_ref
-			                         False -> pickRandomClearSite_ (search_diameter + 1) max_tries object_clear terrain_clear plane_ref
+-- This function will return an unsuitable site if it can't find a suitable one.
+-- Such a site may have unsuitable terrain around it or it may be outside of
+-- the search_radius.
+--
+pickRandomClearSite :: Integer -> Integer -> Integer -> PlaneRef -> DB Position
+pickRandomClearSite search_radius object_clear terrain_clear plane_ref =
+    do xys <- liftM2 (\a b -> map Position $ zip a b)
+           (mapM (\x -> roll [-x..x]) [1..search_radius])
+           (mapM (\x -> roll [-x..x]) [1..search_radius])
+       terrain <- liftM plane_terrain $ dbGetPlane plane_ref
+       clutter_locations <- liftM (mapMaybe position) $ dbGetContents plane_ref
+       let terrainIsClear (Position (x,y)) = 
+               all (not . (`elem` difficult_terrains)) $
+                   concat [[gridAt terrain (x',y') | 
+                            x' <- [x-terrain_clear..x+terrain_clear]] |
+			    y' <- [y-terrain_clear..y+terrain_clear]]
+       let clutterIsClear p = not $ p `elem` clutter_locations
+       maybe (pickRandomClearSite (search_radius + 1) 
+                                  object_clear 
+                                  (max 0 $ terrain_clear - 1) 
+                                  plane_ref) 
+             return $
+             find (\p -> terrainIsClear p && clutterIsClear p) xys

@@ -6,13 +6,13 @@ module ToolData
      phaser,
      phase_rifle)
     where
-    
+
 import Substances
-    
+
 data Tool = Gun { gun_power_cell :: Chromalite,
                   gun_type :: GunType }
             deriving (Read,Show)
-                   
+
 data GunType = Pistol   -- itty bitty
              | Carbine  -- moderate size
              | Rifle    -- big
