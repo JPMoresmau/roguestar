@@ -64,7 +64,7 @@ zipSurface f (Surface xuv xvu) (Surface yuv yvu) =
     Surface (zipCurve (zipCurve f) xuv yuv) (zipCurve (zipCurve f) xvu yvu)
 
 surfaceDerivative :: (CurveDifferentiable p v) => Surface p -> Surface (v,v)
-surfaceDerivative s = zipSurface (,) (curvewiseDerivative s) (transposeSurface $ curvewiseDerivative $ transposeSurface s)
+surfaceDerivative s = zipSurface (,) (transposeSurface $ curvewiseDerivative $ transposeSurface s) (curvewiseDerivative s)
 
 curvewiseDerivative :: (CurveDifferentiable p v) => Surface p -> Surface v
 curvewiseDerivative (Surface uv vu) = Surface (curveDerivative uv) (fmap curveDerivative vu)

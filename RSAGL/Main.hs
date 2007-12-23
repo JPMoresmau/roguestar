@@ -39,12 +39,12 @@ testScene qo_planet qo_ring qo_moon =
        planet_obj <- lift $ getQuality qo_planet test_quality
        ring_obj <- lift $ getQuality qo_ring test_quality
        moon_obj <- lift $ getQuality qo_moon test_quality
-       accumulateSceneM Local $ sceneObject ring_obj
        transformM rotation_planet $ accumulateSceneM Local $ sceneObject planet_obj
        let moon_tform = orbit_moon $ Affine.translate (Vector3D 4 0 0) $ rotation_moon $ identityMatrix 4
        transformM (Affine.transform moon_tform) $ accumulateSceneM Local $ sceneObject moon_obj
-       accumulateSceneM Local $ lightSource $ DirectionalLight (Vector3D 1 0.5 0) white blackbody
-       accumulateSceneM Local $ lightSource $ DirectionalLight (Vector3D (-1) (-0.5) 0) (scaleRGB 0.25 red) blackbody
+       accumulateSceneM Local $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 0.5 0) white blackbody
+       accumulateSceneM Local $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) (-0.5) 0) (scaleRGB 0.25 red) blackbody
+       accumulateSceneM Local $ sceneObject ring_obj
        return ((),PerspectiveCamera (rotation_camera $ Point3D 2 1 (-2)) 
                                     (lerp 0.5 (Point3D 0 0 0,Affine.transform moon_tform $ Point3D 0 0 0)) 
                                     (Vector3D 0 1 0) (fromDegrees 45))

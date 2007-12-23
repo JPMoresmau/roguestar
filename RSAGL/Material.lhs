@@ -7,6 +7,7 @@ module RSAGL.Material
     (module RSAGL.Color,
      MaterialLayer,MaterialSurface,Material,
      toLayers,materialLayerSurface,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
+     isOpaqueLayer,
      diffuseLayer,RSAGL.Material.specularLayer,transparentLayer,emissiveLayer)
     where
 

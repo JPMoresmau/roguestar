@@ -9,10 +9,13 @@ module RSAGL.Model
     (Model,
      Modeling,
      IntermediateModel,
+     parIntermediateModel,
      generalSurface,
      extractModel,
      toIntermediateModel,
      intermediateModelToOpenGL,
+     intermediateModelToVertexCloud,
+     splitOpaques,
      modelingToOpenGL,
      sphere,
      disc,
@@ -43,6 +46,7 @@ import RSAGL.Matrix
 import RSAGL.Affine
 import RSAGL.Angle
 import RSAGL.Color
+import RSAGL.BoundingBox
 import Data.List as List
 import Data.Maybe
 import Control.Monad.State hiding (get)
@@ -53,7 +57,6 @@ import Graphics.Rendering.OpenGL.GL.BasicTypes
 import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
 import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
 import Graphics.Rendering.OpenGL.GL.Polygons
-import Control.Arrow hiding (pure)
 \end{code}
 
 \subsection{Modeling Primitives}
@@ -175,7 +178,7 @@ finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m
 
 \begin{code}
 sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
-sphericalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ (v*pi - (pi/2)) * (1 - 0.5^10))))
+sphericalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi) * (1 - 0.5^10))))
 
 cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
 cylindricalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
@@ -205,9 +208,9 @@ disc :: (Monoid attr) => Double -> Double -> Modeling attr
 disc inner_radius outer_radius = model $ 
     do generalSurface $ Right $
         cylindricalCoordinates $ (\(u,v) -> 
-             (Point3D (lerp v (outer_radius,inner_radius) * cosine u)
+             (Point3D (lerp v (inner_radius,outer_radius) * cosine u)
                       0
-                      (lerp v (outer_radius,inner_radius) * sine u),
+                      (lerp v (inner_radius,outer_radius) * sine u),
               Vector3D 0 1 0))
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
        twoSided True
@@ -217,35 +220,10 @@ disc inner_radius outer_radius = model $
 
 \begin{code}
 data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
-
-instance AffineTransformable IntermediateModel where
-    transform m (IntermediateModel ms) = IntermediateModel $ parMap rnf (transform m) ms
-
-instance NFData IntermediateModel where
-    rnf (IntermediateModel ms) = rnf ms
-
 data IntermediateModeledSurface = IntermediateModeledSurface [(TesselatedSurface SingleMaterialSurfaceVertex3D,MaterialLayer)] Bool
-
-instance AffineTransformable IntermediateModeledSurface where
-    transform m (IntermediateModeledSurface layers two_sided) = IntermediateModeledSurface (parMap rnf (first (transform m)) layers) two_sided
-
-instance NFData IntermediateModeledSurface where
-    rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
-
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
-
-instance AffineTransformable SingleMaterialSurfaceVertex3D where
-    transform m (SingleMaterialSurfaceVertex3D sv3d mv3d) = SingleMaterialSurfaceVertex3D (transform m sv3d) mv3d
-
-instance NFData SingleMaterialSurfaceVertex3D where
-    rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)
-
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
-
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
-
-instance NFData MaterialVertex3D where
-    rnf (MaterialVertex3D cm b) = rnf (cm,b)
 
 intermediateModelToOpenGL :: IntermediateModel -> IO ()
 intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
@@ -254,10 +232,12 @@ modelingToOpenGL :: Integer -> Modeling attr -> IO ()
 modelingToOpenGL n modeling = intermediateModelToOpenGL $ toIntermediateModel n modeling
 
 toIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
-toIntermediateModel n modeling = IntermediateModel $ (zipWith intermediateModeledSurface complexities ms `using` parList rnf)
+toIntermediateModel n modeling = IntermediateModel $ zipWith intermediateModeledSurface complexities ms
     where complexities = allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
           ms = extractModel (modeling >> finishModeling)
-          extraComplexity m = normalSurfaceArea (ms_surface m) * fromInteger (ms_tesselation_hint_complexity m * materialComplexity (ms_material m))
+          extraComplexity m = (1 + normalSurfaceArea (ms_surface m)) * 
+                              (1 + fromInteger (ms_tesselation_hint_complexity m)) * 
+                              (1 + fromInteger (materialComplexity $ ms_material m))
           normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler
 
 intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
@@ -265,13 +245,13 @@ intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface layers two_sided)
     do lmts <- get lightModelTwoSide
        cf <- get cullFace
        lightModelTwoSide $= (if two_sided then Enabled else Disabled)
-       cullFace $= (if two_sided then Nothing else Just Front)
+       cullFace $= (if two_sided then Nothing else Just Back)
        foldr (>>) (return ()) $ map (uncurry layerToOpenGL) layers
        lightModelTwoSide $= lmts
        cullFace $= cf
 
 intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
-intermediateModeledSurface n m = IntermediateModeledSurface (zip (selectLayers (genericLength layers) tesselation `using` parList rnf) layers)
+intermediateModeledSurface n m = IntermediateModeledSurface (zip (selectLayers (genericLength layers) tesselation) layers)
                                                             (ms_two_sided m)
     where layers = toLayers $ ms_material m
           color_material_layers :: [Surface RGBA]
@@ -302,6 +282,41 @@ layerToOpenGL tesselation layer =
                      vertex $ Vertex3 px py pz
               toOpenGL = if isPure $ materialLayerSurface layer then vertexToOpenGL else vertexToOpenGLWithMaterialColor
 
+\end{code}
+
+\subsubsection{Seperating Opaque and Transparent Surfaces}
+
+\texttt{splitOpaques} breaks an \texttt{IntermediateModel} into a pair containing the completely opaque surfaces of the model and a list
+of transparent \texttt{IntermediateModel}s.
+
+\begin{code}
+splitOpaques :: IntermediateModel -> (IntermediateModel,[IntermediateModel])
+splitOpaques (IntermediateModel ms) = (IntermediateModel opaques,map (\x -> IntermediateModel [x]) transparents)
+    where opaques = filter isOpaque ms
+          transparents = filter (not . isOpaque) ms
+          isOpaque (IntermediateModeledSurface layers _) = isOpaqueLayer $ snd $ head layers
+\end{code}
+
+\subsubsection{Vertex Clouds and Bounding Boxes for IntermediateModels}
+
+\begin{code}
+intermediateModelToVertexCloud :: IntermediateModel -> [SurfaceVertex3D]
+intermediateModelToVertexCloud (IntermediateModel ms) = concatMap intermediateModeledSurfaceToVertexCloud ms
+
+instance Bound3D IntermediateModel where
+    boundingBox (IntermediateModel ms) = boundingBox ms
+
+intermediateModeledSurfaceToVertexCloud :: IntermediateModeledSurface -> [SurfaceVertex3D]
+intermediateModeledSurfaceToVertexCloud (IntermediateModeledSurface layers _) = map strip $ tesselatedSurfaceToVertexCloud $ fst $ head layers
+        where strip (SingleMaterialSurfaceVertex3D sv3d _) = sv3d
+
+instance Bound3D IntermediateModeledSurface where
+    boundingBox = boundingBox . intermediateModeledSurfaceToVertexCloud
+\end{code}
+
+\subsubsection{Rulers and Concavity Detection}
+
+\begin{code}
 sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
 sv3d_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
     distanceBetween p1 p2
@@ -316,4 +331,26 @@ msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2
 
 instance ConcavityDetection MultiMaterialSurfaceVertex3D where
     toPoint3D (MultiMaterialSurfaceVertex3D (SurfaceVertex3D p _) _) = p
+\end{code}
+
+\subsubsection{Parallelism for IntermediateModels}
+
+\begin{code}
+instance NFData IntermediateModel where
+    rnf (IntermediateModel ms) = rnf ms
+
+parIntermediateModel :: Strategy IntermediateModel
+parIntermediateModel (IntermediateModel ms) = parList parIntermediateModeledSurface ms
+
+instance NFData IntermediateModeledSurface where
+    rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
+
+parIntermediateModeledSurface :: Strategy IntermediateModeledSurface
+parIntermediateModeledSurface (IntermediateModeledSurface layers two_sided) = two_sided `seq` parList rnf layers
+
+instance NFData SingleMaterialSurfaceVertex3D where
+    rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)
+
+instance NFData MaterialVertex3D where
+    rnf (MaterialVertex3D cm b) = rnf (cm,b)
 \end{code}

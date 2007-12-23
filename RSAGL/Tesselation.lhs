@@ -4,6 +4,7 @@
 module RSAGL.Tesselation
     (TesselatedSurface,
      TesselatedElement(..),
+     tesselatedSurfaceToVertexCloud,
      tesselateSurface,
      tesselateGrid,
      tesselatedElementToOpenGL,
@@ -14,6 +15,7 @@ import RSAGL.Vector
 import RSAGL.Auxiliary
 import RSAGL.Surface
 import RSAGL.Affine
+import RSAGL.BoundingBox
 import Data.List
 import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
@@ -40,6 +42,15 @@ instance (NFData a) => NFData (TesselatedElement a) where
 instance Functor TesselatedElement where
     fmap f (TesselatedTriangleFan as) = TesselatedTriangleFan $ fmap f as
     fmap f (TesselatedQuadStrip as) = TesselatedQuadStrip $ fmap f as
+
+tesselatedSurfaceToVertexCloud :: TesselatedSurface a -> [a]
+tesselatedSurfaceToVertexCloud = concatMap (\x ->
+    case x of
+           TesselatedTriangleFan as -> as
+           TesselatedQuadStrip as -> as)
+
+instance (Bound3D a) => Bound3D (TesselatedElement a) where
+    boundingBox x = boundingBox $ tesselatedSurfaceToVertexCloud [x]
 
 tesselateSurface :: (ConcavityDetection a) => Surface a -> (Integer,Integer) -> TesselatedSurface a
 tesselateSurface s uv = tesselateGrid $ iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)

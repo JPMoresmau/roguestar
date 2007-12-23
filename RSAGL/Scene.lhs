@@ -23,6 +23,8 @@ module RSAGL.Scene
      sceneToOpenGL)
     where
 
+import Data.Ord
+import RSAGL.BoundingBox
 import RSAGL.Vector
 import RSAGL.Affine as Affine
 import RSAGL.Angle as Angle
@@ -107,10 +109,10 @@ setLightSources lss =
 
 setLightSource :: (Light,LightSource) -> IO ()
 setLightSource (l,NoLight) = light l $= Disabled
-setLightSource (l,DirectionalLight { lightsource_direction = (Vector3D vx vy vz),
-                                     lightsource_color = Color.RGB cr cg cb,
-                                     lightsource_ambient = Color.RGB ar ag ab }) =
-    do light l $= Enabled
+setLightSource (l,dl@DirectionalLight { lightsource_color = Color.RGB cr cg cb,
+                                        lightsource_ambient = Color.RGB ar ag ab }) =
+    do let Vector3D vx vy vz = vectorNormalize $ lightsource_direction dl
+       light l $= Enabled
        ambient l $= (Color4 ar ag ab 1.0 :: Color4 Float)
        GLUT.specular l $= (Color4 cr cg cb 1.0 :: Color4 Float)
        diffuse l $= (Color4 cr cg cb 1.0 :: Color4 Float)
@@ -186,21 +188,31 @@ Once all objects have been accumulated, the accumulation is used to generate a \
 
 \begin{code}
 data Scene = Scene {
-    scene_infinite_objs :: [(WrappedAffine IntermediateModel,[LightSource])],
-    scene_local_objs :: [(WrappedAffine IntermediateModel,[LightSource])],
+    scene_infinite_opaques :: [(WrappedAffine IntermediateModel,[LightSource])],
+    scene_infinite_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
+    scene_local_opaques :: [(WrappedAffine IntermediateModel,[LightSource])],
+    scene_local_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
     scene_camera :: Camera }
 
 assembleScene :: Camera -> SceneAccumulator -> Scene
 assembleScene c sceneaccum = Scene {
-    scene_infinite_objs = map (\m -> (m,infinite_light_sources)) infinite_models,
-    scene_local_objs = map (\m -> (m,local_light_sources)) local_models,
+    scene_infinite_opaques = map (\m -> (fst m,infinite_light_sources)) infinite_models,
+    scene_infinite_transparents = map (\m -> (m,infinite_light_sources)) $ sortModels origin_point_3d $ concatMap snd infinite_models,
+    scene_local_opaques = map (\m -> (fst m,local_light_sources)) local_models,
+    scene_local_transparents = map (\m -> (m,local_light_sources)) $ sortModels (camera_position c) $ concatMap snd local_models,
     scene_camera = c }
         where infinites = map snd $ filter ((Infinite ==) . fst) $ sceneaccum_objs sceneaccum
               locals = map snd $ filter ((Local ==) . fst) $ sceneaccum_objs sceneaccum
               infinite_light_sources = mapMaybe toLightSource infinites
               local_light_sources = map makeInfinite infinite_light_sources ++ mapMaybe toLightSource locals
-              infinite_models = mapMaybe toModel infinites
-              local_models = mapMaybe toModel locals
+              infinite_models = map splitOpaquesWrapped $ mapMaybe toModel infinites
+              local_models = map splitOpaquesWrapped $ mapMaybe toModel locals
+              sortModels :: Point3D -> [WrappedAffine IntermediateModel] -> [WrappedAffine IntermediateModel]
+              sortModels p = map fst . sortBy (comparing $ negate . minimalDistanceToBoundingBox p . snd) .
+                             map (\(wa@(WrappedAffine a m)) -> (wa,transform a $ boundingBox m))
+              splitOpaquesWrapped (WrappedAffine a m) =
+                  let (opaques,transparents) = splitOpaques m
+                      in (WrappedAffine a opaques,map (WrappedAffine a) transparents)
               toLightSource so = case so of
                   LightSource ls -> Just ls
                   _ -> Nothing
@@ -217,9 +229,15 @@ sceneToOpenGL aspect_ratio nearfar scene =
        lighting $= Enabled
        lightModelAmbient $= (Color4 0 0 0 1)
        clear [DepthBuffer]
-       preservingMatrix $ infiniteCameraToOpenGL aspect_ratio nearfar (scene_camera scene) >> mapM_ render1Object (scene_infinite_objs scene)
+       preservingMatrix $ 
+           do infiniteCameraToOpenGL aspect_ratio nearfar (scene_camera scene)
+              mapM_ render1Object (scene_infinite_opaques scene)
+              mapM_ render1Object (scene_infinite_transparents scene)
        clear [DepthBuffer]
-       preservingMatrix $ cameraToOpenGL aspect_ratio nearfar (scene_camera scene) >> mapM_ render1Object (scene_local_objs scene)
+       preservingMatrix $ 
+           do cameraToOpenGL aspect_ratio nearfar (scene_camera scene)
+              mapM_ render1Object (scene_local_opaques scene)
+              mapM_ render1Object (scene_local_transparents scene)
 
 render1Object :: (WrappedAffine IntermediateModel,[LightSource]) -> IO ()
 render1Object (WrappedAffine m imodel,lss) =

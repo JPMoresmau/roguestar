@@ -100,12 +100,12 @@ to transform.
 \begin{code}
 data WrappedAffine a = WrappedAffine (RSAGL.Matrix.Matrix) a
 
-wrapAffine :: (AffineTransformable a) => a -> WrappedAffine a
+wrapAffine :: a -> WrappedAffine a
 wrapAffine = WrappedAffine (identityMatrix 4)
 
 unwrapAffine :: (AffineTransformable a) => WrappedAffine a -> a
 unwrapAffine (WrappedAffine m a) = transform m a
 
-instance (AffineTransformable a) => AffineTransformable (WrappedAffine a) where
+instance AffineTransformable (WrappedAffine a) where
     transform t (WrappedAffine m a) = WrappedAffine (transform t m) a
 \end{code}
