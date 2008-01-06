@@ -11,9 +11,7 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 
 module RSAGL.Affine
     (AffineTransformable(..),
-     WrappedAffine(..),wrapAffine,unwrapAffine,
-     transformation,
-     inverseTransformation)
+     WrappedAffine(..),wrapAffine,unwrapAffine)
     where
 
 import Graphics.Rendering.OpenGL.GL as GL
@@ -40,12 +38,6 @@ class AffineTransformable a where
     scale' x = RSAGL.Affine.scale (Vector3D x x x)
     inverseTransform :: RSAGL.Matrix.Matrix -> a -> a
     inverseTransform m = transform (matrixInverse m)
-
-transformation :: (AffineTransformable b) => (forall a. (AffineTransformable a) => a -> a) -> b -> b
-transformation f = transform (f $ identityMatrix 4)
-
-inverseTransformation :: (AffineTransformable b) => (forall a. (AffineTransformable a) => a -> a) -> b -> b
-inverseTransformation f = transform (matrixInverse $ f $ identityMatrix 4)
 
 instance AffineTransformable a => AffineTransformable [a] where
     scale v = map (RSAGL.Affine.scale v)

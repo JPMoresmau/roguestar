@@ -32,6 +32,7 @@ clean :
 	-rm -f RSAGL/*.toc
 	-rm -f RSAGL/*.hi
 	-rm -f RSAGL/*.o
+	-rm -f RSAGL/*.out
 	-rm -f rsagl-tests
 	-rm -f rsagl-tests-optimized
 	-rm -f rsagl-modelview

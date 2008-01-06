@@ -12,6 +12,8 @@ This time library is designed to support real-time animation.
 module RSAGL.Time
     (Time,
      Rate,
+     Acceleration,
+     Frequency,
      minute,
      day,
      month,
@@ -22,7 +24,8 @@ module RSAGL.Time
      over,
      rate,
      perSecond,
-     per)
+     per,
+     interval)
     where
 
 import RSAGL.AbstractVector
@@ -33,6 +36,8 @@ import Data.Ratio
 
 newtype Time = Time Pico deriving (Show,Eq,Ord,AbstractVector)
 newtype Rate a = Rate a deriving (Show,Eq,Ord,AbstractVector)
+type Acceleration a = Rate (Rate a)
+type Frequency = Rate Double
 \end{code}
 
 \subsection{Getting and Constructing Time}
@@ -81,4 +86,7 @@ perSecond a = Rate a
 
 per :: (AbstractVector a) => a -> Time -> Rate a
 per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
+
+interval :: Frequency -> Time
+interval (Rate x) = fromSeconds $ recip x
 \end{code}

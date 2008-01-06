@@ -11,7 +11,7 @@ and the arrow-embedding operations from FRPBase.
 
 \begin{code}
 
-{-# OPTIONS_GHC -fglasgow-exts -farrows #-}
+{-# OPTIONS_GHC -fglasgow-exts -farrows -fallow-undecidable-instances #-}
 
 module RSAGL.FRP
     (FRP,
@@ -21,8 +21,13 @@ module RSAGL.FRP
      RSAGL.FRP.killThreadIf,
      RSAGL.FRP.statefulContext,
      frpTest,
+     FRPProgram,
+     newFRPProgram,
+     updateFRPProgram,
      integral,
      derivative,
+     integralRK4,
+     integralRK4',
      absoluteTime,
      threadTime,
      frpContext,
@@ -35,11 +40,13 @@ import RSAGL.Time
 import RSAGL.StatefulArrow as StatefulArrow
 import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.FRPBase as FRPBase
+import RSAGL.RK4
 import Data.Monoid
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
 import Control.Arrow.Transformer.State
+import Data.Maybe
 
 data FRPState = FRPState { frpstate_absolute_time :: Time,
                            frpstate_delta_time :: Time }
@@ -53,6 +60,10 @@ instance (Arrow a,ArrowChoice a) => Arrow (FRP i o a) where
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (FRP i o) a where
     lift = FRP . lift . lift
+
+instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRP i o a) where
+    fetch = lift fetch
+    store = lift store
 
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                   FRP i o a (FRP i o a i o,i) o
@@ -126,42 +137,55 @@ frp_test_states :: [FRPState]
 frp_test_states = map numToState [0.0,0.1..]
     where numToState x = FRPState { frpstate_absolute_time = fromSeconds $ 1242341239 + x,
                                     frpstate_delta_time = fromSeconds (if x==0 then 0 else 0.1) }
+
+data FRPProgram a i o = FRPProgram (StatefulArrow a (i,FRPState) (o,FRPState)) (Maybe Time)
+
+newFRPProgram :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => [FRP i o a i o] -> FRPProgram a i o
+newFRPProgram frps = FRPProgram (RSAGL.FRP.statefulForm frps) Nothing
+
+updateFRPProgram :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPProgram a i o -> a (i,Time) (o,FRPProgram a i o)
+updateFRPProgram (FRPProgram sa old_run) = proc (i,new_t) ->
+    do let old_t = fromMaybe new_t old_run
+       ((new_o,_),new_stateful_arrow) <- runStatefulArrow sa -< (i, FRPState { frpstate_absolute_time = new_t, frpstate_delta_time = (new_t `sub` old_t) })
+       returnA -< (new_o, FRPProgram new_stateful_arrow (Just new_t))
 \end{code}
 
 \subsection{Timelike operations on continuous values.}
 
-integral and derivative respectively take the integral or derivative of a
+\texttt{integral} and \texttt{derivative} respectively take the integral or derivative of a
 continuous value.
 
-The integral operation takes an initial value, usually zero.  If the integral
-is of a physical or real-world quantity, it will inevitably drift from the "true"
-value due to sampling errors. The greater the sampling rate of the FRP, the more 
-accurate the result of this operation will be to that "true" value.
+\begin{code}
+derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => FRP x y a v (Rate v)
+derivative = accumulate undefined
+    (\old_value new_value old_rate _ delta_t _ -> if delta_t == zero
+        then old_rate
+        else (new_value `sub` old_value) `per` delta_t)
+    zero
 
-These operations are taken in seconds.  For example, if the integral is taken
-of a value that is measured in meters per second, then the result will be in meters.
-If the derivative is taken of a value that is measured in meters, then the result
-will be in meters per second.
+integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRP x y a (Rate v) v
+integral = accumulate undefined
+    (\old_rate new_rate old_accum _ delta_t _ -> old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t))
+
+integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRP x y a (Time -> p -> Rate v) p
+integralRK4 f addPV = accumulate f (\_ diffF p abs_t delta_t -> integrateRK4 addPV diffF p (abs_t `sub` delta_t) abs_t)
+
+integralRK4' :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) -> 
+                FRP x y a (Time -> p -> Rate v -> Acceleration v) (p,Rate v)
+integralRK4' f addPV = accumulate f (\_ diffF p abs_t delta_t -> integrateRK4' addPV diffF p (abs_t `sub` delta_t) abs_t)
+\end{code}
+
+The \texttt{accumulate} function implements practically any time-stepping algorithm as though it were continuous.
+The accumulation function is of the form: old\_input new\_input old\_accumulation absolute\_time delta\_time number\_of\_intervals.
 
 \begin{code}
-integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector av) => av -> FRP i o a (Rate av) av
-integral initial_value = statefulContext_ $ SwitchedArrow.withState integral'
-                                                (\(i,_) -> (initial_value,i))
-    where integral' = proc (new_rate,frpstate@FRPState{ frpstate_delta_time=delta_t }) -> 
-              do (old_accum,old_rate) <- lift fetch -< ()
-                 let new_accum = old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t)
-                 lift store -< (new_accum,new_rate)
+accumulate :: (Arrow a,ArrowChoice a,ArrowApply a) => Frequency -> (i -> i -> o -> Time -> Time -> Integer -> o) -> o -> FRP x y a i o
+accumulate frequency accumF initial_value = statefulContext_ $ SwitchedArrow.withState accumulate_ (\(i,_) -> (i,initial_value))
+    where accumulate_ = proc (new_input,frpstate@FRPState{ frpstate_absolute_time=abs_t, frpstate_delta_time=delta_t }) -> 
+              do (old_input,old_accum) <- lift fetch -< ()
+                 let new_accum = accumF old_input new_input old_accum abs_t delta_t (ceiling $ toSeconds delta_t / toSeconds (interval frequency))
+                 lift store -< (new_input,new_accum)
                  returnA -< (new_accum,frpstate)
-
-derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector av) => FRP i o a av (Rate av)
-derivative = statefulContext_ $ SwitchedArrow.withState derivative' (\(i,_) -> (i,zero))
-    where derivative' = proc (new_value,frpstate@FRPState{ frpstate_delta_time=delta_t }) ->
-              do (old_value,old_rate) <- lift fetch -< ()
-                 let new_rate = if delta_t == zero
-                                then old_rate
-                                else (new_value `sub` old_value) `per` delta_t
-                 lift store -< (new_value,new_rate)
-                 returnA -< (new_rate,frpstate)
 \end{code}
 
 \subsection{Getting the time}

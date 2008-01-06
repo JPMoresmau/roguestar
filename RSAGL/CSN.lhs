@@ -8,10 +8,13 @@ can be represented in coordinate system neutral form.
 {-# OPTIONS_GHC -farrows -fglasgow-exts #-}
 
 module RSAGL.CSN
-    (CoordinateSystem,
+    (AffineTransformation,
+     CoordinateSystem,
      CoordinateSystemClass(..),
      root_coordinate_system,
      migrate,
+     transformation,
+     inverseTransformation,
      CSN,
      importCSN,
      exportCSN,
@@ -47,6 +50,7 @@ A \texttt{CoordinateSystem} is the context by which coordinate system neutral da
 All \texttt{CoordinateSystems} are affine transformations of the \texttt{root_coordinate_system}.
 
 \begin{code}
+type AffineTransformation = CoordinateSystem -> CoordinateSystem
 data CoordinateSystem = CoordinateSystem Matrix
 
 instance AffineTransformable CoordinateSystem where
@@ -54,6 +58,14 @@ instance AffineTransformable CoordinateSystem where
 
 migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
 migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
+
+transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+transformation csf = transform m
+    where m = migrate (csf root_coordinate_system) root_coordinate_system (identityMatrix 4)
+
+inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+inverseTransformation csf = transform m
+    where m = migrate root_coordinate_system (csf root_coordinate_system) (identityMatrix 4)
 
 class CoordinateSystemClass csc where
     getCoordinateSystem :: csc -> CoordinateSystem

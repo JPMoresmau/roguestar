@@ -28,6 +28,7 @@ module RSAGL.Angle
     where
 
 import Data.Fixed
+import RSAGL.AbstractVector
 
 newtype Angle = Radians Double deriving (Show)
 
@@ -44,6 +45,12 @@ instance Ord Angle where
     compare x y = case () of
                       _ | x == y -> EQ
                       _ -> compare (toRadians x) (toRadians y)
+
+instance AbstractVector Angle where
+    zero = zero_angle
+    add = angleAdd
+    sub = angleSubtract
+    scalarMultiply = scaleAngle
 \end{code}
 
 angularIncrements answers n equa-angular values from 0 to 2*pi.

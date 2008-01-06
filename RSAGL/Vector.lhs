@@ -42,6 +42,7 @@ import Control.Parallel.Strategies
 import RSAGL.Angle
 import RSAGL.Auxiliary
 import System.Random
+import RSAGL.AbstractVector
 
 \end{code}
 
@@ -117,6 +118,12 @@ instance Xyz Vector3D where
     fromXYZ (x,y,z) = Vector3D x y z
 
 instance NFData Vector3D
+
+instance AbstractVector Vector3D where
+    zero = zero_vector
+    add = vectorAdd
+    sub x y = vectorAdd x $ vectorScale (-1) y
+    scalarMultiply = vectorScale
 \end{code}
 
 A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a position and a normal vector.
