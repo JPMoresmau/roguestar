@@ -1,5 +1,8 @@
-\documentclass{article}
-\author{Christopher Lane Hinson $<$lane@downstairspeople.org$>$}
+\documentclass[pdftex]{article}
+\usepackage[dvips]{graphicx}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage[pdftex,colorlinks=true,linkcolor=blue]{hyperref}
+
 \title{ RSAGL Literate Source Document }
 \date{ This document was automatically generated from the literate source \today. }
 
@@ -39,22 +42,30 @@ to generate models and animations targeted at OpenGL using Haskell's HOpenGL
 binding.  Roguestar and RSAGL are available at http://roguestar.downstairspeople.org/.
 \end{abstract}
 
+\subsection{Contents}
+
 \tableofcontents
 
 \subsection{Audience}
 
 This paper is intended to support people wishing to understand the technical workings of
 the RSAGL library.  It is assumed that the reader possesses a fair understanding
-of the Haskell programming language, arrows, OpenGL, and linear algebra.
+of the Haskell programming language, arrows, OpenGL, and linear algebra (as it relates
+to affine transformations).
 
-To learn about the Haskell functional programming language, see http://www.haskell.org/.
+To learn about the Haskell functional programming language, see 
+\href{http://www.haskell.org/}{www.haskell.org}.
 
-To learn about arrows, see http://www.haskell.org/arrows/.
+To learn about arrows, see 
+\href{http://www.haskell.org/arrows/}{www.haskell.org/arrows/}.
 
-To learn about OpenGL, see http://www.opengl.org/.  RSAGL interfaces with OpenGL via the
-HOpenGL binding.  To learn about HOpenGL, see http://www.haskell.org/HOpenGL/.
+To learn about OpenGL, see 
+\href{http://www.opengl.org/}{www.opengl.org}.  
+RSAGL interfaces with OpenGL via the HOpenGL binding.  To learn about HOpenGL, see 
+\href{http://www.haskell.org/HOpenGL/}{www.haskell.org/HOpenGL/}.
 
-To learn about linear algebra, a free textbook is available at http://joshua.smcvt.edu/linearalgebra/.
+To learn about linear algebra, a free textbook is available at 
+\href{http://joshua.smcvt.edu/linearalgebra/}{joshua.smcvt.edu/linearalgebra/}.
 
 \part{Three-Dimensional Mathematics Toolset}
 
