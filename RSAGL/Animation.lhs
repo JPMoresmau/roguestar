@@ -14,9 +14,6 @@ module RSAGL.Animation
      animateM,
      rotateM,
      AniA,
-     rotationA,
-     animateA,
-     rotateA,
      AnimationObject,
      newAnimationObjectM,
      newAnimationObjectA,
@@ -34,7 +31,6 @@ import RSAGL.Affine
 import RSAGL.FRP
 import Control.Concurrent.MVar
 import Control.Arrow.Transformer.State as StateArrow
-import Control.Arrow
 \end{code}
 
 \subsection{The AniM Monad}
@@ -74,19 +70,6 @@ rotateM v a = animateM (rotationM v a)
 
 \begin{code}
 type AniA i o j p = FRP i o (StateArrow SceneAccumulator (->)) j p
-
-rotationA :: (Arrow a,ArrowChoice a) => Vector3D -> Rate Angle -> FRP i o a () AffineTransformation
-rotationA v a = proc () ->
-    do t <- absoluteTime -< ()
-       returnA -< rotate v (a `over` t)
-
-animateA :: AniA i o () AffineTransformation -> AniA i o j p -> AniA i o j p
-animateA affineA action = proc i ->
-    do at <- affineA -< ()
-       transformA action -< (at,i)
-
-rotateA :: Vector3D -> Rate Angle -> AniA i o j p -> AniA i o j p
-rotateA v a = animateA (rotationA v a)
 \end{code}
 
 \subsection{Animation Objects}

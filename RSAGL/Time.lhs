@@ -33,9 +33,10 @@ import System.Time
 import Control.Monad
 import Data.Fixed
 import Data.Ratio
+import RSAGL.Affine
 
 newtype Time = Time Pico deriving (Show,Eq,Ord,AbstractVector)
-newtype Rate a = Rate a deriving (Show,Eq,Ord,AbstractVector)
+newtype Rate a = Rate a deriving (Show,Eq,Ord,AbstractVector,AffineTransformable)
 type Acceleration a = Rate (Rate a)
 type Frequency = Rate Double
 \end{code}

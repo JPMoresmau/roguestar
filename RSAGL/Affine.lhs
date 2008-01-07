@@ -48,6 +48,9 @@ instance AffineTransformable a => AffineTransformable [a] where
 instance (AffineTransformable a,AffineTransformable b) => AffineTransformable (a,b) where
     transform m (a,b) = (transform m a,transform m b)
 
+instance (AffineTransformable a,AffineTransformable b,AffineTransformable c) => AffineTransformable (a,b,c) where
+    transform m (a,b,c) = (transform m a,transform m b,transform m c)
+
 instance AffineTransformable RSAGL.Matrix.Matrix where
     transform mat = matrixMultiply mat
 

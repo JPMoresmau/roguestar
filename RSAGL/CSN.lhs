@@ -51,21 +51,21 @@ All \texttt{CoordinateSystems} are affine transformations of the \texttt{root_co
 
 \begin{code}
 type AffineTransformation = CoordinateSystem -> CoordinateSystem
-data CoordinateSystem = CoordinateSystem Matrix
+data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
 
 instance AffineTransformable CoordinateSystem where
-    transform m (CoordinateSystem mat) = CoordinateSystem $ transform m mat
+    transform m (CoordinateSystem mat) = CoordinateSystem $ transform mat m
 
 migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
 migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
 
 transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
 transformation csf = transform m
-    where m = migrate (csf root_coordinate_system) root_coordinate_system (identityMatrix 4)
+    where CoordinateSystem m = csf root_coordinate_system
 
 inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-inverseTransformation csf = transform m
-    where m = migrate root_coordinate_system (csf root_coordinate_system) (identityMatrix 4)
+inverseTransformation csf = inverseTransform m
+    where CoordinateSystem m = csf root_coordinate_system
 
 class CoordinateSystemClass csc where
     getCoordinateSystem :: csc -> CoordinateSystem
@@ -92,7 +92,7 @@ is potentially non-affine, it must take place within the context of a \texttt{Co
 
 Versions of each of these functions are defined for state monads and state arrows, where the state type implements \texttt{CoordinateSystemClass}.
 \begin{code}
-data CSN a = CSN a
+data CSN a = CSN a deriving (Show)
 
 exportCSN :: (AffineTransformable a) => CoordinateSystem -> a -> CSN a
 exportCSN (CoordinateSystem m) a = CSN $ transform m a
@@ -133,7 +133,7 @@ remoteA = proc (context,f,a) ->
 \subsection{Affine Transformation in State Monads and State Arrows}
 
 \begin{code}
-transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => (CoordinateSystem -> CoordinateSystem) -> m a -> m a
+transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => AffineTransformation -> m a -> m a
 transformM affine_transformation action =
     do s <- liftM getCoordinateSystem get
        modify (storeCoordinateSystem (affine_transformation s))
@@ -141,7 +141,7 @@ transformM affine_transformation action =
        modify (storeCoordinateSystem s)
        return a
 
-transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (CoordinateSystem -> CoordinateSystem,a) b
+transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (AffineTransformation,a) b
 transformA action = proc (affine_transformation,a) ->
     do s <- fetch -< ()
        store -< storeCoordinateSystem (affine_transformation $ getCoordinateSystem s) s
