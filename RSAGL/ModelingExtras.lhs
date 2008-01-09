@@ -33,6 +33,7 @@ import RSAGL.Material
 import RSAGL.Affine
 import RSAGL.Model
 import System.Random
+import RSAGL.Interpolation
 \end{code}
 
 \subsection{Colors}
@@ -60,7 +61,7 @@ type Pattern = SurfaceVertex3D -> Double
 
 pattern :: (ColorClass a) => Pattern -> [(GLfloat,ColorFunction a)] -> ColorFunction a
 pattern _ [(_,constant_pattern)] = constant_pattern
-pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpColorMap (realToFrac $ f sv3d) color_map) $ sv3d)
+pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpMap color_map $ realToFrac $ f sv3d) $ sv3d)
 
 cloudy :: Int -> Double -> Pattern
 cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) * 0.5 + 0.5
@@ -76,13 +77,6 @@ directional vector (SurfaceVertex3D _ v) = dotProduct (vectorNormalize v) normal
 
 gradient :: Point3D -> Vector3D -> Pattern
 gradient center vector (SurfaceVertex3D p _) = dotProduct vector (vectorToFrom p center) / vectorLengthSquared vector
-
-lerpColorMap :: (ColorClass a) => GLfloat -> [(GLfloat,ColorFunction a)] -> ColorFunction a
-lerpColorMap _ [] = error "lerpColorMap: empty color map"
-lerpColorMap _ [(_,f)] = f
-lerpColorMap u ((x,f):_) | x >= u = f
-lerpColorMap u ((x,f):(y,g):_) | u > x && u < y = (curry $ lerpColor ((u - x) / (y - x))) <$> f <*> g
-lerpColorMap u rest = lerpColorMap u (tail rest)
 \end{code}
 
 \subsection{Materials}
@@ -91,7 +85,7 @@ lerpColorMap u rest = lerpColorMap u (tail rest)
 glass :: RGBFunction -> Modeling attr
 glass rgbf = 
     do transparent $ (alpha 0.05) <$> rgbf
-       specular 100 $ (\rgb_color -> curry (lerpColor (brightness rgb_color)) rgb_color white) <$> rgbf
+       specular 100 $ (\rgb_color -> curry (lerp (brightness rgb_color)) rgb_color white) <$> rgbf
 
 plastic :: RGBFunction -> Modeling attr
 plastic rgbf = 

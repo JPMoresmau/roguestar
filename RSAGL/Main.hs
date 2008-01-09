@@ -17,6 +17,7 @@ import Control.Monad.Trans
 import RSAGL.Angle
 import System.Exit
 import RSAGL.Color
+import RSAGL.Bottleneck
 import RSAGL.QualityControl
 import RSAGL.Scene
 import RSAGL.FRP
@@ -47,9 +48,9 @@ testScene :: QualityCache Integer IntermediateModel -> QualityCache Integer Inte
 testScene qo_planet qo_ring qo_moon ao_moon_orbit =
     do rotation_camera <- rotationM (Vector3D 1 1 1) (perSecond $ fromDegrees 0.5)
        rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
-       planet_obj <- liftIO $ getQuality qo_planet test_quality
+       planet_obj <- liftIO $ getQuality qo_planet (test_quality * 2)
        ring_obj <- liftIO $ getQuality qo_ring test_quality
-       moon_obj <- liftIO $ getQuality qo_moon test_quality
+       moon_obj <- liftIO $ getQuality qo_moon (test_quality `div` 4)
        moon_position <- (liftM head $ runAnimationObject ao_moon_orbit moon_obj) >>= importM
        transformM rotation_planet $ accumulateSceneM Local $ sceneObject planet_obj
        accumulateSceneM Local $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 0.5 0) white blackbody
@@ -81,9 +82,10 @@ displayModel =
        window <- createWindow "RSAGL Test Mode"
        reshapeCallback $= Just rsaglReshapeCallback
        counter <- newIORef 0
-       qo_planet <- mkQuality (flip toIntermediateModel planet) $ iterate (*2) 64
-       qo_ring <- mkQuality (flip toIntermediateModel ring) $ iterate (*2) 64
-       qo_moon <- mkQuality (flip toIntermediateModel moon) $ iterate (*2) 64
+       bottleneck <- newBottleneck
+       qo_planet <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel planet) $ iterate (*2) 64
+       qo_ring <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ring) $ iterate (*2) 32
+       qo_moon <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel moon) $ iterate (*2) 16
        ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
        displayCallback $= rsaglDisplayCallback counter (testScene qo_planet qo_ring qo_moon ao_moon_orbit)
        idleCallback $= (Just $ return ())

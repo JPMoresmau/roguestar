@@ -64,11 +64,6 @@ instance AffineTransformable Point3D where
     scale (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1*x2) (y1*y2) (z1*z2)
     translate (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1+x2) (y1+y2) (z1+z2)
 
-instance AffineTransformable Point2D where
-    transform = transformHomogenous
-    scale (Vector3D x1 y1 _) (Point2D x2 y2) = Point2D (x1*x2) (y1*y2)
-    translate (Vector3D x1 y1 _) (Point2D x2 y2) = Point2D (x1+x2) (y1+y2)
-
 instance AffineTransformable SurfaceVertex3D where
     transform m (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.transform m p) (RSAGL.Affine.transform m v)
     scale vector (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.scale vector p) (RSAGL.Affine.scale vector v)

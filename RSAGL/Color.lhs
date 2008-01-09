@@ -35,12 +35,11 @@ instance NFData RGB where
 
 instance NFData RGBA where
 
-class ColorClass c where
+class (Lerpable c) => ColorClass c where
     rgb :: Float -> Float -> Float -> c
     rgb256 :: (Integral i) => i -> i -> i -> c
     alpha :: Float -> c -> RGBA
     alpha256 :: (Integral i) => i -> c -> RGBA
-    lerpColor :: Float -> (c,c) -> c
     clampColor :: c -> c
     mapRGB :: (Float -> Float) -> c -> c
     brightness :: c -> Float
@@ -52,7 +51,6 @@ instance ColorClass RGB where
     rgb256 r g b = rgb (i2f256 r) (i2f256 g) (i2f256 b)
     alpha = RGBA
     alpha256 a = alpha (i2f256 a)
-    lerpColor u (a,b) = addRGB (scaleRGB (1-u) a) (scaleRGB u b)
     clampColor = mapRGB (min 1 . max 0)
     mapRGB f (RGB r g b) = RGB (f r) (f g) (f b)
     brightness (RGB r g b) = 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -64,7 +62,6 @@ instance ColorClass RGBA where
     rgb256 = rgba256 255
     alpha x (RGBA a rgb_color) = RGBA (x*a) rgb_color
     alpha256 i (RGBA a rgb_color) = RGBA ((i2f256 i)*a) rgb_color
-    lerpColor u (RGBA a1 rgb1,RGBA a2 rgb2) = RGBA (lerpNumber u (a1,a2)) (lerpColor u (rgb1,rgb2))
     clampColor (RGBA a rgb_color) = RGBA (min 1 $ max 0 a) $ clampColor rgb_color
     mapRGB f (RGBA a rgb_color) = RGBA a $ mapRGB f rgb_color
     brightness (RGBA a rgb_color) = brightness rgb_color * a
@@ -90,10 +87,12 @@ scaleRGB :: (ColorClass c) => Float -> c -> c
 scaleRGB x = mapRGB (*x)
 
 instance Lerpable RGB where
-    lerp u = lerpColor (realToFrac u)
+    lerp u' (a,b) = addRGB (scaleRGB (1-u) a) (scaleRGB u b)
+        where u = realToFrac u'
 
 instance Lerpable RGBA where
-    lerp u = lerpColor (realToFrac u)
+    lerp u' (RGBA a1 rgb1,RGBA a2 rgb2) = RGBA (lerp u (a1,a2)) (lerp u (rgb1,rgb2))
+        where u = realToFrac u'
 
 rgbToOpenGL :: RGB -> IO ()
 rgbToOpenGL (RGB r g b) = color $! Color4 r g b 1

@@ -9,12 +9,14 @@ module RSAGL.Auxiliary
      shiftR,
      zeroToOne,
      constrain,
-     debugTime)
+     debugTime,
+     waitParList)
     where
 
 import Data.Array
 import System.Random
 import System.CPUTime
+import Control.Parallel.Strategies
 
 -- doubles transforms a list to a list of adjacent elements.
 
@@ -111,3 +113,8 @@ debugTime msg io_action =
        end_time <- getCPUTime
        print $ "debugTime: done with " ++ msg ++ " " ++ show (end_time - start_time)
        return result
+
+-- as parList, but waits until the list is fully evaluated.
+
+waitParList :: Strategy a -> Strategy [a]
+waitParList s = seqList rwhnf . parMap r0 s

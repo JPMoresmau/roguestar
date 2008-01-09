@@ -32,6 +32,7 @@ module RSAGL.Model
      cylindricalCoordinates)
     where
 
+import RSAGL.Auxiliary
 import Control.Applicative
 import RSAGL.ApplicativeWrapper
 import Data.Traversable
@@ -340,13 +341,13 @@ instance NFData IntermediateModel where
     rnf (IntermediateModel ms) = rnf ms
 
 parIntermediateModel :: Strategy IntermediateModel
-parIntermediateModel (IntermediateModel ms) = parList parIntermediateModeledSurface ms
+parIntermediateModel (IntermediateModel ms) = seqList parIntermediateModeledSurface ms
 
 instance NFData IntermediateModeledSurface where
     rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
 
 parIntermediateModeledSurface :: Strategy IntermediateModeledSurface
-parIntermediateModeledSurface (IntermediateModeledSurface layers two_sided) = two_sided `seq` parList rnf layers
+parIntermediateModeledSurface (IntermediateModeledSurface layers two_sided) = two_sided `seq` waitParList rnf layers
 
 instance NFData SingleMaterialSurfaceVertex3D where
     rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)

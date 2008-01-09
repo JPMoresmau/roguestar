@@ -27,14 +27,6 @@ instance Homogenous Vector3D where
                                             [0.0]]
     fromHomogenous m = vector3d $ genericFromHomogenous m 
 
-instance Homogenous Point2D where
-    toHomogenous (Point2D x y) = matrix [[x],
-                                         [y],
-                                         [0.0],
-                                         [1.0]]
-    fromHomogenous m = case (genericFromHomogenous m) of
-						      (x,y,_) -> Point2D x y
-
 instance Homogenous Point3D where
     toHomogenous (Point3D x y z) = matrix [[x],
                                            [y],

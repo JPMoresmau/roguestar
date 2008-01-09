@@ -18,6 +18,12 @@ class AbstractVector v where
     sub :: v -> v -> v
     scalarMultiply :: Double -> v -> v
 
+instance AbstractVector Float where
+    zero = 0
+    add = (+)
+    sub = (-)
+    scalarMultiply d = (realToFrac d *)
+
 instance AbstractVector Double where
     zero = 0
     add = (+)

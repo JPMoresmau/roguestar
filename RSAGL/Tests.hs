@@ -26,8 +26,9 @@ import Data.List as List
 import Data.Monoid
 import Test.QuickCheck hiding (test)
 import Control.Concurrent
+import Control.Parallel.Strategies
 import RSAGL.RK4
-
+import RSAGL.Bottleneck
 
 --
 -- State machine that adds its input to its state
@@ -436,7 +437,8 @@ testClose name actual expected _ =
 
 testQualityObject :: IO ()
 testQualityObject =
-    do qo <- mkQuality naiveFib qs
+    do bottleneck <- newBottleneck
+       qo <- newQuality bottleneck rnf naiveFib qs
        print =<< getQuality qo 100
        threadDelay 1000000
        print =<< getQuality qo 100

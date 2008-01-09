@@ -4,18 +4,13 @@
 module RSAGL.Vector
     (Point3D(..),
      origin_point_3d,
-     Point2D(..),
      Vector3D(..),
      SurfaceVertex3D(..),
      zero_vector,
      point3d,
-     point2d,
-     points2d,
      points3d,
      points3d_2,
      vector3d,
-     to2d,
-     to3d,
      dotProduct,
      angleBetween,
      crossProduct,
@@ -88,19 +83,6 @@ instance Xyz Point3D where
 instance NFData Point3D
 \end{code}
 
-\subsection{Points in 2-space}
-
-\begin{code}
-data Point2D = Point2D !Double !Double
-	     deriving (Read,Show,Eq)
-
-point2d :: (Double,Double) -> Point2D
-point2d = uncurry Point2D
-
-points2d :: [(Double,Double)] -> [Point2D]
-points2d = map point2d
-\end{code}
-
 \subsection{Vectors in 3-space}
 
 \begin{code}
@@ -137,17 +119,6 @@ data SurfaceVertex3D = SurfaceVertex3D { sv3d_position :: Point3D,
 
 instance NFData SurfaceVertex3D where
     rnf (SurfaceVertex3D p v) = rnf (p,v)
-\end{code}
-
-\subsection{Conversion between 2- and 3- dimensional points}
-
-\begin{code}
-to3d :: Point2D -> Point3D
-to3d (Point2D x y) = Point3D x y 0
-
-to2d :: Point3D -> Point2D
-to2d (Point3D x y 0) = Point2D x y
-to2d _ = error "to2d: z is not zero"
 \end{code}
 
 \subsection{Vector Arithmetic}
