@@ -7,6 +7,7 @@ import RSAGL.Vector
 import RSAGL.ModelingExtras
 import RSAGL.RayTrace
 import RSAGL.Deformation
+import RSAGL.Affine
 
 ring :: Modeling ()
 ring = model $ do disc 0.75 1.0
@@ -31,5 +32,11 @@ planet=model $ do sphere (Point3D 0 0 0) 0.65
                   specular 20 $ planet_interior (pure blackbody) (pure blackbody) $ land_vs_water (pure blackbody) (pure white)
 
 moon :: Modeling ()
-moon = model $ do sphere (Point3D 0 0 0) 0.2
+moon = model $ 
+    do model $ do sphere (Point3D 0 0 0) 0.2
                   pigment $ pattern (cloudy 8 0.05) [(0.0,pure silver),(1.0,pure black)]
+       model $ do smoothbox 0.1 (Point3D 1 9 4) (Point3D (-1) (-9) (-4))
+                  affine (scale' 0.01)
+                  affine (translate $ Vector3D 0 0.2 0)
+                  pigment $ pure black
+                  specular 20 $ pure white

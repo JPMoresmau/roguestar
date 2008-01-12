@@ -1,4 +1,4 @@
-\section{Pre-specified Colors, Materials and Deformations}
+\section{Pre-specified Colors, Models, Materials and Deformations}
 
 \begin{code}
 
@@ -7,6 +7,7 @@
 module RSAGL.ModelingExtras
     (gray,
      gray256,
+     smoothbox,
      glass,
      plastic,
      metallic,
@@ -34,6 +35,7 @@ import RSAGL.Affine
 import RSAGL.Model
 import System.Random
 import RSAGL.Interpolation
+import Data.Monoid
 \end{code}
 
 \subsection{Colors}
@@ -48,6 +50,18 @@ gray x = rgb x x x
 
 gray256 :: (Integral i) => i -> RGB
 gray256 x = rgb256 x x x
+\end{code}
+
+\subsection{Models}
+
+There are currently no extra models.
+
+\begin{code}
+smoothbox :: (Monoid attr) => Double -> Point3D -> Point3D -> Modeling attr
+smoothbox u p q = model $
+    do box p q
+       deform $ \(SurfaceVertex3D point vector) -> SurfaceVertex3D point $ vectorNormalize $ lerp u (vector,vectorNormalize $ vectorToFrom p midpoint)
+        where midpoint = lerp 0.5 (p,q)
 \end{code}
 
 \subsection{Patterns}

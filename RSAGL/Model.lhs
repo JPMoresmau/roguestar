@@ -19,6 +19,9 @@ module RSAGL.Model
      modelingToOpenGL,
      sphere,
      disc,
+     quadralateral,
+     triangle,
+     box,
      adaptive,
      fixed,
      attribute,
@@ -215,6 +218,29 @@ disc inner_radius outer_radius = model $
               Vector3D 0 1 0))
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
        twoSided True
+
+quadralateral :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Point3D -> Modeling attr
+quadralateral a b c d = model $ 
+    do normal_vector <- return $ newell [a,b,c,d]
+       generalSurface $ Right $ surface $ \u v -> (lerp v (lerp u (a,b), lerp u (d,c)),normal_vector)
+
+triangle :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Modeling attr
+triangle a b c | distanceBetween a b > distanceBetween b c = triangle c a b
+triangle a b c | distanceBetween a c > distanceBetween b c = triangle b c a
+triangle a b c = quadralateral a b (lerp 0.5 (b,c)) c
+
+box :: (Monoid attr) => Point3D -> Point3D -> Modeling attr
+box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
+    do let [lx,hx] = sort [x1,x2]
+       let [ly,hy] = sort [y1,y2]
+       let [lz,hz] = sort [z1,z2]
+       quadralateral (Point3D lx ly lz) (Point3D lx hy lz) (Point3D hx hy lz) (Point3D hx ly lz)  -- near
+       quadralateral (Point3D lx ly hz) (Point3D hx ly hz) (Point3D hx hy hz) (Point3D lx hy hz)  -- far
+       quadralateral (Point3D lx ly lz) (Point3D hx ly lz) (Point3D hx ly hz) (Point3D lx ly hz)  -- bottom
+       quadralateral (Point3D lx hy lz) (Point3D lx hy hz) (Point3D hx hy hz) (Point3D hx hy lz)  -- top
+       quadralateral (Point3D lx ly lz) (Point3D lx ly hz) (Point3D lx hy hz) (Point3D lx hy lz)  -- left
+       quadralateral (Point3D hx ly lz) (Point3D hx hy lz) (Point3D hx hy hz) (Point3D hx ly hz)  -- right PROBLEM
+       fixed (10,10)
 \end{code}
 
 \subsection{Rendering Models to OpenGL}
