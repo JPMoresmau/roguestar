@@ -126,7 +126,7 @@ setLightSource (l,pl@(PointLight { lightsource_position = (Point3D px py pz),
        GLUT.specular l $= (Color4 cr cg cb 1.0 :: Color4 Float)
        diffuse l $= (Color4 cr cg cb 1.0 :: Color4 Float)
        position l $= (Vertex4 (realToFrac px) (realToFrac py) (realToFrac pz) 1 :: Vertex4 Float)
-       attenuation l $= (0.01,0,realToFrac $ distanceSquared $ lightsource_radius pl)
+       attenuation l $= (0.01,0,recip $ realToFrac $ distanceSquared $ lightsource_radius pl)
 \end{code}
 
 \subsection{Scene Construction}

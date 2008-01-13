@@ -22,6 +22,7 @@ module RSAGL.Model
      quadralateral,
      triangle,
      box,
+     finitePlane,
      adaptive,
      fixed,
      attribute,
@@ -239,8 +240,12 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
        quadralateral (Point3D lx ly lz) (Point3D hx ly lz) (Point3D hx ly hz) (Point3D lx ly hz)  -- bottom
        quadralateral (Point3D lx hy lz) (Point3D lx hy hz) (Point3D hx hy hz) (Point3D hx hy lz)  -- top
        quadralateral (Point3D lx ly lz) (Point3D lx ly hz) (Point3D lx hy hz) (Point3D lx hy lz)  -- left
-       quadralateral (Point3D hx ly lz) (Point3D hx hy lz) (Point3D hx hy hz) (Point3D hx ly hz)  -- right PROBLEM
+       quadralateral (Point3D hx ly lz) (Point3D hx hy lz) (Point3D hx hy hz) (Point3D hx ly hz)  -- right
        fixed (10,10)
+
+finitePlane :: (Monoid attr) => Double -> Point3D -> Vector3D -> Modeling attr
+finitePlane s p n = generalSurface $ Right $ surface $ \u v -> (translate (vectorScale (s*(u-0.5)) u' `vectorAdd` vectorScale (s*(v-0.5)) v') p,n)
+    where (u',v') = orthos n
 \end{code}
 
 \subsection{Rendering Models to OpenGL}

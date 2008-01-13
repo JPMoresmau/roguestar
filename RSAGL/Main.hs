@@ -31,6 +31,7 @@ import qualified RSAGL.Affine as Affine
 import RSAGL.Matrix
 import RSAGL.Interpolation
 import Debug.Trace
+import RSAGL.ModelingExtras
 
 test_quality :: Integer
 test_quality = 2^13
@@ -40,25 +41,40 @@ moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
                       (arr $ const $ inverseSquareLaw 1.0 origin_point_3d)
-                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (Local,sceneObject im)
+                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (Infinite,sceneObject im)
                                          exportA -< origin_point_3d)
 
-testScene :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel -> 
-             AnimationObject IntermediateModel [CSN Point3D] -> AniM ((),Camera)
-testScene qo_planet qo_ring qo_moon ao_moon_orbit =
-    do rotation_camera <- rotationM (Vector3D 1 1 1) (perSecond $ fromDegrees 0.5)
-       rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
-       planet_obj <- liftIO $ getQuality qo_planet (test_quality * 2)
-       ring_obj <- liftIO $ getQuality qo_ring test_quality
-       moon_obj <- liftIO $ getQuality qo_moon (test_quality `div` 4)
-       moon_position <- (liftM head $ runAnimationObject ao_moon_orbit moon_obj) >>= importM
-       transformM rotation_planet $ accumulateSceneM Local $ sceneObject planet_obj
-       accumulateSceneM Local $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 0.5 0) white blackbody
-       accumulateSceneM Local $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) (-0.5) 0) (scaleRGB 0.25 red) blackbody
-       accumulateSceneM Local $ sceneObject ring_obj
-       return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 6.5 0 (-8)) 
-                                    (lerp 0.5 (moon_position,origin_point_3d)) 
-                                    (Vector3D 0 1 0) (fromDegrees 45))
+testScene :: IO (AniM ((),Camera))
+testScene = 
+    do bottleneck <- newBottleneck
+       qo_planet <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel planet) $ iterate (*2) 64
+       qo_ring <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ring) $ iterate (*2) 32
+       qo_moon <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel moon) $ iterate (*2) 32
+       qo_ground <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ground) $ iterate (*2) 16
+       qo_monolith <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel monolith) $ iterate (*2) 32
+       ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
+       return $ 
+           do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
+              planet_obj <- liftIO $ getQuality qo_planet (test_quality * 2)
+              ring_obj <- liftIO $ getQuality qo_ring test_quality
+              moon_obj <- liftIO $ getQuality qo_moon (test_quality `div` 4)
+              ground_obj <- liftIO $ getQuality qo_ground (test_quality `div` 8)
+              monolith_obj <- liftIO $ getQuality qo_monolith (test_quality `div` 16)
+              accumulateSceneM Local $ sceneObject ground_obj
+              accumulateSceneM Local $ sceneObject monolith_obj
+              accumulateSceneM Local $ lightSource $ PointLight (Point3D (-1.5) 2 (-8))
+                                                                (measure (Point3D (-1.5) 2 (-8)) (Point3D 0 0 0))
+                                                                (gray 0.5) (gray 0.5)
+              transformM (Affine.translate (Vector3D 0 1 6)) $ 
+                  do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject planet_obj
+                     accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
+                     accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
+                     accumulateSceneM Infinite $ sceneObject ring_obj
+                     runAnimationObject ao_moon_orbit moon_obj
+              return ((),PerspectiveCamera (Point3D 1 2 (-8))
+                                           (Point3D 0 2 6)
+                                           (Vector3D 0 1 0)
+                                           (fromDegrees 45))
 
 main :: IO ()
 main = displayModel
@@ -82,12 +98,8 @@ displayModel =
        window <- createWindow "RSAGL Test Mode"
        reshapeCallback $= Just rsaglReshapeCallback
        counter <- newIORef 0
-       bottleneck <- newBottleneck
-       qo_planet <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel planet) $ iterate (*2) 64
-       qo_ring <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ring) $ iterate (*2) 32
-       qo_moon <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel moon) $ iterate (*2) 16
-       ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
-       displayCallback $= rsaglDisplayCallback counter (testScene qo_planet qo_ring qo_moon ao_moon_orbit)
+       testSceneCallback <- testScene
+       displayCallback $= rsaglDisplayCallback counter (testSceneCallback)
        idleCallback $= (Just $ return ())
        addTimerCallback timer_callback_millis (rsaglTimerCallback window)
        mainLoop
@@ -105,9 +117,6 @@ rsaglDisplayCallback counter aniM =
        clear [ColorBuffer]
        the_scene <- liftM snd $ runAniM aniM
        (Size w h) <- GLUT.get windowSize
-       fog $= Enabled
-       fogMode $= Linear 0.0 25.0
-       fogColor $= (Color4 0 0 0 0 :: Color4 GLfloat)
        sceneToOpenGL (fromIntegral w / fromIntegral h) (0.1,30) the_scene
        swapBuffers
        modifyIORef counter (+1)

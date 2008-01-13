@@ -53,10 +53,9 @@ inverseSquareLaw g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * 
 
 accelerationModel :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,CoordinateSystemClass s) => 
                      Frequency -> PV -> FRP i o a j ForceFunction ->
-                     FRP i o a (CSN PVA,j) p -> FRP i o a j p
+                     FRP i o a (PVA,j) p -> FRP i o a j p
 accelerationModel f pv forceA actionA = proc j ->
     do (p,v) <- integralRK4' f (flip translate) pv <<< forceA -< j
        a <- derivative -< v
-       csn_pva <- exportA -< (p,v,a)
-       transformA actionA -< (translate (vectorToFrom p origin_point_3d),(csn_pva,j))
+       transformA actionA -< (translate (vectorToFrom p origin_point_3d),((p,v,a),j))
 \end{code}

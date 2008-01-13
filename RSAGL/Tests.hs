@@ -233,17 +233,25 @@ testCrossProduct =
        testClose "testCrossProduct(y)" y 0.0 equalClose
        testClose "testCrossProduct(z)" z 1.0 equalClose
 
--- here we use quickCheck to confirm that the crossProduct always yields a vector orthagonal
--- to the parameters.
+-- crossProduct always yields a vector orthagonal to the parameters.
 quickCheckCrossProductByAngleBetween :: IO ()
 quickCheckCrossProductByAngleBetween = 
     do putStr "quickCheckCrossProductByAngleBetween: "
        quickCheck _qccpbab
-           where _qccpbab (v1,v2) = let cp = crossProduct (vector3d v1) (vector3d v2)
-                                        a1 = toRadians $ angleBetween cp (vector3d v1) :: Double
-                                        a2 = toRadians $ angleBetween cp (vector3d v2) :: Double
-                                        in abs (a1 - (pi/2)) < 0.001 &&
-                                           abs (a2 - (pi/2)) < 0.001
+           where _qccpbab (v1,v2) = let (a,b,c) = (vector3d v1,vector3d v2,crossProduct a b)
+                                        in (toDegrees $ angleBetween a c) `equalClose` 90 &&
+                                           (toDegrees $ angleBetween b c) `equalClose` 90
+
+-- orthos always yields two vectors orthagonal to the parameters
+quickCheckOrthos :: IO ()
+quickCheckOrthos =
+    do putStr "quickCheckOrthos: "
+       quickCheck _qco
+           where _qco v = let a = vector3d v
+                              (b,c) = orthos a
+                              in (toDegrees $ angleBetween a b) `equalClose` 90 &&
+                                 (toDegrees $ angleBetween b c) `equalClose` 90 &&
+                                 (toDegrees $ angleBetween a c) `equalClose` 90
 
 testVectorAverage :: IO ()
 testVectorAverage =
@@ -506,6 +514,7 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testDistanceBetween
           testCrossProduct
           quickCheckCrossProductByAngleBetween
+          quickCheckOrthos
           testVectorAverage
           testNewell
           testDeterminant2

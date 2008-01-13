@@ -30,7 +30,10 @@ module RSAGL.Vector
      Xyz(..),
      XYZ,
      vectorString,
-     randomXYZ)
+     randomXYZ,
+     fixOrtho,
+     fixOrtho2,
+     orthos)
     where
 
 import Control.Parallel.Strategies
@@ -217,4 +220,25 @@ randomXYZ :: (RandomGen g,Xyz p) => (Double,Double) -> g -> (p,g)
 randomXYZ lohi g = (fromXYZ (x,y,z),g')
     where (g_,g') = split g
           (x:y:z:_) = randomRs lohi g_
+\end{code}
+
+\subsection{Orthagonal Vectors}
+
+\texttt{fixOrtho a v} finds the vector, orthagonal to a, that has the least angle to v.
+
+\texttt{orthos} finds two arbitrary vectors orthagonal to the parameter.
+
+\begin{code}
+fixOrtho :: Vector3D -> Vector3D -> Vector3D
+fixOrtho a = fst . fixOrtho2 a
+
+fixOrtho2 :: Vector3D -> Vector3D -> (Vector3D,Vector3D)
+fixOrtho2 a v = (crossProduct a (vectorScale (-1) b),b)
+    where b = crossProduct a v
+
+orthos :: Vector3D -> (Vector3D,Vector3D)
+orthos v@(Vector3D x y z) | abs y >= abs x && abs z >= abs x = fixOrtho2 v (Vector3D (abs x + abs y + abs z) y z)
+orthos v@(Vector3D x y z) | abs x >= abs y && abs z >= abs y = fixOrtho2 v (Vector3D x (abs x + abs y + abs z) z)
+orthos v@(Vector3D x y z) | abs x >= abs z && abs y >= abs z = fixOrtho2 v (Vector3D x y (abs x + abs y + abs z))
+orthos _ = error "orthos: NaN"
 \end{code}

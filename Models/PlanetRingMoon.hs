@@ -1,5 +1,5 @@
 module Models.PlanetRingMoon
-    (planet,ring,moon)
+    (planet,ring,moon,ground,monolith)
     where
 
 import RSAGL.Model
@@ -33,10 +33,18 @@ planet=model $ do sphere (Point3D 0 0 0) 0.65
 
 moon :: Modeling ()
 moon = model $ 
-    do model $ do sphere (Point3D 0 0 0) 0.2
-                  pigment $ pattern (cloudy 8 0.05) [(0.0,pure silver),(1.0,pure black)]
-       model $ do smoothbox 0.1 (Point3D 1 9 4) (Point3D (-1) (-9) (-4))
-                  affine (scale' 0.01)
-                  affine (translate $ Vector3D 0 0.2 0)
-                  pigment $ pure black
-                  specular 20 $ pure white
+    do sphere (Point3D 0 0 0) 0.2
+       pigment $ pattern (cloudy 8 0.05) [(0.0,pure silver),(1.0,pure black)]
+
+monolith :: Modeling ()
+monolith = model $
+    do smoothbox 0.1 (Point3D 4 9 1) (Point3D (-4) (-9) (-1))
+       affine (translate $ Vector3D 0 9 0)
+       affine (scale' 0.20)
+       pigment $ pure blackbody
+       specular 100 $ pure white
+
+ground :: Modeling ()
+ground = model $
+    do finitePlane 50 (Point3D 0 (-0.1) 0) (Vector3D 0 1 0)
+       pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
