@@ -56,7 +56,7 @@ consecutives n xs = let taken = take n xs
 loopedConsecutives :: Int -> [a] -> [[a]]
 loopedConsecutives n xs = consecutives n $ take (n + length xs - 1) $ cycle xs
 
--- dropRandomElements removes some elements of a list at random.  The first parameter is the number of elements out of 100 that should be included (not dropped).  
+-- dropRandomElements removes some elements of a list at random.  The first parameter is the number of elements out of 100 that should be included (not dropped).
 -- The second is the random number generator, and the third is the list to be operated on.
 
 dropRandomElements :: Int -> StdGen -> [a] -> [a]

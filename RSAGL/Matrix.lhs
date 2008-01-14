@@ -126,7 +126,7 @@ scaleMatrix (Vector3D x y z) = matrix [[x, 0, 0, 0],
 				       [0, 0, 0, 1]]
 \end{code}
 
-xyzMatrix constructs the matrix in which the x y and z axis are transformed to point in the direction of the specified
+\texttt{xyzMatrix} constructs the matrix in which the x y and z axis are transformed to point in the direction of the specified
 vectors.
 
 \begin{code}

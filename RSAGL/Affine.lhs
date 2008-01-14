@@ -11,6 +11,13 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 
 module RSAGL.Affine
     (AffineTransformable(..),
+     AffineTransformation,
+     AffineTransformationType,
+     affine_identity,
+     transformation,
+     inverseTransformation,
+     modelLookAt,
+     rotateAbout,
      WrappedAffine(..),wrapAffine,unwrapAffine)
     where
 
@@ -38,6 +45,31 @@ class AffineTransformable a where
     scale' x = RSAGL.Affine.scale (Vector3D x x x)
     inverseTransform :: RSAGL.Matrix.Matrix -> a -> a
     inverseTransform m = transform (matrixInverse m)
+
+newtype AffineTransformationType = AffineTransformationType RSAGL.Matrix.Matrix deriving (AffineTransformable)
+type AffineTransformation = AffineTransformationType -> AffineTransformationType
+
+affine_identity :: AffineTransformationType
+affine_identity = AffineTransformationType $ identityMatrix 4
+
+transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+transformation f = transform m
+    where AffineTransformationType m = f affine_identity
+
+inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+inverseTransformation f = inverseTransform m
+    where AffineTransformationType m = f affine_identity
+
+modelLookAt :: (AffineTransformable a) => Point3D -> Point3D -> Vector3D -> a -> a
+modelLookAt pos look_at upish = transform (xyzMatrix right up forward)
+    where forward = vectorNormalize $ vectorToFrom look_at pos
+          (up,right) = fixOrtho2 forward upish
+
+rotateAbout :: (AffineTransformable a) => Point3D -> Vector3D -> Angle -> a -> a
+rotateAbout center vector angle = 
+    RSAGL.Affine.translate (vectorToFrom center origin_point_3d) .
+    RSAGL.Affine.rotate vector angle .
+    RSAGL.Affine.translate (vectorToFrom origin_point_3d center)
 
 instance AffineTransformable a => AffineTransformable [a] where
     scale v = map (RSAGL.Affine.scale v)

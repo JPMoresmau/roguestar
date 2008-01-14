@@ -41,7 +41,6 @@ import RSAGL.Angle
 import RSAGL.Auxiliary
 import System.Random
 import RSAGL.AbstractVector
-
 \end{code}
 
 \subsection{Generic 3-dimensional types and operations}
@@ -233,7 +232,7 @@ fixOrtho :: Vector3D -> Vector3D -> Vector3D
 fixOrtho a = fst . fixOrtho2 a
 
 fixOrtho2 :: Vector3D -> Vector3D -> (Vector3D,Vector3D)
-fixOrtho2 a v = (crossProduct a (vectorScale (-1) b),b)
+fixOrtho2 a v = (vectorNormalize $ crossProduct a (vectorScale (-1) b),vectorNormalize $ b)
     where b = crossProduct a v
 
 orthos :: Vector3D -> (Vector3D,Vector3D)

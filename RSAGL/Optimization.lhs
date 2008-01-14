@@ -90,7 +90,7 @@ Estimate the relative size of a collection of surfaces and allocate complexity t
 \begin{code}
 allocateComplexity :: (ConcavityDetection p) => (p -> p -> Double) -> [(Surface p,Double)] -> Integer -> [Integer]
 allocateComplexity ruler surfaces n = 
-    let surface_areas = map (\s -> estimateSurfaceArea ruler (fst s) * snd s) surfaces -- (8,8) is arbitrary
+    let surface_areas = map (\s -> estimateSurfaceArea ruler (fst s) * snd s) surfaces
         half_alloc = n `div` 2
         constant_alloc = half_alloc `div` genericLength surfaces
         in map ((+ constant_alloc) . round) $ proportional (fromInteger half_alloc) surface_areas
@@ -100,12 +100,12 @@ lengthProportional ruler s n =
     let curve_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width s
         transpose_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width $ transposeSurface s
         base_width = max 2 $ floor $ sqrt $ fromInteger n
-        improved_width = max 2 $ round $ sum transpose_lengths / sum curve_lengths * realToFrac base_width
+        improved_width = max 5 $ round $ sqrt (sum transpose_lengths / sum curve_lengths) * realToFrac base_width
         roundOdd x = case floor x of
                           x' | even x' -> x' + 1
                           x' -> x'
-        in SurfaceConfiguration $ map (max 2 . roundOdd) $ proportional (fromInteger n) $ 
-               map (estimateCurveLength ruler ) $ halfIterateSurface improved_width s
+        in SurfaceConfiguration $ map (max 5 . roundOdd) $ proportional (fromInteger n) $ 
+               map (estimateCurveLength ruler) $ halfIterateSurface improved_width s
 
 proportional :: Double -> [Double] -> [Double]
 proportional total xs = map (* (total / sum xs)) xs

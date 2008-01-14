@@ -18,13 +18,17 @@ module RSAGL.Model
      splitOpaques,
      modelingToOpenGL,
      sphere,
-     disc,
+     torus,
+     openCone,
+     closedCone,
+     openDisc,
+     closedDisc,
      quadralateral,
      triangle,
      box,
-     finitePlane,
      adaptive,
      fixed,
+     twoSided,
      attribute,
      withAttribute,
      model,
@@ -47,7 +51,6 @@ import RSAGL.Material
 import RSAGL.Tesselation
 import RSAGL.Optimization
 import RSAGL.Interpolation
-import RSAGL.Matrix
 import RSAGL.Affine
 import RSAGL.Angle
 import RSAGL.Color
@@ -82,7 +85,7 @@ type Model attr = [ModeledSurface attr]
 data ModeledSurface attr = ModeledSurface {
     ms_surface :: Surface SurfaceVertex3D,
     ms_material :: Material,
-    ms_affine_transform :: Maybe Matrix,
+    ms_affine_transform :: Maybe AffineTransformation,
     ms_tesselation :: Maybe ModelTesselation,
     ms_tesselation_hint_complexity :: Integer,
     ms_two_sided :: Bool,
@@ -159,10 +162,10 @@ fixed :: (Integer,Integer) -> Modeling attr
 fixed x = modify (map $ \m -> m { ms_tesselation = ms_tesselation m `mplus` (Just $ Fixed x) })
 
 instance AffineTransformable (Modeling attr) where
-    transform mx m = m >> affine (transform mx)
+    transform mx m = model $ m >> affine (transform mx)
 
-affine :: (forall a. (AffineTransformable a) => a -> a) -> Modeling attr
-affine f = modify $ map (\x -> x { ms_affine_transform = Just $ f $ fromMaybe (identityMatrix 4) $ ms_affine_transform x })
+affine :: AffineTransformation -> Modeling attr
+affine f = modify $ map (\x -> x { ms_affine_transform = Just $ (f .) $ fromMaybe id $ ms_affine_transform x })
 
 deform :: (DeformationClass dc) => dc -> Modeling attr
 deform dc = 
@@ -175,7 +178,7 @@ deform dc =
 finishModeling :: Modeling attr
 finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
     where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v) -> SurfaceVertex3D p (vectorNormalize v)) $
-                                                     transform (fromJust $ ms_affine_transform m) (ms_surface m),
+                                                     transformation (fromJust $ ms_affine_transform m) (ms_surface m),
                                ms_affine_transform = Nothing }
 \end{code}
 
@@ -187,6 +190,14 @@ sphericalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,f
 
 cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
 cylindricalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
+
+toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
+toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
+
+planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double)) -> Surface (Point3D,Vector3D)
+planarCoordinates center up f = surface (curry $ g . f)
+    where (u',v') = orthos up
+          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, up)
 \end{code}
 
 \subsection{Simple Geometric Shapes}
@@ -207,18 +218,54 @@ sphere (Point3D x y z) radius = model $ do
                                   (sinev)
                                   (cosinev * sineu)
                 in (point,vector))
-    tesselationHintComplexity 2
 
-disc :: (Monoid attr) => Double -> Double -> Modeling attr
-disc inner_radius outer_radius = model $ 
+torus :: (Monoid attr) => Double -> Double -> Modeling attr
+torus major minor = model $
     do generalSurface $ Right $
-        cylindricalCoordinates $ (\(u,v) -> 
+        toroidalCoordinates $ \(u,v) ->
+            (Point3D ((major + minor * cosine v) * cosine u)
+                     (minor * sine v)
+                     ((major + minor * cosine v) * sine u),
+             Vector3D (cosine v * cosine u)
+                      (minor * sine v)
+                      (cosine v * sine u))
+       tesselationHintComplexity $ round $ major / minor
+
+openCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
+openCone (a,a_radius) (b,b_radius) = model $
+    do generalSurface $ Right $
+           cylindricalCoordinates $ \(u,v) ->
+               let uv' = vectorScale (cosine u) u' `vectorAdd` vectorScale (sine u) v'
+                   in (translate (vectorScale (lerp v (a_radius,b_radius)) uv') $ lerp v (a,b),
+                       vectorNormalize $ vectorScale slope axis `vectorAdd` uv')
+           where (u',v') = orthos axis
+                 axis = vectorNormalize $ vectorToFrom b a
+                 slope = (b_radius - a_radius) / distanceBetween a b
+
+openDisc :: (Monoid attr) => Double -> Double -> Modeling attr
+openDisc inner_radius outer_radius = model $ 
+    do generalSurface $ Right $
+        cylindricalCoordinates $ \(u,v) -> 
              (Point3D (lerp v (inner_radius,outer_radius) * cosine u)
                       0
                       (lerp v (inner_radius,outer_radius) * sine u),
-              Vector3D 0 1 0))
+              Vector3D 0 1 0)
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
-       twoSided True
+
+closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+closedDisc center up radius = model $
+    do generalSurface $ Right $ planarCoordinates center up $ \(u,v) ->
+           let (u',v') = (2 * (u-0.5),2 * (v-0.5))
+               k = min (recip $ abs u') (recip $ abs v')
+               (u_square,v_square) = (k*u',k*v')
+               x = (sqrt 2) / (sqrt $ u_square^2 + v_square^2)
+               in if u' == 0 && v' == 0 then (0,0) else (radius*x*u',radius*x*v')
+
+closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
+closedCone a b = model $
+    do openCone a b
+       closedDisc (fst a) (vectorToFrom (fst a) (fst b)) (snd a * (1 + recip (2^8)))
+       closedDisc (fst b) (vectorToFrom (fst b) (fst a)) (snd b * (1 + recip (2^8)))
 
 quadralateral :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Point3D -> Modeling attr
 quadralateral a b c d = model $ 
@@ -235,17 +282,14 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
     do let [lx,hx] = sort [x1,x2]
        let [ly,hy] = sort [y1,y2]
        let [lz,hz] = sort [z1,z2]
-       quadralateral (Point3D lx ly lz) (Point3D lx hy lz) (Point3D hx hy lz) (Point3D hx ly lz)  -- near
-       quadralateral (Point3D lx ly hz) (Point3D hx ly hz) (Point3D hx hy hz) (Point3D lx hy hz)  -- far
-       quadralateral (Point3D lx ly lz) (Point3D hx ly lz) (Point3D hx ly hz) (Point3D lx ly hz)  -- bottom
-       quadralateral (Point3D lx hy lz) (Point3D lx hy hz) (Point3D hx hy hz) (Point3D hx hy lz)  -- top
-       quadralateral (Point3D lx ly lz) (Point3D lx ly hz) (Point3D lx hy hz) (Point3D lx hy lz)  -- left
-       quadralateral (Point3D hx ly lz) (Point3D hx hy lz) (Point3D hx hy hz) (Point3D hx ly hz)  -- right
-       fixed (10,10)
-
-finitePlane :: (Monoid attr) => Double -> Point3D -> Vector3D -> Modeling attr
-finitePlane s p n = generalSurface $ Right $ surface $ \u v -> (translate (vectorScale (s*(u-0.5)) u' `vectorAdd` vectorScale (s*(v-0.5)) v') p,n)
-    where (u',v') = orthos n
+       let u = minimum [hx-lx,hy-ly,hz-lz] / 2^8
+       let (lx',ly',lz',hx',hy',hz') = (lx-u,ly-u,lz-u,hx+u,hy+u,hz+u)
+       quadralateral (Point3D lx' ly' lz) (Point3D lx' hy' lz) (Point3D hx' hy' lz) (Point3D hx' ly' lz)  -- near
+       quadralateral (Point3D lx' ly' hz) (Point3D hx' ly' hz) (Point3D hx' hy' hz) (Point3D lx' hy' hz)  -- far
+       quadralateral (Point3D lx' ly lz') (Point3D hx' ly lz') (Point3D hx' ly hz') (Point3D lx' ly hz')  -- bottom
+       quadralateral (Point3D lx' hy lz') (Point3D lx' hy hz') (Point3D hx' hy hz') (Point3D hx' hy lz')  -- top
+       quadralateral (Point3D lx ly' lz') (Point3D lx ly' hz') (Point3D lx hy' hz') (Point3D lx hy' lz')  -- left
+       quadralateral (Point3D hx ly' lz') (Point3D hx hy' lz') (Point3D hx hy' hz') (Point3D hx ly' hz')  -- right
 \end{code}
 
 \subsection{Rendering Models to OpenGL}

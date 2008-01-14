@@ -34,7 +34,7 @@ import Debug.Trace
 import RSAGL.ModelingExtras
 
 test_quality :: Integer
-test_quality = 2^13
+test_quality = 2^14
 
 moon_orbital_animation :: AniA i o IntermediateModel (CSN Point3D)
 moon_orbital_animation =
@@ -47,32 +47,39 @@ moon_orbital_animation =
 testScene :: IO (AniM ((),Camera))
 testScene = 
     do bottleneck <- newBottleneck
-       qo_planet <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel planet) $ iterate (*2) 64
-       qo_ring <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ring) $ iterate (*2) 32
-       qo_moon <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel moon) $ iterate (*2) 32
-       qo_ground <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel ground) $ iterate (*2) 16
-       qo_monolith <- newQuality bottleneck parIntermediateModel (flip toIntermediateModel monolith) $ iterate (*2) 32
+       let newQO im = newQuality bottleneck parIntermediateModel (flip toIntermediateModel im) $ iterate (*2) 64
+       qo_planet <- newQO planet
+       qo_ring <- newQO ring
+       qo_moon <- newQO moon
+       qo_ground <- newQO ground
+       qo_monolith <- newQO monolith
+       qo_station <- newQO station
        ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
        return $ 
            do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
-              planet_obj <- liftIO $ getQuality qo_planet (test_quality * 2)
+              rotation_station <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 5)
+              rotation_camera <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 3)
+              planet_obj <- liftIO $ getQuality qo_planet test_quality
               ring_obj <- liftIO $ getQuality qo_ring test_quality
-              moon_obj <- liftIO $ getQuality qo_moon (test_quality `div` 4)
-              ground_obj <- liftIO $ getQuality qo_ground (test_quality `div` 8)
-              monolith_obj <- liftIO $ getQuality qo_monolith (test_quality `div` 16)
+              moon_obj <- liftIO $ getQuality qo_moon test_quality
+              ground_obj <- liftIO $ getQuality qo_ground test_quality
+              monolith_obj <- liftIO $ getQuality qo_monolith test_quality
+              station_obj <- liftIO $ getQuality qo_station test_quality
               accumulateSceneM Local $ sceneObject ground_obj
               accumulateSceneM Local $ sceneObject monolith_obj
               accumulateSceneM Local $ lightSource $ PointLight (Point3D (-1.5) 2 (-8))
                                                                 (measure (Point3D (-1.5) 2 (-8)) (Point3D 0 0 0))
                                                                 (gray 0.5) (gray 0.5)
+              transformM (Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
+                  accumulateSceneM Infinite $ sceneObject station_obj
               transformM (Affine.translate (Vector3D 0 1 6)) $ 
                   do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject planet_obj
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
                      accumulateSceneM Infinite $ sceneObject ring_obj
                      runAnimationObject ao_moon_orbit moon_obj
-              return ((),PerspectiveCamera (Point3D 1 2 (-8))
-                                           (Point3D 0 2 6)
+              return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 1 2 (-8))
+                                           (Point3D 0 2.5 2)
                                            (Vector3D 0 1 0)
                                            (fromDegrees 45))
 

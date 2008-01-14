@@ -50,22 +50,13 @@ A \texttt{CoordinateSystem} is the context by which coordinate system neutral da
 All \texttt{CoordinateSystems} are affine transformations of the \texttt{root_coordinate_system}.
 
 \begin{code}
-type AffineTransformation = CoordinateSystem -> CoordinateSystem
 data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
 
 instance AffineTransformable CoordinateSystem where
-    transform m (CoordinateSystem mat) = CoordinateSystem $ transform mat m
+    transform m (CoordinateSystem mat) = CoordinateSystem $ matrixMultiply mat m
 
 migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
 migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
-
-transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-transformation csf = transform m
-    where CoordinateSystem m = csf root_coordinate_system
-
-inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-inverseTransformation csf = inverseTransform m
-    where CoordinateSystem m = csf root_coordinate_system
 
 class CoordinateSystemClass csc where
     getCoordinateSystem :: csc -> CoordinateSystem
@@ -136,7 +127,7 @@ remoteA = proc (context,f,a) ->
 transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => AffineTransformation -> m a -> m a
 transformM affine_transformation action =
     do s <- liftM getCoordinateSystem get
-       modify (storeCoordinateSystem (affine_transformation s))
+       modify (storeCoordinateSystem (transformation affine_transformation s))
        a <- action
        modify (storeCoordinateSystem s)
        return a
@@ -144,7 +135,7 @@ transformM affine_transformation action =
 transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (AffineTransformation,a) b
 transformA action = proc (affine_transformation,a) ->
     do s <- fetch -< ()
-       store -< storeCoordinateSystem (affine_transformation $ getCoordinateSystem s) s
+       store -< storeCoordinateSystem (transformation affine_transformation $ getCoordinateSystem s) s
        b <- action -< a
        s' <- fetch -< ()
        store -< storeCoordinateSystem (getCoordinateSystem s) s'

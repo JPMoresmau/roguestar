@@ -8,11 +8,13 @@ module RSAGL.ModelingExtras
     (gray,
      gray256,
      smoothbox,
+     rotationGroup,
      glass,
      plastic,
      metallic,
      pattern,
      cloudy,
+     blinkBoxes,
      spherical,
      directional,
      gradient,
@@ -36,6 +38,8 @@ import RSAGL.Model
 import System.Random
 import RSAGL.Interpolation
 import Data.Monoid
+import RSAGL.Auxiliary
+import RSAGL.Angle
 \end{code}
 
 \subsection{Colors}
@@ -54,7 +58,7 @@ gray256 x = rgb256 x x x
 
 \subsection{Models}
 
-There are currently no extra models.
+\texttt{smoothbox} is a box that takes an extra smoothing parameter between 0 and 1.  This box doesn't have perfectly flat normals, and may therefore be a little easier on the eye.
 
 \begin{code}
 smoothbox :: (Monoid attr) => Double -> Point3D -> Point3D -> Modeling attr
@@ -62,6 +66,13 @@ smoothbox u p q = model $
     do box p q
        deform $ \(SurfaceVertex3D point vector) -> SurfaceVertex3D point $ vectorNormalize $ lerp u (vector,vectorNormalize $ vectorToFrom p midpoint)
         where midpoint = lerp 0.5 (p,q)
+\end{code}
+
+\texttt{rotationGroup} rotates a model repeatedly.
+
+\begin{code}
+rotationGroup :: (Monoid attr) => Vector3D -> Integer -> Modeling attr -> [Modeling attr]
+rotationGroup v n m = map (flip (rotate v) m . fromRotations) $ zeroToOne n
 \end{code}
 
 \subsection{Patterns}
@@ -81,6 +92,13 @@ cloudy :: Int -> Double -> Pattern
 cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) * 0.5 + 0.5
     where frequency = recip wave_length
           offset = vectorNormalize $ fst $ randomXYZ (-1000.0*wave_length,1000.0*wave_length) (mkStdGen seed)
+
+blinkBoxes :: Int -> Double -> Double -> Double -> Pattern
+blinkBoxes seed box_size chaos threshold = thresholdF . cloudy seed (recip chaos) . toLatticeCoordinates
+    where thresholdF u = if u > threshold then 1.0 else 0.0
+          toLatticeCoordinates (SurfaceVertex3D (Point3D x y z) v) = 
+              SurfaceVertex3D (Point3D (to1LatticeCoordinate x) (to1LatticeCoordinate y) (to1LatticeCoordinate z)) v
+          to1LatticeCoordinate u = realToFrac $ round $ u/box_size
 
 spherical :: Point3D -> Double -> Pattern
 spherical center radius (SurfaceVertex3D p _) = distanceBetween center p / radius

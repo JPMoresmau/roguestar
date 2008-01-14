@@ -8,6 +8,7 @@ module RSAGL.Angle
     (Angle,
      fromDegrees,
      fromRadians,
+     fromRotations,
      sine,
      arcSine,
      cosine,
@@ -18,6 +19,8 @@ module RSAGL.Angle
      toRadians_,
      toDegrees,
      toDegrees_,
+     toRotations,
+     toRotations_,
      scaleAngle,
      zero_angle,
      angularIncrements,
@@ -68,6 +71,9 @@ fromRadians = Radians
 
 fromDegrees :: Double -> Angle
 fromDegrees = Radians . ((*) (pi/180))
+
+fromRotations :: Double -> Angle
+fromRotations = Radians . ((*) (2*pi))
 \end{code}
 
 \texttt{toDegrees} answers the angle in the range of -180 to 180, inclusive.
@@ -94,6 +100,19 @@ toRadians x = let (Radians x') = toBoundedAngle x
 
 toRadians_ :: Angle -> Double
 toRadians_ (Radians x) = x
+\end{code}
+
+\texttt{toRotations} answers the angle in the range of -0.5 to 0.5, inclusive.
+
+\texttt{toRotations\_} answers the angle in rotations with no range limitation.
+
+\begin{code}
+toRotations :: Angle -> Double
+toRotations x= let x' = toRadians x
+                   in x' / pi / 2
+
+toRotations_ :: Angle -> Double
+toRotations_ (Radians x) = x / pi / 2
 \end{code}
 
 \subsection{Manipulating Angular values}

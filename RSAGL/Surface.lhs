@@ -32,7 +32,7 @@ import Control.Applicative
 data Surface a = Surface (Curve (Curve a)) (Curve (Curve a))
 
 surface :: (Double -> Double -> a) -> Surface a
-surface f = Surface (curve (curve . flip f)) (curve $ (curve . f))
+surface f = Surface (curve (curve . flip f)) (curve (curve . (f . (1-))))
 
 iterateSurface :: (Integer,Integer) -> Surface a -> [[a]]
 iterateSurface (u,v) (Surface s _) = map (iterateCurve u) $ iterateCurve v s
