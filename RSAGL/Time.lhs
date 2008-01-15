@@ -7,7 +7,7 @@ quantities of time.
 This time library is designed to support real-time animation.
 
 \begin{code}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances, GeneralizedNewtypeDeriving #-}
 
 module RSAGL.Time
     (Time,
