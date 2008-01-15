@@ -28,6 +28,7 @@ module RSAGL.Model
      box,
      adaptive,
      fixed,
+     tesselationHintComplexity,
      twoSided,
      attribute,
      withAttribute,
@@ -37,7 +38,11 @@ module RSAGL.Model
      affine,
      deform,
      sphericalCoordinates,
-     cylindricalCoordinates)
+     cylindricalCoordinates,
+     toroidalCoordinates,
+     planarCoordinates,
+     transformUnitCubeToUnitSphere,
+     transformUnitSquareToUnitCircle)
     where
 
 import RSAGL.Auxiliary
@@ -65,6 +70,7 @@ import Graphics.Rendering.OpenGL.GL.BasicTypes
 import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
 import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
 import Graphics.Rendering.OpenGL.GL.Polygons
+import Control.Arrow hiding (pure)
 \end{code}
 
 \subsection{Modeling Primitives}
@@ -198,6 +204,17 @@ planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double))
 planarCoordinates center up f = surface (curry $ g . f)
     where (u',v') = orthos up
           g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, up)
+
+transformUnitSquareToUnitCircle :: (Double,Double) -> (Double,Double)
+transformUnitSquareToUnitCircle (u,v) = (x,z)
+    where (Point3D x _ z) = transformUnitCubeToUnitSphere (Point3D u 0.5 v)
+
+transformUnitCubeToUnitSphere :: Point3D -> Point3D
+transformUnitCubeToUnitSphere p =
+    let p_centered@(Point3D x y z) = scale' 2.0 $ translate (Vector3D (-0.5) (-0.5) (-0.5)) p
+        p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
+        k = recip $ distanceBetween origin_point_3d p_projected
+        in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
 \end{code}
 
 \subsection{Simple Geometric Shapes}
@@ -254,12 +271,7 @@ openDisc inner_radius outer_radius = model $
 
 closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 closedDisc center up radius = model $
-    do generalSurface $ Right $ planarCoordinates center up $ \(u,v) ->
-           let (u',v') = (2 * (u-0.5),2 * (v-0.5))
-               k = min (recip $ abs u') (recip $ abs v')
-               (u_square,v_square) = (k*u',k*v')
-               x = (sqrt 2) / (sqrt $ u_square^2 + v_square^2)
-               in if u' == 0 && v' == 0 then (0,0) else (radius*x*u',radius*x*v')
+    do generalSurface $ Right $ planarCoordinates center up (((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle)
 
 closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
 closedCone a b = model $
@@ -311,10 +323,8 @@ toIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
 toIntermediateModel n modeling = IntermediateModel $ zipWith intermediateModeledSurface complexities ms
     where complexities = allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
           ms = extractModel (modeling >> finishModeling)
-          extraComplexity m = (1 + normalSurfaceArea (ms_surface m)) * 
-                              (1 + fromInteger (ms_tesselation_hint_complexity m)) * 
+          extraComplexity m = (1 + fromInteger (ms_tesselation_hint_complexity m)) * 
                               (1 + fromInteger (materialComplexity $ ms_material m))
-          normalSurfaceArea = estimateSurfaceArea sv3d_normal_ruler
 
 intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
 intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface layers two_sided) = 
@@ -394,12 +404,15 @@ instance Bound3D IntermediateModeledSurface where
 
 \begin{code}
 sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
-sv3d_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
+sv3d_ruler a b = sv3d_distance_ruler a b * (1.0 + sv3d_normal_ruler a b)
+
+sv3d_distance_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_distance_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
     distanceBetween p1 p2
 
 sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
 sv3d_normal_ruler (SurfaceVertex3D _ v1) (SurfaceVertex3D _ v2) =
-    distanceBetween v1 v2
+    abs $ toRotations $ angleBetween v1 v2
 
 msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
 msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2 _) =
