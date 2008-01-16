@@ -95,7 +95,7 @@ display_mode = [RGBAMode,
 		DoubleBuffered]
 
 timer_callback_millis :: Int
-timer_callback_millis = 16
+timer_callback_millis = 25
 
 displayModel :: IO ()
 displayModel =
@@ -130,7 +130,8 @@ rsaglDisplayCallback counter aniM =
        errs <- (get errors)
        when (not $ null errs) $ print $ show errs
        frames <- readIORef counter
-       when (frames >= 10000) $ exitWith ExitSuccess
+       when (frames `mod` 200 == 0) $ putStrLn $ "frames: " ++ show frames
+       when (frames >= 2000) $ exitWith ExitSuccess
 
 rsaglTimerCallback :: Window -> IO ()
 rsaglTimerCallback window = 
