@@ -15,8 +15,8 @@ import Data.Maybe
 import Data.Monoid
 import Control.Applicative
 import RSAGL.Color
+import RSAGL.Curve
 import RSAGL.ApplicativeWrapper
-import RSAGL.Surface
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.Colors
 import Graphics.Rendering.OpenGL.GL.StateVar
@@ -30,7 +30,7 @@ import Graphics.Rendering.OpenGL.GL.PerFragment
 A \texttt{MaterialLayer} is a layer of material some material quality (diffuse, transparent, emissive, or specular highlight).  MaterialLayers are rendered one on top of another to create layered effects.
 
 \begin{code}
-type MaterialSurface = ApplicativeWrapper Surface
+type MaterialSurface a = ApplicativeWrapper Surface a
 
 data MaterialLayer =
     DiffuseLayer (MaterialSurface RGB)

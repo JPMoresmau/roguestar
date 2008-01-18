@@ -7,6 +7,7 @@ doc :
 tests: rsagl-tests rsagl-modelview
 
 rsagl-tests :
+	-rm -f rsagl-modelview.tix
 	ghc -fhpc -prof -auto-all -Wall -Werror -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests
 
 optimized : rsagl-tests-optimized rsagl-modelview-optimized
@@ -15,6 +16,7 @@ rsagl-tests-optimized :
 	ghc -threaded -Wall -fno-warn-type-defaults -O2 --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
 
 rsagl-modelview:
+	-rm -f rsagl-modelview.tix
 	ghc -fhpc -prof -auto-all -lglut -Wall -Werror -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
 
 rsagl-modelview-optimized:

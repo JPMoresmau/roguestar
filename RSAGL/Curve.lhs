@@ -4,24 +4,41 @@ A curve is a one-dimensional figure in an arbitrary space.  The Curve typeclass 
 it can be rendered iteratively in OpenGL.  The Differentiable typeclass allows a Curve to be transformed into its derivative.
 
 \begin{code}
-
-{-# OPTIONS_GHC -fglasgow-exts -fallow-undecidable-instances #-}
-
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module RSAGL.Curve
     (Curve,
      zipCurve,
      iterateCurve,
+     transposeCurve,
      curve,
-     CurveDifferentiable,
-     curveDerivative)
+     Surface,
+     surface,
+     wrapSurface,
+     unwrapSurface,
+     pretransformCurve,
+     pretransformCurve2,
+     transposeSurface,
+     zipSurface,
+     iterateSurface,
+     halfIterateSurface,
+     pretransformSurface,
+     flipTransposeSurface,
+     uv_identity,
+     surfaceDerivative,
+     curveDerivative,
+     curveDerivative3D,
+     surfaceDerivative3D,
+     surfaceNormals3D)
     where
 
+import Control.Arrow hiding (pure)
 import RSAGL.Vector
 import RSAGL.Auxiliary
 import RSAGL.Affine
 import Data.List
 import Control.Parallel.Strategies
 import Control.Applicative
+import RSAGL.AbstractVector
 \end{code}
 
 \subsection{The Curve}
@@ -33,18 +50,15 @@ We also allow two curves to be zipped together.
 We can take the derivative of a curve an arbitrary number of times, but this will run up against the precision of the underlying data types, including Double.
 
 \begin{code}
-data Curve a =
-    Curve (Double -> a)
-  | forall p. Derivative (p -> p -> a) (Double -> p -> p) (Curve p)
-  | forall x y. Zip (x -> y -> a) (Curve x) (Curve y)
+type CurveF a = (Double,Double) -> a
+type SurfaceF a = CurveF (CurveF a)
+newtype Curve a = Curve { fromCurve :: CurveF a }
 
 instance Functor Curve where
-    fmap f (Curve c) = Curve $ f . c
-    fmap f (Derivative sub sca c) = Derivative (\x y -> f $ sub x y) sca c
-    fmap f (Zip g c1 c2) = Zip (\x y -> f $ g x y) c1 c2
+   fmap g (Curve f) = Curve $ g . f
 
 instance Applicative Curve where
-    pure a = curve $ const a
+    pure a = Curve $ const a
     f <*> a = zipCurve ($) f a
 
 instance (AffineTransformable a) => AffineTransformable (Curve a) where
@@ -55,50 +69,95 @@ instance (AffineTransformable a) => AffineTransformable (Curve a) where
 
 instance NFData (Curve a) where
     rnf (Curve f) = seq f ()
-    rnf (Derivative sub sca src) = sub `seq` sca `seq` rnf src
-    rnf (Zip f x y) = f `seq` rnf (x,y)
 
-zipCurve :: (x -> y -> z) -> Curve x -> Curve y -> Curve z
-zipCurve f (Curve x) (Curve y) = Curve $ (\n -> f (x n) (y n))
-zipCurve f x y = Zip f x y
+sampleCurve :: Curve a -> Double -> Double -> a
+sampleCurve (Curve f) = curry f
 
 iterateCurve :: Integer -> Curve x -> [x]
-iterateCurve n (Curve f) = map f $ zeroToOne n
-iterateCurve n d@(Derivative {}) = map (\u -> sampleCurve u (0.25/fromInteger n) d) $ zeroToOne n
-iterateCurve n (Zip f x y) = zipWith f (iterateCurve n x) (iterateCurve n y)
+iterateCurve n c = map f $ zeroToOne n
+    where f = sampleCurve c (0.25/fromInteger n)
 
-sampleCurve :: Double -> Double -> Curve x -> x
-sampleCurve at _ (Curve f) = f at
-sampleCurve at precision (Derivative sub sca src) =
-    (sca (0.5/precision) $ sampleCurve (at+precision) (precision/2) src) `sub`
-    (sca (0.5/precision) $ sampleCurve (at-precision) (precision/2) src)
-sampleCurve at precision (Zip f x y) = f (sampleCurve at precision x) (sampleCurve at precision y)
+zipCurve :: (x -> y -> z) -> Curve x -> Curve y -> Curve z
+zipCurve f (Curve x) (Curve y) = Curve $ \hu -> f (x hu) (y hu)
+
+mapCurve :: (CurveF a -> CurveF a) -> Curve a -> Curve a
+mapCurve f = Curve . f . fromCurve
+
+mapCurve2 :: (SurfaceF a -> SurfaceF a) -> Curve (Curve a) -> Curve (Curve a)
+mapCurve2 f = Curve . (Curve .) . f . (fromCurve .) . fromCurve
+
+pretransformCurve :: (Double -> Double) -> Curve a -> Curve a
+pretransformCurve g = mapCurve (\f (h,u) -> f (h,g u))
+
+pretransformCurve2 :: (Double -> Double) -> (Double -> Double) -> Curve (Curve a) -> Curve (Curve a)
+pretransformCurve2 fx fy = mapCurve2 $ (\f x y -> f (second fx x) (second fy y))
+
+transposeCurve :: Curve (Curve a) -> Curve (Curve a)
+transposeCurve = mapCurve2 flip
 
 curve :: (Double -> a) -> Curve a
-curve = Curve
+curve = Curve . uncurry . const
+\end{code}
+
+\subsection{Surfaces}
+
+\begin{code}
+newtype Surface a = Surface (Curve (Curve a)) deriving (NFData,AffineTransformable)
+
+surface :: (Double -> Double -> a) -> Surface a
+surface f = Surface $ curve (\x -> curve $ flip f x)
+
+wrapSurface :: Curve (Curve a) -> Surface a
+wrapSurface = Surface
+
+unwrapSurface :: Surface a -> Curve (Curve a)
+unwrapSurface (Surface s) = s
+
+transposeSurface :: Surface a -> Surface a
+transposeSurface (Surface s) = Surface $ transposeCurve s
+
+iterateSurface :: (Integer,Integer) -> Surface a -> [[a]]
+iterateSurface (u,v) (Surface s) = map (iterateCurve u) $ iterateCurve v s
+
+halfIterateSurface :: Integer -> Surface a -> [Curve a]
+halfIterateSurface u = iterateCurve u . unwrapSurface
+
+instance Functor Surface where
+    fmap f (Surface x) = Surface $ fmap (fmap f) x
+
+instance Applicative Surface where
+    pure a = surface (const $ const a)
+    f <*> a = zipSurface ($) f a
+
+zipSurface :: (x -> y -> z) -> Surface x -> Surface y -> Surface z
+zipSurface f (Surface x) (Surface y) = Surface $ zipCurve (zipCurve f) x y
+
+pretransformSurface :: (Double -> Double) -> (Double -> Double) -> Surface a -> Surface a
+pretransformSurface fx fy = Surface . pretransformCurve2 fx fy . unwrapSurface
+
+flipTransposeSurface :: Surface a -> Surface a
+flipTransposeSurface = pretransformSurface id (1-) . transposeSurface
+
+uv_identity :: Surface (Double,Double)
+uv_identity = surface (curry id)
 \end{code}
 
 \subsection{Taking the Derivative of a Curve}
 
-If a type implements \texttt{CurveDifferentiable}, then we can use the \texttt{curveDerivative} function to take the derivative of a curve of that type.
-
 \begin{code}
-class CurveDifferentiable p v | p -> v where
-    differentiableSubtract :: p -> p -> v
-    differentiableScale :: Double -> p -> p
+curveDerivative :: (AbstractVector v) => Curve v -> Curve v
+curveDerivative (Curve f) = Curve $ \(h,u) -> scalarMultiply (recip $ 2 * h) $ f (h/2,u+h) `sub` f (h/2,u-h)
 
-instance CurveDifferentiable Double Double where
-    differentiableSubtract = (-)
-    differentiableScale = (*)
+surfaceDerivative :: (AbstractVector v) => Surface v -> Surface (v,v)
+surfaceDerivative s = zipSurface (,) (curvewiseDerivative s) (transposeSurface $ curvewiseDerivative $ transposeSurface s)
+    where curvewiseDerivative (Surface t) = Surface $ fmap curveDerivative t
 
-instance CurveDifferentiable Point3D Vector3D where
-    differentiableSubtract = vectorToFrom
-    differentiableScale = scale'
+curveDerivative3D :: Curve Point3D -> Curve Vector3D
+curveDerivative3D = curveDerivative . fmap (`vectorToFrom` origin_point_3d)
 
-instance (CurveDifferentiable p v) => CurveDifferentiable (Curve p) (Curve v) where
-    differentiableSubtract x y = zipCurve (differentiableSubtract) x y
-    differentiableScale x c = fmap (differentiableScale x) c
+surfaceDerivative3D :: Surface Point3D -> Surface (Vector3D,Vector3D)
+surfaceDerivative3D = surfaceDerivative . fmap (`vectorToFrom` origin_point_3d)
 
-curveDerivative :: (CurveDifferentiable p v) => Curve p -> Curve v
-curveDerivative c = Derivative differentiableSubtract differentiableScale c
+surfaceNormals3D :: Surface Point3D -> Surface SurfaceVertex3D
+surfaceNormals3D s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative3D s)
 \end{code}

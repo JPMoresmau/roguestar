@@ -48,12 +48,19 @@ testScene :: IO (AniM ((),Camera))
 testScene = 
     do bottleneck <- newBottleneck
        let newQO im = newQuality bottleneck parIntermediateModel (flip toIntermediateModel im) $ iterate (*2) 64
+       putStrLn "loading planet..."
        qo_planet <- newQO planet
+       putStrLn "loading ring..."
        qo_ring <- newQO ring
+       putStrLn "loading moon..."
        qo_moon <- newQO moon
+       putStrLn "loading ground..."
        qo_ground <- newQO ground
+       putStrLn "loading monolith..."
        qo_monolith <- newQO monolith
+       putStrLn "loading station..."
        qo_station <- newQO station
+       putStrLn "done."
        ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
        return $ 
            do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)

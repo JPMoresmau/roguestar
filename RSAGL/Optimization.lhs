@@ -8,7 +8,6 @@ module RSAGL.Optimization
     where
 
 import RSAGL.Auxiliary
-import RSAGL.Surface
 import RSAGL.Curve
 import Data.List as List
 import RSAGL.Tesselation
@@ -37,9 +36,9 @@ optimizeSurface :: (ConcavityDetection a) => (a -> a -> Double) -> Surface a -> 
 optimizeSurface ruler s max_vertices =
               if score ordinary >= score transposed
               then tesselateSurfaceConfiguration s ordinary
-              else tesselateSurfaceConfiguration (transposeSurface s) transposed
+              else tesselateSurfaceConfiguration (flipTransposeSurface s) transposed
     where ordinary = lengthProportional ruler s max_vertices
-          transposed = lengthProportional ruler (transposeSurface s) max_vertices
+          transposed = lengthProportional ruler (flipTransposeSurface s) max_vertices
           score :: SurfaceConfiguration -> Double
           score (SurfaceConfiguration ielems) = 
               let elems = map fromIntegral ielems
@@ -60,7 +59,7 @@ estimateCurveLength :: (a -> a -> Double) -> Curve a -> Double
 estimateCurveLength ruler c = sum $ map (uncurry ruler) $ doubles $ iterateCurve 16 c -- 16 is arbitrary
 
 estimateSurfaceArea :: (ConcavityDetection a) => (a -> a -> Double) -> Surface a -> Double
-estimateSurfaceArea ruler s = snd $ head $ dropWhile (\(x,y) -> y > x*1.5) $ doubles surface_areas_at_increasing_levels_of_detail
+estimateSurfaceArea ruler s = snd $ head $ dropWhile (\(x,y) -> y > x*1.125) $ doubles surface_areas_at_increasing_levels_of_detail
     where surface_areas_at_increasing_levels_of_detail = map (\d -> estimateTesselatedSurfaceArea ruler $ tesselateSurface s (d,d)) $ iterate (*2) 4
 
 estimateTesselatedSurfaceArea :: (a -> a -> Double) -> TesselatedSurface a -> Double
@@ -98,7 +97,7 @@ allocateComplexity ruler surfaces n =
 lengthProportional :: (p -> p -> Double) -> Surface p -> Integer -> SurfaceConfiguration
 lengthProportional ruler s n =
     let curve_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width s
-        transpose_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width $ transposeSurface s
+        transpose_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width $ flipTransposeSurface s
         base_width = max 2 $ floor $ sqrt $ fromInteger n
         improved_width = max 5 $ round $ sqrt (sum transpose_lengths / sum curve_lengths) * realToFrac base_width
         roundOdd x = case floor x of

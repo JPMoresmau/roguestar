@@ -72,10 +72,11 @@ station = model $
           rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees 50) window_box,
           rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees (-50)) window_box]
             where window_box = model $
-                      do quadralateral (Point3D 0.51 (-0.101) 0.03) (Point3D 0.49 (-0.101) 0.03)
-                                       (Point3D 0.49 (-0.101) (-0.03)) (Point3D 0.51 (-0.101) (-0.03))
-                         quadralateral (Point3D 0.51 0.101 (-0.03)) (Point3D 0.49 0.101 (-0.03))
-                                       (Point3D 0.49 0.101 0.03) (Point3D 0.51 0.101 0.03)
+                      do quadralateral (Point3D 0.51 (-0.105) 0.03) (Point3D 0.49 (-0.105) 0.03)
+                                       (Point3D 0.49 (-0.105) (-0.03)) (Point3D 0.51 (-0.105) (-0.03))
+                         quadralateral (Point3D 0.51 0.105 (-0.03)) (Point3D 0.49 0.105 (-0.03))
+                                       (Point3D 0.49 0.105 0.03) (Point3D 0.51 0.105 0.03)
                          pigment $ pure black
                          emissive $ pure white
                          tesselationHintComplexity 0
+                         fixed (3,3)

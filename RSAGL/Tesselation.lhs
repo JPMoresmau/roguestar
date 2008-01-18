@@ -11,9 +11,9 @@ module RSAGL.Tesselation
      ConcavityDetection(..))
     where
 
+import RSAGL.Curve
 import RSAGL.Vector
 import RSAGL.Auxiliary
-import RSAGL.Surface
 import RSAGL.Affine
 import RSAGL.BoundingBox
 import Data.List

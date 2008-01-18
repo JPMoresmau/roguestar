@@ -45,13 +45,13 @@ module RSAGL.Model
      transformUnitSquareToUnitCircle)
     where
 
+import RSAGL.Curve
 import RSAGL.Auxiliary
 import Control.Applicative
 import RSAGL.ApplicativeWrapper
 import Data.Traversable
 import RSAGL.Deformation
 import RSAGL.Vector
-import RSAGL.Surface
 import RSAGL.Material
 import RSAGL.Tesselation
 import RSAGL.Optimization
@@ -117,10 +117,7 @@ appendSurface s = modify $ mappend $ [ModeledSurface {
 
 generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Vector3D)) -> Modeling attr
 generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs
-generalSurface (Left points) = appendSurface $ generateNormals points
-
-generateNormals :: Surface Point3D -> Surface SurfaceVertex3D
-generateNormals s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s)
+generalSurface (Left points) = appendSurface $ surfaceNormals3D points
 
 tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
 tesselationHintComplexity i = modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
@@ -177,7 +174,7 @@ deform :: (DeformationClass dc) => dc -> Modeling attr
 deform dc = 
     do finishModeling
        case deformation dc of
-                (Left f) -> modify (map $ \m -> m { ms_surface = generateNormals $ fmap f $ ms_surface m })
+                (Left f) -> modify (map $ \m -> m { ms_surface = surfaceNormals3D $ fmap f $ ms_surface m })
                 (Right f) -> modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
   where sv3df f sv3d = let SurfaceVertex3D p v = f sv3d in SurfaceVertex3D p (vectorNormalize v)
 
@@ -412,7 +409,7 @@ sv3d_distance_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
 
 sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
 sv3d_normal_ruler (SurfaceVertex3D _ v1) (SurfaceVertex3D _ v2) =
-    abs $ toRotations $ angleBetween v1 v2
+    abs $ (1-) $ dotProduct v1 v2
 
 msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
 msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2 _) =
