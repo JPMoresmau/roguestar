@@ -26,6 +26,10 @@ module RSAGL.Model
      quadralateral,
      triangle,
      box,
+     sor,
+     tube,
+     prism,
+     smoothRegularPrism,
      adaptive,
      fixed,
      tesselationHintComplexity,
@@ -59,6 +63,7 @@ import RSAGL.Interpolation
 import RSAGL.Affine
 import RSAGL.Angle
 import RSAGL.Color
+import RSAGL.Extrusion
 import RSAGL.BoundingBox
 import Data.List as List
 import Data.Maybe
@@ -198,9 +203,9 @@ toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
 
 planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double)) -> Surface (Point3D,Vector3D)
-planarCoordinates center up f = surface (curry $ g . f)
-    where (u',v') = orthos up
-          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, up)
+planarCoordinates center upish f = surface (curry $ g . f)
+    where (u',v') = orthos upish
+          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, upish)
 
 transformUnitSquareToUnitCircle :: (Double,Double) -> (Double,Double)
 transformUnitSquareToUnitCircle (u,v) = (x,z)
@@ -267,8 +272,8 @@ openDisc inner_radius outer_radius = model $
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
 
 closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
-closedDisc center up radius = model $
-    do generalSurface $ Right $ planarCoordinates center up (((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle)
+closedDisc center up_vector radius = model $
+    do generalSurface $ Right $ planarCoordinates center up_vector $ ((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle
 
 closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
 closedCone a b = model $
@@ -299,6 +304,18 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
        quadralateral (Point3D lx' hy lz') (Point3D lx' hy hz') (Point3D hx' hy hz') (Point3D hx' hy lz')  -- top
        quadralateral (Point3D lx ly' lz') (Point3D lx ly' hz') (Point3D lx hy' hz') (Point3D lx hy' lz')  -- left
        quadralateral (Point3D hx ly' lz') (Point3D hx hy' lz') (Point3D hx hy' hz') (Point3D hx ly' hz')  -- right
+
+sor :: (Monoid attr) => Curve Point3D -> Modeling attr
+sor c = model $ generalSurface $ Left $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
+
+tube :: (Monoid attr) => Curve Double -> Curve Point3D -> Modeling attr
+tube radius spine = model $ generalSurface $ Left $ extrudeTube radius spine
+
+prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
+prism upish ara brb c = model $ generalSurface $ Left $ extrudePrism upish ara brb c
+
+smoothRegularPrism :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Integer -> Modeling attr
+smoothRegularPrism ara brb n = model $ generalSurface $ Left $ extrudeSmoothRegularPrism ara brb n
 \end{code}
 
 \subsection{Rendering Models to OpenGL}

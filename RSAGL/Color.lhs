@@ -1,6 +1,7 @@
 \section{Color}
 
 \begin{code}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module RSAGL.Color
     (RGB(..),
      RGBA(..),
@@ -13,9 +14,9 @@ module RSAGL.Color
      rgbaToOpenGL)
     where
 
-import RSAGL.Interpolation
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
+import RSAGL.AbstractVector
 \end{code}
 
 \texttt{addColor} paints a color on top of another color using the additive color system.  For example, \texttt{red `addColor` green == yellow}.
@@ -35,13 +36,14 @@ instance NFData RGB where
 
 instance NFData RGBA where
 
-class (Lerpable c) => ColorClass c where
+class (AbstractVector c) => ColorClass c where
     rgb :: Float -> Float -> Float -> c
     rgb256 :: (Integral i) => i -> i -> i -> c
     alpha :: Float -> c -> RGBA
     alpha256 :: (Integral i) => i -> c -> RGBA
     clampColor :: c -> c
     mapRGB :: (Float -> Float) -> c -> c
+    zipColor :: (Float -> Float -> Float) -> c -> c -> c
     brightness :: c -> Float
     colorToOpenGL :: c -> IO ()
     toRGBA :: c -> RGBA
@@ -53,6 +55,7 @@ instance ColorClass RGB where
     alpha256 a = alpha (i2f256 a)
     clampColor = mapRGB (min 1 . max 0)
     mapRGB f (RGB r g b) = RGB (f r) (f g) (f b)
+    zipColor f (RGB r1 g1 b1) (RGB r2 g2 b2) = RGB (f r1 r2) (f g1 g2) (f b1 b2)
     brightness (RGB r g b) = 0.2126 * r + 0.7152 * g + 0.0722 * b
     colorToOpenGL = rgbToOpenGL
     toRGBA = RGBA 1
@@ -64,6 +67,7 @@ instance ColorClass RGBA where
     alpha256 i (RGBA a rgb_color) = RGBA ((i2f256 i)*a) rgb_color
     clampColor (RGBA a rgb_color) = RGBA (min 1 $ max 0 a) $ clampColor rgb_color
     mapRGB f (RGBA a rgb_color) = RGBA a $ mapRGB f rgb_color
+    zipColor f (RGBA a1 c1) (RGBA a2 c2) = RGBA (f a1 a2) (zipColor f c1 c2)
     brightness (RGBA a rgb_color) = brightness rgb_color * a
     colorToOpenGL = rgbaToOpenGL
     toRGBA = id
@@ -77,26 +81,53 @@ rgba r g b a = alpha a $ (rgb r g b :: RGB)
 rgba256 :: (Integral i) => i -> i -> i -> i -> RGBA
 rgba256 r g b a = alpha256 a $ (rgb256 r g b :: RGB)
 
-zipRGB :: (Float -> Float -> Float) -> RGB -> RGB -> RGB
-zipRGB f (RGB r1 g1 b1) (RGB r2 g2 b2) = RGB (f r1 r2) (f g1 g2) (f b1 b2)
-
 addRGB :: RGB -> RGB -> RGB
-addRGB = zipRGB (+)
+addRGB = addColor
+
+addColor :: (ColorClass c) => c -> c -> c
+addColor = zipColor (+)
+
+subColor :: (ColorClass c) => c -> c -> c
+subColor = zipColor (-)
 
 scaleRGB :: (ColorClass c) => Float -> c -> c
 scaleRGB x = mapRGB (*x)
 
-instance Lerpable RGB where
-    lerp u' (a,b) = addRGB (scaleRGB (1-u) a) (scaleRGB u b)
-        where u = realToFrac u'
-
-instance Lerpable RGBA where
-    lerp u' (RGBA a1 rgb1,RGBA a2 rgb2) = RGBA (lerp u (a1,a2)) (lerp u (rgb1,rgb2))
-        where u = realToFrac u'
+scaleRGBA :: Float -> RGBA -> RGBA
+scaleRGBA x c = c { rgba_a = x * rgba_a c,
+                    rgba_rgb = scaleRGB x (rgba_rgb c) }
 
 rgbToOpenGL :: RGB -> IO ()
 rgbToOpenGL (RGB r g b) = color $! Color4 r g b 1
 
 rgbaToOpenGL :: RGBA -> IO ()
 rgbaToOpenGL (RGBA a (RGB r g b)) = color $! Color4 r g b a
+
+instance AbstractZero RGB where
+    zero = rgb 0 0 0
+
+instance AbstractAdd RGB RGB where
+    add = addColor
+
+instance AbstractSubtract RGB RGB where
+    sub = subColor
+
+instance AbstractScale RGB where
+    scalarMultiply d = scaleRGB (realToFrac d)
+
+instance AbstractVector RGB
+
+instance AbstractZero RGBA where
+    zero = rgba 0 0 0 0
+
+instance AbstractAdd RGBA RGBA where
+    add = addColor
+
+instance AbstractSubtract RGBA RGBA where
+    sub = subColor
+
+instance AbstractScale RGBA where
+    scalarMultiply d = scaleRGBA (realToFrac d)
+
+instance AbstractVector RGBA
 \end{code}

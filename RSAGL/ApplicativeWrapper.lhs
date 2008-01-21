@@ -30,7 +30,7 @@ instance (Applicative f) => Applicative (ApplicativeWrapper f) where
     f <*> a = wrapApplicative $ toApplicative f <*> toApplicative a
 
 instance (NFData (f a),NFData a) => NFData (ApplicativeWrapper f a) where
-    rnf (ApplicativeWrapper ethr) = either rnf rnf ethr
+    rnf (ApplicativeWrapper ethr) = rnf ethr
 
 fromPure :: (Applicative f) => ApplicativeWrapper f a -> Maybe a
 fromPure = either (const Nothing) Just . unwrapApplicative

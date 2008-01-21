@@ -16,12 +16,12 @@ module RSAGL.Affine
      affine_identity,
      transformation,
      inverseTransformation,
-     modelLookAt,
      rotateAbout,
-     WrappedAffine(..),wrapAffine,unwrapAffine)
+     WrappedAffine(..),wrapAffine,unwrapAffine,
+     FUR,forward,up,right,down,left,backward,orthagonalFrame,modelLookAt)
     where
 
-import Graphics.Rendering.OpenGL.GL as GL
+import Graphics.Rendering.OpenGL.GL as GL hiding (R)
 import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Angle
@@ -59,11 +59,6 @@ transformation f = transform m
 inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
 inverseTransformation f = inverseTransform m
     where AffineTransformationType m = f affine_identity
-
-modelLookAt :: (AffineTransformable a) => Point3D -> Point3D -> Vector3D -> a -> a
-modelLookAt pos look_at upish = transform (xyzMatrix right up forward)
-    where forward = vectorNormalize $ vectorToFrom look_at pos
-          (up,right) = fixOrtho2 forward upish
 
 rotateAbout :: (AffineTransformable a) => Point3D -> Vector3D -> Angle -> a -> a
 rotateAbout center vector angle = 
@@ -130,4 +125,69 @@ unwrapAffine (WrappedAffine m a) = transform m a
 
 instance AffineTransformable (WrappedAffine a) where
     transform t (WrappedAffine m a) = WrappedAffine (transform t m) a
+\end{code}
+
+\subsection{Orthagonal Systems}
+
+\texttt{FUR} stands for Forward Up Right.  It's used to specify arbitrary orthagonal coordinate systems given any combination
+of forward up and right vectors.  It also accepts down, left, and backward vectors.
+
+\texttt{orthagonalFrame} generates an orthagonal coordinate system, such that the first vector is passed directly, the second vector
+is fixed to be orthagonal to the first as by fixOrtho, and the third vector is calculated automatically to be the missing of the other two
+(either forward, up, or right).
+
+\begin{code}
+data FURAxis = ForwardAxis | UpAxis | RightAxis | DownAxis | LeftAxis | BackwardAxis
+
+data FUR a = FUR FURAxis a
+
+instance Functor FUR where
+    fmap f (FUR a x) = FUR a $ f x
+
+up :: a -> FUR a
+up = FUR UpAxis
+
+down :: a -> FUR a
+down = FUR DownAxis
+
+left :: a -> FUR a
+left = FUR LeftAxis
+
+right :: a -> FUR a
+right = FUR RightAxis
+
+forward :: a -> FUR a
+forward = FUR ForwardAxis
+
+backward :: a -> FUR a
+backward = FUR BackwardAxis
+
+orthagonalFrame :: FUR Vector3D -> FUR Vector3D -> AffineTransformation
+orthagonalFrame (FUR ForwardAxis f) (FUR RightAxis r) = let (r',u') = fixOrtho2 f r in transform (xyzMatrix r' u' (vectorNormalize f))
+orthagonalFrame (FUR UpAxis u) (FUR ForwardAxis f) = let (f',r') = fixOrtho2 u f in transform (xyzMatrix r' (vectorNormalize u) f')
+orthagonalFrame (FUR RightAxis r) (FUR UpAxis u) = let (u',f') = fixOrtho2 r u in transform (xyzMatrix (vectorNormalize r) u' f')
+orthagonalFrame (FUR RightAxis r) (FUR ForwardAxis f) = let (f',u') = fixOrtho2Left r f in transform (xyzMatrix (vectorNormalize r) u' f')
+orthagonalFrame (FUR ForwardAxis f) (FUR UpAxis u) = let (u',r') = fixOrtho2Left f u in transform (xyzMatrix r' u' (vectorNormalize f))
+orthagonalFrame (FUR UpAxis u) (FUR RightAxis r) = let (r',f') = fixOrtho2Left u r in transform (xyzMatrix r' (vectorNormalize u) f')
+orthagonalFrame (FUR ForwardAxis _) (FUR ForwardAxis _) = error "orthagonalFrame: two forward vectors"
+orthagonalFrame (FUR UpAxis _) (FUR UpAxis _) = error "orthagonalFrame: two up vectors"
+orthagonalFrame (FUR RightAxis _) (FUR RightAxis _) = error "orthagonalFrame: two right vectors"
+orthagonalFrame x y = orthagonalFrame (furCorrect x) (furCorrect y)
+
+furCorrect :: FUR Vector3D -> FUR Vector3D
+furCorrect (FUR ForwardAxis f) = FUR ForwardAxis f
+furCorrect (FUR UpAxis u) = FUR UpAxis u
+furCorrect (FUR RightAxis r) = FUR RightAxis r
+furCorrect (FUR DownAxis d) = FUR UpAxis $ vectorScale (-1) d
+furCorrect (FUR LeftAxis l) = FUR RightAxis $ vectorScale (-1) l
+furCorrect (FUR BackwardAxis b) = FUR ForwardAxis $ vectorScale (-1) b
+\end{code}
+
+\texttt{modelLookAt} takes a model's position, the position or vector to forward, and the position or vector to up, 
+
+\begin{code}
+modelLookAt :: Point3D -> FUR (Either Point3D Vector3D) -> FUR (Either Point3D Vector3D) -> AffineTransformation
+modelLookAt pos primaryish secondaryish = RSAGL.Affine.translate (vectorToFrom pos origin_point_3d) . orthagonalFrame primary secondary
+    where primary = fmap (either (`vectorToFrom` pos) id) primaryish
+          secondary = fmap (either (`vectorToFrom` pos) id) secondaryish
 \end{code}

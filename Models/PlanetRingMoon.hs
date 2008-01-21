@@ -1,5 +1,5 @@
 module Models.PlanetRingMoon
-    (planet,ring,moon,ground,monolith,station)
+    (planet,ring,moon,ground,monolith,station,orb)
     where
 
 import RSAGL.Model
@@ -10,6 +10,7 @@ import RSAGL.Affine
 import RSAGL.Auxiliary
 import System.Random
 import RSAGL.Angle
+import RSAGL.CurveExtras
 
 ring :: Modeling ()
 ring = model $ do openDisc 0.75 1.0
@@ -80,3 +81,24 @@ station = model $
                          emissive $ pure white
                          tesselationHintComplexity 0
                          fixed (3,3)
+
+orb :: Modeling ()
+orb = model $ scale' 2 $
+    do sor $ linearInterpolation $ points2d
+               [(-0.001,0.4),
+                (0.5,0.45),
+                (0.5,0.4),
+                (0.6,0.4),
+                (0.6,0.6),
+                (0.5,0.6),
+                (0.5,0.55),
+                (-0.001,0.6)]
+       sequence_ $ rotationGroup (Vector3D 0 1 0) 5 $
+           tube (pure 0.1) $ smoothCurve 3 0.4 $ loopedLinearInterpolation $ points3d
+               [(0.4,0.2,0.4),
+                (0.4,0.8,0.8),
+                (-0.4,0.8,0.8),
+                (-0.4,0.2,0.4)]
+       smoothRegularPrism (Point3D 0 0.5 0,0.5) (Point3D 0 1.0 0,-0.001) 4
+       pigment $ pure gold
+       specular 64 $ pure silver

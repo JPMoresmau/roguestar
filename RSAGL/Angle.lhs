@@ -4,6 +4,7 @@ RSAGL.Angle supports manipulation of angular values, including
 angular arithmetic and trigonometry.
 
 \begin{code}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
 module RSAGL.Angle
     (Angle,
      fromDegrees,
@@ -49,11 +50,19 @@ instance Ord Angle where
                       _ | x == y -> EQ
                       _ -> compare (toRadians x) (toRadians y)
 
-instance AbstractVector Angle where
+instance AbstractZero Angle where
     zero = zero_angle
+
+instance AbstractAdd Angle Angle where
     add = angleAdd
+
+instance AbstractSubtract Angle Angle where
     sub = angleSubtract
+
+instance AbstractScale Angle where
     scalarMultiply = scaleAngle
+
+instance AbstractVector Angle
 \end{code}
 
 angularIncrements answers n equa-angular values from 0 to 2*pi.

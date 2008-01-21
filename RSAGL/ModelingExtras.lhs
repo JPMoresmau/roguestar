@@ -72,7 +72,7 @@ smoothbox u p q = model $
 
 \begin{code}
 rotationGroup :: (Monoid attr) => Vector3D -> Integer -> Modeling attr -> [Modeling attr]
-rotationGroup v n m = map (flip (rotate v) m . fromRotations) $ zeroToOne n
+rotationGroup v n m = map (flip (rotate v) m . fromRotations) $ tail $ zeroToOne (n+1)
 \end{code}
 
 \subsection{Patterns}

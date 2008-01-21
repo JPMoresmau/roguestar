@@ -60,6 +60,8 @@ testScene =
        qo_monolith <- newQO monolith
        putStrLn "loading station..."
        qo_station <- newQO station
+       putStrLn "loading orb..."
+       qo_orb <- newQO orb
        putStrLn "done."
        ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
        return $ 
@@ -72,6 +74,7 @@ testScene =
               ground_obj <- liftIO $ getQuality qo_ground test_quality
               monolith_obj <- liftIO $ getQuality qo_monolith test_quality
               station_obj <- liftIO $ getQuality qo_station test_quality
+              orb_obj <- liftIO $ getQuality qo_orb test_quality
               accumulateSceneM Local $ sceneObject ground_obj
               accumulateSceneM Local $ sceneObject monolith_obj
               accumulateSceneM Local $ lightSource $ PointLight (Point3D (-1.5) 2 (-8))
@@ -79,6 +82,7 @@ testScene =
                                                                 (gray 0.5) (gray 0.5)
               transformM (Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
                   accumulateSceneM Infinite $ sceneObject station_obj
+              transformM (Affine.translate (Vector3D (-4) 0 0)) $ accumulateSceneM Local $ sceneObject orb_obj
               transformM (Affine.translate (Vector3D 0 1 6)) $ 
                   do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject planet_obj
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
@@ -138,7 +142,7 @@ rsaglDisplayCallback counter aniM =
        when (not $ null errs) $ print $ show errs
        frames <- readIORef counter
        when (frames `mod` 200 == 0) $ putStrLn $ "frames: " ++ show frames
-       when (frames >= 2000) $ exitWith ExitSuccess
+       when (frames >= 20000) $ exitWith ExitSuccess
 
 rsaglTimerCallback :: Window -> IO ()
 rsaglTimerCallback window = 

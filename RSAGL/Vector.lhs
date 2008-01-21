@@ -1,6 +1,7 @@
 \section{Points and Vectors: RSAGL.Vector}
 
 \begin{code}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies #-}
 module RSAGL.Vector
     (Point3D(..),
      origin_point_3d,
@@ -9,7 +10,8 @@ module RSAGL.Vector
      zero_vector,
      point3d,
      points3d,
-     points3d_2,
+     point2d,
+     points2d,
      vector3d,
      dotProduct,
      angleBetween,
@@ -33,6 +35,7 @@ module RSAGL.Vector
      randomXYZ,
      fixOrtho,
      fixOrtho2,
+     fixOrtho2Left,
      orthos)
     where
 
@@ -51,6 +54,10 @@ type XYZ = (Double,Double,Double)
 class Xyz a where
     toXYZ :: a -> XYZ
     fromXYZ :: XYZ -> a
+
+instance Xyz (Double,Double,Double) where
+    toXYZ = id
+    fromXYZ = id
 
 vectorString :: Xyz a => a -> String
 vectorString xyz = let (x,y,z) = toXYZ xyz
@@ -72,15 +79,27 @@ origin_point_3d = Point3D 0 0 0
 point3d :: (Double,Double,Double) -> Point3D
 point3d = uncurry3d Point3D
 
+point2d :: (Double,Double) -> Point3D
+point2d (x,y) = point3d (x,y,0)
+
 points3d :: [(Double,Double,Double)] -> [Point3D]
 points3d = map point3d
 
-points3d_2 :: [((Double,Double,Double),(Double,Double,Double))] -> [(Point3D,Point3D)]
-points3d_2 = map (\(l,r) -> (point3d l,point3d r))
+points2d :: [(Double,Double)] -> [Point3D]
+points2d = map point2d
 
 instance Xyz Point3D where
     toXYZ (Point3D x y z) = (x,y,z)
     fromXYZ (x,y,z) = Point3D x y z
+
+instance AbstractZero Point3D where
+    zero = origin_point_3d
+
+instance AbstractAdd Point3D Vector3D where
+    add = displace
+
+instance AbstractSubtract Point3D Vector3D where
+    sub = vectorToFrom
 
 instance NFData Point3D
 \end{code}
@@ -103,11 +122,22 @@ instance Xyz Vector3D where
 
 instance NFData Vector3D
 
-instance AbstractVector Vector3D where
+instance AbstractZero Vector3D where
     zero = zero_vector
+
+instance AbstractAdd Vector3D Vector3D where
     add = vectorAdd
-    sub x y = vectorAdd x $ vectorScale (-1) y
+
+instance AbstractSubtract Vector3D Vector3D where
+    sub = vectorToFrom
+
+instance AbstractScale Vector3D where
     scalarMultiply = vectorScale
+
+instance AbstractMagnitude Vector3D where
+    magnitude = vectorLength
+
+instance AbstractVector Vector3D
 \end{code}
 
 A \texttt{SurfaceVertex3D} is a a point on an orientable surface, having a position and a normal vector.
@@ -147,8 +177,13 @@ distanceBetween a b = vectorLength $ vectorToFrom a b
 distanceBetweenSquared :: (Xyz xyz) => xyz -> xyz -> Double
 distanceBetweenSquared a b = vectorLengthSquared $ vectorToFrom a b
 
+displace :: (Xyz xyz) => xyz -> Vector3D -> xyz
+displace xyz (Vector3D x2 y2 z2) =
+    let (x1,y1,z1) = toXYZ xyz
+        in fromXYZ (x1+x2,y1+y2,z1+z2)
+
 vectorAdd :: Vector3D -> Vector3D -> Vector3D
-vectorAdd (Vector3D ax ay az) (Vector3D bx by bz) = Vector3D (ax+bx) (ay+by) (az+bz)
+vectorAdd = displace
 
 vectorSum :: [Vector3D] -> Vector3D
 vectorSum vectors = foldr vectorAdd zero_vector vectors
@@ -225,6 +260,10 @@ randomXYZ lohi g = (fromXYZ (x,y,z),g')
 
 \texttt{fixOrtho a v} finds the vector, orthagonal to a, that has the least angle to v.
 
+\texttt{fixOrtho2 right up} yields \texttt{(up,forward)}.
+
+\texttt{fixOrtho2Left right up} yields \texttt{(up,backward)}.
+
 \texttt{orthos} finds two arbitrary vectors orthagonal to the parameter.
 
 \begin{code}
@@ -232,8 +271,12 @@ fixOrtho :: Vector3D -> Vector3D -> Vector3D
 fixOrtho a = fst . fixOrtho2 a
 
 fixOrtho2 :: Vector3D -> Vector3D -> (Vector3D,Vector3D)
-fixOrtho2 a v = (vectorNormalize $ crossProduct a (vectorScale (-1) b),vectorNormalize $ b)
+fixOrtho2 a v = (vectorNormalize $ crossProduct a $ vectorScale (-1) b,vectorNormalize b)
     where b = crossProduct a v
+
+fixOrtho2Left :: Vector3D -> Vector3D -> (Vector3D,Vector3D)
+fixOrtho2Left a v = (vectorNormalize $ crossProduct a b,vectorNormalize b)
+    where b = vectorScale (-1) $ crossProduct a v
 
 orthos :: Vector3D -> (Vector3D,Vector3D)
 orthos v@(Vector3D x y z) | abs y >= abs x && abs z >= abs x = fixOrtho2 v (Vector3D (abs x + abs y + abs z) y z)

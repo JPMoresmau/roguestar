@@ -7,7 +7,7 @@ quantities of time.
 This time library is designed to support real-time animation.
 
 \begin{code}
-{-# LANGUAGE TypeSynonymInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 
 module RSAGL.Time
     (Time,
@@ -35,10 +35,38 @@ import Data.Fixed
 import Data.Ratio
 import RSAGL.Affine
 
-newtype Time = Time Pico deriving (Show,Eq,Ord,AbstractVector)
-newtype Rate a = Rate a deriving (Show,Eq,Ord,AbstractVector,AffineTransformable)
+newtype Time = Time Pico deriving (Show,Eq,Ord)
+newtype Rate a = Rate a deriving (Show,Eq,Ord,AffineTransformable)
 type Acceleration a = Rate (Rate a)
 type Frequency = Rate Double
+
+instance AbstractZero Time where
+    zero = Time 0.0
+
+instance AbstractAdd Time Time where
+    add (Time a) (Time b) = Time $ a `add` b
+
+instance AbstractSubtract Time Time where
+    sub (Time a) (Time b) = Time $ a `sub` b
+
+instance AbstractScale Time where
+    scalarMultiply d (Time t) = Time $ realToFrac d * t
+
+instance AbstractVector Time
+
+instance (AbstractZero a) => AbstractZero (Rate a) where
+    zero = Rate zero
+
+instance (AbstractAdd a a) => AbstractAdd (Rate a) (Rate a) where
+    add (Rate a) (Rate b) = Rate $ a `add` b
+
+instance (AbstractSubtract a a) => AbstractSubtract (Rate a) (Rate a) where
+    sub (Rate a) (Rate b) = Rate $ a `sub` b
+
+instance (AbstractScale a) => AbstractScale (Rate a) where
+    scalarMultiply d (Rate r) = Rate $ scalarMultiply d r
+
+instance (AbstractVector a) => AbstractVector (Rate a)
 \end{code}
 
 \subsection{Getting and Constructing Time}
