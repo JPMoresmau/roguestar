@@ -443,13 +443,13 @@ instance NFData IntermediateModel where
     rnf (IntermediateModel ms) = rnf ms
 
 parIntermediateModel :: Strategy IntermediateModel
-parIntermediateModel (IntermediateModel ms) = seqList parIntermediateModeledSurface ms
+parIntermediateModel (IntermediateModel ms) = waitParList parIntermediateModeledSurface ms
 
 instance NFData IntermediateModeledSurface where
     rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
 
 parIntermediateModeledSurface :: Strategy IntermediateModeledSurface
-parIntermediateModeledSurface (IntermediateModeledSurface layers two_sided) = two_sided `seq` waitParList rnf layers
+parIntermediateModeledSurface (IntermediateModeledSurface layers _) = waitParList rnf layers
 
 instance NFData SingleMaterialSurfaceVertex3D where
     rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)

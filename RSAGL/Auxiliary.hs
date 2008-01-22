@@ -16,6 +16,7 @@ module RSAGL.Auxiliary
 import Data.Array
 import System.Random
 import System.CPUTime
+import Control.Parallel
 import Control.Parallel.Strategies
 
 -- doubles transforms a list to a list of adjacent elements.
@@ -117,4 +118,4 @@ debugTime msg io_action =
 -- as parList, but waits until the list is fully evaluated.
 
 waitParList :: Strategy a -> Strategy [a]
-waitParList s = seqList rwhnf . parMap r0 s
+waitParList s a = parList s a `pseq` seqList s a

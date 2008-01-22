@@ -27,12 +27,13 @@ quality model appears, which is gradually replaced by higher and higher qualitie
 \begin{code}
 data QualityCache q a = QualityCache Bottleneck (Strategy a) (q -> a) (MVar [q]) (MVar (Map q a))
 
-newQuality :: (Ord q,NFData a) => Bottleneck -> Strategy a -> (q -> a) -> [q] -> IO (QualityCache q a)
+newQuality :: (Ord q) => Bottleneck -> Strategy a -> (q -> a) -> [q] -> IO (QualityCache q a)
 newQuality _ _ _ [] = error "mkQuality: empty quality list"
-newQuality bottleneck strategy f (q:qs) = lowest_quality `seq` liftM2 (QualityCache bottleneck strategy f) (newMVar qs) (newMVar $ singleton q lowest_quality)
-    where lowest_quality = f q `using` strategy
+newQuality bottleneck strategy f (q:qs) = 
+    do lowest_quality <- return $! (f q `using` strategy)
+       liftM2 (QualityCache bottleneck strategy f) (newMVar qs) (newMVar $ singleton q lowest_quality)
 
-completeQuality :: (Ord q,NFData a) => QualityCache q a -> q -> IO ()
+completeQuality :: (Ord q) => QualityCache q a -> q -> IO ()
 completeQuality (qo@(QualityCache bottleneck strategy f quality_mvar map_mvar)) want_q =
     do qualities <- takeMVar quality_mvar  -- block on the quality_mvar
        case qualities of
@@ -42,7 +43,7 @@ completeQuality (qo@(QualityCache bottleneck strategy f quality_mvar map_mvar)) 
                                      completeQuality qo want_q
            _ -> do putMVar quality_mvar qualities
 
-getQuality :: (Ord q,NFData a) => QualityCache q a -> q -> IO a
+getQuality :: (Ord q) => QualityCache q a -> q -> IO a
 getQuality (qo@(QualityCache _ _ _ quality_mvar mv)) q = 
     do m <- readMVar mv
        case Map.lookup q m of
