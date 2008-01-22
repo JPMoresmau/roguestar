@@ -26,6 +26,11 @@ colors:
 	ghc -lglut -O2 --make RSAGL/ProcessColors.hs -main-is RSAGL.ProcessColors.main -o rsagl-process-colors
 	./rsagl-process-colors
 
+darcstest :
+	make clean
+	make
+	make clean
+
 hpc-metrics: rsagl-tests rsagl-modelview
 	-rm -f rsagl-tests.tix
 	-rm -f rsagl-modelview.tix
