@@ -22,7 +22,7 @@ a curve representing the loop in the x-y plane.
 \begin{code}
 extrude :: Curve (Either Point3D Vector3D) -> Curve Point3D -> Curve (Curve Point3D) -> Surface Point3D
 extrude upish spine loop = wrapSurface $ transformation <$> (modelLookAt <$> spine <*> (forward <$> Right <$> spine') <*> (up <$> upish)) <*> loop
-    where spine' = curveDerivative3D spine
+    where spine' = curveDerivative spine
 \end{code}
 
 \subsection{Specific Extrusions}

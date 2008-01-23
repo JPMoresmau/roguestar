@@ -26,8 +26,6 @@ module RSAGL.Curve
      uv_identity,
      surfaceDerivative,
      curveDerivative,
-     curveDerivative3D,
-     surfaceDerivative3D,
      surfaceNormals3D)
     where
 
@@ -145,19 +143,13 @@ uv_identity = surface (curry id)
 \subsection{Taking the Derivative of a Curve}
 
 \begin{code}
-curveDerivative :: (AbstractVector v) => Curve v -> Curve v
+curveDerivative :: (AbstractSubtract p v,AbstractScale v) => Curve p -> Curve v
 curveDerivative (Curve f) = Curve $ \(h,u) -> scalarMultiply (recip $ 2 * h) $ f (h/2,u+h) `sub` f (h/2,u-h)
 
-surfaceDerivative :: (AbstractVector v) => Surface v -> Surface (v,v)
+surfaceDerivative :: (AbstractSubtract p v,AbstractScale v) => Surface p -> Surface (v,v)
 surfaceDerivative s = zipSurface (,) (curvewiseDerivative s) (transposeSurface $ curvewiseDerivative $ transposeSurface s)
     where curvewiseDerivative (Surface t) = Surface $ fmap curveDerivative t
 
-curveDerivative3D :: Curve Point3D -> Curve Vector3D
-curveDerivative3D = curveDerivative . fmap (`vectorToFrom` origin_point_3d)
-
-surfaceDerivative3D :: Surface Point3D -> Surface (Vector3D,Vector3D)
-surfaceDerivative3D = surfaceDerivative . fmap (`vectorToFrom` origin_point_3d)
-
 surfaceNormals3D :: Surface Point3D -> Surface SurfaceVertex3D
-surfaceNormals3D s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative3D s)
+surfaceNormals3D s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s)
 \end{code}
