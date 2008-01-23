@@ -16,7 +16,7 @@ module RSAGL.Affine
      affine_identity,
      transformation,
      inverseTransformation,
-     rotateAbout,
+     transformAbout,
      rotateToFrom,
      WrappedAffine(..),wrapAffine,unwrapAffine,
      FUR,forward,up,right,down,left,backward,orthagonalFrame,modelLookAt)
@@ -60,11 +60,16 @@ transformation f = transform m
 inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
 inverseTransformation f = inverseTransform m
     where AffineTransformationType m = f affine_identity
+\end{code}
 
-rotateAbout :: (AffineTransformable a) => Point3D -> Vector3D -> Angle -> a -> a
-rotateAbout center vector angle = 
+\texttt{transformAbout} performs an affine transformation treating a particular point as the origin.  For example,
+combining \texttt{transformAbout} with \texttt{rotate} performs a rotation about an arbitrary point rather than the origin.
+
+\begin{code}
+transformAbout :: (AffineTransformable a) => Point3D -> (a -> a) -> a -> a
+transformAbout center tform = 
     RSAGL.Affine.translate (vectorToFrom center origin_point_3d) .
-    RSAGL.Affine.rotate vector angle .
+    tform .
     RSAGL.Affine.translate (vectorToFrom origin_point_3d center)
 
 rotateToFrom :: (AffineTransformable a) => Vector3D -> Vector3D -> a -> a

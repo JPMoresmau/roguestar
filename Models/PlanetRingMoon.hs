@@ -68,10 +68,10 @@ station = model $
             emissive $ pure white
        sequence_ $ dropRandomElements 30 (mkStdGen 19) $ concatMap (rotationGroup (Vector3D 0 1 0) 40) $ 
          [window_box,
-          rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees 25) window_box,
-          rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees (-25)) window_box,
-          rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees 50) window_box,
-          rotateAbout (Point3D 0.5 0 0) (Vector3D 0 0 1) (fromDegrees (-50)) window_box]
+          transformAbout (Point3D 0.5 0 0) (rotateZ $ fromDegrees 25) window_box,
+          transformAbout (Point3D 0.5 0 0) (rotateZ $ fromDegrees (-25)) window_box,
+          transformAbout (Point3D 0.5 0 0) (rotateZ $ fromDegrees 50) window_box,
+          transformAbout (Point3D 0.5 0 0) (rotateZ $ fromDegrees (-50)) window_box]
             where window_box = model $
                       do quadralateral (Point3D 0.51 (-0.105) 0.03) (Point3D 0.49 (-0.105) 0.03)
                                        (Point3D 0.49 (-0.105) (-0.03)) (Point3D 0.51 (-0.105) (-0.03))
