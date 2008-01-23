@@ -94,11 +94,11 @@ orb = model $ scale' 2 $
                 (0.5,0.55),
                 (-0.001,0.6)]
        sequence_ $ rotationGroup (Vector3D 0 1 0) 5 $
-           tube (pure 0.1) $ smoothCurve 3 0.4 $ loopedLinearInterpolation $ points3d
+           tube (pure 0.05) $ smoothCurve 3 0.4 $ loopedLinearInterpolation $ points3d
                [(0.4,0.2,0.4),
                 (0.4,0.8,0.8),
                 (-0.4,0.8,0.8),
                 (-0.4,0.2,0.4)]
-       smoothRegularPrism (Point3D 0 0.5 0,0.5) (Point3D 0 1.0 0,-0.001) 4
+       regularPrism (Point3D 0 0.5 0,0.5) (Point3D 0 1.0 0,-0.001) 4
        pigment $ pure gold
        specular 64 $ pure silver

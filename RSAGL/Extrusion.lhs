@@ -4,8 +4,7 @@
 module RSAGL.Extrusion
     (extrude,
      extrudeTube,
-     extrudePrism,
-     extrudeSmoothRegularPrism)
+     extrudePrism)
     where
 
 import RSAGL.Curve
@@ -35,7 +34,4 @@ extrudeTube radius spine = extrude upish spine (scale' <$> radius <*> pure circl
 
 extrudePrism :: Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Surface Point3D
 extrudePrism upish (a,ra) (b,rb) c = extrude (pure $ Right $ upish) (linearInterpolation [a,b]) (flip scale' c <$> linearInterpolation [ra,rb])
-
-extrudeSmoothRegularPrism :: (Point3D,Double) -> (Point3D,Double) -> Integer -> Surface Point3D
-extrudeSmoothRegularPrism ara brb n = extrudePrism (fst $ orthos $ vectorToFrom (fst brb) (fst ara)) ara brb (smoothCurve 3 (recip $ realToFrac n * 2) $ regularPolygon n)
 \end{code}

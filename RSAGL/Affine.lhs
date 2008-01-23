@@ -17,6 +17,7 @@ module RSAGL.Affine
      transformation,
      inverseTransformation,
      rotateAbout,
+     rotateToFrom,
      WrappedAffine(..),wrapAffine,unwrapAffine,
      FUR,forward,up,right,down,left,backward,orthagonalFrame,modelLookAt)
     where
@@ -65,6 +66,11 @@ rotateAbout center vector angle =
     RSAGL.Affine.translate (vectorToFrom center origin_point_3d) .
     RSAGL.Affine.rotate vector angle .
     RSAGL.Affine.translate (vectorToFrom origin_point_3d center)
+
+rotateToFrom :: (AffineTransformable a) => Vector3D -> Vector3D -> a -> a
+rotateToFrom u v = RSAGL.Affine.rotate c a
+    where c = vectorNormalize $ crossProduct u v
+          a = angleBetween u v
 
 instance AffineTransformable a => AffineTransformable [a] where
     scale v = map (RSAGL.Affine.scale v)

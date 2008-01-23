@@ -29,7 +29,6 @@ module RSAGL.Model
      sor,
      tube,
      prism,
-     smoothRegularPrism,
      adaptive,
      fixed,
      tesselationHintComplexity,
@@ -313,9 +312,6 @@ tube radius spine = model $ generalSurface $ Left $ extrudeTube radius spine
 
 prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
 prism upish ara brb c = model $ generalSurface $ Left $ extrudePrism upish ara brb c
-
-smoothRegularPrism :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Integer -> Modeling attr
-smoothRegularPrism ara brb n = model $ generalSurface $ Left $ extrudeSmoothRegularPrism ara brb n
 \end{code}
 
 \subsection{Rendering Models to OpenGL}
