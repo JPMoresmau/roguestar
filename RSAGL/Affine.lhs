@@ -74,7 +74,7 @@ transformAbout center tform =
 
 rotateToFrom :: (AffineTransformable a) => Vector3D -> Vector3D -> a -> a
 rotateToFrom u v = RSAGL.Affine.rotate c a
-    where c = vectorNormalize $ crossProduct u v
+    where c = vectorNormalize $ vectorScale (-1) $ crossProduct u v
           a = angleBetween u v
 
 instance AffineTransformable a => AffineTransformable [a] where
@@ -126,16 +126,19 @@ instance AffineTransformable (IO a) where
 to transform.
 
 \begin{code}
-data WrappedAffine a = WrappedAffine (RSAGL.Matrix.Matrix) a
+data WrappedAffine a = WrappedAffine AffineTransformation a
 
 wrapAffine :: a -> WrappedAffine a
-wrapAffine = WrappedAffine (identityMatrix 4)
+wrapAffine = WrappedAffine id
 
 unwrapAffine :: (AffineTransformable a) => WrappedAffine a -> a
-unwrapAffine (WrappedAffine m a) = transform m a
+unwrapAffine (WrappedAffine m a) = transformation m a
 
 instance AffineTransformable (WrappedAffine a) where
-    transform t (WrappedAffine m a) = WrappedAffine (transform t m) a
+    transform t (WrappedAffine m a) = WrappedAffine (transform t . m) a
+
+instance Functor WrappedAffine where
+    fmap f (WrappedAffine m a) = WrappedAffine m $ f a
 \end{code}
 
 \subsection{Orthagonal Systems}

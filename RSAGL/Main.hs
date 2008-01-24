@@ -36,7 +36,7 @@ import RSAGL.ModelingExtras
 test_quality :: Integer
 test_quality = 2^14
 
-moon_orbital_animation :: AniA i o IntermediateModel (CSN Point3D)
+moon_orbital_animation :: AniA i o (IO IntermediateModel) (CSN Point3D)
 moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
@@ -62,33 +62,33 @@ testScene =
        qo_station <- newQO station
        putStrLn "loading orb..."
        qo_orb <- newQO orb
+       putStrLn "loading glow_orb..."
+       qo_glow_orb <- newQO glow_orb
        putStrLn "done."
        ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
        return $ 
            do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
               rotation_station <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 5)
               rotation_camera <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 3)
-              planet_obj <- liftIO $ getQuality qo_planet test_quality
-              ring_obj <- liftIO $ getQuality qo_ring test_quality
-              moon_obj <- liftIO $ getQuality qo_moon test_quality
-              ground_obj <- liftIO $ getQuality qo_ground test_quality
-              monolith_obj <- liftIO $ getQuality qo_monolith test_quality
-              station_obj <- liftIO $ getQuality qo_station test_quality
-              orb_obj <- liftIO $ getQuality qo_orb test_quality
-              accumulateSceneM Local $ sceneObject ground_obj
-              accumulateSceneM Local $ sceneObject monolith_obj
-              accumulateSceneM Local $ lightSource $ PointLight (Point3D (-1.5) 2 (-8))
-                                                                (measure (Point3D (-1.5) 2 (-8)) (Point3D 0 0 0))
-                                                                (gray 0.5) (gray 0.5)
+              accumulateSceneM Local $ sceneObject $ getQuality qo_ground test_quality
+              accumulateSceneM Local $ sceneObject $ getQuality qo_monolith test_quality
               transformM (Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
-                  accumulateSceneM Infinite $ sceneObject station_obj
-              transformM (Affine.translate (Vector3D (-4) 0 0)) $ accumulateSceneM Local $ sceneObject orb_obj
+                  accumulateSceneM Infinite $ sceneObject $ getQuality qo_station test_quality
+              transformM (Affine.translate (Vector3D (-4) 0 0)) $ 
+                  do accumulateSceneM Local $ sceneObject $ getQuality qo_orb test_quality
+                     transformM (Affine.translate (Vector3D 0 2.05 0)) $
+                          do glow_orb_center <- liftM (importCSN root_coordinate_system) $ exportM origin_point_3d
+                             accumulateSceneM Local $ cameraRelativeSceneObject $ \c -> 
+                                  liftM ((Affine.rotateToFrom (vectorToFrom (camera_position c) glow_orb_center) (Vector3D 0 1 0)) . Affine.wrapAffine) $ getQuality qo_glow_orb test_quality
+                             accumulateSceneM Local $ lightSource $ PointLight (Point3D 0 0 0)
+                                                                               (measure (Point3D 0 0 0) (Point3D 0 6 0))
+                                                                               (scaleRGB 0.5 white) blackbody
               transformM (Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject planet_obj
+                  do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject $ getQuality qo_planet test_quality
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
-                     accumulateSceneM Infinite $ sceneObject ring_obj
-                     runAnimationObject ao_moon_orbit moon_obj
+                     accumulateSceneM Infinite $ sceneObject $ getQuality qo_ring test_quality
+                     runAnimationObject ao_moon_orbit $ getQuality qo_moon test_quality
               return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 1 2 (-8))
                                            (Point3D 0 2.5 2)
                                            (Vector3D 0 1 0)

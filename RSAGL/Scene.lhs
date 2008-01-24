@@ -16,6 +16,7 @@ module RSAGL.Scene
      SceneAccumulator,
      null_scene_accumulator,
      sceneObject,
+     cameraRelativeSceneObject,
      lightSource,
      accumulateSceneM,
      accumulateSceneA,
@@ -138,11 +139,11 @@ Celestial objects such as the moon and sun, as well as the sky sphere, belong in
 \begin{code}
 data SceneObject = 
     LightSource LightSource
-  | Model (WrappedAffine IntermediateModel)
+  | Model (Camera -> IO (WrappedAffine IntermediateModel))
 
 instance AffineTransformable SceneObject where
     transform m (LightSource ls) = LightSource $ transform m ls
-    transform m (Model imodel) = Model $ transform m imodel
+    transform m (Model imodel) = Model $ \c -> liftM (transform m) (imodel c)
 
 data SceneLayer = Local | Infinite deriving (Eq)
 
@@ -167,8 +168,11 @@ instance (ScenicAccumulator sa) => ScenicAccumulator (a,sa) where
 null_scene_accumulator :: SceneAccumulator
 null_scene_accumulator = SceneAccumulator [] root_coordinate_system
 
-sceneObject :: IntermediateModel -> SceneObject
-sceneObject = Model . wrapAffine
+sceneObject :: IO IntermediateModel -> SceneObject
+sceneObject = cameraRelativeSceneObject . const . liftM wrapAffine
+
+cameraRelativeSceneObject :: (Camera -> IO (WrappedAffine IntermediateModel)) -> SceneObject
+cameraRelativeSceneObject = Model
 
 lightSource :: LightSource -> SceneObject
 lightSource = LightSource
@@ -194,22 +198,24 @@ data Scene = Scene {
     scene_local_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
     scene_camera :: Camera }
 
-assembleScene :: Camera -> SceneAccumulator -> Scene
-assembleScene c sceneaccum = Scene {
-    scene_infinite_opaques = map (\m -> (fst m,infinite_light_sources)) infinite_models,
-    scene_infinite_transparents = map (\m -> (m,infinite_light_sources)) $ sortModels origin_point_3d $ concatMap snd infinite_models,
-    scene_local_opaques = map (\m -> (fst m,local_light_sources)) local_models,
-    scene_local_transparents = map (\m -> (m,local_light_sources)) $ sortModels (camera_position c) $ concatMap snd local_models,
-    scene_camera = c }
+-- FIXME: This function is a horrible mess (I need to redo this to implement 0.0.4 features anyway).
+assembleScene :: Camera -> SceneAccumulator -> IO Scene
+assembleScene c sceneaccum = 
+    do infinite_models <- liftM (map splitOpaquesWrapped . catMaybes) $ mapM toModel infinites
+       local_models <- liftM (map splitOpaquesWrapped . catMaybes) $ mapM toModel locals
+       return $ Scene {
+           scene_infinite_opaques = map (\m -> (fst m,infinite_light_sources)) infinite_models,
+           scene_infinite_transparents = map (\m -> (m,infinite_light_sources)) $ sortModels origin_point_3d $ concatMap snd infinite_models,
+           scene_local_opaques = map (\m -> (fst m,local_light_sources)) local_models,
+           scene_local_transparents = map (\m -> (m,local_light_sources)) $ sortModels (camera_position c) $ concatMap snd local_models,
+           scene_camera = c }
         where infinites = map snd $ filter ((Infinite ==) . fst) $ sceneaccum_objs sceneaccum
               locals = map snd $ filter ((Local ==) . fst) $ sceneaccum_objs sceneaccum
               infinite_light_sources = mapMaybe toLightSource infinites
               local_light_sources = map makeInfinite infinite_light_sources ++ mapMaybe toLightSource locals
-              infinite_models = map splitOpaquesWrapped $ mapMaybe toModel infinites
-              local_models = map splitOpaquesWrapped $ mapMaybe toModel locals
               sortModels :: Point3D -> [WrappedAffine IntermediateModel] -> [WrappedAffine IntermediateModel]
               sortModels p = map fst . sortBy (comparing $ negate . minimalDistanceToBoundingBox p . snd) .
-                             map (\(wa@(WrappedAffine a m)) -> (wa,transform a $ boundingBox m))
+                             map (\(wa@(WrappedAffine a m)) -> (wa,transformation a $ boundingBox m))
               splitOpaquesWrapped (WrappedAffine a m) =
                   let (opaques,transparents) = splitOpaques m
                       in (WrappedAffine a opaques,map (WrappedAffine a) transparents)
@@ -217,8 +223,8 @@ assembleScene c sceneaccum = Scene {
                   LightSource ls -> Just ls
                   _ -> Nothing
               toModel so = case so of
-                  Model m -> Just m
-                  _ -> Nothing
+                  Model m -> liftM Just (m c)
+                  _ -> return Nothing
 
 sceneToOpenGL :: Double -> (Double,Double) -> Scene -> IO ()
 sceneToOpenGL aspect_ratio nearfar scene =
@@ -242,5 +248,5 @@ sceneToOpenGL aspect_ratio nearfar scene =
 render1Object :: (WrappedAffine IntermediateModel,[LightSource]) -> IO ()
 render1Object (WrappedAffine m imodel,lss) =
     do setLightSources lss
-       transform m $ intermediateModelToOpenGL imodel
+       transformation m $ intermediateModelToOpenGL imodel
 \end{code}
