@@ -7,8 +7,9 @@ can be represented in coordinate system neutral form.
 
 {-# OPTIONS_GHC -farrows -fglasgow-exts #-}
 
-module RSAGL.CSN
+module RSAGL.CoordinateSystems
     (AffineTransformation,
+     affine_identity,
      CoordinateSystem,
      CoordinateSystemClass(..),
      root_coordinate_system,
@@ -53,7 +54,7 @@ All \texttt{CoordinateSystems} are affine transformations of the \texttt{root_co
 data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
 
 instance AffineTransformable CoordinateSystem where
-    transform m (CoordinateSystem mat) = CoordinateSystem $ matrixMultiply mat m
+    transform m (CoordinateSystem cs) = CoordinateSystem $ matrixMultiply m cs
 
 migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
 migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
@@ -72,6 +73,27 @@ instance (CoordinateSystemClass csc) => CoordinateSystemClass (a,csc) where
 
 root_coordinate_system :: CoordinateSystem
 root_coordinate_system = CoordinateSystem $ identityMatrix 4
+\end{code}
+
+\subsection{Abstract Affine Transformations}
+
+\begin{code}
+type AffineTransformation = CoordinateSystem -> CoordinateSystem
+
+affine_identity :: AffineTransformation
+affine_identity = id
+
+transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+transformation f = transform m
+    where CoordinateSystem m = f root_coordinate_system
+
+inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
+inverseTransformation f = inverseTransform m
+    where CoordinateSystem m = f root_coordinate_system
+
+postmultiplyTransformation :: AffineTransformation -> CoordinateSystem -> CoordinateSystem
+postmultiplyTransformation f (CoordinateSystem cs) = CoordinateSystem $ cs `matrixMultiply` m
+    where CoordinateSystem m = f root_coordinate_system
 \end{code}
 
 \subsection{Coordinate System Neutral Data}
@@ -127,7 +149,7 @@ remoteA = proc (context,f,a) ->
 transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => AffineTransformation -> m a -> m a
 transformM affine_transformation action =
     do s <- liftM getCoordinateSystem get
-       modify (storeCoordinateSystem (transformation affine_transformation s))
+       modify (storeCoordinateSystem (postmultiplyTransformation affine_transformation s))
        a <- action
        modify (storeCoordinateSystem s)
        return a
@@ -135,7 +157,7 @@ transformM affine_transformation action =
 transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (AffineTransformation,a) b
 transformA action = proc (affine_transformation,a) ->
     do s <- fetch -< ()
-       store -< storeCoordinateSystem (transformation affine_transformation $ getCoordinateSystem s) s
+       store -< storeCoordinateSystem (postmultiplyTransformation affine_transformation $ getCoordinateSystem s) s
        b <- action -< a
        s' <- fetch -< ()
        store -< storeCoordinateSystem (getCoordinateSystem s) s'

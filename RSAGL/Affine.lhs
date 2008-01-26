@@ -11,15 +11,8 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 
 module RSAGL.Affine
     (AffineTransformable(..),
-     AffineTransformation,
-     AffineTransformationType,
-     affine_identity,
-     transformation,
-     inverseTransformation,
      transformAbout,
-     rotateToFrom,
-     WrappedAffine(..),wrapAffine,unwrapAffine,
-     FUR,forward,up,right,down,left,backward,orthagonalFrame,modelLookAt)
+     rotateToFrom)
     where
 
 import Graphics.Rendering.OpenGL.GL as GL hiding (R)
@@ -46,20 +39,6 @@ class AffineTransformable a where
     scale' x = RSAGL.Affine.scale (Vector3D x x x)
     inverseTransform :: RSAGL.Matrix.Matrix -> a -> a
     inverseTransform m = transform (matrixInverse m)
-
-newtype AffineTransformationType = AffineTransformationType RSAGL.Matrix.Matrix deriving (AffineTransformable)
-type AffineTransformation = AffineTransformationType -> AffineTransformationType
-
-affine_identity :: AffineTransformationType
-affine_identity = AffineTransformationType $ identityMatrix 4
-
-transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-transformation f = transform m
-    where AffineTransformationType m = f affine_identity
-
-inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-inverseTransformation f = inverseTransform m
-    where AffineTransformationType m = f affine_identity
 \end{code}
 
 \texttt{transformAbout} performs an affine transformation treating a particular point as the origin.  For example,
@@ -120,88 +99,4 @@ instance AffineTransformable (IO a) where
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
         do GL.rotate (toDegrees_ angle) (Vector3 x y z)
            iofn
-\end{code}
-
-\texttt{WrappedAffine} stores up affine transformations that are commited only when the entity is unwrapped.  This is an optimization when the entity in question is expensive
-to transform.
-
-\begin{code}
-data WrappedAffine a = WrappedAffine AffineTransformation a
-
-wrapAffine :: a -> WrappedAffine a
-wrapAffine = WrappedAffine id
-
-unwrapAffine :: (AffineTransformable a) => WrappedAffine a -> a
-unwrapAffine (WrappedAffine m a) = transformation m a
-
-instance AffineTransformable (WrappedAffine a) where
-    transform t (WrappedAffine m a) = WrappedAffine (transform t . m) a
-
-instance Functor WrappedAffine where
-    fmap f (WrappedAffine m a) = WrappedAffine m $ f a
-\end{code}
-
-\subsection{Orthagonal Systems}
-
-\texttt{FUR} stands for Forward Up Right.  It's used to specify arbitrary orthagonal coordinate systems given any combination
-of forward up and right vectors.  It also accepts down, left, and backward vectors.
-
-\texttt{orthagonalFrame} generates an orthagonal coordinate system, such that the first vector is passed directly, the second vector
-is fixed to be orthagonal to the first as by fixOrtho, and the third vector is calculated automatically to be the missing of the other two
-(either forward, up, or right).
-
-\begin{code}
-data FURAxis = ForwardAxis | UpAxis | RightAxis | DownAxis | LeftAxis | BackwardAxis
-
-data FUR a = FUR FURAxis a
-
-instance Functor FUR where
-    fmap f (FUR a x) = FUR a $ f x
-
-up :: a -> FUR a
-up = FUR UpAxis
-
-down :: a -> FUR a
-down = FUR DownAxis
-
-left :: a -> FUR a
-left = FUR LeftAxis
-
-right :: a -> FUR a
-right = FUR RightAxis
-
-forward :: a -> FUR a
-forward = FUR ForwardAxis
-
-backward :: a -> FUR a
-backward = FUR BackwardAxis
-
-orthagonalFrame :: FUR Vector3D -> FUR Vector3D -> AffineTransformation
-orthagonalFrame (FUR ForwardAxis f) (FUR RightAxis r) = let (r',u') = fixOrtho2 f r in transform (xyzMatrix r' u' (vectorNormalize f))
-orthagonalFrame (FUR UpAxis u) (FUR ForwardAxis f) = let (f',r') = fixOrtho2 u f in transform (xyzMatrix r' (vectorNormalize u) f')
-orthagonalFrame (FUR RightAxis r) (FUR UpAxis u) = let (u',f') = fixOrtho2 r u in transform (xyzMatrix (vectorNormalize r) u' f')
-orthagonalFrame (FUR RightAxis r) (FUR ForwardAxis f) = let (f',u') = fixOrtho2Left r f in transform (xyzMatrix (vectorNormalize r) u' f')
-orthagonalFrame (FUR ForwardAxis f) (FUR UpAxis u) = let (u',r') = fixOrtho2Left f u in transform (xyzMatrix r' u' (vectorNormalize f))
-orthagonalFrame (FUR UpAxis u) (FUR RightAxis r) = let (r',f') = fixOrtho2Left u r in transform (xyzMatrix r' (vectorNormalize u) f')
-orthagonalFrame (FUR ForwardAxis _) (FUR ForwardAxis _) = error "orthagonalFrame: two forward vectors"
-orthagonalFrame (FUR UpAxis _) (FUR UpAxis _) = error "orthagonalFrame: two up vectors"
-orthagonalFrame (FUR RightAxis _) (FUR RightAxis _) = error "orthagonalFrame: two right vectors"
-orthagonalFrame x y = orthagonalFrame (furCorrect x) (furCorrect y)
-
-furCorrect :: FUR Vector3D -> FUR Vector3D
-furCorrect (FUR ForwardAxis f) = FUR ForwardAxis f
-furCorrect (FUR UpAxis u) = FUR UpAxis u
-furCorrect (FUR RightAxis r) = FUR RightAxis r
-furCorrect (FUR DownAxis d) = FUR UpAxis $ vectorScale (-1) d
-furCorrect (FUR LeftAxis l) = FUR RightAxis $ vectorScale (-1) l
-furCorrect (FUR BackwardAxis b) = FUR ForwardAxis $ vectorScale (-1) b
-\end{code}
-
-\texttt{modelLookAt} takes a model's position, the position or vector to forward, and the position or vector to up, 
-
-\begin{code}
-modelLookAt :: Point3D -> FUR (Either Point3D Vector3D) -> FUR (Either Point3D Vector3D) -> AffineTransformation
-modelLookAt pos primaryish secondaryish = RSAGL.Affine.translate (vectorToFrom pos origin_point_3d) . orthagonalFrame primary secondary
-    where primary = fmap (either (`vectorToFrom` pos) id) primaryish
-          secondary = fmap (either (`vectorToFrom` pos) id) secondaryish
 \end{code}

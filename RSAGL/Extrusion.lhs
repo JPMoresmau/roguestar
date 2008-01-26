@@ -12,6 +12,8 @@ import RSAGL.CurveExtras
 import RSAGL.Vector
 import RSAGL.Affine
 import Control.Applicative
+import RSAGL.CoordinateSystems
+import RSAGL.Orthagonal
 \end{code}
 
 \subsection{The General Extrusion}

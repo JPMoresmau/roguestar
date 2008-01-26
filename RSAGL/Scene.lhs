@@ -30,7 +30,7 @@ import RSAGL.Vector
 import RSAGL.Affine as Affine
 import RSAGL.Angle as Angle
 import RSAGL.Model
-import RSAGL.CSN
+import RSAGL.CoordinateSystems
 import Data.List
 import Control.Monad.State as State
 import Control.Arrow
@@ -38,6 +38,7 @@ import Control.Arrow.Operations
 import RSAGL.Color as Color
 import Graphics.UI.GLUT as GLUT
 import Data.Maybe
+import RSAGL.WrappedAffine
 \end{code}
 
 \subsection{Cameras}

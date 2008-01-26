@@ -60,6 +60,7 @@ import RSAGL.Tesselation
 import RSAGL.Optimization
 import RSAGL.Interpolation
 import RSAGL.Affine
+import RSAGL.CoordinateSystems
 import RSAGL.Angle
 import RSAGL.Color
 import RSAGL.Extrusion

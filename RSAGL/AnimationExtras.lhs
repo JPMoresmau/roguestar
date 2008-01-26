@@ -16,7 +16,7 @@ import RSAGL.FRP
 import RSAGL.Time
 import Control.Arrow
 import Control.Arrow.Operations
-import RSAGL.CSN
+import RSAGL.CoordinateSystems
 import RSAGL.Affine
 import RSAGL.Angle
 \end{code}

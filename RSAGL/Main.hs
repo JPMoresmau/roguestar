@@ -26,12 +26,13 @@ import RSAGL.AnimationExtras
 import Control.Arrow
 import RSAGL.Vector
 import RSAGL.RSAGLColors
-import RSAGL.CSN
+import RSAGL.CoordinateSystems
 import qualified RSAGL.Affine as Affine
 import RSAGL.Matrix
 import RSAGL.Interpolation
 import Debug.Trace
 import RSAGL.ModelingExtras
+import RSAGL.WrappedAffine
 
 test_quality :: Integer
 test_quality = 2^14
@@ -79,7 +80,7 @@ testScene =
                      transformM (Affine.translate (Vector3D 0 2.05 0)) $
                           do glow_orb_center <- liftM (importCSN root_coordinate_system) $ exportM origin_point_3d
                              accumulateSceneM Local $ cameraRelativeSceneObject $ \c -> 
-                                  liftM ((Affine.rotateToFrom (vectorToFrom (camera_position c) glow_orb_center) (Vector3D 0 1 0)) . Affine.wrapAffine) $ getQuality qo_glow_orb test_quality
+                                  liftM ((Affine.rotateToFrom (vectorToFrom (camera_position c) glow_orb_center) (Vector3D 0 1 0)) . wrapAffine) $ getQuality qo_glow_orb test_quality
                              accumulateSceneM Local $ lightSource $ PointLight (Point3D 0 0 0)
                                                                                (measure (Point3D 0 0 0) (Point3D 0 6 0))
                                                                                (scaleRGB 0.5 white) blackbody

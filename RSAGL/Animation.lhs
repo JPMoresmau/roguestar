@@ -24,7 +24,7 @@ import Data.Monoid
 import RSAGL.Time
 import RSAGL.Scene
 import Control.Monad.State
-import RSAGL.CSN
+import RSAGL.CoordinateSystems
 import RSAGL.Angle
 import RSAGL.Vector
 import RSAGL.Affine
