@@ -29,6 +29,7 @@ import Control.Concurrent
 import Control.Parallel.Strategies
 import RSAGL.RK4
 import RSAGL.Bottleneck
+import RSAGL.Joint
 
 --
 -- State machine that adds its input to its state
@@ -312,6 +313,12 @@ testDeterminant4 =
            (determinant $ matrix [[1.5,-1.0,0.5,-2.0],[1.0,1.5,1.0,1.0],[1.5,1.0,0.5,-0.5],[1.0,1.5,1.0,0.0]])
            2
 
+testJoint :: IO () 
+testJoint = testClose "testJoint"
+    (joint_elbow $ joint (Vector3D 0 1 1) (Point3D 0 1 0) 3 (Point3D 0 0 1))
+    (Point3D 0 1.43541 1.43541)
+    xyzEqualClose
+
 quickCheckMatrixDeterminant2 :: IO ()
 quickCheckMatrixDeterminant2 =
     do putStr "quickCheckMatrixDeterminant2: "
@@ -433,6 +440,11 @@ edgeEqualClose f x y =
     (edge_next x `f` edge_next y) &&
     (edge_changed x `timeEqualClose` edge_changed y)
 
+xyzEqualClose :: (Xyz xyz) => xyz -> xyz -> Bool
+xyzEqualClose a b = equalClose ax bx && equalClose ay by && equalClose az bz
+    where (ax,ay,az) = toXYZ a
+          (bx,by,bz) = toXYZ b
+
 testClose :: (Show a) => String -> a -> a -> (a -> a -> Bool) -> IO ()
 testClose name actual expected f | f actual expected =
     do putStrLn $ "Test Case Passed: " ++ name
@@ -529,5 +541,6 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckMatrixInverse2
           quickCheckMatrixInverse3
           quickCheckMatrixInverse4
+          testJoint
           testRK4
           testQualityObject
