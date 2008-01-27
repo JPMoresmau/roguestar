@@ -7,6 +7,7 @@ module RSAGL.AnimationExtras
     (rotationA,
      animateA,
      rotateA,
+     pointAtCameraA,
      inverseSquareLaw,
      accelerationModel)
     where
@@ -19,6 +20,11 @@ import Control.Arrow.Operations
 import RSAGL.CoordinateSystems
 import RSAGL.Affine
 import RSAGL.Angle
+import RSAGL.Scene
+import RSAGL.Model
+import RSAGL.Affine
+import RSAGL.WrappedAffine
+import Control.Monad
 \end{code}
 
 \subsection{Simple Animators}
@@ -36,6 +42,19 @@ animateA affineA action = proc i ->
 
 rotateA :: (Arrow a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => Vector3D -> Rate Angle -> FRP i o a j p -> FRP i o a j p
 rotateA v a = animateA (rotationA v a)
+\end{code}
+
+\subsection{Camera Relative Animators}
+
+\texttt{pointAtCameraA} always points at the camera, using a single rotation.
+
+\begin{code}
+pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumulator s) => a (SceneLayer,IO IntermediateModel) ()
+pointAtCameraA = proc (slayer,imodel) ->
+    do cs <- arr getCoordinateSystem <<< fetch -< ()
+       accumulateSceneA -< (slayer,cameraRelativeSceneObject $ \c -> 
+           liftM ((rotateToFrom (vectorToFrom (migrate root_coordinate_system cs $ if slayer == Infinite then origin_point_3d else camera_position c) $ origin_point_3d)
+                                       (Vector3D 0 1 0)) . wrapAffine) imodel)
 \end{code}
 
 \subsection{Physical Models}

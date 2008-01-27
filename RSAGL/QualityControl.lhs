@@ -50,5 +50,8 @@ getQuality (qo@(QualityCache _ _ _ quality_mvar mv)) q =
             Just a -> return a
             Nothing -> do e <- isEmptyMVar quality_mvar -- is completeQuality already running or pending for this QualityObject?
                           when (not e) $ (forkIO $ completeQuality qo q) >> return ()  -- then don't launch another one
-                          return $ snd $ findMax $ filterWithKey (\k _ -> (k <= q)) m
+                          let suitable_qualities = filterWithKey (\k _ -> (k <= q)) m
+                          return $ snd $ if Map.null suitable_qualities 
+                              then findMin m
+                              else findMax suitable_qualities 
 \end{code}

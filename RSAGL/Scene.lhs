@@ -216,7 +216,7 @@ assembleScene c sceneaccum =
               local_light_sources = map makeInfinite infinite_light_sources ++ mapMaybe toLightSource locals
               sortModels :: Point3D -> [WrappedAffine IntermediateModel] -> [WrappedAffine IntermediateModel]
               sortModels p = map fst . sortBy (comparing $ negate . minimalDistanceToBoundingBox p . snd) .
-                             map (\(wa@(WrappedAffine a m)) -> (wa,transformation a $ boundingBox m))
+                             map (\(wa@(WrappedAffine cs m)) -> (wa,migrate cs root_coordinate_system $ boundingBox m))
               splitOpaquesWrapped (WrappedAffine a m) =
                   let (opaques,transparents) = splitOpaques m
                       in (WrappedAffine a opaques,map (WrappedAffine a) transparents)
@@ -249,5 +249,5 @@ sceneToOpenGL aspect_ratio nearfar scene =
 render1Object :: (WrappedAffine IntermediateModel,[LightSource]) -> IO ()
 render1Object (WrappedAffine m imodel,lss) =
     do setLightSources lss
-       transformation m $ intermediateModelToOpenGL imodel
+       transformation (migrate m root_coordinate_system) $ intermediateModelToOpenGL imodel
 \end{code}

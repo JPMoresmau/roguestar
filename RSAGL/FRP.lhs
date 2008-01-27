@@ -156,18 +156,18 @@ updateFRPProgram (FRPProgram sa old_run) = proc (i,new_t) ->
 continuous value.
 
 \begin{code}
-derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => FRP x y a v (Rate v)
+derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractSubtract p v,AbstractVector v) => FRP i o a p (Rate v)
 derivative = accumulate undefined
     (\old_value new_value old_rate _ delta_t _ -> if delta_t == zero
         then old_rate
         else (new_value `sub` old_value) `per` delta_t)
     zero
 
-integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRP x y a (Rate v) v
+integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRP i o a (Rate v) v
 integral = accumulate undefined
     (\old_rate new_rate old_accum _ delta_t _ -> old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t))
 
-integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRP x y a (Time -> p -> Rate v) p
+integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRP i o a (Time -> p -> Rate v) p
 integralRK4 f addPV = accumulate f (\_ diffF p abs_t delta_t -> integrateRK4 addPV diffF p (abs_t `sub` delta_t) abs_t)
 
 integralRK4' :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) -> 

@@ -25,7 +25,8 @@ module RSAGL.Time
      rate,
      perSecond,
      per,
-     interval)
+     interval,
+     withTime)
     where
 
 import RSAGL.AbstractVector
@@ -118,4 +119,7 @@ per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
 
 interval :: Frequency -> Time
 interval (Rate x) = fromSeconds $ recip x
+
+withTime :: (AbstractVector a,AbstractVector b) => Time -> (a -> b) -> Rate a -> Rate b
+withTime t f = (`per` t) . f . (`over` t)
 \end{code}

@@ -1,5 +1,5 @@
 module Models.PlanetRingMoon
-    (planet,ring,moon,ground,monolith,station,orb,glow_orb)
+    (planet,ring,moon,ground,monolith,station,orb,glow_orb,orb_upper_leg,orb_lower_leg)
     where
 
 import RSAGL.Model
@@ -83,7 +83,7 @@ station = model $
                          fixed (3,3)
 
 orb :: Modeling ()
-orb = model $ scale' 2 $
+orb = model $
     do sor $ linearInterpolation $ points2d
                [(-0.001,0.4),
                 (0.5,0.45),
@@ -107,3 +107,16 @@ glow_orb :: Modeling ()
 glow_orb = translate (Vector3D 0 1 0) $
     do closedDisc (Point3D 0 0 0) (Vector3D 0 1 0) 1
        emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scaleRGB 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
+
+orb_upper_leg :: Modeling ()
+orb_upper_leg =
+    do tube (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
+       sphere (Point3D 0 0 1) 0.05
+       pigment $ pure gold
+       specular 64 $ pure silver
+
+orb_lower_leg :: Modeling ()
+orb_lower_leg =
+    do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,-0.001)
+       pigment $ pure gold
+       specular 64 $ pure silver

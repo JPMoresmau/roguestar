@@ -84,7 +84,7 @@ regularPrism (a,ra) (b,rb) n = model $ translate (vectorToFrom b a) $ rotateToFr
 \texttt{rotationGroup} rotates a model repeatedly.
 
 \begin{code}
-rotationGroup :: (Monoid attr) => Vector3D -> Integer -> Modeling attr -> [Modeling attr]
+rotationGroup :: (AffineTransformable a) => Vector3D -> Integer -> a -> [a]
 rotationGroup v n m = map (flip (rotate v) m . fromRotations) $ tail $ zeroToOne (n+1)
 \end{code}
 
