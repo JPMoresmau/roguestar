@@ -11,6 +11,7 @@ that will be evaluated on the next iteration.
 
 module RSAGL.StatefulArrow
     (StatefulArrow(..),
+     runStatefulArrow,
      StatefulFunction,
      stateContext,
      withState,
@@ -25,9 +26,13 @@ import Control.Arrow.Operations
 import Control.Arrow.Transformer
 
 type StatefulFunction = StatefulArrow (->)
-data StatefulArrow a i o = StatefulArrow { runStatefulArrow :: (a i (o,StatefulArrow a i o)) }
+data StatefulArrow a i o = StatefulArrow (a i (o,StatefulArrow a i o))
+                         | LiftedStatefulArrow (a i o)
 
 instance (Arrow a) => Arrow (StatefulArrow a) where
+    (>>>) (LiftedStatefulArrow lsf1) (LiftedStatefulArrow lsf2) = LiftedStatefulArrow (lsf1 >>> lsf2)
+    (>>>) (LiftedStatefulArrow lsf1) sf2 = liftPrim lsf1 >>> sf2
+    (>>>) sf1 (LiftedStatefulArrow lsf2) = sf1 >>> liftPrim lsf2
     (>>>) (StatefulArrow sf1) (StatefulArrow sf2) = StatefulArrow $
         proc a -> do (b,sf1') <- sf1 -< a
                      (c,sf2') <- sf2 -< b
@@ -36,9 +41,17 @@ instance (Arrow a) => Arrow (StatefulArrow a) where
     first (StatefulArrow sf) = StatefulArrow $
         proc (b,d) -> do (c,sf') <- sf -< b
                          returnA -< ((c,d),first sf')
+    first (LiftedStatefulArrow lsf) = LiftedStatefulArrow (first lsf)
 
 instance (Arrow a) => ArrowTransformer StatefulArrow a where
-    lift f = StatefulArrow $ f &&& (arr $ const $ lift f)
+    lift = LiftedStatefulArrow
+
+liftPrim :: (Arrow a) => a i o -> StatefulArrow a i o
+liftPrim f = StatefulArrow $ f &&& (arr $ const $ liftPrim f)
+
+runStatefulArrow :: (Arrow a) => StatefulArrow a i o -> a i (o,StatefulArrow a i o)
+runStatefulArrow (LiftedStatefulArrow lsf) = runStatefulArrow $ liftPrim lsf
+runStatefulArrow (StatefulArrow sf) = sf
 \end{code}
 
 \subsection{Mixing StatefulArrows and StateArrows}
@@ -68,6 +81,7 @@ withState sa s = flip stateContext (sa,s) $
                  returnA -< o
 
 withExposedState :: (Arrow a,ArrowApply a) => StatefulArrow (StateArrow s a) i o -> StatefulArrow a (i,s) (o,s)
+withExposedState (LiftedStatefulArrow lsa) = LiftedStatefulArrow $ runState lsa
 withExposedState (StatefulArrow sa) = StatefulArrow $ (arr $ \((o,sa'),s') -> ((o,s'),withExposedState sa')) <<< runState sa
 \end{code}
 
@@ -76,6 +90,7 @@ withExposedState (StatefulArrow sa) = StatefulArrow $ (arr $ \((o,sa'),s') -> ((
 \begin{code}
 statefulTransform :: (Arrow a,Arrow b) => (forall j p. a j p -> b j p) -> 
                                           StatefulArrow a i o -> StatefulArrow b i o
+statefulTransform f (LiftedStatefulArrow lsa) = LiftedStatefulArrow $ f lsa
 statefulTransform f (StatefulArrow a) = StatefulArrow $
     proc i -> do (o,a') <- f a -< i
                  returnA -< (o,statefulTransform f a')

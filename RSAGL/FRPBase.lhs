@@ -114,6 +114,7 @@ In the event of an explicit switch, all implicit state is lost.
 \begin{code}
 statefulThread :: (Arrow a,ArrowChoice a) => 
                   StatefulArrow (ThreadedArrow i o a) i o -> ThreadedArrow i o a i o
+statefulThread (LiftedStatefulArrow lsf) = lsf
 statefulThread (StatefulArrow sf) = 
     proc b -> do (c,sf') <- sf -< b
                  ThreadedArrow.switchTerminate -< (statefulThread sf',c)

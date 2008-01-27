@@ -366,9 +366,11 @@ selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv
                                                  SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..(n-1)]
 
 layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
-layerToOpenGL tesselation layer = 
-    (materialLayerToOpenGLWrapper layer) $ foldr (>>) (return ()) $ map (tesselatedElementToOpenGL toOpenGL) tesselation
-        where vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
+layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (tesselationsLoop tesselation)
+        where tesselationsLoop [] = return()
+              tesselationsLoop (t:rest) = do tesselatedElementToOpenGL toOpenGL t
+                                             tesselationsLoop rest
+              vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
                                                   (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
                                                   (MaterialVertex3D color_material _)) =
                   do rgbaToOpenGL color_material
