@@ -14,6 +14,9 @@ module RSAGL.Time
      Rate,
      Acceleration,
      Frequency,
+     fps30,
+     fps60,
+     fps120,
      minute,
      day,
      month,
@@ -89,6 +92,15 @@ month = scalarMultiply 30.43 day
 
 year :: Time
 year = scalarMultiply 365.25 month
+
+fps30 :: Frequency
+fps30 = perSecond 24
+
+fps60 :: Frequency
+fps60 = perSecond 60
+
+fps120 :: Frequency
+fps120 = perSecond 120
 
 fromSeconds :: Double -> Time
 fromSeconds = Time . realToFrac
