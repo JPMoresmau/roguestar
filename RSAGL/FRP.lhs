@@ -35,7 +35,7 @@ module RSAGL.FRP
      RSAGL.FRP.withExposedState)
     where
 
-import RSAGL.ArrowTransformerShield
+import RSAGL.ArrowTransformerOptimizer
 import RSAGL.AbstractVector
 import RSAGL.Time
 import RSAGL.StatefulArrow as StatefulArrow
@@ -52,7 +52,7 @@ import Data.Maybe
 data FRPState = FRPState { frpstate_absolute_time :: Time,
                            frpstate_delta_time :: Time }
 
-newtype FRP i o a j p = FRP (ArrowTransformerShield (FRPBase i o) (StateArrow FRPState a) j p)
+newtype FRP i o a j p = FRP (ArrowTransformerOptimizer (FRPBase i o) (StateArrow FRPState a) j p)
 
 instance (Arrow a,ArrowChoice a) => Arrow (FRP i o a) where
     (FRP a) >>> (FRP b) = FRP $ a >>> b
@@ -68,14 +68,14 @@ instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRP i o a) where
 
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                   FRP i o a (FRP i o a i o,i) o
-switchContinue = proc (FRP t,i) -> FRP $ raw $ FRPBase.switchContinue -< (collapseATS t,i)
+switchContinue = proc (FRP t,i) -> FRP $ raw $ FRPBase.switchContinue -< (collapseArrowTransformer t,i)
 
 switchTerminate :: (Arrow a,ArrowChoice a) =>
                    FRP i o a (FRP i o a i o,o) o
-switchTerminate = proc (FRP t,o) -> FRP $ raw $ FRPBase.switchTerminate -< (collapseATS t,o)
+switchTerminate = proc (FRP t,o) -> FRP $ raw $ FRPBase.switchTerminate -< (collapseArrowTransformer t,o)
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => FRP i o a [FRP i o a i o] ()
-spawnThreads = proc t -> FRP $ raw $ FRPBase.spawnThreads -< map (\(FRP x) -> collapseATS x) t
+spawnThreads = proc t -> FRP $ raw $ FRPBase.spawnThreads -< map (\(FRP x) -> collapseArrowTransformer x) t
 
 killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => FRP i o a (Bool,o) o
 killThreadIf = proc (b,o) -> do FRP $ raw $ FRPBase.killThreadIf -< (b,o)
@@ -89,7 +89,7 @@ dies or switches.  That is, the thread group is part of the state of the calling
 
 \begin{code}
 frpContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => [FRP j p a j p] -> FRP i o a j p
-frpContext = FRP . raw . FRPBase.frpBaseContext . map (\(FRP x) -> collapseATS x)
+frpContext = FRP . raw . FRPBase.frpBaseContext . map (\(FRP x) -> collapseArrowTransformer x)
 \end{code}
 
 \subsection{Embedding a StatefulArrow in an FRP arrow}
@@ -128,7 +128,7 @@ withExposedState threads = RSAGL.FRP.statefulContext_ $
 \begin{code}
 statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) =>
                     [FRP i o a i o] -> StatefulArrow a (i,FRPState) (o,FRPState)
-statefulForm = StatefulArrow.withExposedState . FRPBase.statefulForm . map (\(FRP x) -> collapseATS x)
+statefulForm = StatefulArrow.withExposedState . FRPBase.statefulForm . map (\(FRP x) -> collapseArrowTransformer x)
 
 frpTest :: (Monoid o) => [FRP i o (->) i o] -> [i] -> [o]
 frpTest frps is = map fst $ runStateMachine (RSAGL.FRP.statefulForm frps) $
