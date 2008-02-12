@@ -88,35 +88,36 @@ evenZeroes = last . runStateMachine (SwitchedArrow.statefulForm evenZeroesArrow)
 -- Sanity test of the ThreadedArrow
 --
 spawnPMD :: Int -> Set Integer
-spawnPMD n = (!! n) $ runStateMachine (ThreadedArrow.statefulForm $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
+spawnPMD n = mconcat $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
+
 
 testIntegral :: IO ()
 testIntegral = testClose "testIntegral"
-                  (frpTest [arr (\x -> [x]) <<< threadTime] (replicate 16 ()))
+                  (frpTest [threadTime] (replicate 16 ()))
                   (List.map (List.map fromSeconds) [[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]])
                   (listEqualClose $ listEqualClose timeEqualClose)
 
 testDerivative :: IO ()
 testDerivative = test "testDerivative"
-                    (frpTest [arr (\x -> [x]) <<< derivative]
+                    (frpTest [derivative]
                              [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0 :: Double])
                     (List.map (List.map perSecond) [[0],[10],[20],[30],[40],[50],[60],[70]])
 
 testInitial :: IO ()
 testInitial = test "testInitial"
-                 (frpTest [arr (\x -> [x]) <<< initial]
+                 (frpTest [initial]
                           [5,7,2,1,6,3,4])
                  [[5],[5],[5],[5],[5],[5],[5]]
 
 testEdgeFold :: IO ()
 testEdgeFold = test "testEdgeFold"
-                  (frpTest [arr (\x -> [x]) <<< edgeFold 0 (+)]
+                  (frpTest [edgeFold 0 (+)]
                            [3,2,2,2,2,4,4,3,8,7,6,6])
                   [[3],[5],[5],[5],[5],[9],[9],[12],[20],[27],[33],[33]]
 
 testEdgeMap :: IO ()
 testEdgeMap = test "testEdgeMap"
-                 (frpTest [arr (\x -> [x]) <<< edgeMap (*2)]
+                 (frpTest [edgeMap (*2)]
                           [2,2,2,4,1,3,9,5,5,5,3])
                  [[4],[4],[4],[8],[2],[6],[18],[10],[10],[10],[6]]
 
@@ -124,19 +125,19 @@ testHistory :: IO ()
 testHistory = testClose "testHistory"
                  (frpTest [history (fromSeconds 0.31)]
                           [2,3,1,1,2,2,2,7,7,7,7,7])
-                 [[edge0],
-                  [edge1,edge0],
-                  [edge2,edge1,edge0],
-                  [edge2,edge1,edge0],
-                  [edge3,edge2,edge1],
-                  [edge3,edge2,edge1],
-                  [edge3,edge2,edge1],
-                  [edge4,edge3],
-                  [edge4,edge3],
-                  [edge4,edge3],
-                  [edge4,edge3],
-                  [edge4,edge3]]
-                 (listEqualClose $ listEqualClose $ edgeEqualClose (==))
+                 [[[edge0]],
+                  [[edge1,edge0]],
+                  [[edge2,edge1,edge0]],
+                  [[edge2,edge1,edge0]],
+                  [[edge3,edge2,edge1]],
+                  [[edge3,edge2,edge1]],
+                  [[edge3,edge2,edge1]],
+                  [[edge4,edge3]],
+                  [[edge4,edge3]],
+                  [[edge4,edge3]],
+                  [[edge4,edge3]],
+                  [[edge4,edge3]]]
+                 (listEqualClose $ listEqualClose $ listEqualClose $ edgeEqualClose (==))
     where edge0 = Edge { edge_previous = 2,
                          edge_next = 2,
                          edge_changed = fromSeconds 0.0 }
@@ -155,7 +156,7 @@ testHistory = testClose "testHistory"
 
 testEdgep :: IO ()
 testEdgep = test "testEdgep"
-                 (frpTest [arr (\x -> [x]) <<< edgep]
+                 (frpTest [edgep]
                           [2,2,2,3,2,3,3,3,4,4,4,4,5,4,5,5])
                  [[False],[False],[False],[True],[True],[True],[False],[False],[True],[False],[False],[False],
                   [True],[True],[True],[False]]

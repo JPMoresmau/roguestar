@@ -1,17 +1,10 @@
 \section{RSAGL.ThreadedArrow}
 
-\label{MustBeAMonoid}
-
-A ThreadedArrow is an extension of the SwitchedArrow.  In addition to switching, a ThreadedArrow can spawn new
-threads that run independantly.  All threads recieve the same input.  The output type must be a monoid.
-\footnote{See http://haskell.org/ghc/docs/latest/html/libraries/base/Data-Monoid.html}  The output is then
-combined using Monoid's mappend function.  Finally, threads can terminate.  If all threads terminate,
-the result of the ThreadedArrow becomes mempty.
+A ThreadedArrow is an extension of the SwitchedArrow.  In addition to switching, ThreadedArrow threads can spawn new threads and
+terminate themselves.  All threads recieve the same input.
 
 While the ThreadedArrow has conceptual similarities to the threading systems provided by an operating system,
 it does not provide true parallelism or concurency.
-
-The ThreadedArrow could be used to model cellular automata or a non-deterministic state machine.
 
 \begin{code}
 {-# OPTIONS_GHC -farrows -fglasgow-exts #-}
@@ -32,17 +25,11 @@ import Control.Arrow.Transformer
 import Control.Arrow.Transformer.State
 import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.StatefulArrow as StatefulArrow
-import Data.Monoid
 import Data.Maybe
 \end{code}
 
 The ThreadedArrow itself is a form of SwitchedArrow.  It retains state (ThreadInfo) that
 indicates what threads have completed, are waiting to be completed, and are currently executing.
-
-As threads complete, they are added to the completed queue, and the next waiting thread is made active.
-
-When all of the threads have completed, the queue of waiting threads is set to the list
-of completed threads, and the cycle begins again.
 
 \begin{code}
 type ThreadedFunction i o = ThreadedArrow i o (->)
@@ -94,14 +81,14 @@ runThread (ThreadedArrow thread) =
                         storeCurrentThread -< ()
                         returnA -< o
 
-runThreads :: (Monoid o,Arrow a,ArrowApply a,ArrowChoice a) => StateArrow (ThreadInfo a i o) a i o
+runThreads :: (Arrow a,ArrowApply a,ArrowChoice a) => StateArrow (ThreadInfo a i o) a i [o]
 runThreads = proc i ->
     do thread_info <- loadNextThread -< ()
        case ti_active_thread thread_info of
            Just thread -> do o <- app -< (runThread thread,i)
                              os <- runThreads -< i
-                             returnA -< o `mappend` os
-           Nothing -> returnA -< mempty
+                             returnA -< o : os
+           Nothing -> returnA -< []
 \end{code}
 
 The ThreadedArrow implements the same switching semantics as SwitchedArrow.
@@ -110,31 +97,26 @@ The ThreadedArrow implements the same switching semantics as SwitchedArrow.
 \begin{code}
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow i o a (ThreadedArrow i o a i o,i) o
 switchContinue = proc (ta@(ThreadedArrow cont),i) ->
-    do ThreadedArrow $ lift $ substituteThread -< ta
+    do ThreadedArrow $ lift $ substituteThread -< Just ta
        (ThreadedArrow $ SwitchedArrow.switchContinue) -< (cont,i)
 
 switchTerminate :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a (ThreadedArrow i o a i o,o) o
 switchTerminate = proc (ta@(ThreadedArrow cont),o) ->
-    do (ThreadedArrow $ lift $ substituteThread) -< ta
+    do (ThreadedArrow $ lift $ substituteThread) -< Just ta
        (ThreadedArrow $ SwitchedArrow.switchTerminate) -< (cont,o)
 
-substituteThread :: (Arrow a) => StateArrow (ThreadInfo a i o) a (ThreadedArrow i o a i o) ()
+substituteThread :: (Arrow a) => StateArrow (ThreadInfo a i o) a (Maybe (ThreadedArrow i o a i o)) ()
 substituteThread = 
     proc thread -> do thread_info <- fetch -< ()
-                      store -< thread_info { ti_active_thread = Just thread }
+                      store -< thread_info { ti_active_thread = thread }
 \end{code}
 
 \subsection{Threading Operators}
-\label{spawnThreads}
-\label{killThreadIf}
 
-There are two thread-related functions: spawnThreads and killThread.
+\texttt{spawnThreads} adds the specified threads to the waiting queue.  They will run immediately after
+the current thread.
 
-spawnThreads adds the specified threads to the waiting queue.  They will run immediately after
-the current thread.  The current thread continues indefinitely.
-
-killThreadIf, if the boolean parameter is set, ends the current thread immediately, 
-returning the specified result.
+\texttt{killThreadIf}, if the boolean parameter is set, ends the current thread immediately.
 
 \begin{code}
 spawnThreads :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a [ThreadedArrow i o a i o] ()
@@ -142,22 +124,19 @@ spawnThreads = ThreadedArrow $ lift $
     proc threads -> do thread_info <- fetch -< ()
                        store -< thread_info { ti_waiting_threads = threads ++ ti_waiting_threads thread_info }
 
-killThreadIf :: (Arrow a,ArrowChoice a,Monoid o) => ThreadedArrow i o a (Bool,o) o
+killThreadIf :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a (Bool,o) o
 killThreadIf = proc (b,o) ->
     do if b
-           then RSAGL.ThreadedArrow.switchTerminate -< (ThreadedArrow $ lift $ 
-               fetch >>> arr killThreadPrim_ >>> store >>> arr (const mempty), o)
+           then do (ThreadedArrow $ lift $ substituteThread) -< Nothing
+	           (ThreadedArrow $ SwitchedArrow.switchTerminate) -< 
+		       (arr (error "ThreadedArrow: killThreadIf: tried to use the result of a killed thread"),o)
            else returnA -< o
-    where killThreadPrim_ thread_info = thread_info { ti_active_thread = Nothing }
 \end{code}
 
 \subsection{The StatefulArrow form of a ThreadedArrow}
 
-statefulForm transforms a set of ThreadedArrow threads into a StatefulArrow
-\footnote{See also page \pageref{statefulForm}}.
-
 \begin{code}
-statefulForm :: (Monoid o,ArrowChoice a,ArrowApply a) => [ThreadedArrow i o a i o] -> StatefulArrow a i o
+statefulForm :: (ArrowChoice a,ArrowApply a) => [ThreadedArrow i o a i o] -> StatefulArrow a i [o]
 statefulForm = stateContext $
     proc i -> do threads <- fetch -< ()
                  (o,thread_result) <- lift (runState runThreads) -< (i,initialThreadedState threads)

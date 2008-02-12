@@ -23,6 +23,7 @@ module RSAGL.FRP
      frpTest,
      FRPProgram,
      newFRPProgram,
+     newFRP1Program,
      updateFRPProgram,
      integral,
      derivative,
@@ -31,6 +32,7 @@ module RSAGL.FRP
      absoluteTime,
      threadTime,
      frpContext,
+     frp1Context,
      RSAGL.FRP.withState,
      RSAGL.FRP.withExposedState)
     where
@@ -52,26 +54,31 @@ import Data.Maybe
 data FRPState = FRPState { frpstate_absolute_time :: Time,
                            frpstate_delta_time :: Time }
 
-newtype FRP i o a j p = FRP (ArrowTransformerOptimizer (FRPBase i o) (StateArrow FRPState a) j p)
+data Threaded
 
-instance (Arrow a,ArrowChoice a) => Arrow (FRP i o a) where
+type FRP = FRPX Threaded
+type FRP1 = FRPX ()
+
+newtype FRPX k i o a j p = FRP (ArrowTransformerOptimizer (FRPBase i o) (StateArrow FRPState a) j p)
+
+instance (Arrow a,ArrowChoice a) => Arrow (FRPX k i o a) where
     (FRP a) >>> (FRP b) = FRP $ a >>> b
     arr = FRP . arr
     first (FRP f) = FRP $ first f
 
-instance (Arrow a,ArrowChoice a) => ArrowTransformer (FRP i o) a where
+instance (Arrow a,ArrowChoice a) => ArrowTransformer (FRPX k i o) a where
     lift = FRP . lift . lift
 
-instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRP i o a) where
+instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRPX k i o a) where
     fetch = lift fetch
     store = lift store
 
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) =>
-                  FRP i o a (FRP i o a i o,i) o
+                  FRPX any i o a (FRPX any i o a i o,i) o
 switchContinue = proc (FRP t,i) -> FRP $ raw $ FRPBase.switchContinue -< (collapseArrowTransformer t,i)
 
 switchTerminate :: (Arrow a,ArrowChoice a) =>
-                   FRP i o a (FRP i o a i o,o) o
+                   FRPX any i o a (FRPX any i o a i o,o) o
 switchTerminate = proc (FRP t,o) -> FRP $ raw $ FRPBase.switchTerminate -< (collapseArrowTransformer t,o)
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => FRP i o a [FRP i o a i o] ()
@@ -88,18 +95,27 @@ Using frpContext, a thread can instantiate a group of threads that die whenever 
 dies or switches.  That is, the thread group is part of the state of the calling thread.
 
 \begin{code}
-frpContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => [FRP j p a j p] -> FRP i o a j p
+frpContext :: (Arrow a,ArrowChoice a,ArrowApply a) => [FRP j p a j p] -> FRPX any i o a j [p]
 frpContext = FRP . raw . FRPBase.frpBaseContext . map (\(FRP x) -> collapseArrowTransformer x)
+
+frp1Context :: (Arrow a,ArrowChoice a,ArrowApply a) => FRP1 j p a j p -> FRPX any i o a j p
+frp1Context (FRP frp1_thread) = arr (fromSingletonList (error "frp1Context: non-singular list")) <<< frpContext [FRP frp1_thread]
+
+fromSingletonList :: ([x] -> x) -> [x] -> x
+fromSingletonList nonsingleF list = case list of
+                               [x] -> x
+			       xs -> nonsingleF xs
+
 \end{code}
 
 \subsection{Embedding a StatefulArrow in an FRP arrow}
 
 \begin{code}
-statefulContext :: (Arrow a,ArrowChoice a,ArrowApply a) => StatefulArrow a j p -> FRP i o a j p
+statefulContext :: (Arrow a,ArrowChoice a,ArrowApply a) => StatefulArrow a j p -> FRPX any i o a j p
 statefulContext = FRP . raw . FRPBase.statefulContext . statefulTransform lift
 
 statefulContext_ :: (Arrow a,ArrowChoice a,ArrowApply a) => 
-                        StatefulArrow a (j,FRPState) (p,FRPState) -> FRP i o a j p
+                        StatefulArrow a (j,FRPState) (p,FRPState) -> FRPX any i o a j p
 statefulContext_ sa = proc i ->
     do frpstate <- FRP (lift fetch) -< ()
        (o,frpstate') <- RSAGL.FRP.statefulContext sa -< (i,frpstate)
@@ -110,13 +126,13 @@ statefulContext_ sa = proc i ->
 \subsection{Allowing underlying state}
 
 \begin{code}
-withState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => 
-                 [FRP j p (StateArrow s a) j p] -> s -> FRP i o a j p
+withState :: (Arrow a,ArrowChoice a,ArrowApply a) => 
+                 [FRP j p (StateArrow s a) j p] -> s -> FRPX any i o a j [p]
 withState threads s = statefulContext_ $
     StatefulArrow.withState (RSAGL.FRP.statefulForm threads) s
 
-withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) =>
-                        [FRP j p (StateArrow s a) j p] -> FRP i o a (j,s) (p,s)
+withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
+                        [FRP j p (StateArrow s a) j p] -> FRPX any i o a (j,s) ([p],s)
 withExposedState threads = RSAGL.FRP.statefulContext_ $
         (arr $ \((i,s),frpstate) -> ((i,frpstate),s))
     >>> (StatefulArrow.withExposedState $ RSAGL.FRP.statefulForm threads)
@@ -126,11 +142,11 @@ withExposedState threads = RSAGL.FRP.statefulContext_ $
 \subsection{Invoking an FRP program}
 
 \begin{code}
-statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) =>
-                    [FRP i o a i o] -> StatefulArrow a (i,FRPState) (o,FRPState)
+statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a) =>
+                    [FRP i o a i o] -> StatefulArrow a (i,FRPState) ([o],FRPState)
 statefulForm = StatefulArrow.withExposedState . FRPBase.statefulForm . map (\(FRP x) -> collapseArrowTransformer x)
 
-frpTest :: (Monoid o) => [FRP i o (->) i o] -> [i] -> [o]
+frpTest :: [FRP i o (->) i o] -> [i] -> [[o]]
 frpTest frps is = map fst $ runStateMachine (RSAGL.FRP.statefulForm frps) $
                       zip is frp_test_states
 
@@ -139,16 +155,19 @@ frp_test_states = map numToState [0.0,0.1..]
     where numToState x = FRPState { frpstate_absolute_time = fromSeconds $ 1242341239 + x,
                                     frpstate_delta_time = fromSeconds (if x==0 then 0 else 0.1) }
 
-data FRPProgram a i o = FRPProgram (StatefulArrow a (i,FRPState) (o,FRPState)) (Maybe Time)
+data FRPProgram a i o = FRPProgram (StatefulArrow a (i,FRPState) ([o],FRPState)) (Maybe Time)
 
-newFRPProgram :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => [FRP i o a i o] -> FRPProgram a i o
-newFRPProgram frps = FRPProgram (RSAGL.FRP.statefulForm frps) Nothing
+newFRPProgram :: (Arrow a,ArrowChoice a,ArrowApply a) => [FRP i o a i o] -> FRPProgram a i [o]
+newFRPProgram frps = newFRP1Program (frpContext frps)
+
+newFRP1Program :: (Arrow a,ArrowChoice a,ArrowApply a) => FRP1 i o a i o -> FRPProgram a i o
+newFRP1Program frp1 = FRPProgram (RSAGL.FRP.statefulForm [frp1Context frp1]) Nothing
 
 updateFRPProgram :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPProgram a i o -> a (i,Time) (o,FRPProgram a i o)
 updateFRPProgram (FRPProgram sa old_run) = proc (i,new_t) ->
     do let old_t = fromMaybe new_t old_run
-       ((new_o,_),new_stateful_arrow) <- runStatefulArrow sa -< (i, FRPState { frpstate_absolute_time = new_t, frpstate_delta_time = (new_t `sub` old_t) })
-       returnA -< (new_o, FRPProgram new_stateful_arrow (Just new_t))
+       ((new_os,_),new_stateful_arrow) <- runStatefulArrow sa -< (i, FRPState { frpstate_absolute_time = new_t, frpstate_delta_time = (new_t `sub` old_t) })
+       returnA -< (fromSingletonList (error "updateFRPProgram: non-singular list") new_os, FRPProgram new_stateful_arrow (Just new_t))
 \end{code}
 
 \subsection{Timelike operations on continuous values.}
@@ -157,22 +176,22 @@ updateFRPProgram (FRPProgram sa old_run) = proc (i,new_t) ->
 continuous value.
 
 \begin{code}
-derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractSubtract p v,AbstractVector v) => FRP i o a p (Rate v)
+derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractSubtract p v,AbstractVector v) => FRPX any i o a p (Rate v)
 derivative = accumulate undefined
     (\old_value new_value old_rate _ delta_t _ -> if delta_t == zero
         then old_rate
         else (new_value `sub` old_value) `per` delta_t)
     zero
 
-integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRP i o a (Rate v) v
+integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRPX any i o a (Rate v) v
 integral = accumulate undefined
     (\old_rate new_rate old_accum _ delta_t _ -> old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t))
 
-integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRP i o a (Time -> p -> Rate v) p
+integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRPX any i o a (Time -> p -> Rate v) p
 integralRK4 f addPV = accumulate f (\_ diffF p abs_t delta_t -> integrateRK4 addPV diffF p (abs_t `sub` delta_t) abs_t)
 
 integralRK4' :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) -> 
-                FRP x y a (Time -> p -> Rate v -> Acceleration v) (p,Rate v)
+                FRPX any x y a (Time -> p -> Rate v -> Acceleration v) (p,Rate v)
 integralRK4' f addPV = accumulate f (\_ diffF p abs_t delta_t -> integrateRK4' addPV diffF p (abs_t `sub` delta_t) abs_t)
 \end{code}
 
@@ -180,7 +199,7 @@ The \texttt{accumulate} function implements practically any time-stepping algori
 The accumulation function is of the form: old\_input new\_input old\_accumulation absolute\_time delta\_time number\_of\_intervals.
 
 \begin{code}
-accumulate :: (Arrow a,ArrowChoice a,ArrowApply a) => Frequency -> (i -> i -> o -> Time -> Time -> Integer -> o) -> o -> FRP x y a i o
+accumulate :: (Arrow a,ArrowChoice a,ArrowApply a) => Frequency -> (i -> i -> o -> Time -> Time -> Integer -> o) -> o -> FRPX any x y a i o
 accumulate frequency accumF initial_value = statefulContext_ $ SwitchedArrow.withState accumulate_ (\(i,_) -> (i,initial_value))
     where accumulate_ = proc (new_input,frpstate@FRPState{ frpstate_absolute_time=abs_t, frpstate_delta_time=delta_t }) -> 
               do (old_input,old_accum) <- lift fetch -< ()
@@ -194,13 +213,13 @@ accumulate frequency accumF initial_value = statefulContext_ $ SwitchedArrow.wit
 absoluteTime answers the time relative to some fixed point (the epoch).
 
 \begin{code}
-absoluteTime :: (Arrow a,ArrowChoice a) => FRP i o a () Time
+absoluteTime :: (Arrow a,ArrowChoice a) => FRPX any i o a () Time
 absoluteTime = (arr frpstate_absolute_time) <<< FRP (lift fetch)
 \end{code}
 
 threadTime answers the time since the current thread first executed.
 
 \begin{code}
-threadTime :: (Arrow a,ArrowChoice a,ArrowApply a) => FRP i o a () Time
+threadTime :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any i o a () Time
 threadTime = integral zero <<< arr (const $ perSecond $ fromSeconds 1)
 \end{code}

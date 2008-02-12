@@ -64,7 +64,7 @@ Using frpBaseContext, a thread can instantiate a group of threads that die whene
 dies or switches.  That is, the thread group is part of the state of the calling thread.
 
 \begin{code}
-frpBaseContext :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => [FRPBase j p a j p] -> FRPBase i o a j p
+frpBaseContext :: (Arrow a,ArrowChoice a,ArrowApply a) => [FRPBase j p a j p] -> FRPBase i o a j [p]
 frpBaseContext threads = FRPBase $ statefulTransform lift (RSAGL.FRPBase.statefulForm threads)
 \end{code}
 
@@ -75,11 +75,11 @@ StatefulArrow combinators of the same name\footnote{See page \pageref{withState}
 
 \begin{code}
 withState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => 
-                [FRPBase j p (StateArrow s a) j p] -> s -> FRPBase i o a j p
+                [FRPBase j p (StateArrow s a) j p] -> s -> FRPBase i o a j [p]
 withState threads s = FRPBase $ statefulTransform lift $ StatefulArrow.withState (RSAGL.FRPBase.statefulForm threads) s
 
 withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) =>
-                [FRPBase j p (StateArrow s a) j p] -> FRPBase i o a (j,s) (p,s)
+                [FRPBase j p (StateArrow s a) j p] -> FRPBase i o a (j,s) ([p],s)
 withExposedState threads = statefulContext $ StatefulArrow.withExposedState $ RSAGL.FRPBase.statefulForm threads
 \end{code}
 
@@ -101,7 +101,7 @@ The FRPBase arrow can be made to appear as a StatefulArrow using statefulForm.
 \footnote{See \pageref{statefulForm}}
 
 \begin{code}
-statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => [FRPBase i o a i o] -> StatefulArrow a i o
+statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a) => [FRPBase i o a i o] -> StatefulArrow a i [o]
 statefulForm = ThreadedArrow.statefulForm . map (\(FRPBase x) -> statefulThread x)
 \end{code}
 
