@@ -14,7 +14,10 @@ and the arrow-embedding operations from FRPBase.
 {-# OPTIONS_GHC -fglasgow-exts -farrows -fallow-undecidable-instances #-}
 
 module RSAGL.FRP
-    (FRP,
+    (FRPX,
+     FRP1,
+     Threaded,
+     FRP,
      RSAGL.FRP.switchContinue,
      RSAGL.FRP.switchTerminate,
      RSAGL.FRP.spawnThreads,
