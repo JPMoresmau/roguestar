@@ -10,8 +10,10 @@ module RSAGL.Edge
      edge,
      edgep,
      edgeFold,
+     genericEdgeFold,
      edgeMap,
      history,
+     sticky,
      initial,
      started)
     where
@@ -23,7 +25,7 @@ import RSAGL.Time
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
-
+import Data.Maybe
 \end{code}
 
 \subsection{Edge data structure}
@@ -37,7 +39,7 @@ data Edge a = Edge { edge_previous :: a,
 
 \subsection{Edge detectors}
 
-edge watches an input and answers an Edge data structure.
+\texttt{edge} watches an input and answers an Edge data structure.
 
 \begin{code}
 edge :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e (Edge e)
@@ -57,7 +59,7 @@ edge = proc i ->
                  lift fetch -< ()
 \end{code}
 
-edgep answers True exactly once each time a value changes.
+\texttt{edgep} answers True exactly once each time a value changes.
 
 \begin{code}
 edgep :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e Bool
@@ -70,22 +72,25 @@ edgep = FRP.statefulContext $ SwitchedArrow.withState edgep' id
 
 \subsection{Edge folds}
 
-edgeFold combines each unique input into a cumulative value using a folding function.
+\texttt{edgeFold} combines each unique input into a cumulative value using a folding function.
 The folding function must have some way to discard old edges, or it will represent a space leak.
 
 \begin{code}
 edgeFold :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => p -> (j -> p -> p) -> FRPX any i o a j p
-edgeFold initial_value f = FRP.statefulContext $ SwitchedArrow.withState edgeFold' (\i -> (i,f i initial_value))
+edgeFold = genericEdgeFold (==)
+
+genericEdgeFold :: (Arrow a,ArrowChoice a,ArrowApply a) => (j -> j -> Bool) -> p -> (j -> p -> p) -> FRPX any i o a j p
+genericEdgeFold predicate initial_value f = FRP.statefulContext $ SwitchedArrow.withState edgeFold' (\i -> (i,f i initial_value))
     where edgeFold' = proc i ->
               do (old_raw,old_folded) <- lift fetch -< ()
-                 let (new_raw,new_folded) = if old_raw == i
+                 let (new_raw,new_folded) = if old_raw `predicate` i
                                             then (old_raw,old_folded)
                                             else (i,f i old_folded)
                  lift store -< (new_raw,new_folded)
                  returnA -< new_folded
 \end{code}
 
-history answers a history of edges for a value.  The Time parameter indicates the maximum age of an edge, 
+\texttt{history} answers a history of edges for a value.  The Time parameter indicates the maximum age of an edge, 
 after which it can be forgotten.
 
 \begin{code}
@@ -94,10 +99,10 @@ history t = edgeFold [] history' <<< edge
     where history' n h = n : takeWhile ((>= edge_changed n `sub` t) . edge_changed) h
 \end{code}
 
-edgeMap is equivalent to \texttt{arr}, but more efficient, possibly, because the mapping function is only 
+\texttt{edgeMap} is equivalent to \texttt{arr}, but more efficient, possibly, because the mapping function is only 
 applied when the input changes.
 
-edgeMap should actually be more efficient only when: the cost of the mapping function is high, the cost
+\texttt{edgeMap} should actually be more efficient only when: the cost of the mapping function is high, the cost
 of comparing two equal values is low, and the input changes infrequently.
 
 \begin{code}
@@ -105,9 +110,16 @@ edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any i o
 edgeMap f = edgeFold undefined (\i -> \_ -> f i)
 \end{code}
 
+\texttt{sticky} remembers the last non-\texttt{Nothing} value of a \texttt{Maybe}.
+
+\begin{code}
+sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any i o a (Maybe x) (Maybe x)
+sticky = genericEdgeFold (const $ const True) Nothing (\j p -> if isJust j then j else p)
+\end{code}
+
 \subsection{Remembering the initial value of an input}
 
-initial answers the first value that an input ever has (during this instance of this thread).
+\texttt{initial} answers the first value that an input ever has (during this instance of this thread).
 
 \begin{code}
 initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e e
@@ -118,9 +130,10 @@ initial = FRP.statefulContext $ SwitchedArrow.withState initial1 undefined
           initial2 = lift fetch
 \end{code}
 
-started is the absoluteTime at which this thread started.
+\texttt{started} is the \texttt{absoluteTime} at which this thread started.
 
 \begin{code}
 started :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any i o a () Time
 started = initial <<< absoluteTime
 \end{code}
+
