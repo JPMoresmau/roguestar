@@ -31,6 +31,9 @@ FRPBase is a composite arrow in which the StatefulArrow is layered on top of the
 \begin{code}
 newtype FRPBase i o a j p = FRPBase (StatefulArrow (ThreadedArrow i o a) j p)
 
+fromFRPBase :: FRPBase i o a j p -> (StatefulArrow (ThreadedArrow i o a) j p)
+fromFRPBase (FRPBase a) = a
+
 instance (ArrowChoice a) => Arrow (FRPBase i o a) where
     (>>>) (FRPBase x) (FRPBase y) = FRPBase $ x >>> y
     arr = FRPBase . arr
@@ -39,15 +42,13 @@ instance (ArrowChoice a) => Arrow (FRPBase i o a) where
 instance (ArrowChoice a) => ArrowTransformer (FRPBase i o) a where
     lift = FRPBase . lift . lift
 
-switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase i o a (FRPBase i o a i o,i) o
-switchContinue = 
-    proc (FRPBase thread,i) -> 
-        do FRPBase $ lift $ ThreadedArrow.switchContinue -< (statefulThread thread,i)
+switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase i o a (Maybe (FRPBase i o a i o),i) i
+switchContinue = proc (thread,i) -> 
+    do FRPBase $ lift $ ThreadedArrow.switchContinue -< (fmap (statefulThread . fromFRPBase) thread,i)
 
-switchTerminate :: (Arrow a,ArrowChoice a) => FRPBase i o a (FRPBase i o a i o,o) o
-switchTerminate = 
-    proc (FRPBase thread,o) -> 
-        do FRPBase $ lift $ ThreadedArrow.switchTerminate -< (statefulThread thread,o)
+switchTerminate :: (Arrow a,ArrowChoice a) => FRPBase i o a (Maybe (FRPBase i o a i o),o) o
+switchTerminate = proc (thread,o) -> 
+    do FRPBase $ lift $ ThreadedArrow.switchTerminate -< (fmap (statefulThread . fromFRPBase) thread,o)
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase i o a [FRPBase i o a i o] ()
 spawnThreads = (FRPBase $ lift $ ThreadedArrow.spawnThreads) <<< 
@@ -108,7 +109,7 @@ statefulForm = ThreadedArrow.statefulForm . map (\(FRPBase x) -> statefulThread 
 \subsection{Essential mechanism}
 
 The essential mechanism of the FRPBase arrow is the layering of a StatefulArrow over a ThreadedArrow,
-allowing threads that are both implicitly and explicitly stateful.  statefulThread implements this.
+allowing threads that are both implicitly and explicitly stateful.  \texttt{statefulThread} implements this.
 In the event of an explicit switch, all implicit state is lost.
 
 \begin{code}
@@ -117,5 +118,5 @@ statefulThread :: (Arrow a,ArrowChoice a) =>
 statefulThread (LiftedStatefulArrow lsf) = lsf
 statefulThread (StatefulArrow sf) = 
     proc b -> do (c,sf') <- sf -< b
-                 ThreadedArrow.switchTerminate -< (statefulThread sf',c)
+                 ThreadedArrow.switchTerminate -< (Just $ statefulThread sf',c)
 \end{code}

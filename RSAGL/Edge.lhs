@@ -114,7 +114,7 @@ initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e e
 initial = FRP.statefulContext $ SwitchedArrow.withState initial1 undefined
     where initial1 = proc i ->
               do lift store -< i
-                 SwitchedArrow.switchContinue -< (initial2,i)
+                 SwitchedArrow.switchContinue -< (Just $ initial2,i)
           initial2 = lift fetch
 \end{code}
 

@@ -95,15 +95,19 @@ The ThreadedArrow implements the same switching semantics as SwitchedArrow.
 \footnote{Page \pageref{switchContinue}}
 
 \begin{code}
-switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow i o a (ThreadedArrow i o a i o,i) o
-switchContinue = proc (ta@(ThreadedArrow cont),i) ->
-    do ThreadedArrow $ lift $ substituteThread -< Just ta
-       (ThreadedArrow $ SwitchedArrow.switchContinue) -< (cont,i)
+switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow i o a (Maybe (ThreadedArrow i o a i o),i) i
+switchContinue = proc (m_thread,i) -> case m_thread of
+    Just (ta@(ThreadedArrow thread)) ->
+        do ThreadedArrow $ lift $ substituteThread -< Just ta
+           (ThreadedArrow $ SwitchedArrow.switchContinue) -< (Just thread,i)
+    Nothing -> returnA -< i
 
-switchTerminate :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a (ThreadedArrow i o a i o,o) o
-switchTerminate = proc (ta@(ThreadedArrow cont),o) ->
-    do (ThreadedArrow $ lift $ substituteThread) -< Just ta
-       (ThreadedArrow $ SwitchedArrow.switchTerminate) -< (cont,o)
+switchTerminate :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a (Maybe (ThreadedArrow i o a i o),o) o
+switchTerminate = proc (m_thread,o) -> case m_thread of
+    Just (ta@(ThreadedArrow thread)) ->
+        do (ThreadedArrow $ lift $ substituteThread) -< Just ta
+           (ThreadedArrow $ SwitchedArrow.switchTerminate) -< (Just thread,o)
+    Nothing -> returnA -< o
 
 substituteThread :: (Arrow a) => StateArrow (ThreadInfo a i o) a (Maybe (ThreadedArrow i o a i o)) ()
 substituteThread = 
@@ -125,12 +129,11 @@ spawnThreads = ThreadedArrow $ lift $
                        store -< thread_info { ti_waiting_threads = threads ++ ti_waiting_threads thread_info }
 
 killThreadIf :: (Arrow a,ArrowChoice a) => ThreadedArrow i o a (Bool,o) o
-killThreadIf = proc (b,o) ->
-    do if b
-           then do (ThreadedArrow $ lift $ substituteThread) -< Nothing
-	           (ThreadedArrow $ SwitchedArrow.switchTerminate) -< 
-		       (arr (error "ThreadedArrow: killThreadIf: tried to use the result of a killed thread"),o)
-           else returnA -< o
+killThreadIf = proc (b,o) -> if b
+    then do (ThreadedArrow $ lift $ substituteThread) -< Nothing
+	    (ThreadedArrow $ SwitchedArrow.switchTerminate) -< 
+	        (Just $ arr (error "ThreadedArrow: killThreadIf: tried to use a killed thread"),o)
+    else returnA -< o
 \end{code}
 
 \subsection{The StatefulArrow form of a ThreadedArrow}

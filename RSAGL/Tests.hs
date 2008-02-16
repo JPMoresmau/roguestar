@@ -46,13 +46,13 @@ countingArrow = stateContext $
 evenZeroesArrow :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow = proc x ->
      do case x of
-               False -> SwitchedArrow.switchTerminate -< (evenZeroesArrow_oddZeroes,False)
+               False -> SwitchedArrow.switchTerminate -< (Just evenZeroesArrow_oddZeroes,False)
                True -> returnA -< True
 
 evenZeroesArrow_oddZeroes :: SwitchedFunction Bool Bool Bool Bool
 evenZeroesArrow_oddZeroes = proc x ->
     do case x of
-              False -> SwitchedArrow.switchTerminate -< (evenZeroesArrow,True)
+              False -> SwitchedArrow.switchTerminate -< (Just evenZeroesArrow,True)
               True -> returnA -< False
 
 --
@@ -63,7 +63,7 @@ evenZeroesArrow_oddZeroes = proc x ->
 spawnPlusAndMinusAndDie :: Integer -> ThreadedFunction () (Set Integer) () (Set Integer)
 spawnPlusAndMinusAndDie i = step1
     where step1 = proc () ->
-              do ThreadedArrow.switchTerminate -< (step2,mempty)
+              do ThreadedArrow.switchTerminate -< (Just $ step2,mempty)
           step2 = proc () ->
               do ThreadedArrow.spawnThreads -< [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)]
                  ThreadedArrow.killThreadIf -< (i `mod` 3 /= 0 || i == 0,Set.singleton i)

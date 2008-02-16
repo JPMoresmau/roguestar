@@ -64,6 +64,9 @@ type FRP1 = FRPX ()
 
 newtype FRPX k i o a j p = FRP (ArrowTransformerOptimizer (FRPBase i o) (StateArrow FRPState a) j p)
 
+fromFRP :: FRPX k i o a j p -> (FRPBase i o (StateArrow FRPState a) j p)
+fromFRP (FRP frp) = collapseArrowTransformer frp
+
 instance (Arrow a,ArrowChoice a) => Arrow (FRPX k i o a) where
     (FRP a) >>> (FRP b) = FRP $ a >>> b
     arr = FRP . arr
@@ -77,15 +80,15 @@ instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRPX k i o a) where
     store = lift store
 
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) =>
-                  FRPX any i o a (FRPX any i o a i o,i) o
-switchContinue = proc (FRP t,i) -> FRP $ raw $ FRPBase.switchContinue -< (collapseArrowTransformer t,i)
+                  FRPX any i o a (Maybe (FRPX any i o a i o),i) i
+switchContinue = proc (t,i) -> FRP $ raw $ FRPBase.switchContinue -< (fmap fromFRP t,i)
 
 switchTerminate :: (Arrow a,ArrowChoice a) =>
-                   FRPX any i o a (FRPX any i o a i o,o) o
-switchTerminate = proc (FRP t,o) -> FRP $ raw $ FRPBase.switchTerminate -< (collapseArrowTransformer t,o)
+                   FRPX any i o a (Maybe (FRPX any i o a i o),o) o
+switchTerminate = proc (t,o) -> FRP $ raw $ FRPBase.switchTerminate -< (fmap fromFRP t,o)
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => FRP i o a [FRP i o a i o] ()
-spawnThreads = proc t -> FRP $ raw $ FRPBase.spawnThreads -< map (\(FRP x) -> collapseArrowTransformer x) t
+spawnThreads = proc t -> FRP $ raw $ FRPBase.spawnThreads -< map fromFRP t
 
 killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid o) => FRP i o a (Bool,o) o
 killThreadIf = proc (b,o) -> do FRP $ raw $ FRPBase.killThreadIf -< (b,o)

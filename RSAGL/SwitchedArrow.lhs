@@ -56,33 +56,35 @@ instance (ArrowChoice a,ArrowApply a) => ArrowApply (SwitchedArrow i o a) where
 
 A switchable arrow has two switching operators: switchContinue and switchTerminate.
 
-switchContinue is just like calling app (arrow apply), except that the new switch 
-replaces the current switch the next time the arrow is executed.  Because this is a
-continuation, we pass the input of the switch into the new switch.
+\texttt{switchContinue} resumes execution using the new switch and a new input.  
+If is possible for the new switch to switch again, even leading to non-termination.
+\texttt{switchTerminate} ends execution, specifying the final output.  The new switch will not be
+used until the next time this arrow is executed.
 
-switchTerminate ends execution of the current switch.  Therefore, it requires the
-output of the switch which will be delivered immediately back to the caller.  Like
-switchContinue, the new switch replaces the current switch the next time the arrow is
-executed.
+If the switch is \texttt{Nothing}, then no switch occurs.
 
 \begin{code}
-switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => SwitchedArrow i o a (SwitchedArrow i o a i o,i) o
-switchContinue =
-    proc (switch,i) -> do o <- app -< (switch,i)
+switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) => SwitchedArrow i o a (Maybe (SwitchedArrow i o a i o),i) i
+switchContinue = proc (m_switch,i) -> 
+    case m_switch of
+        Just switch -> do o <- app -< (switch,i)
                           SwitchedArrow raise -< (o,switch)
-                          returnA -< o
+                          returnA -< i
+        Nothing -> returnA -< i
 
-switchTerminate :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a (SwitchedArrow i o a i o,o) o
-switchTerminate = 
-    proc (switch,o) -> do SwitchedArrow raise -< (o,switch)
+switchTerminate :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a (Maybe (SwitchedArrow i o a i o),o) o
+switchTerminate = proc (m_switch,o) -> 
+    case m_switch of
+        Just switch -> do SwitchedArrow raise -< (o,switch)
                           returnA -< o
+	Nothing -> returnA -< o
 \end{code}
 
 \subsection{The StatefulArrow form of a SwitchedArrow}
 \label{statefulForm}
 
 StatefulArrows and SwitchedArrows can both be thought of as automata or self-modifying programs.
-statefulForm allows a SwitchedArrow to appear to the outside world as a StatefulArrow.
+statefulForm allows a SwitchedArrow to take the form of a StatefulArrow.
 
 \begin{code}
 statefulForm :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> StatefulArrow a i o
@@ -103,7 +105,8 @@ withState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
 withState switch2 f = StatefulArrow.withState (statefulForm switch1) undefined
     where switch1 = proc i ->
               do lift store -< f i
-                 RSAGL.SwitchedArrow.switchContinue -< (switch2,i)
+                 RSAGL.SwitchedArrow.switchContinue -< (Just switch2,i)
+		 returnA -< error "withState: unreachable code"
 
 withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                         SwitchedArrow i o (StateArrow s a) i o -> StatefulArrow a (i,s) (o,s)
