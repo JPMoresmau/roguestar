@@ -229,7 +229,13 @@ assembleScene c sceneaccum =
 
 sceneToOpenGL :: Double -> (Double,Double) -> Scene -> IO ()
 sceneToOpenGL aspect_ratio nearfar scene =
-    do rescaleNormal $= Enabled
+    do save_rescale_normal <- GLUT.get rescaleNormal
+       save_cull_face <- GLUT.get cullFace
+       save_depth_func <- GLUT.get depthFunc
+       save_depth_mask <- GLUT.get depthMask
+       save_lighting <- GLUT.get lighting
+       save_light_model_ambient <- GLUT.get lightModelAmbient
+       rescaleNormal $= Enabled
        cullFace $= Just Front
        depthFunc $= Just Lequal
        depthMask $= Enabled
@@ -245,6 +251,12 @@ sceneToOpenGL aspect_ratio nearfar scene =
            do cameraToOpenGL aspect_ratio nearfar (scene_camera scene)
               mapM_ render1Object (scene_local_opaques scene)
               mapM_ render1Object (scene_local_transparents scene)
+       lightModelAmbient $= save_light_model_ambient
+       lighting $= save_lighting
+       depthMask $= save_depth_mask
+       depthFunc $= save_depth_func
+       cullFace $= save_cull_face
+       rescaleNormal $= save_rescale_normal
 
 render1Object :: (WrappedAffine IntermediateModel,[LightSource]) -> IO ()
 render1Object (WrappedAffine m imodel,lss) =
