@@ -12,6 +12,7 @@ module RSAGL.Edge
      edgeFold,
      genericEdgeFold,
      edgeMap,
+     genericEdgeMap,
      history,
      sticky,
      initial,
@@ -107,14 +108,17 @@ of comparing two equal values is low, and the input changes infrequently.
 
 \begin{code}
 edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any i o a j p
-edgeMap f = edgeFold undefined (\i -> \_ -> f i)
+edgeMap f = genericEdgeMap (==) f
+
+genericEdgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any i o a j p
+genericEdgeMap predicate f = genericEdgeFold predicate undefined (const . f)
 \end{code}
 
-\texttt{sticky} remembers the last non-\texttt{Nothing} value of a \texttt{Maybe}.
+\texttt{sticky} remembers the most recent value of an input that satisfies some criteria.
 
 \begin{code}
-sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any i o a (Maybe x) (Maybe x)
-sticky = genericEdgeFold (const $ const True) Nothing (\j p -> if isJust j then j else p)
+sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => (x -> Bool) -> x -> FRPX any i o a x x
+sticky criteria initial_value = genericEdgeFold (const $ const False) initial_value (\new old -> if criteria new then new else old)
 \end{code}
 
 \subsection{Remembering the initial value of an input}
