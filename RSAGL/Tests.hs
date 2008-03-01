@@ -60,13 +60,16 @@ evenZeroesArrow_oddZeroes = proc x ->
 -- Cells at non-zero integers divisible by 3 are "sticky;" once reached they persist forever.
 -- All other integers die out after spawning.
 --
-spawnPlusAndMinusAndDie :: Integer -> ThreadedFunction () (Set Integer) () (Set Integer)
-spawnPlusAndMinusAndDie i = step1
+spawnPlusAndMinusAndDie :: ThreadedArrow Integer () (Set Integer) (->) () (Set Integer)
+spawnPlusAndMinusAndDie = step1
     where step1 = proc () ->
-              do ThreadedArrow.switchTerminate -< (Just $ step2,mempty)
+              do i <- ThreadedArrow.threadIdentity -< ()
+	         ThreadedArrow.switchTerminate -< (Just $ step2,Set.singleton i)
           step2 = proc () ->
-              do ThreadedArrow.spawnThreads -< [spawnPlusAndMinusAndDie (i+1),spawnPlusAndMinusAndDie (i-1)]
-                 ThreadedArrow.killThreadIf -< (i `mod` 3 /= 0 || i == 0,Set.singleton i)
+              do i <- ThreadedArrow.threadIdentity -< ()
+	         ThreadedArrow.spawnThreads -< [(i + 1,spawnPlusAndMinusAndDie),(i - 1,spawnPlusAndMinusAndDie)]
+		 ThreadedArrow.killThreadIf -< (not $ i `mod` 3 == 0 && i /= 0,Set.singleton i)
+                 returnA -< Set.singleton i
 
 --
 -- Sanity test of the StatefulArrow.
@@ -88,7 +91,7 @@ evenZeroes = last . runStateMachine (SwitchedArrow.statefulForm evenZeroesArrow)
 -- Sanity test of the ThreadedArrow
 --
 spawnPMD :: Int -> Set Integer
-spawnPMD n = mconcat $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm $ [spawnPlusAndMinusAndDie 0]) $ replicate (n+1) ()
+spawnPMD n = mconcat $ List.map snd $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm unionThreadIdentity $ [(0,spawnPlusAndMinusAndDie)]) $ replicate (n+1) ()
 
 
 testIntegral :: IO ()
@@ -497,15 +500,15 @@ main = do test "add five test (sanity test of StatefulArrow)"
           test "odd zeroes test (sanity test of SwitchedArrow)" 
                (evenZeroes [True,True,True,False,False,True,False,True]) False
           test "spawning test 1 (sanity test of ThreadedArrow)"
-               (spawnPMD 1) (Set.fromList [0])
+               (spawnPMD 0) (Set.fromList [0])
           test "spawning test 2 (sanity test of ThreadedArrow)"
-               (spawnPMD 2) (Set.fromList [-1,1])
+               (spawnPMD 1) (Set.fromList [-1,1])
           test "spawning test 3 (sanity test of ThreadedArrow)"
-               (spawnPMD 3) (Set.fromList [0,-2,2])
+               (spawnPMD 2) (Set.fromList [0,-2,2])
           test "spawning test 4 (sanity test of ThreadedArrow)"
-               (spawnPMD 4) (Set.fromList [-3,-1,1,3])
+               (spawnPMD 3) (Set.fromList [-3,-1,1,3])
           test "spawning test 5 (does killThreadIf work conditionally?)"
-               (spawnPMD 5) (Set.fromList [-4,-3,-2,0,2,3,4])
+               (spawnPMD 4) (Set.fromList [-4,-3,-2,0,2,3,4])
           testIntegral
           testDerivative
           testInitial

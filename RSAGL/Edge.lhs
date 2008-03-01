@@ -43,7 +43,7 @@ data Edge a = Edge { edge_previous :: a,
 \texttt{edge} watches an input and answers an Edge data structure.
 
 \begin{code}
-edge :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e (Edge e)
+edge :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e (Edge e)
 edge = proc i ->
     do t <- threadTime -< ()
        FRP.statefulContext $ SwitchedArrow.withState edge' initial_edge -< (t,i)
@@ -63,7 +63,7 @@ edge = proc i ->
 \texttt{edgep} answers True exactly once each time a value changes.
 
 \begin{code}
-edgep :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e Bool
+edgep :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e Bool
 edgep = FRP.statefulContext $ SwitchedArrow.withState edgep' id
     where edgep' = proc i ->
               do old_value <- lift fetch -< ()
@@ -77,10 +77,10 @@ edgep = FRP.statefulContext $ SwitchedArrow.withState edgep' id
 The folding function must have some way to discard old edges, or it will represent a space leak.
 
 \begin{code}
-edgeFold :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => p -> (j -> p -> p) -> FRPX any i o a j p
+edgeFold :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => p -> (j -> p -> p) -> FRPX any t i o a j p
 edgeFold = genericEdgeFold (==)
 
-genericEdgeFold :: (Arrow a,ArrowChoice a,ArrowApply a) => (j -> j -> Bool) -> p -> (j -> p -> p) -> FRPX any i o a j p
+genericEdgeFold :: (Arrow a,ArrowChoice a,ArrowApply a) => (j -> j -> Bool) -> p -> (j -> p -> p) -> FRPX any t i o a j p
 genericEdgeFold predicate initial_value f = FRP.statefulContext $ SwitchedArrow.withState edgeFold' (\i -> (i,f i initial_value))
     where edgeFold' = proc i ->
               do (old_raw,old_folded) <- lift fetch -< ()
@@ -95,7 +95,7 @@ genericEdgeFold predicate initial_value f = FRP.statefulContext $ SwitchedArrow.
 after which it can be forgotten.
 
 \begin{code}
-history :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => Time -> FRPX any i o a e [Edge e]
+history :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => Time -> FRPX any t i o a e [Edge e]
 history t = edgeFold [] history' <<< edge
     where history' n h = n : takeWhile ((>= edge_changed n `sub` t) . edge_changed) h
 \end{code}
@@ -107,17 +107,17 @@ applied when the input changes.
 of comparing two equal values is low, and the input changes infrequently.
 
 \begin{code}
-edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any i o a j p
+edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any t i o a j p
 edgeMap f = genericEdgeMap (==) f
 
-genericEdgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any i o a j p
+genericEdgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any t i o a j p
 genericEdgeMap predicate f = genericEdgeFold predicate undefined (const . f)
 \end{code}
 
 \texttt{sticky} remembers the most recent value of an input that satisfies some criteria.
 
 \begin{code}
-sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => (x -> Bool) -> x -> FRPX any i o a x x
+sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => (x -> Bool) -> x -> FRPX any t i o a x x
 sticky criteria initial_value = genericEdgeFold (const $ const False) initial_value (\new old -> if criteria new then new else old)
 \end{code}
 
@@ -126,7 +126,7 @@ sticky criteria initial_value = genericEdgeFold (const $ const False) initial_va
 \texttt{initial} answers the first value that an input ever has (during this instance of this thread).
 
 \begin{code}
-initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any i o a e e
+initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e e
 initial = FRP.statefulContext $ SwitchedArrow.withState initial1 undefined
     where initial1 = proc i ->
               do lift store -< i
@@ -137,7 +137,7 @@ initial = FRP.statefulContext $ SwitchedArrow.withState initial1 undefined
 \texttt{started} is the \texttt{absoluteTime} at which this thread started.
 
 \begin{code}
-started :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any i o a () Time
+started :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any t i o a () Time
 started = initial <<< absoluteTime
 \end{code}
 

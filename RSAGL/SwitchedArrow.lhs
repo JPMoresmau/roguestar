@@ -16,6 +16,7 @@ module RSAGL.SwitchedArrow
      switchContinue,
      switchTerminate,
      statefulForm,
+     runStateful,
      RSAGL.SwitchedArrow.withState,
      RSAGL.SwitchedArrow.withExposedState)
     where
@@ -57,7 +58,7 @@ instance (ArrowChoice a,ArrowApply a) => ArrowApply (SwitchedArrow i o a) where
 A switchable arrow has two switching operators: switchContinue and switchTerminate.
 
 \texttt{switchContinue} resumes execution using the new switch and a new input.  
-If is possible for the new switch to switch again, even leading to non-termination.
+It is possible for the new switch to switch again, even leading to non-termination.
 \texttt{switchTerminate} ends execution, specifying the final output.  The new switch will not be
 used until the next time this arrow is executed.
 
@@ -83,15 +84,15 @@ switchTerminate = proc (m_switch,o) ->
 \subsection{The StatefulArrow form of a SwitchedArrow}
 \label{statefulForm}
 
-StatefulArrows and SwitchedArrows can both be thought of as automata or self-modifying programs.
-statefulForm allows a SwitchedArrow to take the form of a StatefulArrow.
-
 \begin{code}
 statefulForm :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> StatefulArrow a i o
-statefulForm (SwitchedArrow a) = StatefulArrow $ runError (switch) handler
-    where handler = proc (_,(o,newswitch)) -> do returnA -< (o,statefulForm newswitch)
+statefulForm switchedA = StatefulArrow $ arr (second statefulForm) <<< runStateful switchedA
+
+runStateful :: (Arrow a,ArrowChoice a) => SwitchedArrow i o a i o -> a i (o,SwitchedArrow i o a i o)
+runStateful (SwitchedArrow a) = runError switch handler
+    where handler = proc (_,(o,newswitch)) -> do returnA -< (o,newswitch)
           switch = proc i -> do o <- a -< i
-                                returnA -< (o,statefulForm $ SwitchedArrow a)
+	                        returnA -< (o,SwitchedArrow a)
 \end{code}
 
 \subsection{Mixing SwitchedArrows and StateArrows}

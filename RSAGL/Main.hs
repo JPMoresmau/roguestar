@@ -23,6 +23,7 @@ import RSAGL.Scene
 import RSAGL.FRP
 import RSAGL.Animation
 import RSAGL.AnimationExtras
+import RSAGL.ThreadedArrow
 import Control.Arrow
 import RSAGL.Vector
 import RSAGL.RSAGLColors
@@ -39,7 +40,7 @@ test_quality :: Integer
 test_quality = 2^14
 --test_quality = 64
 
-moon_orbital_animation :: AniA i o (IO IntermediateModel) (CSN Point3D)
+moon_orbital_animation :: AniA () i o (IO IntermediateModel) (CSN Point3D)
 moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
@@ -49,7 +50,7 @@ moon_orbital_animation =
 
 walking_orb_animation :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
                          QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
-                         IO (AniA i o () ())
+                         IO (AniA () i o () ())
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
     do let upper_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_upper_leg 50)
        let lower_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_lower_leg 50)
@@ -90,8 +91,8 @@ testScene =
        qo_orb_lower_leg <- newQO orb_lower_leg
        putStrLn "done."
        walking_orb_animation_arrow <- walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg
-       ao_walking_orb <- newAnimationObjectA [walking_orb_animation_arrow]
-       ao_moon_orbit <- newAnimationObjectA [arr (\x -> [x]) <<< moon_orbital_animation]
+       ao_walking_orb <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),walking_orb_animation_arrow)])
+       ao_moon_orbit <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),moon_orbital_animation)])
        return $ 
            do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
               rotation_station <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 5)

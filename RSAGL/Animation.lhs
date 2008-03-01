@@ -20,7 +20,6 @@ module RSAGL.Animation
      runAnimationObject)
     where
 
-import Data.Monoid
 import RSAGL.Time
 import RSAGL.Scene
 import Control.Monad.State
@@ -31,7 +30,6 @@ import RSAGL.Affine
 import RSAGL.FRP
 import Control.Concurrent.MVar
 import Control.Arrow.Transformer.State as StateArrow
-import Control.Arrow
 \end{code}
 
 \subsection{The AniM Monad}
@@ -71,10 +69,13 @@ rotateM v a = animateM (rotationM v a)
 \subsection{The AniA Arrow}
 
 \begin{code}
-type AniA i o j p = FRP i o (StateArrow SceneAccumulator (->)) j p
+type AniA t i o j p = FRPX Threaded t i o (StateArrow SceneAccumulator (->)) j p
+type AniA1 i o j p = FRP1 i o (StateArrow SceneAccumulator (->)) j p
 \end{code}
 
 \subsection{Animation Objects}
+
+This is one possible implementation of an animation object.
 
 \begin{code}
 data AnimationObject i o =
@@ -84,8 +85,8 @@ data AnimationObject i o =
 newAnimationObjectM :: (i -> AniM o) -> AnimationObject i o
 newAnimationObjectM = AniMObject
 
-newAnimationObjectA :: (Monoid o) => [AniA i o i o] -> IO (AnimationObject i o)
-newAnimationObjectA frp_threads = liftM AniAObject $ newMVar $ newFRP1Program $ arr mconcat <<< frpContext frp_threads
+newAnimationObjectA :: AniA1 i o i o -> IO (AnimationObject i o)
+newAnimationObjectA thread = liftM AniAObject $ newMVar $ newFRP1Program thread
 
 runAnimationObject :: AnimationObject i o -> i -> AniM o
 runAnimationObject (AniMObject f) i = f i
