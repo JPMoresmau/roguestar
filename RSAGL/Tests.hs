@@ -91,7 +91,7 @@ evenZeroes = last . runStateMachine (SwitchedArrow.statefulForm evenZeroesArrow)
 -- Sanity test of the ThreadedArrow
 --
 spawnPMD :: Int -> Set Integer
-spawnPMD n = mconcat $ List.map snd $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm unionThreadIdentity $ [(0,spawnPlusAndMinusAndDie)]) $ replicate (n+1) ()
+spawnPMD n = mconcat $ List.map snd $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm (unionThreadIdentity (==)) $ [(0,spawnPlusAndMinusAndDie)]) $ replicate (n+1) ()
 
 
 testIntegral :: IO ()

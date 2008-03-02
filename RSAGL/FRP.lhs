@@ -38,7 +38,11 @@ module RSAGL.FRP
      frpContext,
      frp1Context,
      RSAGL.FRP.withState,
-     RSAGL.FRP.withExposedState)
+     RSAGL.FRP.withExposedState,
+     ThreadedArrow.ThreadIdentity,
+     ThreadedArrow.nullaryThreadIdentity,
+     ThreadedArrow.maybeThreadIdentity,
+     ThreadedArrow.unionThreadIdentity)
     where
 
 import RSAGL.ArrowTransformerOptimizer

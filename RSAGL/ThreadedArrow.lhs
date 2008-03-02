@@ -13,7 +13,8 @@ it provides neither parallelism nor concurency.
 {-# OPTIONS_GHC -farrows -fglasgow-exts #-}
 
 module RSAGL.ThreadedArrow
-    (nullaryThreadIdentity,
+    (ThreadIdentity,
+     nullaryThreadIdentity,
      maybeThreadIdentity,
      unionThreadIdentity,
      ThreadedFunction,
@@ -45,8 +46,8 @@ maybeThreadIdentity manageThreads i news olds = manageThreads i (justs news) (ju
         where nothings = map snd (filter (isNothing . fst) news) ++ map (snd . snd) (filter (isNothing . fst) olds)
 	      justs = map (first fromJust) . filter (isJust . fst)
 
-unionThreadIdentity :: (Eq t) => ThreadIdentity t
-unionThreadIdentity _ news olds_ = map snd $ unionBy (\x y -> fst x == fst y) olds news
+unionThreadIdentity :: (t -> t -> Bool) -> ThreadIdentity t
+unionThreadIdentity predicate _ news olds_ = map snd $ unionBy (\x y -> fst x `predicate` fst y) olds news
     where olds = map (second snd) olds_
 
 newtype ThreadedArrow t i o a j p = ThreadedArrow (SwitchedArrow i (Maybe o) (StateArrow (t,[(t,ThreadedArrow t i o a i (Maybe o))]) a) j p)
