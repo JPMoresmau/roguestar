@@ -18,6 +18,7 @@ import System.Random
 import System.CPUTime
 import Control.Parallel
 import Control.Parallel.Strategies
+import Debug.Trace
 
 -- doubles transforms a list to a list of adjacent elements.
 
@@ -89,6 +90,7 @@ shiftR ps = last ps : init ps
 -- zeroToOne creates a list of numbers from 0.0 to 1.0, using n steps.
 
 zeroToOne :: Integer -> [Double]
+zeroToOne n | n > 100000 = trace ("Warning: zeroToOne was asked for " ++ show n ++ " subdivisions, which seems high.  Using 100,000 instead.") zeroToOne 100000
 zeroToOne n | n <= 1000 = ztos ! n
 zeroToOne n = zeroToOnePrim n
 

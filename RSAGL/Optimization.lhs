@@ -56,7 +56,9 @@ tesselateSurfaceConfiguration s (SurfaceConfiguration elems) =
 
 \begin{code}
 estimateCurveLength :: (a -> a -> Double) -> Curve a -> Double
-estimateCurveLength ruler c = sum $ map (uncurry ruler) $ doubles $ iterateCurve 16 c -- 16 is arbitrary
+estimateCurveLength ruler c = case sum $ map (uncurry ruler) $ doubles $ iterateCurve 16 c of -- 16 is arbitrary
+    x | isNaN x || isInfinite x -> error "estimateCurveLength: NaN"
+    x -> x
 
 estimateSurfaceArea :: (ConcavityDetection a) => (a -> a -> Double) -> Surface a -> Double
 estimateSurfaceArea ruler s = snd $ head $ dropWhile (\(x,y) -> y > x*1.125) $ doubles surface_areas_at_increasing_levels_of_detail
