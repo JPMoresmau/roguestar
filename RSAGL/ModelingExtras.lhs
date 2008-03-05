@@ -73,12 +73,14 @@ smoothbox u p q = model $
 
 \begin{code}
 regularPrism ::(Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Integer -> Modeling attr
-regularPrism (a,ra) (b,rb) n = model $ translate (vectorToFrom b a) $ rotateToFrom (Vector3D 0 1 0) (vectorToFrom b a) $ sequence_ $ rotationGroup (Vector3D 0 1 0) n $ quad
-    where a1 = Point3D 0 0 ra
-          a2 = rotateY (fromRotations $ recip $ fromInteger n) a1
-          b1 = Point3D 0 (distanceBetween a b) rb
-          b2 = rotateY (fromRotations $ recip $ fromInteger n) b1
-          quad = quadralateral a1 a2 b2 b1
+regularPrism (a,ra) (b,rb) n = 
+    model $ translate (vectorToFrom a origin_point_3d) $ 
+        rotateToFrom (Vector3D 0 1 0) (vectorToFrom b a) $ sequence_ $ rotationGroup (Vector3D 0 1 0) n $ quad
+  where a1 = Point3D 0 0 ra
+        a2 = rotateY (fromRotations $ recip $ fromInteger n) a1
+        b1 = Point3D 0 (distanceBetween a b) rb
+        b2 = rotateY (fromRotations $ recip $ fromInteger n) b1
+        quad = quadralateral a1 a2 b2 b1
 \end{code}
 
 \texttt{rotationGroup} rotates a model repeatedly.
