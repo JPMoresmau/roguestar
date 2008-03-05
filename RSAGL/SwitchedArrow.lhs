@@ -103,7 +103,7 @@ These are the StateArrow-related combinators introduced with StatefulArrow
 \begin{code}
 withState :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                 SwitchedArrow i o (StateArrow s a) i o -> (i -> s) -> StatefulArrow a i o
-withState switch2 f = StatefulArrow.withState (statefulForm switch1) undefined
+withState switch2 f = StatefulArrow.withState (statefulForm switch1) (error "withState: undefined")
     where switch1 = proc i ->
               do lift store -< f i
                  RSAGL.SwitchedArrow.switchContinue -< (Just switch2,i)

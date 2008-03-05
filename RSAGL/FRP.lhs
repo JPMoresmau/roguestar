@@ -45,7 +45,6 @@ module RSAGL.FRP
      ThreadedArrow.unionThreadIdentity)
     where
 
-import RSAGL.ArrowTransformerOptimizer
 import RSAGL.AbstractVector
 import RSAGL.Time
 import RSAGL.StatefulArrow as StatefulArrow
@@ -67,10 +66,10 @@ data Threaded
 type FRP = FRPX Threaded ()
 type FRP1 = FRPX () ()
 
-newtype FRPX k t i o a j p = FRP (ArrowTransformerOptimizer (FRPBase t i o) (StateArrow FRPState a) j p)
+newtype FRPX k t i o a j p = FRP (FRPBase t i o (StateArrow FRPState a) j p)
 
 fromFRP :: FRPX k t i o a j p -> FRPBase t i o (StateArrow FRPState a) j p
-fromFRP (FRP frp) = collapseArrowTransformer frp
+fromFRP (FRP frp) = frp
 
 instance (Arrow a,ArrowChoice a) => Arrow (FRPX k t i o a) where
     (FRP a) >>> (FRP b) = FRP $ a >>> b
@@ -86,20 +85,20 @@ instance (ArrowState s a,ArrowChoice a) => ArrowState s (FRPX k t i o a) where
 
 switchContinue :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                   FRPX any t i o a (Maybe (FRPX any t i o a i o),i) i
-switchContinue = proc (s,i) -> FRP $ raw $ FRPBase.switchContinue -< (fmap fromFRP s,i)
+switchContinue = proc (s,i) -> FRP $ FRPBase.switchContinue -< (fmap fromFRP s,i)
 
 switchTerminate :: (Arrow a,ArrowChoice a) =>
                    FRPX any t i o a (Maybe (FRPX any t i o a i o),o) o
-switchTerminate = proc (s,o) -> FRP $ raw $ FRPBase.switchTerminate -< (fmap fromFRP s,o)
+switchTerminate = proc (s,o) -> FRP $ FRPBase.switchTerminate -< (fmap fromFRP s,o)
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX Threaded t i o a [(t,FRPX Threaded t i o a i o)] ()
-spawnThreads = proc threads -> FRP $ raw $ FRPBase.spawnThreads -< map (second fromFRP) threads
+spawnThreads = proc threads -> FRP $ FRPBase.spawnThreads -< map (second fromFRP) threads
 
 killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX Threaded t i o a (Bool,o) o
-killThreadIf = proc (b,o) -> do FRP $ raw $ FRPBase.killThreadIf -< (b,o)
+killThreadIf = proc (b,o) -> do FRP $ FRPBase.killThreadIf -< (b,o)
 
 threadIdentity :: (ArrowChoice a) => FRPX any t i o a () t
-threadIdentity = FRP $ raw $ FRPBase.threadIdentity
+threadIdentity = FRP $ FRPBase.threadIdentity
 \end{code}
 
 \subsection{Embedding one FRP instance in another}
@@ -112,7 +111,7 @@ dies or switches.  That is, the thread group is part of the state of the calling
 frpContext :: (Arrow a,ArrowChoice a,ArrowApply a) => 
     (forall x. j -> [(t,x)] -> [(t,(p,x))] -> [x]) -> 
     [(t,FRPX Threaded t j p a j p)] -> FRPX any u i o a j [(t,p)]
-frpContext manageThreads = FRP . raw . FRPBase.frpBaseContext manageThreads . map (second $ \(FRP x) -> collapseArrowTransformer x)
+frpContext manageThreads = FRP . FRPBase.frpBaseContext manageThreads . map (second fromFRP)
 
 frp1Context :: (Arrow a,ArrowChoice a,ArrowApply a) => 
     FRP1 j p a j p -> FRPX any t i o a j p
@@ -130,7 +129,7 @@ fromSingletonList nonsingleF list = case list of
 
 \begin{code}
 statefulContext :: (Arrow a,ArrowChoice a,ArrowApply a) => StatefulArrow a j p -> FRPX any t i o a j p
-statefulContext = FRP . raw . FRPBase.statefulContext . statefulTransform lift
+statefulContext = FRP . FRPBase.statefulContext . statefulTransform lift
 
 statefulContext_ :: (Arrow a,ArrowChoice a,ArrowApply a) => 
                         StatefulArrow a (j,FRPState) (p,FRPState) -> FRPX any t i o a j p
@@ -165,7 +164,7 @@ withExposedState manageThreads threads = RSAGL.FRP.statefulContext_ $
 statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a) =>
     (forall x. i -> [(t,x)] -> [(t,(o,x))] -> [x]) ->
     [(t,FRPX Threaded t i o a i o)] -> StatefulArrow a (i,FRPState) ([(t,o)],FRPState)
-statefulForm manageThreads = StatefulArrow.withExposedState . FRPBase.statefulForm manageThreads . map (second $ \(FRP x) -> collapseArrowTransformer x)
+statefulForm manageThreads = StatefulArrow.withExposedState . FRPBase.statefulForm manageThreads . map (second fromFRP)
 
 frpTest :: [FRP i o (->) i o] -> [i] -> [[o]]
 frpTest frps is = map (map snd . fst) $ runStateMachine (RSAGL.FRP.statefulForm nullaryThreadIdentity $ (map $ \x -> ((),x)) frps) $
@@ -200,14 +199,14 @@ continuous value.
 
 \begin{code}
 derivative :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractSubtract p v,AbstractVector v) => FRPX any t i o a p (Rate v)
-derivative = accumulate undefined
+derivative = accumulate (error "derivative: undefined")
     (\old_value new_value old_rate _ delta_t _ -> if delta_t == zero
         then old_rate
         else (new_value `sub` old_value) `per` delta_t)
     zero
 
 integral :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => v -> FRPX any t i o a (Rate v) v
-integral = accumulate undefined
+integral = accumulate (error "integral: undefined")
     (\old_rate new_rate old_accum _ delta_t _ -> old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t))
 
 integralRK4 :: (Arrow a,ArrowChoice a,ArrowApply a,AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRPX any t i o a (Time -> p -> Rate v) p

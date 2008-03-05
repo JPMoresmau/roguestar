@@ -25,15 +25,17 @@ import Control.Arrow.Transformer
 import Control.Arrow.Transformer.State
 import RSAGL.StatefulArrow as StatefulArrow
 import RSAGL.ThreadedArrow as ThreadedArrow
+import RSAGL.ArrowTransformerOptimizer
 \end{code}
 
 FRPBase is a composite arrow in which the StatefulArrow is layered on top of the ThreadedArrow.
 
 \begin{code}
-newtype FRPBase t i o a j p = FRPBase (StatefulArrow (ThreadedArrow t i o a) j p)
+newtype FRPBase t i o a j p = FRPBase (
+    ArrowTransformerOptimizer StatefulArrow (ThreadedArrow t i o a) j p)
 
 fromFRPBase :: FRPBase t i o a j p -> (StatefulArrow (ThreadedArrow t i o a) j p)
-fromFRPBase (FRPBase a) = a
+fromFRPBase (FRPBase a) = collapseArrowTransformer a
 
 instance (ArrowChoice a) => Arrow (FRPBase t i o a) where
     (>>>) (FRPBase x) (FRPBase y) = FRPBase $ x >>> y
@@ -53,7 +55,7 @@ switchTerminate = proc (thread,o) ->
 
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase t i o a [(t,FRPBase t i o a i o)] ()
 spawnThreads = (FRPBase $ lift $ ThreadedArrow.spawnThreads) <<< 
-               arr (map $ second $ \(FRPBase thread) -> statefulThread thread)
+               arr (map $ second $ statefulThread . fromFRPBase)
 
 killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase t i o a (Bool,o) o
 killThreadIf = FRPBase $ lift ThreadedArrow.killThreadIf
@@ -72,7 +74,7 @@ dies or switches.  That is, the thread group is part of the state of the calling
 frpBaseContext :: (Arrow a,ArrowChoice a,ArrowApply a) => 
     (forall x. j -> [(t,x)] -> [(t,(p,x))] -> [x]) ->
     [(t,FRPBase t j p a j p)] -> FRPBase u i o a j [(t,p)]
-frpBaseContext manageThreads threads = FRPBase $ statefulTransform lift (RSAGL.FRPBase.statefulForm manageThreads threads)
+frpBaseContext manageThreads threads = FRPBase $ raw $ statefulTransform lift (RSAGL.FRPBase.statefulForm manageThreads threads)
 \end{code}
 
 \subsection{Embedding explicit underlying state}
@@ -84,7 +86,7 @@ StatefulArrow combinators of the same name\footnote{See page \pageref{withState}
 withState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) => 
     (forall x. j -> [(t,x)] -> [(t,(p,x))] -> [x]) -> 
     [(t,FRPBase t j p (StateArrow s a) j p)] -> s -> FRPBase t i o a j [(t,p)]
-withState manageThreads threads s = FRPBase $ statefulTransform lift $ StatefulArrow.withState (RSAGL.FRPBase.statefulForm manageThreads threads) s
+withState manageThreads threads s = FRPBase $ raw $ statefulTransform lift $ StatefulArrow.withState (RSAGL.FRPBase.statefulForm manageThreads threads) s
 
 withExposedState :: (Arrow a,ArrowChoice a,ArrowApply a,Monoid p) =>
     (forall x. j -> [(t,x)] -> [(t,(p,x))] -> [x]) -> 
@@ -101,7 +103,7 @@ the provision that the StatefulArrow does not have access to the threading opera
 \begin{code}
 statefulContext :: (Arrow a,ArrowChoice a,ArrowApply a) =>
                        StatefulArrow a j p -> FRPBase t i o a j p
-statefulContext = FRPBase . statefulTransform lift
+statefulContext = FRPBase . raw . statefulTransform lift
 \end{code}
 
 \subsection{The StatefulArrow form of an FRPBase arrow}
@@ -113,7 +115,7 @@ The FRPBase arrow can be made to appear as a StatefulArrow using statefulForm.
 statefulForm :: (Arrow a,ArrowChoice a,ArrowApply a) => 
      (forall x. i -> [(t,x)] -> [(t,(o,x))] -> [x]) -> 
      [(t,FRPBase t i o a i o)] -> StatefulArrow a i [(t,o)]
-statefulForm manageThreads = ThreadedArrow.statefulForm manageThreads . map (second $ \(FRPBase x) -> statefulThread x)
+statefulForm manageThreads = ThreadedArrow.statefulForm manageThreads . map (second $ statefulThread . fromFRPBase)
 \end{code}
 
 \subsection{Essential mechanism}
@@ -125,7 +127,6 @@ In the event of an explicit switch, all implicit state is lost.
 \begin{code}
 statefulThread :: (Arrow a,ArrowChoice a) => 
                   StatefulArrow (ThreadedArrow t i o a) i o -> ThreadedArrow t i o a i o
-statefulThread (LiftedStatefulArrow lsf) = lsf
 statefulThread (StatefulArrow sf) = 
     proc b -> do (c,sf') <- sf -< b
                  ThreadedArrow.switchTerminate -< (Just $ statefulThread sf',c)

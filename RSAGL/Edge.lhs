@@ -32,9 +32,9 @@ import Data.Maybe
 \subsection{Edge data structure}
 
 \begin{code}
-data Edge a = Edge { edge_previous :: a,
-                     edge_next :: a,
-                     edge_changed :: Time }
+data Edge a = Edge { edge_previous :: !a,
+                     edge_next :: !a,
+                     edge_changed :: !Time }
               deriving (Eq,Show)
 \end{code}
 
@@ -111,7 +111,7 @@ edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any t i
 edgeMap f = genericEdgeMap (==) f
 
 genericEdgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any t i o a j p
-genericEdgeMap predicate f = genericEdgeFold predicate undefined (const . f)
+genericEdgeMap predicate f = genericEdgeFold predicate (error "genericEdgeMap: undefined initial value") (const . f)
 \end{code}
 
 \texttt{sticky} remembers the most recent value of an input that satisfies some criteria.
@@ -127,7 +127,7 @@ sticky criteria initial_value = genericEdgeFold (const $ const False) initial_va
 
 \begin{code}
 initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e e
-initial = FRP.statefulContext $ SwitchedArrow.withState initial1 undefined
+initial = FRP.statefulContext $ SwitchedArrow.withState initial1 (error "initial: undefined")
     where initial1 = proc i ->
               do lift store -< i
                  SwitchedArrow.switchContinue -< (Just $ initial2,i)
