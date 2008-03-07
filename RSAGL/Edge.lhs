@@ -8,11 +8,12 @@ Edge detection works for all inputs that implement Eq, and is simply a mechanism
 module RSAGL.Edge 
     (Edge(..),
      edge,
+     edgeBy,
      edgep,
      edgeFold,
-     genericEdgeFold,
+     edgeFoldBy,
      edgeMap,
-     genericEdgeMap,
+     edgeMapBy,
      history,
      sticky,
      initial,
@@ -26,7 +27,6 @@ import RSAGL.Time
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
-import Data.Maybe
 \end{code}
 
 \subsection{Edge data structure}
@@ -44,20 +44,13 @@ data Edge a = Edge { edge_previous :: !a,
 
 \begin{code}
 edge :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e (Edge e)
-edge = proc i ->
+edge = edgeBy (==)
+
+edgeBy :: (Arrow a,ArrowChoice a,ArrowApply a) => (e -> e -> Bool) -> FRPX any t i o a e (Edge e)
+edgeBy predicate = proc e ->
     do t <- threadTime -< ()
-       FRP.statefulContext $ SwitchedArrow.withState edge' initial_edge -< (t,i)
-    where initial_edge (t,i) = Edge { edge_previous = i, 
-                                      edge_next = i, 
-                                      edge_changed = t }
-          edge' = proc (t,i) ->
-              do e <- lift fetch -< ()
-                 lift store -< if i /= edge_next e
-                               then Edge { edge_previous = edge_next e,
-                                           edge_next = i,
-                                           edge_changed = t }
-                               else e
-                 lift fetch -< ()
+       edgeFoldBy (\x y -> predicate (fst x) (fst y)) (\(e,t) -> Edge e e t) edgeBy' -< (e,t)
+  where edgeBy' (e,t) old_edge = Edge { edge_previous = edge_next old_edge, edge_next = e, edge_changed = t }
 \end{code}
 
 \texttt{edgep} answers True exactly once each time a value changes.
@@ -77,11 +70,11 @@ edgep = FRP.statefulContext $ SwitchedArrow.withState edgep' id
 The folding function must have some way to discard old edges, or it will represent a space leak.
 
 \begin{code}
-edgeFold :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => p -> (j -> p -> p) -> FRPX any t i o a j p
-edgeFold = genericEdgeFold (==)
+edgeFold :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> (j -> p -> p) -> FRPX any t i o a j p
+edgeFold = edgeFoldBy (==)
 
-genericEdgeFold :: (Arrow a,ArrowChoice a,ArrowApply a) => (j -> j -> Bool) -> p -> (j -> p -> p) -> FRPX any t i o a j p
-genericEdgeFold predicate initial_value f = FRP.statefulContext $ SwitchedArrow.withState edgeFold' (\i -> (i,f i initial_value))
+edgeFoldBy :: (Arrow a,ArrowChoice a,ArrowApply a) => (j -> j -> Bool) -> (j -> p) -> (j -> p -> p) -> FRPX any t i o a j p
+edgeFoldBy predicate initialF f = FRP.statefulContext $ SwitchedArrow.withState edgeFold' (\i -> (i,initialF i))
     where edgeFold' = proc i ->
               do (old_raw,old_folded) <- lift fetch -< ()
                  let (new_raw,new_folded) = if old_raw `predicate` i
@@ -96,7 +89,7 @@ after which it can be forgotten.
 
 \begin{code}
 history :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => Time -> FRPX any t i o a e [Edge e]
-history t = edgeFold [] history' <<< edge
+history t = edgeFold (\x -> [x]) history' <<< edge
     where history' n h = n : takeWhile ((>= edge_changed n `sub` t) . edge_changed) h
 \end{code}
 
@@ -108,17 +101,17 @@ of comparing two equal values is low, and the input changes infrequently.
 
 \begin{code}
 edgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> p) -> FRPX any t i o a j p
-edgeMap f = genericEdgeMap (==) f
+edgeMap f = edgeMapBy (==) f
 
-genericEdgeMap :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any t i o a j p
-genericEdgeMap predicate f = genericEdgeFold predicate (error "genericEdgeMap: undefined initial value") (const . f)
+edgeMapBy :: (Arrow a,ArrowChoice a,ArrowApply a,Eq j) => (j -> j -> Bool) -> (j -> p) -> FRPX any t i o a j p
+edgeMapBy predicate f = edgeFoldBy predicate f (const . f)
 \end{code}
 
 \texttt{sticky} remembers the most recent value of an input that satisfies some criteria.
 
 \begin{code}
 sticky :: (Arrow a,ArrowChoice a,ArrowApply a) => (x -> Bool) -> x -> FRPX any t i o a x x
-sticky criteria initial_value = genericEdgeFold (const $ const False) initial_value (\new old -> if criteria new then new else old)
+sticky criteria initial_value = edgeFoldBy (const $ const False) (const initial_value) (\new old -> if criteria new then new else old)
 \end{code}
 
 \subsection{Remembering the initial value of an input}
@@ -127,11 +120,7 @@ sticky criteria initial_value = genericEdgeFold (const $ const False) initial_va
 
 \begin{code}
 initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e e
-initial = FRP.statefulContext $ SwitchedArrow.withState initial1 (error "initial: undefined")
-    where initial1 = proc i ->
-              do lift store -< i
-                 SwitchedArrow.switchContinue -< (Just $ initial2,i)
-          initial2 = lift fetch
+initial = edgeMapBy (const $ const True) id
 \end{code}
 
 \texttt{started} is the \texttt{absoluteTime} at which this thread started.

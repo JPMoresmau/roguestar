@@ -114,7 +114,7 @@ testInitial = test "testInitial"
 
 testEdgeFold :: IO ()
 testEdgeFold = test "testEdgeFold"
-                  (frpTest [edgeFold 0 (+)]
+                  (frpTest [edgeFold id (+)]
                            [3,2,2,2,2,4,4,3,8,7,6,6])
                   [[3],[5],[5],[5],[5],[9],[9],[12],[20],[27],[33],[33]]
 
@@ -163,6 +163,12 @@ testEdgep = test "testEdgep"
                           [2,2,2,3,2,3,3,3,4,4,4,4,5,4,5,5])
                  [[False],[False],[False],[True],[True],[True],[False],[False],[True],[False],[False],[False],
                   [True],[True],[True],[False]]
+
+testSticky :: IO ()
+testSticky = test "testSticky"
+                  (frpTest [sticky odd 1]
+		           [0,1,2,3,4,5,6,7,8,9,10,11])
+		  [[1],[1],[1],[3],[3],[5],[5],[7],[7],[9],[9],[11]]
 
 testRadiansToDegrees :: IO ()
 testRadiansToDegrees = testClose "testRadiansToDegrees"
@@ -516,6 +522,7 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testEdgeMap
           testHistory
           testEdgep
+	  testSticky
           testRadiansToDegrees
           testDegreesToRadians
           testAngleAdd
