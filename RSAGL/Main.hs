@@ -37,8 +37,8 @@ import RSAGL.WrappedAffine
 import RSAGL.InverseKinematics
 
 test_quality :: Integer
---test_quality = 2^14
-test_quality = 64
+test_quality = 2^14
+--test_quality = 64
 
 moon_orbital_animation :: AniA () i o (IO IntermediateModel) (CSN Point3D)
 moon_orbital_animation =

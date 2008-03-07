@@ -87,7 +87,7 @@ genericEdgeFold predicate initial_value f = FRP.statefulContext $ SwitchedArrow.
                  let (new_raw,new_folded) = if old_raw `predicate` i
                                             then (old_raw,old_folded)
                                             else (i,f i old_folded)
-                 lift store -< (new_raw,new_folded)
+                 lift store -< seq new_raw $ seq new_folded $ (new_raw,new_folded)
                  returnA -< new_folded
 \end{code}
 
