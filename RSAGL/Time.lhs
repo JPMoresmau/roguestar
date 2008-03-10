@@ -24,8 +24,11 @@ module RSAGL.Time
      fromSeconds,
      toSeconds,
      getTime,
+     cyclical,
+     cyclical',
      over,
      rate,
+     time,
      perSecond,
      per,
      interval,
@@ -114,6 +117,19 @@ getTime =
        return $ Time $ fromIntegral secs + fromRational (picos%(resolution (undefined :: E12)))
 \end{code}
 
+\subsection{Modulo Division for Time}
+
+\texttt{cyclical} answers the amount of time into a cycle.  \texttt{cyclical'} answers the fraction of time into a cycle, 
+in the range \texttt{0 <= x <= 1}.
+
+\begin{code}
+cyclical :: Time -> Time -> Time
+cyclical (Time t) (Time k) = Time $ t `mod'` k
+
+cyclical' :: Time -> Time -> Double
+cyclical' t k = (toSeconds $ t `cyclical` k) / toSeconds k
+\end{code}
+
 \subsection{Rate as Change over Time}
 
 \begin{code}
@@ -131,6 +147,9 @@ per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
 
 interval :: Frequency -> Time
 interval (Rate x) = fromSeconds $ recip x
+
+time :: Double -> Rate Double -> Time
+time d r = interval $ withTime (fromSeconds 1) (/d) r
 
 withTime :: (AbstractVector a,AbstractVector b) => Time -> (a -> b) -> Rate a -> Rate b
 withTime t f = (`per` t) . f . (`over` t)

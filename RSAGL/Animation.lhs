@@ -47,8 +47,8 @@ frameTime = gets (\(TimePlusSceneAccumulator (t,_)) -> t)
 
 runAniM :: AniM (a,Camera) -> IO (a,Scene)
 runAniM anim = 
-    do time <- getTime
-       ((a,c),TimePlusSceneAccumulator (_,sa)) <- runStateT anim $ TimePlusSceneAccumulator (time,null_scene_accumulator)
+    do t <- getTime
+       ((a,c),TimePlusSceneAccumulator (_,sa)) <- runStateT anim $ TimePlusSceneAccumulator (t,null_scene_accumulator)
        result_scene <- assembleScene c sa
        return (a,result_scene)
 

@@ -7,6 +7,7 @@ angular arithmetic and trigonometry.
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
 module RSAGL.Angle
     (Angle,
+     BoundAngle(..),
      fromDegrees,
      fromRadians,
      fromRotations,
@@ -28,19 +29,21 @@ module RSAGL.Angle
      angleAdd,
      angleSubtract,
      angleNegate,
-     absoluteAngle)
+     absoluteAngle,
+     unboundAngle)
     where
 
 import Data.Fixed
 import RSAGL.AbstractVector
 
 newtype Angle = Radians Double deriving (Show)
+newtype BoundAngle = BoundAngle Angle deriving (Show)
 
 zero_angle :: Angle
 zero_angle = Radians 0
 
 instance Eq Angle where
-    (==) a b = case (toRadians a,toRadians b) of
+    (==) a b = case (toRadians_ a,toRadians_ b) of
                    (x,y) | abs x == pi && abs y == pi -> True
                    (x,y) | x == y -> True
                    _ -> False
@@ -48,21 +51,33 @@ instance Eq Angle where
 instance Ord Angle where
     compare x y = case () of
                       _ | x == y -> EQ
-                      _ -> compare (toRadians x) (toRadians y)
+                      _ -> compare (toRadians_ x) (toRadians_ y)
 
 instance AbstractZero Angle where
     zero = zero_angle
 
+instance AbstractZero BoundAngle where
+    zero = BoundAngle zero_angle
+
 instance AbstractAdd Angle Angle where
     add = angleAdd
 
+instance AbstractAdd BoundAngle Angle where
+    add (BoundAngle a) x = BoundAngle $ boundAngle $ a `add` x
+
 instance AbstractSubtract Angle Angle where
     sub = angleSubtract
+
+instance AbstractSubtract BoundAngle Angle where
+    sub (BoundAngle a) (BoundAngle b) = boundAngle $ a `sub` b
 
 instance AbstractScale Angle where
     scalarMultiply = scaleAngle
 
 instance AbstractVector Angle
+
+instance AbstractMagnitude Angle where
+    magnitude = toRotations_ . absoluteAngle
 \end{code}
 
 angularIncrements answers n equa-angular values from 0 to 2*pi.
@@ -104,7 +119,7 @@ toDegrees_ (Radians x) = x * 180 / pi
 
 \begin{code}
 toRadians :: Angle -> Double
-toRadians x = let (Radians x') = toBoundedAngle x
+toRadians x = let (Radians x') = boundAngle x
                   in x'
 
 toRadians_ :: Angle -> Double
@@ -128,19 +143,19 @@ toRotations_ (Radians x) = x / pi / 2
 
 \begin{code}
 scaleAngle :: Double -> Angle -> Angle
-scaleAngle x = Radians . (*x) . toRadians
+scaleAngle x = Radians . (*x) . toRadians_
 
 angleAdd :: Angle -> Angle -> Angle
 angleAdd (Radians x) (Radians y) = Radians $ x + y
 
 angleSubtract :: Angle -> Angle -> Angle
-angleSubtract (Radians x) (Radians y) = toBoundedAngle $ Radians $ x - y
+angleSubtract (Radians x) (Radians y) = Radians $ x - y
 
 angleNegate :: Angle -> Angle
 angleNegate (Radians x) = Radians $ negate x
 
 absoluteAngle :: Angle -> Angle
-absoluteAngle a = let (Radians x) = toBoundedAngle a in Radians $ abs x
+absoluteAngle (Radians x) = Radians $ abs x
 
 sine :: Angle -> Double
 sine (Radians x) = sin x
@@ -161,10 +176,13 @@ arcTangent :: Double -> Angle
 arcTangent = fromRadians . atan
 \end{code}
 
-\texttt{toBoundedAngle} forces the angle into the range (-pi..pi).
+\texttt{boundAngle} forces the angle into the range (-pi..pi).
 
 \begin{code}
-toBoundedAngle :: Angle -> Angle
-toBoundedAngle (Radians x) = Radians $ if bounded > pi then bounded - 2*pi else bounded
+boundAngle :: Angle -> Angle
+boundAngle (Radians x) = Radians $ if bounded > pi then bounded - 2*pi else bounded
     where bounded = x `mod'` (2*pi)
+
+unboundAngle :: BoundAngle -> Angle
+unboundAngle (BoundAngle a) = a
 \end{code}

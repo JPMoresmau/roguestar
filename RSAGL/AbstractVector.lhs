@@ -12,6 +12,7 @@ module RSAGL.AbstractVector
      AbstractSubtract(..),
      AbstractScale(..),
      AbstractMagnitude(..),
+     abstractScaleTo,
      abstractSum,
      abstractAverage,
      abstractDistance)
@@ -60,7 +61,7 @@ instance AbstractScale Float where
     scalarMultiply d = (realToFrac d *)
 
 instance AbstractMagnitude Float where
-    magnitude = realToFrac
+    magnitude = abs . realToFrac
 
 instance AbstractVector Float
 
@@ -77,7 +78,7 @@ instance AbstractScale Double where
     scalarMultiply d = (realToFrac d *)
 
 instance AbstractMagnitude Double where
-    magnitude = id
+    magnitude = abs
 
 instance AbstractVector Double
 
@@ -116,6 +117,10 @@ instance (Applicative f,AbstractVector v) => AbstractVector (ApplicativeWrapper 
 \subsection{Operations on Abstract Vectors}
 
 \begin{code}
+abstractScaleTo :: (AbstractScale v,AbstractMagnitude v) => Double -> v -> v
+abstractScaleTo _ v | magnitude v == 0 = v
+abstractScaleTo x v = scalarMultiply (x / magnitude v) v
+
 abstractSum :: (AbstractAdd p v,AbstractZero p) => [v] -> p
 abstractSum = foldr (flip add) zero
 

@@ -8,7 +8,9 @@ module RSAGL.InverseKinematics
     (leg,
      Leg,
      legAnimation,
-     legs)
+     legs,
+     approach,
+     approachA)
     where
 
 import Control.Arrow
@@ -89,3 +91,22 @@ legAnimation upper_leg lower_leg = proc j ->
     do transformA upper_leg -< (joint_arm_upper j,())
        transformA lower_leg -< (joint_arm_lower j,())
 \end{code}
+
+\subsection{Approach}
+
+\texttt{approach} is an acceleration function that that tries to approach a goal point.  It begins slowing down when it comes within
+the goal radius, and otherwise travels at a fixed speed toward the goal.  The goal radius and speed are defined in terms of the
+\texttt{magnitude} of the vector type.
+
+\begin{code}
+approach :: (AbstractVector v,AbstractSubtract p v,AbstractMagnitude v) => p -> Double -> Rate Double -> (Time -> p -> Rate v)
+approach goal_point goal_radius max_speed _ position = withTime (fromSeconds 1) (\x -> abstractScaleTo (x * speed_ratio) goal_vector) max_speed
+    where goal_vector = goal_point `sub` position
+          speed_ratio = min 1 $ magnitude goal_vector / goal_radius
+
+approachA :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> FRPX any t i o a p p
+approachA goal_radius max_speed = frp1Context $ proc initial_value -> switchContinue -< (Just $ approachA_ initial_value,initial_value)
+    where approachA_ initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
+          frequency = 8 `per` time goal_radius max_speed 
+\end{code}
+

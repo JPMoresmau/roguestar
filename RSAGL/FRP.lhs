@@ -42,7 +42,8 @@ module RSAGL.FRP
      ThreadedArrow.ThreadIdentity,
      ThreadedArrow.nullaryThreadIdentity,
      ThreadedArrow.maybeThreadIdentity,
-     ThreadedArrow.unionThreadIdentity)
+     ThreadedArrow.unionThreadIdentity,
+     whenJust)
     where
 
 import RSAGL.AbstractVector
@@ -244,4 +245,21 @@ threadTime answers the time since the current thread first executed.
 \begin{code}
 threadTime :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX any t i o a () Time
 threadTime = integral zero <<< arr (const $ perSecond $ fromSeconds 1)
+\end{code}
+
+\subsection{Additional Combinators}
+
+\texttt{whenJust} permits some computations on \texttt{Maybe} values, but the implcit state of
+the computation is reset whenever \texttt{whenJust} recieves \texttt{Nothing}.  If this is not
+your intention, you might use \texttt{whenJust <<< sticky isJust Nothing}.
+
+\begin{code}
+whenJust :: (ArrowChoice a,ArrowApply a) => (forall x y. FRP1 x y a j p) -> FRPX any t i o a (Maybe j) (Maybe p)
+whenJust actionA = frp1Context whenJust_
+    where whenJust_ = proc i ->
+              do RSAGL.FRP.switchContinue -< (maybe (Just whenNothing_) (const Nothing) i,i)
+	         arr (Just) <<< actionA -< fromMaybe (error "whenJust: impossible case") i
+	  whenNothing_ = proc i ->
+	      do RSAGL.FRP.switchContinue -< (fmap (const whenJust_) i,i)
+	         returnA -< Nothing
 \end{code}
