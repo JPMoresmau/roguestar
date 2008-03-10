@@ -146,19 +146,19 @@ dbDispatch ["query","state"] =
 			   DBClassSelectionState {} -> "answer: state class-selection"
 			   DBPlayerCreatureTurn {} -> "answer: state player-turn"
 
-dbDispatch ["query","player-races"] =
+dbDispatch ["query","player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
 	    unlines player_race_names ++
 	    "end-table")
 
-dbDispatch ["query","visible-terrain"] =
+dbDispatch ["query","visible-terrain","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
        return ("begin-table visible-terrain 0 x y terrain-type\n" ++
 	       (unlines $ map (\(terrain_type,Position (x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
 
-dbDispatch ["query","visible-objects"] = 
+dbDispatch ["query","visible-objects","0"] = 
     do maybe_plane_ref <- dbGetCurrentPlane
        objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
        table_rows <- mapM dbObjectToTableRow objects
@@ -171,7 +171,7 @@ dbDispatch ["query","visible-objects"] =
                                  (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,maybe "Here" show maybe_face]
                                  _ -> ""
 
-dbDispatch ["query","object-details"] = ro $
+dbDispatch ["query","object-details",_] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
      visibles <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
      let creature_refs = mapMaybe toCreatureRef visibles
@@ -210,11 +210,11 @@ dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
 dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\x -> dbTurnCreature (fromJust $ stringToFacing direction) x >> done)
 
-dbDispatch ["query","player-stats"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
+dbDispatch ["query","player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
-dbDispatch ["query","center-coordinates"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
+dbDispatch ["query","center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
 
-dbDispatch ["query","base-classes"] = dbRequiresClassSelectionState dbQueryBaseClasses
+dbDispatch ["query","base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
 dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")
 
