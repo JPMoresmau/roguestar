@@ -1,26 +1,13 @@
---------------------------------------------------------------------------
---  roguestar-gl: the space-adventure roleplaying game OpenGL frontend.   
---  Copyright (C) 2006 Christopher Lane Hinson <lane@downstairspeople.org>  
---                                                                        
---  This program is free software; you can redistribute it and/or modify  
---  it under the terms of the GNU General Public License as published by  
---  the Free Software Foundation; either version 2 of the License, or     
---  (at your option) any later version.                                   
---                                                                        
---  This program is distributed in the hope that it will be useful,       
---  but WITHOUT ANY WARRANTY; without even the implied warranty of        
---  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         
---  GNU General Public License for more details.                          
---                                                                        
---  You should have received a copy of the GNU General Public License along  
---  with this program; if not, write to the Free Software Foundation, Inc.,  
---  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           
---                                                                        
---------------------------------------------------------------------------
 
+\section{Actions}
+
+\begin{code}
 module Actions
     (takeUserInputAction,
-     getValidActions)
+     getValidActions,
+     ActionInput(..),
+     select_race_action_names,
+     select_base_class_action_names)
     where
 
 import System.Exit
@@ -29,23 +16,26 @@ import Control.Monad.Error
 import Driver
 import Data.IORef
 import Data.List
-import Globals
 import PrintText
 import Tables
 import Data.Maybe
 import System.IO
 
-type Action = IORef RoguestarGlobals -> ErrorT String IO (IO ())
+data ActionInput = ActionInput {
+    action_driver_object :: DriverObject,
+    action_print_text_object :: PrintTextObject }
 
-actionValid :: IORef RoguestarGlobals -> Action -> IO Bool
-actionValid globals_ref action = 
-    do result <- runErrorT $ action globals_ref
+type Action = ActionInput -> ErrorT String IO (IO ())
+
+actionValid :: ActionInput -> Action -> IO Bool
+actionValid action_input action = 
+    do result <- runErrorT $ action action_input
        return $ either (const False) (const True) result
 
-executeAction :: IORef RoguestarGlobals -> Action -> IO ()
-executeAction globals_ref action =
-    do result <- runErrorT $ action globals_ref
-       either (\s -> printText globals_ref Untranslated ("unable to execute action: " ++ s))
+executeAction :: ActionInput -> Action -> IO ()
+executeAction action_input action =
+    do result <- runErrorT $ action action_input
+       either (\s -> printText (action_print_text_object action_input) UnexpectedEvent ("unable to execute action: " ++ s))
               (id)
               result
        return ()
@@ -85,13 +75,12 @@ quit_action = ("quit",
 --
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
-    \globals_ref ->
-        do state <- maybe (fail "") return =<< (lift $ driverGetAnswer globals_ref Fresh "state")
+    \action_input ->
+        do state <- maybe (fail "") return =<< (lift $ driverGetAnswer (action_driver_object action_input) "state")
            guard $ state == allowed_state
-           table <- maybe (fail "") return =<< (lift $ driverGetTable globals_ref Fresh the_table_name the_table_id)
-           guard $ action_param `elem` tableSelect1 table the_table_header
-           return $ do driverAction globals_ref [action_name, action_param]
-                       printTranslated globals_ref GUIMessage ["table-action",action_name,action_param]
+           table <- maybe (fail "") return =<< (lift $ driverGetTable (action_driver_object action_input) the_table_name the_table_id)
+           guard $ [action_param] `elem` tableSelect table [the_table_header]
+           return $ driverAction (action_driver_object action_input) [action_name, action_param]
 
 -- |
 -- An action that depends on the state of the game and an arbitrary constant parameter.
@@ -104,9 +93,9 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
 parameterizedAction :: String -> String -> String -> (String,Action)
 parameterizedAction allowed_state action_name parameter =
     (action_name ++ "-" ++ parameter,
-     \globals_ref ->
-         do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer globals_ref Fresh "state")
-            return $ driverAction globals_ref [action_name,parameter])
+     \action_input ->
+         do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer (action_driver_object action_input) "state")
+            return $ driverAction (action_driver_object action_input) [action_name,parameter])
 
 moveAction :: String -> (String,Action)
 moveAction = parameterizedAction "player-turn" "move"
@@ -117,9 +106,9 @@ turnAction = parameterizedAction "player-turn" "turn"
 reroll_action :: (String,Action)
 reroll_action =
     ("reroll",
-     \globals_ref ->
-         do guard =<< (liftM (== Just "class-selection") $ lift $ driverGetAnswer globals_ref Fresh "state")
-            return $ driverAction globals_ref ["reroll"])
+     \action_input ->
+         do guard =<< (liftM (== Just "class-selection") $ lift $ driverGetAnswer (action_driver_object action_input) "state")
+            return $ driverAction (action_driver_object action_input) ["reroll"])
 
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
@@ -188,9 +177,9 @@ lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action na
 -- Accepts an optional list of action names to choose from; if Nothing,
 -- uses all concievable actions as that list.
 --
-getValidActions :: IORef RoguestarGlobals -> Maybe [String] -> IO [String]
-getValidActions globals_ref actions_list = 
-    do valid_action_pairs <- filterM (actionValid globals_ref . snd) $ 
+getValidActions :: ActionInput -> Maybe [String] -> IO [String]
+getValidActions action_input actions_list = 
+    do valid_action_pairs <- filterM (actionValid action_input . snd) $ 
                                  maybe all_actions (map lookupAction) actions_list
        return $ map fst valid_action_pairs
 
@@ -199,15 +188,16 @@ getValidActions globals_ref actions_list =
 -- in the current context, based on each action's action_valid entry.
 -- Returns True if an action was taken, False otherwise.
 --
-takeUserInputAction :: IORef RoguestarGlobals -> [String] -> IO Bool
+takeUserInputAction :: ActionInput -> [String] -> IO Bool
 takeUserInputAction _ [] = return False
-takeUserInputAction globals_ref action_names =
-    do valid_actions <- getValidActions globals_ref (Just action_names)
+takeUserInputAction action_input action_names =
+    do valid_actions <- getValidActions action_input (Just action_names)
        let action = map lookupAction valid_actions
        case length action of
            0 -> return False
-	   1 -> do executeAction globals_ref $ snd $ head action
+	   1 -> do executeAction action_input $ snd $ head action
                    return True
-	   _ -> do printTranslated globals_ref GUIMessage (["action-bindings-warning"] ++ map fst action)
-		   executeAction globals_ref $ snd $ head action
+	   _ -> do hPutStrLn stderr ("Action bindings warning: multiple valid action for binding: " ++ (concat $ intersperse ", " $ map fst action))
+		   executeAction action_input $ snd $ head action
                    return True
+\end{code}

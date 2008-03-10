@@ -1,0 +1,10 @@
+#!/bin/sh
+
+ROGUESTAR_ENGINE="../roguestar-engine/products/roguestar-engine version over begin"
+ROGUESTAR_UI="./products/roguestar-gl-bin $@"
+
+faucet 5618 --out --in --unix --once ${ROGUESTAR_ENGINE} &
+
+sleep 2
+
+hose localhost 5618 --out --in --unix ${ROGUESTAR_UI} &

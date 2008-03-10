@@ -1,21 +1,17 @@
-HS_FLAGS = 	-hidir products/ \
-		-odir products/ \
-		-isrc/:products \
+HS_FLAGS = 	-hidir products \
+		-odir products \
+		-isrc:products:../rsagl \
 		-Wall \
 		-fno-warn-type-defaults \
 		-fno-warn-unused-imports \
-		-lglut \
-		--make src/Main.hs \
-		-o products/roguestar-gl-bin
+		--make src/Main.lhs \
+		-o products/roguestar-gl-bin \
+		-fno-warn-unused-imports
 
-# -fno-warn-unused-imports due to an apparent bug in ghc, remove this and try again later
-
-default : ghc doc
+default : dev doc
 
 update :
 	darcs pull --all
-
-release : ghc-release
 
 install :
 	install products/roguestar-gl /usr/local/bin/
@@ -30,38 +26,21 @@ clean :
 	-rm -f products/Models/*.hi 2> /dev/null
 	-rmdir products/Models 2> /dev/null
 	${MAKE} -C haddock clean
+	${MAKE} -C ../rsagl clean
 
 doc :
 	${MAKE} -C haddock
 
-ghc-prof : products/roguestar-gl
-	ghc 	-prof -auto-all ${HS_FLAGS}
-
-ghc : products/roguestar-gl
+dev : products/roguestar-gl
 	@echo "warning: you're building with development flags on (-Werror, no optimization)"
 	@echo "         did you want to 'make release' ?"
-	ghc	-Werror ${HS_FLAGS}
+	ghc	-Werror -prof -auto-all ${HS_FLAGS}
 
-ghc-release : products/roguestar-gl
-	ghc	-O ${HS_FLAGS}
+release : products/roguestar-gl
+	ghc	-O2 -threaded ${HS_FLAGS}
 
 products/roguestar-gl : src/roguestar-gl
 	cp src/roguestar-gl products/roguestar-gl
 	chmod u+x products/roguestar-gl
 
-check:
-	${MAKE} clean
-	${MAKE} ghc-release
-	${MAKE} clean
-	-darcs whatsnew -ls
-
-dist:
-	darcs dist
-
-headache:
-	headache -c header/license-header.conf -h header/license-header src/*.hs
-
-headache-remove:
-	headache -c header/license-header.conf -h header/license-header -r src/*.hs
-
-.PHONY : default clean doc ghc ghc-release check dist headache headache-remove release
+.PHONY : default clean doc dev release
