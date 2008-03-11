@@ -29,6 +29,7 @@ import VisibleObject
 import Data.Fixed
 import RSAGL.InverseKinematics
 import Actions
+import Strings
 \end{code}
 
 \begin{code}
@@ -130,7 +131,7 @@ printCharacterStats unique_id = proc () ->
 print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,String) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
-       printTextOnce -< fmap (\x -> (Event,stat_str ++ ": " ++ show x)) m_stat_int
+       printTextOnce -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
 \end{code}
 
 \subsection{The Planar Gameplay Dispatch}

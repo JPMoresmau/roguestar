@@ -46,6 +46,7 @@ import DefaultKeymap
 import Actions
 import Data.List
 import Data.Ord
+import Strings
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator,
@@ -142,7 +143,7 @@ printMenuOnce = foldr (>>>) (arr id) . map printMenuItemOnce
 printMenuItemOnce :: String -> RSAnimAX any t i o () ()
 printMenuItemOnce action_name = proc () ->
     do keys <- actionNameToKeysA action_name -< ()
-       printTextOnce -< fmap (\s -> (Query,s ++ " - " ++ action_name)) $ listToMaybe $ sortBy (comparing length) keys
+       printTextOnce -< fmap (\s -> (Query,s ++ " - " ++ hrstring action_name)) $ listToMaybe $ sortBy (comparing length) keys
 
 clearPrintTextOnce :: RSAnimAX any t i o () ()
 clearPrintTextOnce = onceA clearPrintText_ <<< arr (const $ Just ())
