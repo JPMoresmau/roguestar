@@ -88,4 +88,6 @@ default_keymap = fixKeymap [
  (":turn-se","turn-se"),
  ("N","turn-sw"),
  (":turn-sw","turn-sw"),
- ("#quit","quit")]
+ ("#quit","quit"),
+ (",","pickup"),
+ (":pickup","pickup")]

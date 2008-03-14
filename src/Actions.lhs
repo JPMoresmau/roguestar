@@ -110,6 +110,13 @@ reroll_action =
          do guard =<< (liftM (== Just "class-selection") $ lift $ driverGetAnswer (action_driver_object action_input) "state")
             return $ driverAction (action_driver_object action_input) ["reroll"])
 
+pickup_action :: (String,Action)
+pickup_action =
+    ("pickup",
+     \action_input ->
+         do guard =<< (liftM (== Just "player-turn") $ lift $ driverGetAnswer (action_driver_object action_input) "state")
+	    return $ driverAction (action_driver_object action_input) ["pickup"])
+
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
     (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
@@ -162,9 +169,8 @@ turn_actions :: [(String,Action)]
 turn_actions = map turnAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = [quit_action] ++
+all_actions = [quit_action,reroll_action,pickup_action] ++
               select_race_actions ++ 
-	      [reroll_action] ++
 	      select_base_class_actions ++
 	      move_actions ++
               turn_actions

@@ -138,7 +138,7 @@ print1CharacterStat = proc (m_player_stats,stat_str) ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn"]
+planar_states = ["player-turn","pickup"]
 
 planarGameplayDispatch :: RSAnimA1 () Camera () Camera
 planarGameplayDispatch = proc () ->
