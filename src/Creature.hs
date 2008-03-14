@@ -18,10 +18,11 @@ import Tests
 import DBData
 import FactionData
 import Facing
+import Control.Monad.Error
 
 runCreatureGenerationTest :: IO ()
 runCreatureGenerationTest = do db0 <- initialDB
-			       putStrLn $ show $ evalState (generateCreatureData exampleSpecies) db0
+			       putStrLn $ show $ evalState (runErrorT $ generateCreatureData exampleSpecies) db0
 
 -- |
 -- Generates a new Creature from the specified species.
@@ -63,10 +64,10 @@ dbWalkCreature face (x',y') creature_ref =
     do dbMove creature_ref $ \l -> return $ fromMaybe l $
           do p <- liftM location $ toPlanarLocation l
              Position (x,y) <- liftM location $ toPositionLocation l
-             return $ genericLocationP $
-                          standCreature l (Standing { standing_plane = p,
-                                                      standing_position = Position (x+x',y+y'),
-                                                      standing_facing = face })
+             let standing = Standing { standing_plane = p,
+                                       standing_position = Position (x+x',y+y'),
+                                       standing_facing = face } 
+	     return $ genericLocationP $ standCreature standing l
        return ()
 
 dbStepCreature :: Facing -> CreatureRef -> DB ()

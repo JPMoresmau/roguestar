@@ -18,10 +18,15 @@ import System.IO
 import BeginGame
 import Data.Maybe
 import Plane
+import Tool
 import FactionData
 import PlaneVisibility
 import Facing
 import ToolData
+import Control.Monad.Error
+import Numeric
+-- We need to construct References based on UIDs, so we cheat a little:
+import DBPrivate (Reference(..))
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -65,21 +70,20 @@ dbRequiresPlayerCenteredState action =
     do state <- dbState
        case state of
 		  DBClassSelectionState creature -> action creature
-		  DBPlayerCreatureTurn creature_ref -> action =<< dbGetCreature creature_ref
+		  DBPlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
 		  _ -> return $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that works during any creature's turn in a planar environment.
 -- The states that work for this are:
 --
--- DBPlayerCreatureTurn
--- 
+-- DBPlayerCreaturePickupMode 
 --
 dbRequiresPlanarTurnState :: (CreatureRef -> DB String) -> DB String
 dbRequiresPlanarTurnState action =
     do state <- dbState
        case state of
-		  DBPlayerCreatureTurn creature_ref -> action creature_ref
+		  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
 		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
 -- |
@@ -92,7 +96,7 @@ dbRequiresPlayerTurnState :: (CreatureRef -> DB String) -> DB String
 dbRequiresPlayerTurnState action =
     do state <- dbState
        case state of
-                  DBPlayerCreatureTurn creature_ref -> action creature_ref
+                  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
                   _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
@@ -103,9 +107,14 @@ ioDispatch ["reset"] _ = do db0 <- initialDB
 			    putStrLn "done"
 			    return db0
 
-ioDispatch ("game":args) db0 = let (outstr,db1) = runState (dbDispatch args) db0
-				    in do putStrLn (map toLower outstr)
-					  return db1
+ioDispatch ("game":args) db0 = 
+    case runState (runErrorT $ dbDispatch args) db0 of
+        (Right outstr,db1) -> do putStrLn (map toLower outstr)
+				 return db1
+        (Left (DBErrorFlag errstr),_) -> do putStrLn "done"
+	                                    return $ db0 { db_error_flag = errstr }
+	(Left (DBError errstr),_) -> do putStrLn ("error: " ++ map toLower errstr ++ "\n")
+	                                return db0
 
 ioDispatch ("save":_) db0 = do putStrLn "error: save not implemented"
 			       return db0
@@ -125,7 +134,8 @@ dbDispatch ["query","state"] =
        return $ case state of
 			   DBRaceSelectionState -> "answer: state race-selection"
 			   DBClassSelectionState {} -> "answer: state class-selection"
-			   DBPlayerCreatureTurn {} -> "answer: state player-turn"
+			   DBPlayerCreatureTurn _ DBNotSpecial -> "answer: state player-turn"
+                           DBPlayerCreatureTurn _ DBPickupMode -> "answer: state pickup"
 
 dbDispatch ["query","player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
@@ -186,16 +196,34 @@ dbDispatch ["action","select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
 
 dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\x -> dbStepCreature (fromJust $ stringToFacing direction) x >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbStepCreature (fromJust $ stringToFacing direction) creature_ref >> done)
 
 dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\x -> dbTurnCreature (fromJust $ stringToFacing direction) x >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbTurnCreature (fromJust $ stringToFacing direction) creature_ref >> done)
+
+dbDispatch ["action","pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do pickups <- dbAvailablePickups creature_ref
+       case pickups of
+           [tool_ref] -> dbPickupTool creature_ref tool_ref
+	   [] -> throwError $ DBErrorFlag "nothing-there"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
+       done
+
+dbDispatch ["action","pickup",tool_uid] =
+    do tool_ref <- readUID ToolRef tool_uid
+       dbRequiresPlayerTurnState $ \creature_ref -> dbPickupTool creature_ref tool_ref >> done
 
 dbDispatch ["query","player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
 dbDispatch ["query","center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
 
 dbDispatch ["query","base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
+
+dbDispatch ["query","pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
+    do pickups <- dbAvailablePickups creature_ref
+       return $ "begin-table pickups 0 uid\n" ++
+                concatMap (\pickup -> show (toUID pickup) ++ "\n") pickups ++
+		"end-table"
 
 dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")
 
@@ -287,3 +315,11 @@ dbQueryCenterCoordinates creature_ref =
                            "end-table")
 		_ -> return (begin_table ++ "end-table")
 	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"
+
+readUID :: (Integer -> Reference a) -> String -> DB (Reference a)
+readUID f x = 
+    do let m_uid = fmap fst $ listToMaybe $ filter (null . snd) $ readDec x
+       ok <- maybe (return False) (dbVerify . f) m_uid
+       when (not ok) $ throwError $ DBError $ "protocol-error: " ++ x ++ " is not a valid uid."
+       return $ f $ fromJust m_uid
+       

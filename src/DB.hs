@@ -6,10 +6,12 @@ module DB
      dbSetState,
      DBState(..),
      DBReadable(..),
+     DBSpecialMode(..),
+     DBError(..),
      CreatureLocation(..),
      ToolLocation(..),
      initialDB,
-     DB_BaseType,
+     DB_BaseType(db_error_flag),
      dbAddCreature,
      dbAddPlane,
      dbAddTool,
@@ -48,11 +50,17 @@ import Data.Maybe
 import ToolData
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Error
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
-	     | DBPlayerCreatureTurn CreatureRef
+	     | DBPlayerCreatureTurn CreatureRef DBSpecialMode
 	     deriving (Read,Show)
+
+data DBSpecialMode =
+    DBNotSpecial
+  | DBPickupMode
+      deriving (Read,Show)
 
 -- |
 -- Random access form of the roguestar database.
@@ -64,7 +72,8 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
 				 db_tools :: Map ToolRef Tool,
-				 db_hierarchy :: HierarchicalDatabase (Location () () ()) }
+				 db_hierarchy :: HierarchicalDatabase (Location () () ()),
+				 db_error_flag :: String }
 
 -- |
 -- Serial form of the roguestar database.
@@ -100,7 +109,8 @@ fromPersistant persistant = DB_BaseType {
 					 db_creatures = Map.fromList $ db_creatures_ persistant,
 					 db_planes = Map.fromList $ db_planes_ persistant,
 					 db_tools = Map.fromList $ db_tools_ persistant,
-					 db_hierarchy = HierarchicalDatabase.fromList $ db_hierarchy_ persistant
+					 db_hierarchy = HierarchicalDatabase.fromList $ db_hierarchy_ persistant,
+					 db_error_flag = []
 					}
 
 fromPersistant_tupled :: (DB_Persistant_BaseType,String) -> (DB_BaseType,String)
@@ -112,12 +122,24 @@ instance Read DB_BaseType where
 instance Show DB_BaseType where
     show db = show (toPersistant db)
 
-type DB a = State DB_BaseType a
+data DBError =
+    DBError String
+  | DBErrorFlag String
+    deriving (Read,Show)
 
-type DBRO a = Reader DB_BaseType a
+instance Error DBError where
+    strMsg = DBError
+
+type DB a = ErrorT DBError (State DB_BaseType) a
+
+type DBRO a = ErrorT DBError (Reader DB_BaseType) a
 
 ro :: (DBReadable db) => DBRO a -> db a
-ro = dbgets . runReader
+ro actionM = 
+    do result <- dbgets (runReader $ runErrorT actionM)
+       case result of
+           Right x -> return x
+	   Left err -> throwError err
 
 filterRO :: (DBReadable db) => (a -> DBRO Bool) -> [a] -> db [a]
 filterRO f xs = ro $ filterM f xs
@@ -125,19 +147,19 @@ filterRO f xs = ro $ filterM f xs
 mapRO :: (DBReadable db) => (a -> DBRO b) -> [a] -> db [b]
 mapRO f xs = ro $ mapM f xs
 
-dbSimulate :: (DBReadable db) => (DB a) -> db a
-dbSimulate dbAction = liftM (evalState dbAction) $ dbgets id 
+dbSimulate :: (DBReadable db) => DB a -> db (Either DBError a)
+dbSimulate dbAction = liftM (evalState $ runErrorT dbAction) $ dbgets id 
 
-class (Monad m) => DBReadable m where
+class (MonadError DBError m,Monad m) => DBReadable m where
     dbget :: m DB_BaseType
 
 dbgets :: (DBReadable m) => (DB_BaseType -> a) -> m a
 dbgets f = liftM f dbget
 
-instance DBReadable (State DB_BaseType) where
+instance DBReadable (ErrorT DBError (State DB_BaseType)) where
     dbget = get
 
-instance DBReadable (Reader DB_BaseType) where
+instance DBReadable (ErrorT DBError (Reader DB_BaseType)) where
     dbget = ask
 
 -- |
@@ -152,7 +174,8 @@ initialDB = do (TOD seconds picos) <- getClockTime
 				    db_creatures = Map.fromList [],
 				    db_planes = Map.fromList [],
 				    db_tools = Map.fromList [],
-				    db_hierarchy = HierarchicalDatabase.fromList []
+				    db_hierarchy = HierarchicalDatabase.fromList [],
+				    db_error_flag = []
 				  }
 
 -- |
@@ -228,8 +251,7 @@ dbPutObjectComposable :: (Ord a) => (DB_BaseType -> Map a b) ->
                                     a -> b -> 
                                     DB ()
 dbPutObjectComposable get_map_fn put_map_fn key thing = 
-    do db <- get
-       put $ put_map_fn (Map.insert key thing $ get_map_fn db) db
+    modify (\db -> put_map_fn (Map.insert key thing $ get_map_fn db) db)
 
 -- |
 -- Puts a Creature under an arbitrary CreatureRef.

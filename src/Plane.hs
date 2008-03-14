@@ -36,7 +36,7 @@ dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
 dbGetCurrentPlane = 
     do state <- dbState
        case state of
-		  DBPlayerCreatureTurn creature_ref -> 
+		  DBPlayerCreatureTurn creature_ref _ -> 
                       liftM (fmap fst) $ dbGetPlanarLocation creature_ref
 		  _ -> return Nothing
 

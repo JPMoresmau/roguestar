@@ -13,6 +13,7 @@ module DBData
      Standing(..),
      Dropped(..),
      Inventory(..),
+     DBPrivate.S,
      genericReference,
      genericChild,
      genericParent,
@@ -117,19 +118,16 @@ instance ReferenceType TheUniverse where
     coerceReference (UniverseRef) = Just UniverseRef
     coerceReference _ = Nothing
 
--- |
--- Location experiment
---
-standCreature :: Location m CreatureRef t -> Standing -> Location m CreatureRef Standing
-standCreature l s | isCreatureLocation l = IsStanding (entity l) s
+standCreature :: Standing -> Location m CreatureRef t -> Location m CreatureRef Standing
+standCreature s l | isCreatureLocation l = IsStanding (entity l) s
 standCreature _ _ = error "stand: type error"
 
-dropTool :: Location m ToolRef t -> Dropped -> Location m ToolRef Dropped
-dropTool l d | isToolLocation l = IsDropped (entity l) d
+dropTool :: Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
+dropTool d l | isToolLocation l = IsDropped (entity l) d
 dropTool _ _ = error "drop: type error"
 
-pickupTool :: Location m ToolRef t -> Inventory -> Location m ToolRef Inventory
-pickupTool l i | isToolLocation l = InInventory (entity l) i
+pickupTool :: Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
+pickupTool i l | isToolLocation l = InInventory (entity l) i
 pickupTool _ _ = error "pickup: type error"
 
 genericLocation :: Location m e t -> Location m () ()
