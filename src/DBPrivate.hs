@@ -12,6 +12,7 @@ module DBPrivate
      Standing(..),
      Dropped(..),
      Inventory(..),
+     Wielded(..),
      TheUniverse(..),
      CreatureRef,
      ToolRef,
@@ -90,6 +91,12 @@ data Inventory =
     deriving (Read,Show)
 
 -- |
+-- The location of a weapon wielded in the hand of a creature.
+--
+data Wielded =
+    Wielded { wielded_creature :: CreatureRef }
+    deriving (Read,Show)
+-- |
 -- A relational data structure defining the location of any entity.
 -- All of the type variables of Location are phantom types.
 --
@@ -121,6 +128,7 @@ data Location m e t =
      IsStanding CreatureRef Standing 
    | IsDropped ToolRef Dropped
    | InInventory ToolRef Inventory
+   | IsWielded ToolRef Wielded
    | InTheUniverse PlaneRef
     deriving (Read,Show)
 
@@ -128,14 +136,17 @@ unsafeLocation :: Location a b c -> Location d e f
 unsafeLocation (IsStanding a b) = IsStanding a b
 unsafeLocation (IsDropped a b) = IsDropped a b
 unsafeLocation (InInventory a b) = InInventory a b
+unsafeLocation (IsWielded a b) = IsWielded a b
 unsafeLocation (InTheUniverse a) = InTheUniverse a
 
 instance HierarchicalRelation (Location m e t) where
     parent (IsStanding _ t) = toUID $ standing_plane t
     parent (IsDropped _ t) = toUID $ dropped_plane t
     parent (InInventory _ t) = toUID $ inventory_creature t
+    parent (IsWielded _ t) = toUID $ wielded_creature t
     parent (InTheUniverse _) = toUID UniverseRef
     child (IsStanding e _) = toUID e
     child (IsDropped e _) = toUID e
     child (InInventory e _) = toUID e
+    child (IsWielded e _) = toUID e
     child (InTheUniverse e) = toUID e

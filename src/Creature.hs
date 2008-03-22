@@ -61,7 +61,7 @@ dbNewCreature faction species loc =
 --
 dbWalkCreature :: Facing -> (Integer,Integer) -> CreatureRef -> DB ()
 dbWalkCreature face (x',y') creature_ref =
-    do dbMove creature_ref $ \l -> return $ fromMaybe l $
+    do flip dbMove creature_ref $ \l -> return $ fromMaybe l $
           do p <- liftM location $ toPlanarLocation l
              Position (x,y) <- liftM location $ toPositionLocation l
              let standing = Standing { standing_plane = p,

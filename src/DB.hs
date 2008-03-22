@@ -22,6 +22,7 @@ module DB
      dbModPlane,
      dbModTool,
      dbMove,
+     dbUnwieldCreature,
      dbVerify,
      dbGetAncestors,
      dbWhere,
@@ -60,6 +61,7 @@ data DBState = DBRaceSelectionState
 data DBSpecialMode =
     DBNotSpecial
   | DBPickupMode
+  | DBDropMode
       deriving (Read,Show)
 
 -- |
@@ -134,6 +136,15 @@ type DB a = ErrorT DBError (State DB_BaseType) a
 
 type DBRO a = ErrorT DBError (Reader DB_BaseType) a
 
+class (MonadError DBError m,Monad m) => DBReadable m where
+    dbget :: m DB_BaseType
+
+instance DBReadable (ErrorT DBError (State DB_BaseType)) where
+    dbget = get
+
+instance DBReadable (ErrorT DBError (Reader DB_BaseType)) where
+    dbget = ask
+
 ro :: (DBReadable db) => DBRO a -> db a
 ro actionM = 
     do result <- dbgets (runReader $ runErrorT actionM)
@@ -150,17 +161,8 @@ mapRO f xs = ro $ mapM f xs
 dbSimulate :: (DBReadable db) => DB a -> db (Either DBError a)
 dbSimulate dbAction = liftM (evalState $ runErrorT dbAction) $ dbgets id 
 
-class (MonadError DBError m,Monad m) => DBReadable m where
-    dbget :: m DB_BaseType
-
 dbgets :: (DBReadable m) => (DB_BaseType -> a) -> m a
 dbgets f = liftM f dbget
-
-instance DBReadable (ErrorT DBError (State DB_BaseType)) where
-    dbget = get
-
-instance DBReadable (ErrorT DBError (Reader DB_BaseType)) where
-    dbget = ask
 
 -- |
 -- Generates an initial DB state.
@@ -197,11 +199,11 @@ dbNextObjectRef :: DB Integer
 dbNextObjectRef = do modify (\db -> db { db_next_object_ref = succ $ db_next_object_ref db })
                      gets db_next_object_ref
 
-class CreatureLocation l where
-    creatureLocation :: CreatureRef -> l -> Location m Creature l
+class (LocationType l) => CreatureLocation l where
+    creatureLocation :: CreatureRef -> l -> Location m CreatureRef l
 
-class ToolLocation l where
-    toolLocation :: ToolRef -> l -> Location m Tool l
+class (LocationType l) => ToolLocation l where
+    toolLocation :: ToolRef -> l -> Location m ToolRef l
 
 instance CreatureLocation Standing where
     creatureLocation a l = IsStanding (unsafeReference a) l
@@ -212,12 +214,16 @@ instance ToolLocation Dropped where
 instance ToolLocation Inventory where
     toolLocation a l = InInventory (unsafeReference a) l
 
+instance ToolLocation Wielded where
+    toolLocation a l = IsWielded (unsafeReference a) l
+
 -- |
 -- Adds something to a map in the database using a new object reference.
 --
-dbAddObjectComposable :: (Integer -> (Reference a)) -> 
+dbAddObjectComposable :: (LocationType (Reference a),LocationType l) =>
+                         (Integer -> (Reference a)) -> 
                          (Reference a -> a -> DB ()) -> 
-                         (Reference a -> l -> Location () a l) -> 
+                         (Reference a -> l -> Location () (Reference a) l) -> 
                          a -> l -> DB (Reference a)
 dbAddObjectComposable constructReference updateObject constructLocation thing loc = 
     do ref <- liftM constructReference $ dbNextObjectRef
@@ -324,20 +330,32 @@ dbModTool = dbModObjectComposable dbGetTool dbPutTool
 -- |
 -- Set the location of an object.
 --
-dbSetLocation :: Location m e t -> DB ()
-dbSetLocation loc = modify (\db ->
-    db { db_hierarchy=HierarchicalDatabase.insert (unsafeLocation loc) $ db_hierarchy db })
+dbSetLocation :: (LocationType e,LocationType t) => Location m e t -> DB ()
+dbSetLocation loc = 
+    do case (fmap location $ toWieldedLocation loc) of
+           Just (Wielded c) -> dbUnwieldCreature c
+	   Nothing -> return ()
+       modify (\db -> db { db_hierarchy=HierarchicalDatabase.insert (unsafeLocation loc) $ db_hierarchy db })
+
+-- |
+-- Shunt any wielded objects into inventory.
+--
+dbUnwieldCreature :: CreatureRef -> DB ()
+dbUnwieldCreature c =
+    do cs_tools <- dbGetContents c
+       mapM_ (maybe (return ()) (dbSetLocation . unwieldTool) . coerceLocation) cs_tools
 
 -- |
 -- Moves an object, returning the location of the object before and after
 -- the move.
 --
-dbMove :: Reference e ->
+dbMove :: (LocationType (Reference e),LocationType b) =>
           (Location M (Reference e) () -> DBRO (Location M (Reference e) b)) -> 
+          (Reference e) ->
           DB (Location S e (),Location S e b)
-dbMove ref transformFunction =
+dbMove moveF ref =
     do old <- dbWhere ref
-       new <- ro $ transformFunction (unsafeLocation old)
+       new <- ro $ moveF (unsafeLocation old)
        dbSetLocation new
        return (unsafeLocation old, unsafeLocation new)
 

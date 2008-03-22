@@ -136,6 +136,7 @@ dbDispatch ["query","state"] =
 			   DBClassSelectionState {} -> "answer: state class-selection"
 			   DBPlayerCreatureTurn _ DBNotSpecial -> "answer: state player-turn"
                            DBPlayerCreatureTurn _ DBPickupMode -> "answer: state pickup"
+                           DBPlayerCreatureTurn _ DBDropMode -> "answer: state drop"
 
 dbDispatch ["query","player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
@@ -204,14 +205,32 @@ dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
 dbDispatch ["action","pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
        case pickups of
-           [tool_ref] -> dbPickupTool creature_ref tool_ref
+           [tool_ref] -> dbMove (dbPickupTool creature_ref) tool_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-there"
 	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
        done
 
-dbDispatch ["action","pickup",tool_uid] =
+dbDispatch ["action","pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
-       dbRequiresPlayerTurnState $ \creature_ref -> dbPickupTool creature_ref tool_ref >> done
+       dbMove (dbPickupTool creature_ref) tool_ref
+       done
+
+dbDispatch ["action","drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
+       case inventory of
+           [tool_ref] -> dbMove dbDropTool tool_ref >> return ()
+	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBDropMode)
+       done
+
+dbDispatch ["action","drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do tool_ref <- readUID ToolRef tool_uid
+       tool_parent <- liftM extractLocation $ dbWhere tool_ref
+       when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag "not-in-inventory"
+       dbMove dbDropTool tool_ref
+       done
+
+dbDispatch ["action","unwield"] = dbRequiresPlayerTurnState $ \c -> dbUnwieldCreature c >> done 
 
 dbDispatch ["query","player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
@@ -222,7 +241,13 @@ dbDispatch ["query","base-classes","0"] = dbRequiresClassSelectionState dbQueryB
 dbDispatch ["query","pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
     do pickups <- dbAvailablePickups creature_ref
        return $ "begin-table pickups 0 uid\n" ++
-                concatMap (\pickup -> show (toUID pickup) ++ "\n") pickups ++
+                unlines (map (show . toUID) pickups) ++
+		"end-table"
+
+dbDispatch ["query","inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
+       return $ "begin-table inventory 0 uid\n" ++
+                unlines (map (show . toUID) inventory) ++
 		"end-table"
 
 dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")

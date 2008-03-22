@@ -13,6 +13,7 @@ module DBData
      Standing(..),
      Dropped(..),
      Inventory(..),
+     Wielded(..),
      DBPrivate.S,
      genericReference,
      genericChild,
@@ -23,6 +24,8 @@ module DBData
      standCreature,
      dropTool,
      pickupTool,
+     wieldTool,
+     unwieldTool,
      entity,
      location,
      coerceLocation,
@@ -48,6 +51,8 @@ module DBData
      toDroppedLocation,
      isInventoryLocation,
      toInventoryLocation,
+     isWieldedLocation,
+     toWieldedLocation,
      isPlanarLocation,
      toPlanarLocation,
      isCarriedLocation,
@@ -120,15 +125,23 @@ instance ReferenceType TheUniverse where
 
 standCreature :: Standing -> Location m CreatureRef t -> Location m CreatureRef Standing
 standCreature s l | isCreatureLocation l = IsStanding (entity l) s
-standCreature _ _ = error "stand: type error"
+standCreature _ _ = error "standCreature: type error"
 
 dropTool :: Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
 dropTool d l | isToolLocation l = IsDropped (entity l) d
-dropTool _ _ = error "drop: type error"
+dropTool _ _ = error "dropTool: type error"
 
 pickupTool :: Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
 pickupTool i l | isToolLocation l = InInventory (entity l) i
-pickupTool _ _ = error "pickup: type error"
+pickupTool _ _ = error "pickupTool: type error"
+
+wieldTool :: Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
+wieldTool i l | isToolLocation l = IsWielded (entity l) i
+wieldTool _ _ = error "wieldTool: type error"
+
+unwieldTool :: Location m ToolRef Wielded -> Location m ToolRef Inventory
+unwieldTool l = InInventory (entity l) (Inventory c)
+    where Wielded c = location l
 
 genericLocation :: Location m e t -> Location m () ()
 genericLocation = unsafeLocation
@@ -143,12 +156,14 @@ genericParent :: Location m e t -> Reference ()
 genericParent (IsStanding _ s) = unsafeReference $ standing_plane s
 genericParent (IsDropped _ d) = unsafeReference $ dropped_plane d
 genericParent (InInventory _ c) = unsafeReference $ inventory_creature c
+genericParent (IsWielded _ c) = unsafeReference $ wielded_creature c
 genericParent (InTheUniverse _) = unsafeReference UniverseRef
 
 genericChild :: Location m e t -> Reference ()
 genericChild (IsStanding r _) = unsafeReference r
 genericChild (IsDropped r _) = unsafeReference r
 genericChild (InInventory r _) = unsafeReference r
+genericChild (IsWielded r _) = unsafeReference r
 genericChild (InTheUniverse r) = unsafeReference r
 
 isCreatureLocation :: (LocationType e) => Location m e t -> Bool
@@ -169,6 +184,9 @@ isDroppedLocation = isJust . toDroppedLocation
 isInventoryLocation :: (LocationType e) => Location m e t -> Bool
 isInventoryLocation = isJust . toInventoryLocation
 
+isWieldedLocation :: (LocationType e) => Location m e t -> Bool
+isWieldedLocation = isJust . toWieldedLocation
+
 toCreatureLocation :: (LocationType t) => Location m e t -> Maybe (Location m CreatureRef t)
 toCreatureLocation = coerceLocation
 
@@ -186,6 +204,9 @@ toDroppedLocation = coerceLocation
 
 toInventoryLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Inventory)
 toInventoryLocation = coerceLocation
+
+toWieldedLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Wielded)
+toWieldedLocation = coerceLocation
 
 coerceParent :: (LocationType e,LocationType t) => Location m e x -> Maybe (Location m e t)
 coerceParent = coerceLocation
@@ -226,6 +247,11 @@ instance LocationType Inventory where
     extractLocation _ = Nothing
     extractChild = const Nothing
 
+instance LocationType Wielded where
+    extractLocation (IsWielded _ i) = Just i
+    extractLocation _ = Nothing
+    extractChild = const Nothing
+
 instance LocationType Facing where
     extractLocation = facing
     extractChild = const Nothing
@@ -250,12 +276,14 @@ position :: Location m e t -> Maybe Position
 position (IsStanding _ s) = Just $ standing_position s
 position (IsDropped _ d) = Just $ dropped_position d
 position (InInventory {}) = Nothing
+position (IsWielded {}) = Nothing
 position (InTheUniverse {}) = Nothing
 
 facing :: Location m e t -> Maybe Facing
 facing (IsStanding _ s) = Just $ standing_facing s
 facing (IsDropped {}) = Nothing
 facing (InInventory {}) = Nothing
+facing (IsWielded {}) = Nothing
 facing (InTheUniverse {}) = Nothing
 
 isFacingLocation :: Location m e t -> Bool
