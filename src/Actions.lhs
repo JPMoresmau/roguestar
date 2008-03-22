@@ -83,7 +83,7 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
            return $ driverAction (action_driver_object action_input) [action_name, action_param]
 
 -- |
--- An action that depends on the state of the game and an arbitrary constant parameter.
+-- An action that depends on the state flag of the game engine and an arbitrary constant parameter.
 -- For example, actions that operate directionally are parameterized
 -- on the eight directions (n,s,w,e,nw,ne,sw,se).
 --
@@ -93,9 +93,25 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
 parameterizedAction :: String -> String -> String -> (String,Action)
 parameterizedAction allowed_state action_name parameter =
     (action_name ++ "-" ++ parameter,
-     \action_input ->
-         do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer (action_driver_object action_input) "state")
-            return $ driverAction (action_driver_object action_input) [action_name,parameter])
+     stateGuard allowed_state $ \action_input ->
+         return $ driverAction (action_driver_object action_input) [action_name,parameter])
+
+-- |
+-- Guard an action to only run during a specific state.
+--
+stateGuard :: String -> Action -> Action
+stateGuard allowed_state actionM action_input =
+    do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer (action_driver_object action_input) "state")
+       actionM action_input
+
+-- |
+-- An action that depends just on the state flag of the game engine.
+--
+stateLinkedAction :: String -> String -> (String,Action)
+stateLinkedAction allowed_state action_name = 
+    (action_name,
+     stateGuard allowed_state $ \action_input ->
+         return $ driverAction (action_driver_object action_input) [action_name])
 
 moveAction :: String -> (String,Action)
 moveAction = parameterizedAction "player-turn" "move"
@@ -104,18 +120,13 @@ turnAction :: String -> (String,Action)
 turnAction = parameterizedAction "player-turn" "turn"
 
 reroll_action :: (String,Action)
-reroll_action =
-    ("reroll",
-     \action_input ->
-         do guard =<< (liftM (== Just "class-selection") $ lift $ driverGetAnswer (action_driver_object action_input) "state")
-            return $ driverAction (action_driver_object action_input) ["reroll"])
+reroll_action = stateLinkedAction "class-selection" "reroll"
 
 pickup_action :: (String,Action)
-pickup_action =
-    ("pickup",
-     \action_input ->
-         do guard =<< (liftM (== Just "player-turn") $ lift $ driverGetAnswer (action_driver_object action_input) "state")
-	    return $ driverAction (action_driver_object action_input) ["pickup"])
+pickup_action = stateLinkedAction "player-turn" "pickup"
+
+drop_action :: (String,Action)
+drop_action = stateLinkedAction "player-turn" "drop"
 
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
@@ -169,7 +180,7 @@ turn_actions :: [(String,Action)]
 turn_actions = map turnAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = [quit_action,reroll_action,pickup_action] ++
+all_actions = [quit_action,reroll_action,pickup_action,drop_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
 	      move_actions ++
