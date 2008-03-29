@@ -56,6 +56,12 @@ rotateToFrom u v = RSAGL.Affine.rotate c a
     where c = vectorNormalize $ vectorScale (-1) $ crossProduct u v
           a = angleBetween u v
 
+instance AffineTransformable a => AffineTransformable (Maybe a) where
+    scale v = fmap (RSAGL.Affine.scale v)
+    translate v = fmap (RSAGL.Affine.translate v)
+    rotate angle vector = fmap (RSAGL.Affine.rotate angle vector)
+    transform m = fmap (transform m)
+
 instance AffineTransformable a => AffineTransformable [a] where
     scale v = map (RSAGL.Affine.scale v)
     translate v = map (RSAGL.Affine.translate v)
