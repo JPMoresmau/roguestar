@@ -92,4 +92,8 @@ default_keymap = fixKeymap [
  (",","pickup"),
  (":pickup","pickup"),
  ("d","drop"),
- (":drop","drop")]
+ (":drop","drop"),
+ ("w","wield"),
+ (":wield","wield"),
+ ("-","unwield"),
+ (":unwield","unwield")]

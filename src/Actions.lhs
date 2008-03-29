@@ -128,6 +128,12 @@ pickup_action = stateLinkedAction "player-turn" "pickup"
 drop_action :: (String,Action)
 drop_action = stateLinkedAction "player-turn" "drop"
 
+wield_action :: (String,Action)
+wield_action = stateLinkedAction "player-turn" "wield"
+
+unwield_action :: (String,Action)
+unwield_action = stateLinkedAction "player-turn" "unwield"
+
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
     (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
@@ -180,7 +186,7 @@ turn_actions :: [(String,Action)]
 turn_actions = map turnAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = [quit_action,reroll_action,pickup_action,drop_action] ++
+all_actions = [quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
 	      move_actions ++

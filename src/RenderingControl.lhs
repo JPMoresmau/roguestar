@@ -30,6 +30,9 @@ import Data.Fixed
 import RSAGL.InverseKinematics
 import Actions
 import Strings
+import Control.Applicative
+import qualified Data.Map as Map
+import Data.Monoid
 \end{code}
 
 \begin{code}
@@ -145,7 +148,12 @@ planarGameplayDispatch = proc () ->
     do mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
        frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
-       frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher)] -< ()
+       ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
+           frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 
+	       [(Nothing,visibleObjectThreadLauncher creatureAvatar)] -< ()
+       frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
+           ToolThreadInput {
+	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
        printTextOnce -< Just (Event,"Here we are!")
        lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (realToFrac y))) <<< centerCoordinates -< ()
@@ -183,7 +191,7 @@ terrainTile terrain_tile = proc () ->
 terrainTile_Descending :: ProtocolTypes.TerrainTile -> RSAnimA (Maybe ProtocolTypes.TerrainTile) () () () ()
 terrainTile_Descending terrain_tile = proc () ->
     do t <- threadTime -< ()
-       killThreadIf -< (t >= fromSeconds 1,())
+       killThreadIf -< t >= fromSeconds 1
        renderTerrainTile terrain_tile -< t
        returnA -< ()
 
@@ -205,50 +213,60 @@ terrainTileThreadIdentity = unionThreadIdentity (\a b -> tt_xy a == tt_xy b)
 \subsection{Creatures and Objects}
 
 \begin{code}
-visibleObjectThreadLauncher :: RSAnimA (Maybe Integer) () () () ()
-visibleObjectThreadLauncher = spawnThreads <<< arr (map (\x -> (Just $ vo_unique_id x,visibleObjectAvatar))) <<< visibleObjects
+data CreatureThreadOutput = CreatureThreadOutput {
+    cto_wield_point :: CoordinateSystem }
 
-visibleObjectAvatar :: RSAnimA (Maybe Integer) () () () ()
-visibleObjectAvatar = proc i ->
-    do m_unique_id <- threadIdentity -< ()
-       m_details_table <- driverGetTableA -< ("object-details",show $ fromMaybe (error "visibleObject: threadIdentity was Nothing") m_unique_id)
-       let m_object_type = m_details_table >>= (\x -> tableLookup x ("property","value") "object-type")
-       switchContinue -< (
-           case m_object_type of
-	       _ | isNothing m_details_table -> Nothing
-               Just "creature" -> Just $ creatureAvatar
-	       Just "tool" -> Just $ toolAvatar
-	       _ -> Just $ questionMarkAvatar,i)
-       returnA -< ()
+class AbstractEmpty a where
+    abstractEmpty :: a
 
+instance AbstractEmpty () where
+    abstractEmpty = ()
 
-creatureAvatar :: RSAnimA (Maybe Integer) () () () ()
+instance AbstractEmpty (Maybe a) where
+    abstractEmpty = Nothing
+
+visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimA (Maybe Integer) i o i o -> RSAnimA (Maybe Integer) i o i o
+visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
+
+objectTypeGuard :: (String -> Bool) -> RSAnimA (Maybe Integer) a b () ()
+objectTypeGuard f = proc () ->
+    do m_obj_type <- objectDetailsLookup "object-type" -< ()
+       killThreadIf -< maybe False (not . f) m_obj_type
+
+creatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 creatureAvatar = proc () ->
-    do m_species <- objectDetailsLookup "species" -< ()
+    do objectTypeGuard (== "creature") -< ()
+       m_species <- objectDetailsLookup "species" -< ()
        switchContinue -< (fmap switchTo m_species,())
+       returnA -< Nothing
   where switchTo "encephalon" = encephalonAvatar
         switchTo _ = questionMarkAvatar
 
-encephalonAvatar :: RSAnimA (Maybe Integer) () () () ()
+encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 encephalonAvatar = proc () ->
     do visibleObjectHeader -< ()
        m_orientation <- objectIdealOrientation -< ()
-       transformA libraryA -< maybe (id,(Local,NullModel)) (\f -> (f,(Local,Encephalon))) m_orientation
+       transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (const o,(Local,Encephalon))) m_orientation
+       wield_point <- exportToA root_coordinate_system -< root_coordinate_system
+       returnA -< Just $ CreatureThreadOutput {
+           cto_wield_point = wield_point }
 
-toolAvatar :: RSAnimA (Maybe Integer) () () () ()
-toolAvatar = proc () ->
-    do m_tool <- objectDetailsLookup "tool" -< ()
-       switchContinue -< (fmap switchTo m_tool,())
+toolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+toolAvatar = proc tti ->
+    do objectTypeGuard (== "tool") -< ()
+       m_tool <- objectDetailsLookup "tool" -< ()
+       switchContinue -< (fmap switchTo m_tool,tti)
+       returnA -< ()
   where switchTo "phase_pistol" = phasePistolAvatar
-        switchTo _ = questionMarkAvatar
+        switchTo _ = questionMarkAvatar >>> arr (const ())
 
-phasePistolAvatar :: RSAnimA (Maybe Integer) () () () ()
-phasePistolAvatar = proc _ ->
+phasePistolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+phasePistolAvatar = proc tti ->
     do visibleObjectHeader -< ()
-       m_orientation <- objectIdealOrientation -< ()
-       transformA libraryA -< maybe (id,(Local,NullModel)) (\f -> (translate (Vector3D 0 0.2 0) . f,(Local,PhasePistol))) m_orientation
+       m_orientation <- wieldableObjectIdealOrientation -< tti
+       transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (translate (Vector3D 0 0.2 0) . const o,(Local,PhasePistol))) m_orientation
 
-questionMarkAvatar :: RSAnimA (Maybe Integer) () () () ()
+questionMarkAvatar :: RSAnimA (Maybe Integer) i o i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->
     do visibleObjectHeader -< ()
        t <- threadTime -< ()
@@ -260,5 +278,11 @@ questionMarkAvatar = proc _ ->
 		    else Nothing
        m_position <- objectIdealPosition -< ()
        let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)
-       transformA libraryA -< maybe (id,(Local,NullModel)) (\v -> (translate (v `add` (Vector3D 0 (0.7 + float_y/10) 0)),(Local,QuestionMark))) m_position
+       let m_transform = fmap (\v -> translate (v `add` (Vector3D 0 (0.7 + float_y/10) 0))) m_position 
+       transformA libraryA -< maybe (id,(Local,NullModel)) (\f -> (f,(Local,QuestionMark))) m_transform
+       m_wield_point <- exportToA root_coordinate_system -< fmap (($ root_coordinate_system) . (translate (Vector3D 0.4 0 0) .)) m_transform 
+       returnA -< 
+           do wield_point <- m_wield_point
+	      return $ CreatureThreadOutput {
+                           cto_wield_point = wield_point }
 \end{code}

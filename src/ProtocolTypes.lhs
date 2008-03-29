@@ -5,6 +5,7 @@ module ProtocolTypes
     (ProtocolType(..),
      TerrainTile(..),
      VisibleObject(..),
+     WieldedObject(..),
      tableSelectTyped)
     where
 
@@ -40,6 +41,16 @@ instance ProtocolType VisibleObject where
     formatTable = const $ [TDNumber "object-unique-id",TDNumber "x",TDNumber "y",TDString "facing"]
     fromTable [TDNumber unique_id,TDNumber x,TDNumber y,TDString facing] = Just $
         VisibleObject unique_id (x,y) (facingToAngle facing)
+    fromTable _ = Nothing
+
+data WieldedObject = WieldedObject {
+    wo_unique_id :: Integer,
+    wo_creature_id :: Integer }
+
+instance ProtocolType WieldedObject where
+    formatTable = const $ [TDNumber "uid",TDNumber "creature"]
+    fromTable [TDNumber unique_id,TDNumber creature_id] = Just $
+        WieldedObject unique_id creature_id
     fromTable _ = Nothing
 
 facingToAngle :: String -> BoundAngle
