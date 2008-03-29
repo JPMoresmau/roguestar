@@ -137,6 +137,7 @@ dbDispatch ["query","state"] =
 			   DBPlayerCreatureTurn _ DBNotSpecial -> "answer: state player-turn"
                            DBPlayerCreatureTurn _ DBPickupMode -> "answer: state pickup"
                            DBPlayerCreatureTurn _ DBDropMode -> "answer: state drop"
+                           DBPlayerCreatureTurn _ DBWieldMode -> "answer: state wield"
 
 dbDispatch ["query","player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
@@ -167,7 +168,8 @@ dbDispatch ["query","object-details",_] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
      visibles <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
      let creature_refs = mapMaybe toCreatureRef visibles
-     let tool_refs = mapMaybe toToolRef visibles
+     wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
+     let tool_refs = mapMaybe toToolRef visibles ++ wielded
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
      tools <- liftM (zip tool_refs)$ mapRO dbGetTool tool_refs
      return $ unlines $ (map creatureToTableData creatures ++
@@ -216,7 +218,7 @@ dbDispatch ["action","pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_
        done
 
 dbDispatch ["action","drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
+    do inventory <- dbGetCarried creature_ref
        case inventory of
            [tool_ref] -> dbMove dbDropTool tool_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
@@ -228,6 +230,21 @@ dbDispatch ["action","drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_re
        tool_parent <- liftM extractLocation $ dbWhere tool_ref
        when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag "not-in-inventory"
        dbMove dbDropTool tool_ref
+       done
+
+dbDispatch ["action","wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do inventory <- dbGetInventory creature_ref
+       case inventory of
+           [tool_ref] -> dbMove dbWieldTool tool_ref >> return ()
+	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBWieldMode)
+       done
+
+dbDispatch ["action","wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do tool_ref <- readUID ToolRef tool_uid
+       tool_parent <- liftM extractLocation $ dbWhere tool_ref
+       when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag "not-in-inventory"
+       dbMove dbWieldTool tool_ref
        done
 
 dbDispatch ["action","unwield"] = dbRequiresPlayerTurnState $ \c -> dbUnwieldCreature c >> done 
@@ -248,6 +265,16 @@ dbDispatch ["query","inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref
     do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
        return $ "begin-table inventory 0 uid\n" ++
                 unlines (map (show . toUID) inventory) ++
+		"end-table"
+
+dbDispatch ["query","wielded-objects","0"] =
+    do m_plane_ref <- dbGetCurrentPlane
+       creature_refs <- liftM (mapMaybe toCreatureRef) $ maybe (return []) (dbGetVisibleObjectsForFaction Player) m_plane_ref
+       wielded_tool_refs <- mapM dbGetWielded creature_refs
+       let wieldedPairToTable :: CreatureRef -> Maybe ToolRef -> Maybe String
+           wieldedPairToTable creature_ref = fmap (\tool_ref -> (show $ toUID tool_ref) ++ " " ++ (show $ toUID creature_ref))
+       return $ "begin-table wielded-objects 0 uid creature\n" ++
+                unlines (catMaybes $ zipWith wieldedPairToTable creature_refs wielded_tool_refs) ++
 		"end-table"
 
 dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")

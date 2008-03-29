@@ -62,6 +62,7 @@ data DBSpecialMode =
     DBNotSpecial
   | DBPickupMode
   | DBDropMode
+  | DBWieldMode
       deriving (Read,Show)
 
 -- |
