@@ -121,10 +121,10 @@ spawnThreads = ThreadedArrow $ lift $ proc new_spawned ->
        store -< second (map (second (>>> arr Just)) new_spawned ++) x
        returnA -< ()
 
-killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow t i o a (Bool,o) o
-killThreadIf = proc (b,o) -> 
+killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => ThreadedArrow t i o a Bool ()
+killThreadIf = proc b -> 
     do ThreadedArrow SwitchedArrow.switchContinue -< (if b then (Just $ arr (const Nothing)) else Nothing,error "ThreadedArrow.killThreadIf: this thread has been killed")
-       returnA -< o
+       returnA -< ()
 
 threadIdentity :: (ArrowChoice a) => ThreadedArrow t i o a () t
 threadIdentity = arr fst <<< ThreadedArrow (lift fetch)

@@ -68,7 +68,7 @@ spawnPlusAndMinusAndDie = step1
           step2 = proc () ->
               do i <- ThreadedArrow.threadIdentity -< ()
 	         ThreadedArrow.spawnThreads -< [(i + 1,spawnPlusAndMinusAndDie),(i - 1,spawnPlusAndMinusAndDie)]
-		 ThreadedArrow.killThreadIf -< (not $ i `mod` 3 == 0 && i /= 0,Set.singleton i)
+		 ThreadedArrow.killThreadIf -< not $ i `mod` 3 == 0 && i /= 0
                  returnA -< Set.singleton i
 
 --

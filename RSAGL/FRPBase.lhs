@@ -57,7 +57,7 @@ spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase t i o a [(t,FRPB
 spawnThreads = (FRPBase $ lift $ ThreadedArrow.spawnThreads) <<< 
                arr (map $ second $ statefulThread . fromFRPBase)
 
-killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase t i o a (Bool,o) o
+killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPBase t i o a Bool ()
 killThreadIf = FRPBase $ lift ThreadedArrow.killThreadIf
 
 threadIdentity :: (ArrowChoice a) => FRPBase t i o a () t

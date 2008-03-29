@@ -95,8 +95,8 @@ switchTerminate = proc (s,o) -> FRP $ FRPBase.switchTerminate -< (fmap fromFRP s
 spawnThreads :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX Threaded t i o a [(t,FRPX Threaded t i o a i o)] ()
 spawnThreads = proc threads -> FRP $ FRPBase.spawnThreads -< map (second fromFRP) threads
 
-killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX Threaded t i o a (Bool,o) o
-killThreadIf = proc (b,o) -> do FRP $ FRPBase.killThreadIf -< (b,o)
+killThreadIf :: (Arrow a,ArrowChoice a,ArrowApply a) => FRPX Threaded t i o a Bool ()
+killThreadIf = FRP $ FRPBase.killThreadIf
 
 threadIdentity :: (ArrowChoice a) => FRPX any t i o a () t
 threadIdentity = FRP $ FRPBase.threadIdentity
