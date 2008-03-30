@@ -33,6 +33,8 @@ import Strings
 import Control.Applicative
 import qualified Data.Map as Map
 import Data.Monoid
+import Limbs
+import RSAGL.Joint
 \end{code}
 
 \begin{code}
@@ -154,7 +156,6 @@ planarGameplayDispatch = proc () ->
        frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
 	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
-       printTextOnce -< Just (Event,"Here we are!")
        lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (realToFrac y))) <<< centerCoordinates -< ()
        accumulateSceneA -< (Infinite,lightSource $ DirectionalLight (Vector3D 0.15 1 (-0.3)) (scaleRGB 0.6 $ rgb 1.0 0.9 0.75) (scaleRGB 0.4 $ rgb 0.75 0.9 1.0))
@@ -242,13 +243,20 @@ creatureAvatar = proc () ->
   where switchTo "encephalon" = encephalonAvatar
         switchTo _ = questionMarkAvatar
 
-encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
-encephalonAvatar = proc () ->
+genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
+                         RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+genericCreatureAvatar creatureA = proc () ->
     do visibleObjectHeader -< ()
        m_orientation <- objectIdealOrientation -< ()
-       transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (const o,(Local,Encephalon))) m_orientation
-       wield_point <- exportToA root_coordinate_system -< root_coordinate_system
-       returnA -< Just $ CreatureThreadOutput {
+       switchTerminate -< if isNothing m_orientation then (Just $ genericCreatureAvatar creatureA,Nothing) else (Nothing,Nothing)
+       arr Just <<< transformA creatureA -< (const $ fromMaybe (error "genericCreatureAvatar: fromMaybe") m_orientation,())
+
+encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+encephalonAvatar = genericCreatureAvatar $ proc () ->
+    do libraryA -< (Local,Encephalon)
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<< 
+           bothArms MachineArmUpper MachineArmLower (Vector3D 1.0 1.0 0) (Point3D 0.25 0.2 0) 0.5 (Point3D 0.35 0.1 0.2) -< ()
+       returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
 toolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
@@ -264,7 +272,8 @@ phasePistolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput 
 phasePistolAvatar = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation -< tti
-       transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (translate (Vector3D 0 0.2 0) . const o,(Local,PhasePistol))) m_orientation
+       is_being_wielded <- arr isJust <<< wieldedParent -< ()
+       transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (translate (Vector3D 0 (if is_being_wielded then 0.0 else 0.2) 0) . const o,(Local,PhasePistol))) m_orientation
 
 questionMarkAvatar :: RSAnimA (Maybe Integer) i o i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->

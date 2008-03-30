@@ -14,7 +14,8 @@ import RSAGL.Angle
 phase_weapon_emitter :: Quality -> Modeling ()
 phase_weapon_emitter _ = model $
     do sor $ linearInterpolation $
-                points2d [(0.001,0),
+                points2d $ reverse 
+		         [(0.001,0),
                           (4,1),
                           (7,2),
                           (9,3),
@@ -24,8 +25,8 @@ phase_weapon_emitter _ = model $
                           (4,-9),
                           (2,-10),
                           (0.001,-10)]
-       affine $ rotateX (fromDegrees 90)
        deform dfn
+       affine $ rotateX (fromDegrees 90)
     where dfn_squish p@(Point3D _ _ z) | z > 0 = scale (Vector3D 1 1 0.1) p
           dfn_squish p = scale (Vector3D 1 1 0.25) p
           dfn_smoothe_dish p@(Point3D _ y _) | y > 0 = scale (Vector3D 1 (u/10) 1) p
@@ -36,7 +37,8 @@ phase_weapon_emitter _ = model $
 phase_weapon_grip :: Quality -> Modeling ()
 phase_weapon_grip _ = model $
     do sor $ linearInterpolation $
-                points2d [(3,0),
+                points2d $ reverse
+		         [(3,0),
                           (2,-4),
                           (1,-7),
                           (1,-10),
@@ -54,7 +56,7 @@ phase_weapon_grip _ = model $
                                 
 phase_pistol :: Quality -> Modeling ()
 phase_pistol q = model $
-    scale' 0.02 $
+    scale' (1/50) $
         do translate (Vector3D 0 5 7) $ phase_weapon_emitter q
            translate (Vector3D 0 5 0) $ phase_weapon_grip q
 	   concordance_metal

@@ -20,6 +20,7 @@ import Control.Monad
 import System.IO
 import Models.Encephalon
 import Models.PhaseWeapons
+import Models.MachineParts
 
 toModel :: LibraryModel -> Quality -> Modeling ()
 toModel (TerrainTile s) = const $ terrainTile s
@@ -27,13 +28,17 @@ toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
 toModel Encephalon = encephalon
 toModel PhasePistol = phase_pistol
+toModel MachineArmLower = machine_arm_lower
+toModel MachineArmUpper = machine_arm_upper
 
 all_library_models :: [LibraryModel]
 all_library_models =
     Prelude.map TerrainTile known_terrain_types ++
     [QuestionMark, NullModel,
      Encephalon,
-     PhasePistol]
+     PhasePistol,
+     MachineArmLower,
+     MachineArmUpper]
 
 data Library = Library 
     Bottleneck

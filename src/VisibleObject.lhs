@@ -8,6 +8,7 @@ module VisibleObject
      visibleObjects,
      allObjects,
      wieldedParent,
+     wieldedTool,
      visibleObject,
      visibleObjectUniqueID,
      objectDetailsLookup,
@@ -55,15 +56,19 @@ allObjects :: RSAnimAX any a i o () [Integer]
 allObjects = proc () ->
     do visible_object_ids <- arr (map vo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
        wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
-       let result = Set.toList $ Set.fromList visible_object_ids `Set.union` Set.fromList wielded_object_ids
-       debugA -< Just$ show result
-       returnA -< result
+       returnA -< Set.toList $ Set.fromList visible_object_ids `Set.union` Set.fromList wielded_object_ids
 
 wieldedParent :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
 wieldedParent = proc () -> 
     do unique_id <- visibleObjectUniqueID -< ()
        wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_creature_id $ find ((== unique_id) . wo_unique_id) wielded_pairs
+
+wieldedTool :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
+wieldedTool = proc () ->
+    do unique_id <- visibleObjectUniqueID -< ()
+       wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
+       returnA -< fmap wo_unique_id $ find ((== unique_id) . wo_creature_id) wielded_pairs
 
 visibleObjectUniqueID :: RSAnimA (Maybe Integer) i o () Integer
 visibleObjectUniqueID = arr (fromMaybe (error "visibleObjectUniqueID: threadIdentity was Nothing")) <<< threadIdentity
