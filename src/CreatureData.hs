@@ -25,7 +25,7 @@ import FactionData
 data Creature = Creature { creature_stats :: Stats, 
 			   creature_attribs :: [CreatureAttribute],
 			   creature_species_name :: String,
-			   creature_random_id :: Integer, -- simply a random number attached to the creature, used by the gui to name the creature.  It is NOT required to be unique, use the toUID function in DBData for this
+			   creature_random_id :: Integer, -- random number attached to the creature, not unique
 			   creature_damage :: Integer,
 			   creature_faction :: Faction }
 		deriving (Read,Show)
@@ -49,30 +49,13 @@ data CreatureAttribute = Gender CreatureGender
 		       | DamageReductionTrait            -- subtracts from any damage inflicted
 		       | MeleeAttackSkill                -- increased melee accuracy
 		       | MeleeDefenseSkill               -- increase melee defense
-		       | PreciseStrike                   -- increase melee damage
 		       | RangedAttackSkill               -- increased ranged accuracy
 		       | RangedDefenseSkill              -- increase ranged defense
-		       | PreciseShot                     -- increased ranged damage
 		       | SpeedTrait                      -- more turns per round
-		       | DoesNotNegotiate                -- AI flag -- unit does not negotiate
-		       | DoesNotValueMoney               -- AI flag, unit will not take money to make up for missed negotiate check
-		       | NoKillPenalty                   -- killing this unit always earns neutral experience
-		       | CommandSkill                    -- skill needed to command a starship
-		       | NegotiateSkill                  -- skill used to negotiate prices or peace
-		       | LeadershipSkill                 -- add bonus to other unit's rolls by chatting
 		       | HideSkill                       -- unit is harder to see
 		       | SpotSkill                       -- unit can see farther away
-		       | PilotSkill                      -- skill needed to operate single-pilot ships
-		       | EngineeringSkill                -- skill used to build and disassemble devices
-		       | RepairSkill                     -- skill used to repair starships
-		       | ScienceSkill                    -- equivalent of spot for starships
-		       | CalmBeastAbility                -- equivalent of negotiate for non-sentient creatures
-		       | RegenerationAbility             -- special ability to recharge hit points using psi points
-		       | ForestSurvivalSkill             -- hide, speed, and defense in forest
-		       | WaterSurvivalSkill              -- hide, speed, and defense in water, plus resistance to drowning
-		       | HardStatBonus Statistic         -- when applied, instantly raises statistic by 1
-		       | SoftStatBonus Statistic         -- when applied multiple times, instantly raises statistic as a progression
-		       | AlignmentBonus AlignmentSchool  -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
+                       | StatBonus Statistic             -- +1 to any statistic
+                       | AlignmentBonus AlignmentSchool  -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
 		       | CharacterLevel CharacterClass   -- record of a character class being applied to the creature, has no game effect
 		       | FavoredClass CharacterClass     -- creature is able to take the specified class without any prerequisites
 			 deriving (Eq, Show, Read)
@@ -85,7 +68,6 @@ data Score = MaxHitPoints
 	   | MeleeDamage
 	   | RangedAttack
 	   | RangedDefense
-	   | RangedDamage
 	   | Speed Statistic
 	   | EffectiveLevel
 	   | Spot
@@ -110,15 +92,14 @@ exampleCreature1 = Creature
 		     creature_faction = MonstersInc }
 
 creatureScore :: Score -> Creature -> Integer
-creatureScore MaxHitPoints = \c -> max 6 (20 + (str c) + (con c) + (dex c) + (mind c)) + 2 * attributeCount ToughnessTrait c
+creatureScore MaxHitPoints = \c -> max 6 (str c + con c + dex c + mind c) + 2 * attributeCount ToughnessTrait c
 creatureScore HitPoints = \c -> creatureScore MaxHitPoints c - creature_damage c
 creatureScore DamageReduction = statPlusDouble Constitution DamageReductionTrait
 creatureScore MeleeAttack = statPlusDouble Dexterity MeleeAttackSkill
 creatureScore MeleeDefense = statPlusDouble Dexterity MeleeDefenseSkill
-creatureScore MeleeDamage = statPlusDouble Strength PreciseStrike
+creatureScore MeleeDamage = getStatistic Strength
 creatureScore RangedAttack = statPlusDouble Perception RangedAttackSkill
 creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill 
-creatureScore RangedDamage = \c -> max 0 $ per c + attributeCount PreciseShot c
 creatureScore (Speed by_statistic) = \c -> max 1 $ getStatistic by_statistic c + attributeCount SpeedTrait c
 creatureScore Spot = statPlusDouble Perception SpotSkill
 creatureScore Hide = \c -> max 0 $ per c + attributeCount HideSkill c
@@ -143,7 +124,7 @@ attributeCount attrib creature = count attrib $ creature_attribs creature
 -- ranks in the relevant skill.
 --
 statPlusDouble :: Statistic -> CreatureAttribute -> Creature -> Integer
-statPlusDouble statistic attrib creature = max 0 $ 20 + getStatistic statistic creature + 2 * attributeCount attrib creature
+statPlusDouble statistic attrib creature = max 0 $ getStatistic statistic creature + 2 * attributeCount attrib creature
 
 -- |
 -- Does the specified damage against the Creature.
@@ -177,36 +158,18 @@ characterClassLevels character_class creature = count (CharacterLevel character_
 -- based on a single occurance of the given CreatureAttribute.
 --
 levelAdjustment :: CreatureAttribute -> Integer
-
 levelAdjustment ToughnessTrait = 1
 levelAdjustment MeleeAttackSkill = 1
 levelAdjustment MeleeDefenseSkill = 1
-levelAdjustment PreciseStrike = 1
 levelAdjustment RangedAttackSkill = 1
 levelAdjustment RangedDefenseSkill = 1
-levelAdjustment PreciseShot = 1
 levelAdjustment SpeedTrait = 2
-levelAdjustment NoKillPenalty = 0
-levelAdjustment WaterSurvivalSkill = 1
-levelAdjustment ForestSurvivalSkill = 1
-levelAdjustment RegenerationAbility = 2
-levelAdjustment DoesNotValueMoney = 0
-levelAdjustment DoesNotNegotiate = 0
+levelAdjustment (StatBonus _) = 1
 levelAdjustment (Gender {}) = 0
 levelAdjustment DamageReductionTrait = 1
-levelAdjustment SoftStatBonus {} = 0
-levelAdjustment HardStatBonus {} = 1
 levelAdjustment AlignmentBonus {} = 0
-levelAdjustment LeadershipSkill = 1
-levelAdjustment NegotiateSkill = 1
-levelAdjustment CommandSkill = 1
 levelAdjustment HideSkill = 1
 levelAdjustment SpotSkill = 1
-levelAdjustment PilotSkill = 1
-levelAdjustment EngineeringSkill = 1
-levelAdjustment RepairSkill = 1
-levelAdjustment ScienceSkill = 1
-levelAdjustment CalmBeastAbility = 1
 levelAdjustment FavoredClass {} = 0
 levelAdjustment CharacterLevel {} = 0
 
@@ -216,8 +179,7 @@ levelAdjustment CharacterLevel {} = 0
 -- Includes some special handling for some CreatureAttributes.
 --
 applyCreatureAttribute :: CreatureAttribute -> Creature -> Creature
-applyCreatureAttribute (HardStatBonus statistic) = incCreatureStat statistic 
-applyCreatureAttribute (SoftStatBonus statistic) = softIncCreatureStat statistic 
+applyCreatureAttribute (StatBonus statistic) = incCreatureStat statistic 
 applyCreatureAttribute attrib = putCreatureAttribute attrib
 
 -- |
@@ -226,25 +188,10 @@ applyCreatureAttribute attrib = putCreatureAttribute attrib
 putCreatureAttribute :: CreatureAttribute -> Creature -> Creature
 putCreatureAttribute attrib creature = creature { creature_attribs = (attrib : (creature_attribs creature))}
 
--- |
--- Strip all instances of a CreatureAttribute from a Creature.
---
-stripCreatureAttribute :: CreatureAttribute -> Creature -> Creature
-stripCreatureAttribute attrib creature = 
-    creature { creature_attribs = filter (\x -> x /= attrib) $ creature_attribs creature }
-
 incCreatureStat :: Statistic -> Creature -> Creature
 incCreatureStat statistic creature = 
     let sts = creature_stats creature
 	in creature { creature_stats = setStatistic statistic (succ $ getStatistic statistic sts) sts }
-
-softIncCreatureStat :: Statistic -> Creature -> Creature
-softIncCreatureStat statistic creature =
-    let sts = creature_stats creature
-	num = count (SoftStatBonus statistic) $ creature_attribs creature
-	in if (getStatistic statistic sts < num)
-	   then incCreatureStat statistic $ stripCreatureAttribute (SoftStatBonus statistic) creature
-	   else putCreatureAttribute (SoftStatBonus statistic) creature
 
 genderOf :: CreatureAttribute -> Maybe CreatureGender
 genderOf attrib = case attrib of

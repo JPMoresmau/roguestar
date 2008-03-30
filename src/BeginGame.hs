@@ -20,7 +20,7 @@ player_race_to_biome =
      ("androsynth",RockBiome),
      ("ascendant",MountainBiome),
      ("canduceator",SwampBiome),
-     ("encephalon",SwampBiome),
+     ("encephalon",GrasslandBiome{-SwampBiome-}),
      ("goliath",DesertBiome),
      ("hellion",GrasslandBiome),
      ("kraken",OceanBiome),

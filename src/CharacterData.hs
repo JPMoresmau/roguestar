@@ -11,8 +11,7 @@ data CharacterClass = Barbarian
 		    | ForceAdept
 		    | Marine
 		    | Ninja
-		    | Pilot
-		    | Privateer
+		    | Pirate
 		    | Scout
 		    | Shepherd
 		    | Thief
@@ -29,8 +28,7 @@ base_character_classes = [Barbarian,
 			  ForceAdept,
 			  Marine,
 			  Ninja,
-			  Pilot,
-			  Privateer,
+			  Pirate,
 			  Scout,
 			  Shepherd,
 			  Thief,
