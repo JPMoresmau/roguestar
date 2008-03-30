@@ -27,6 +27,7 @@ module RSAGL.CoordinateSystems
      importFromA,
      exportA,
      exportToA,
+     exportCoordinateSystem,
      remoteA,
      transformM,
      transformA,
@@ -136,6 +137,9 @@ exportA = proc a ->
 
 exportToA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a) => CoordinateSystem -> arr a a
 exportToA cs = exportA >>> arr (importCSN cs)
+
+exportCoordinateSystem :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr AffineTransformation CoordinateSystem
+exportCoordinateSystem = exportToA root_coordinate_system <<< arr ($ root_coordinate_system)
 
 importA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a) => arr (CSN a) a
 importA = proc a ->
