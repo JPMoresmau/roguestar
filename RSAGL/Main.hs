@@ -55,7 +55,7 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
     do let upper_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_upper_leg 50)
        let lower_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_lower_leg 50)
        let orb_legs = legs $ rotationGroup (Vector3D 0 1 0) 7 $
-                             leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ legAnimation upper_leg_anim lower_leg_anim
+                             leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ jointAnimation upper_leg_anim lower_leg_anim
        return $ proc () ->
            do accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb test_quality)
               transformA pointAtCameraA -< (Affine.translate (Vector3D 0 1.05 0),(Local,getQuality qo_glow_orb test_quality))

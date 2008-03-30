@@ -21,7 +21,7 @@ The \texttt{odometer} indicates the distance traveled in a remote coordinate sys
 It does not measure side-to-side motion, only motion in the direction of the vector.
 
 \begin{code}
-odometer :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRP i o a () Double
+odometer :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX any t i o a () Double
 odometer cs measurement_vector_ =
        arr (const origin_point_3d) >>> exportToA cs >>> derivative >>> importFromA cs >>>
        arr (withTime (fromSeconds 1) (dotProduct measurement_vector)) >>>

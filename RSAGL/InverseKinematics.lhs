@@ -7,7 +7,7 @@
 module RSAGL.InverseKinematics
     (leg,
      Leg,
-     legAnimation,
+     jointAnimation,
      legs,
      approach,
      approachA)
@@ -43,7 +43,7 @@ instead of spinning the odometer by the wheel.
 where a value greater than 1 indicates that the foot is down.
 
 \begin{code}
-foot :: (Arrow a,ArrowApply a,ArrowChoice a,CoordinateSystemClass s,ArrowState s a) => Double -> Double -> Double -> FRP i o a Bool (CSN Point3D,Bool)
+foot :: (Arrow a,ArrowApply a,ArrowChoice a,CoordinateSystemClass s,ArrowState s a) => Double -> Double -> Double -> FRPX any t i o a Bool (CSN Point3D,Bool)
 foot forward_radius side_radius lift_radius = proc emergency_footdown ->
     do fwd_total_stepage <- arr (* recip forward_radius) <<< odometer root_coordinate_system (Vector3D 0 0 1) -< ()
        side_total_stepage <- arr (* recip side_radius) <<< odometer root_coordinate_system (Vector3D 1 0 0) -< ()
@@ -64,12 +64,12 @@ foot forward_radius side_radius lift_radius = proc emergency_footdown ->
 of the legs always try to touch the ground.
 
 \begin{code}
-newtype Leg i o a = Leg (FRP i o a [Bool] [Bool])
+newtype Leg threaded t i o a = Leg (FRPX threaded t i o a [Bool] [Bool])
 
-instance (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => AffineTransformable (Leg i o a) where
+instance (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => AffineTransformable (Leg threaded t i o a) where
     transform m (Leg l) = Leg (proc x -> transformA l -< (transform m,x))
 
-leg :: (ArrowApply a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => Vector3D -> Point3D -> Double -> Point3D -> (FRP i o a Joint ()) -> Leg i o a
+leg :: (ArrowApply a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => Vector3D -> Point3D -> Double -> Point3D -> (FRPX threaded t i o a Joint ()) -> Leg threaded t i o a
 leg bend base len end animation = Leg $ proc feet_that_are_down ->
     do let declare_emergency_foot_down = length (filter id feet_that_are_down) < length (filter not feet_that_are_down) &&
                                          not (and $ take 1 feet_that_are_down)
@@ -79,17 +79,17 @@ leg bend base len end animation = Leg $ proc feet_that_are_down ->
        returnA -< (foot_is_down || declare_emergency_foot_down) : feet_that_are_down
   where foot_radius = sqrt (len^2 - (distanceBetween base end)^2) / 2
 
-legs :: (ArrowChoice a) => [Leg i o a] -> FRP i o a () ()
+legs :: (ArrowChoice a) => [Leg threaded t i o a] -> FRPX threaded t i o a () ()
 legs ls = (foldl (>>>) (arr $ const []) $ map (\(Leg l) -> l) ls) >>> (arr $ const ())
 \end{code}
 
-\texttt{legAnimation} is just a simple combinator to combine the upper and lower components of a leg into an animated Joint.
+\texttt{jointAnimation} is just a simple combinator to combine the upper and lower components of a joint into an animated Joint.
 
 \begin{code}
-legAnimation :: (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => FRP i o a () () -> FRP i o a () () -> FRP i o a Joint ()
-legAnimation upper_leg lower_leg = proc j ->
-    do transformA upper_leg -< (joint_arm_upper j,())
-       transformA lower_leg -< (joint_arm_lower j,())
+jointAnimation :: (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => FRPX any t i o a () () -> FRPX any t i o a () () -> FRPX any t i o a Joint ()
+jointAnimation upperJoint lowerJoint = proc j ->
+    do transformA upperJoint -< (joint_arm_upper j,())
+       transformA lowerJoint -< (joint_arm_lower j,())
 \end{code}
 
 \subsection{Approach}
