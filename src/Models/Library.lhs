@@ -23,7 +23,7 @@ import Models.PhaseWeapons
 import Models.MachineParts
 
 toModel :: LibraryModel -> Quality -> Modeling ()
-toModel (TerrainTile s) = const $ terrainTile s
+toModel (TerrainTile s) = terrainTile s
 toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
 toModel Encephalon = encephalon

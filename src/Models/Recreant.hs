@@ -9,11 +9,7 @@ import RSAGL.Material
 import RSAGL.ModelingExtras
 import RSAGL.Vector
 import RSAGL.Affine
-
-recreant_material :: Modeling ()
-recreant_material = 
-    do pigment $ pure camouflage_green 
-       specular 25 $ pure camouflage_green
+import Models.RecreantMaterials
 
 recreant_antenna_small :: Quality -> Modeling ()
 recreant_antenna_small _ = 

@@ -8,8 +8,8 @@ module Models.RecreantMaterials
 import RSAGL.Model
 import RSAGL.ModelingExtras
 
-recreant_material :: Modeling ()
-recreant_material = 
+recreant_metal :: Modeling ()
+recreant_metal = 
     do pigment $ pure camouflage_green 
-       specular 25 $ pure camouflage_green
+       specular 25 $ pure white
 \end{code}

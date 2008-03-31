@@ -6,6 +6,8 @@ module Models.Terrain
      terrainTile)
     where
 
+import Quality
+import Models.RecreantFactory
 import RSAGL.Model
 import RSAGL.ModelingExtras
 import RSAGL.Vector
@@ -28,7 +30,8 @@ known_terrain_types =
      "glass",
      "rockyground",
      "rubble",
-     "rockface"]
+     "rockface",
+     "recreantfactory"]
 
 terrainTileShape :: Double -> Modeling ()
 terrainTileShape height = model $
@@ -36,8 +39,9 @@ terrainTileShape height = model $
        deform $ \(Point3D x y z) -> Point3D x (sqrt $ max 0 y) z
        affine $ scale (Vector3D 1 height 1) . rotate (Vector3D 0 1 0) (fromDegrees 45)
 
-terrainTile :: String -> Modeling () 
-terrainTile s = model $
+terrainTile :: String -> Quality -> Modeling ()
+terrainTile "recreantfactory" q = recreant_factory q
+terrainTile s _ = model $
     do terrainTileShape (terrainHeight s)
        terrainTexture s
        
