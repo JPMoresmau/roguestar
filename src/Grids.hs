@@ -2,7 +2,8 @@
 module Grids
     (Grid,
      gridAt,
-     generateGrid)
+     generateGrid,
+     arbitraryReplaceGrid)
     where
 
 import RNG
@@ -10,16 +11,17 @@ import RandomUtils
 import ListUtils
 import Data.Map as Map
 import Data.Ratio
+import Data.List
 
 data Grid a = CompletelyRandomGrid Integer ((Integer,Integer) -> Integer) [(Integer,a)]
             | InterpolatedGrid Integer ((Integer,Integer) -> Integer) (Map (a,a) [(Integer,a)]) (Grid a)
-            | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) Rational a [(Integer,a)] (Grid a)
+            | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) [(Rational,a)] [(Integer,a)] (Grid a)
             | SpecificPlacementGrid (Map (Integer,Integer) a) (Grid a)
 	    | CachedGrid ((Integer,Integer) -> a) (Grid a)
 
 data Grid_Persistant a = CompletelyRandomGrid_Persistant Integer [(Integer,a)]
 		       | InterpolatedGrid_Persistant Integer [((a,a),[(Integer,a)])] (Grid_Persistant a)
-		       | ArbitraryReplacementGrid_Persistant Integer Rational a [(Integer,a)] (Grid_Persistant a)
+		       | ArbitraryReplacementGrid_Persistant Integer [(Rational,a)] [(Integer,a)] (Grid_Persistant a)
 		       | SpecificPlacementGrid_Persistant [((Integer,Integer),a)] (Grid_Persistant a)
 		       deriving (Read,Show)
 
@@ -28,8 +30,8 @@ toPersistant (CompletelyRandomGrid x _ prob_list) =
     CompletelyRandomGrid_Persistant x prob_list
 toPersistant (InterpolatedGrid x _ prob_map grid) = 
     InterpolatedGrid_Persistant x (toList prob_map) (toPersistant grid)
-toPersistant (ArbitraryReplacementGrid x _ fraction val prob_list grid) = 
-    ArbitraryReplacementGrid_Persistant x fraction val prob_list $ toPersistant grid
+toPersistant (ArbitraryReplacementGrid x _ sources replacements grid) = 
+    ArbitraryReplacementGrid_Persistant x sources replacements $ toPersistant grid
 toPersistant (SpecificPlacementGrid placement_map grid) = 
     SpecificPlacementGrid_Persistant (toList placement_map) (toPersistant grid)
 toPersistant (CachedGrid _ grid) = toPersistant grid
@@ -39,8 +41,8 @@ fromPersistant (CompletelyRandomGrid_Persistant x prob_list) =
     cachedGridOf $ CompletelyRandomGrid x (randomIntegerGrid x) prob_list
 fromPersistant (InterpolatedGrid_Persistant x prob_map grid) =
     cachedGridOf $ InterpolatedGrid x (randomIntegerGrid x) (fromList prob_map) (fromPersistant grid)
-fromPersistant (ArbitraryReplacementGrid_Persistant x fraction val prob_list grid) =
-    cachedGridOf $ ArbitraryReplacementGrid x (randomIntegerGrid x) fraction val prob_list (fromPersistant grid)
+fromPersistant (ArbitraryReplacementGrid_Persistant x sources replacements grid) =
+    cachedGridOf $ ArbitraryReplacementGrid x (randomIntegerGrid x) sources replacements (fromPersistant grid)
 fromPersistant (SpecificPlacementGrid_Persistant placement_map grid) =
     cachedGridOf $ SpecificPlacementGrid (fromList placement_map) (fromPersistant grid)
 
@@ -67,15 +69,12 @@ gridAt (InterpolatedGrid _ seedfn interpolation_map grid) at@(x,y) =
 				(False,True) -> (interpolate here there_x)
 				(False,False) -> (interpolate here there)
 
-gridAt (ArbitraryReplacementGrid _ seedfn frequency rep_val weights grid) at =
-    let here = gridAt grid at
-	in 
-	if here == rep_val && 
-	       ((seedfn at) `mod` (denominator frequency)
-		<
-		(numerator frequency))
-	then weightedPick (seedfn at) weights
-	else here
+gridAt (ArbitraryReplacementGrid _ seedfn sources replacements grid) at = 
+    case fmap fst $ find ((== here) . snd) sources of
+         Just frequency | ((seedfn at) `mod` (denominator frequency) < (numerator frequency)) ->
+	     weightedPick (seedfn at) replacements
+	 _ -> here
+  where here = gridAt grid at
 
 gridAt (SpecificPlacementGrid rep_map grid) at =
     findWithDefault (gridAt grid at) at rep_map
@@ -91,14 +90,16 @@ cachedGridOf any_other_grid = CachedGrid (cachedAccessor2D (gridAt any_other_gri
 -- indicates the recursion depth for the generator.  The
 -- Integer list is the random integer stream used to generate
 -- the map.
---generateGrid :: (Ord a) => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
---generateGrid weights interps n seeds = let generated_grid = generateGrid_ weights interps n seeds
---					   in CachedGrid (cachedAccessor2D (gridAt generated_grid)) generated_grid
-
-generateGrid :: Ord a => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
+generateGrid :: (Ord a) => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
 generateGrid weights _ 0 seeds = let seed = head seeds
 				      in CompletelyRandomGrid seed (randomIntegerGrid seed) weights
 generateGrid weights interps n seeds = let seed = head seeds
 					    in cachedGridOf $ InterpolatedGrid seed (randomIntegerGrid seed) interps $ 
 					       generateGrid weights interps (n-1) (tail seeds)
 
+-- |
+-- Arbitrarily (randomly) replaces some elements of a grid with another.
+--
+arbitraryReplaceGrid :: (Ord a) => [(Rational,a)] -> [(Integer,a)] -> Integer -> Grid a -> Grid a
+arbitraryReplaceGrid sources replacements seed grid = cachedGridOf $
+    ArbitraryReplacementGrid seed (randomIntegerGrid seed) sources replacements grid

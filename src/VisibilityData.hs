@@ -30,6 +30,7 @@ terrainHideMultiplier DeepWater = 2
 terrainHideMultiplier Ice = 0
 terrainHideMultiplier Lava = 0  -- you definitely can't hide on lava
 terrainHideMultiplier Glass = 0
+terrainHideMultiplier RecreantFactory = 0
 
 -- |
 -- We multiply a creature's spot check by this number if it is standing on this terrain.
@@ -58,6 +59,7 @@ terrainOpacity DeepWater = 0
 terrainOpacity Ice = 0
 terrainOpacity Lava = 0
 terrainOpacity Glass = 0
+terrainOpacity RecreantFactory = 0
 
 -- |
 -- The difficulty to spot an object at the given relative coordinates, taking facing into account.

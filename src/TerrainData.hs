@@ -4,6 +4,8 @@ module TerrainData
      TerrainPatch(..),
      TerrainMap,
      TerrainGenerationData(..),
+     TerrainPlacement,
+     recreantFactories,
      generateTerrain,
      generateExampleTerrain,
      prettyPrintTerrain,
@@ -15,6 +17,7 @@ import Data.List as List
 import Data.Map as Map
 import Substances
 import RNG
+import Data.Ratio
 
 -- |
 -- Most automatically generated surface maps belong to a Biome, representing the kind of terrain
@@ -53,12 +56,41 @@ data TerrainPatch = RockFace
                   | Ice
 		  | Lava
 		  | Glass -- what sand becomes when struck by intense heat
+		  | RecreantFactory
                     deriving (Read,Show,Eq,Ord)
 
 data TerrainGenerationData = TerrainGenerationData
 			   { tg_smootheness :: Integer,
-			     tg_biome :: Biome }
+			     tg_biome :: Biome,
+			     tg_placements :: [TerrainPlacement] }
 			   deriving (Read,Show)
+
+data TerrainPlacement = TerrainPlacement {
+    placement_sources :: [(Rational,TerrainPatch)],
+    placement_replacements :: [(Integer,TerrainPatch)],
+    placement_seed :: Integer }
+        deriving (Read,Show)
+
+placeTerrain :: TerrainPlacement -> TerrainMap -> TerrainMap
+placeTerrain terrain_placement =
+    arbitraryReplaceGrid (placement_sources terrain_placement)
+                         (placement_replacements terrain_placement)
+			 (placement_seed terrain_placement)
+
+recreantFactories :: Integer -> TerrainPlacement
+recreantFactories seed = TerrainPlacement {
+    placement_sources = 
+        [(1%25,Ice),
+         (1%100,Sand),
+         (1%25,Desert),
+         (1%50,Dirt),
+         (1%10,Glass),
+	 (1%200,Grass),
+         (1%1000,Forest),
+         (1%25,RockyGround)],
+    placement_replacements = 
+        [(1,RecreantFactory)],
+    placement_seed = seed }
 
 -- |
 -- A list of TerrainPatches that are considered "difficult", either for traveling
@@ -68,15 +100,15 @@ difficult_terrains :: [TerrainPatch]
 difficult_terrains = [RockFace,Forest,DeepForest,Water,DeepWater,Ice,Lava]
 
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
-terrainFrequencies RockBiome = [(1,RockFace),(1,Rubble),(3,RockyGround),(1,Sand)]
-terrainFrequencies IcyRockBiome = [(1,RockFace),(2,Rubble),(3,RockyGround),(6,Ice)]
-terrainFrequencies GrasslandBiome = [(1,RockFace),(1,RockyGround),(1,Dirt),(2,Sand),(1,Forest),(1,Water),(10,Grass)]
-terrainFrequencies ForestBiome = [(1,RockFace),(1,RockyGround),(1,Dirt),(5,Water),(3,Grass),(5,Forest),(5,DeepForest)]
-terrainFrequencies TundraBiome = [(1,RockFace),(3,RockyGround),(1,Sand),(1,Water),(1,Grass),(8,Ice)]
-terrainFrequencies DesertBiome = [(1,RockFace),(3,RockyGround),(1,Grass),(1,Water),(11,Desert)]
-terrainFrequencies OceanBiome = [(1,RockyGround),(3,Sand),(1,Grass),(1,Forest),(7,Water),(20,DeepWater)]
-terrainFrequencies MountainBiome = [(6,RockFace),(3,RockyGround),(1,Rubble),(1,Sand),(1,Grass),(1,Forest),(1,Water)]
-terrainFrequencies SwampBiome = [(1,Forest),(1,Water)]
+terrainFrequencies RockBiome = [(15,RockFace),(15,Rubble),(55,RockyGround),(15,Sand)]
+terrainFrequencies IcyRockBiome = [(10,RockFace),(10,Rubble),(20,RockyGround),(60,Ice)]
+terrainFrequencies GrasslandBiome = [(5,RockFace),(5,RockyGround),(10,Dirt),(10,Sand),(10,Forest),(10,Water),(50,Grass)]
+terrainFrequencies ForestBiome = [(10,RockFace),(10,RockyGround),(10,Dirt),(10,Water),(10,Grass),(25,Forest),(25,DeepForest)]
+terrainFrequencies TundraBiome = [(10,RockFace),(10,RockyGround),(10,Sand),(10,Water),(60,Ice)]
+terrainFrequencies DesertBiome = [(10,RockFace),(10,RockyGround),(9,Grass),(1,Water),(70,Desert)]
+terrainFrequencies OceanBiome = [(5,RockyGround),(10,Sand),(5,Grass),(5,Forest),(25,Water),(50,DeepWater)]
+terrainFrequencies MountainBiome = [(50,RockFace),(25,RockyGround),(5,Rubble),(5,Sand),(5,Grass),(5,Forest),(5,Water)]
+terrainFrequencies SwampBiome = [(40,Forest),(50,Water),(5,Sand),(5,Grass)]
 
 terrainInterpFn :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
 terrainInterpFn (a,b) = [(1,a),(1,b)] ++ (terrainInterpRule (a,b)) ++ (terrainInterpRule (b,a))
@@ -121,7 +153,7 @@ type TerrainMap = Grid TerrainPatch
 -- to generate the terrain.
 --
 generateTerrain :: TerrainGenerationData -> [Integer] -> TerrainMap
-generateTerrain tg rands = 
+generateTerrain tg rands = flip (foldr placeTerrain) (tg_placements tg) $
     generateGrid (terrainFrequencies (tg_biome tg))
 		 terrainInterpMap
 		 (tg_smootheness tg)
@@ -143,11 +175,13 @@ terrainPatchToASCII DeepWater = '~'
 terrainPatchToASCII Ice = '^'
 terrainPatchToASCII Glass = '_'
 terrainPatchToASCII Lava = '^'
+terrainPatchToASCII RecreantFactory = 'o'
 
 exampleTerrainGenerator :: TerrainGenerationData
 exampleTerrainGenerator = TerrainGenerationData
 			  { tg_smootheness = 5,
-			    tg_biome = ForestBiome }
+			    tg_biome = ForestBiome,
+			    tg_placements = [] }
 
 generateExampleTerrain :: Integer -> TerrainMap
 generateExampleTerrain seed = generateTerrain exampleTerrainGenerator (randomIntegerStream seed)

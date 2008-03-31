@@ -31,8 +31,11 @@ player_race_to_biome =
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
-    dbNewPlane $ TerrainGenerationData {tg_smootheness = 3,
-					tg_biome = fromMaybe GrasslandBiome $ lookup (creature_species_name creature) player_race_to_biome}
+    do seed <- dbNextRandomInteger
+       dbNewPlane $ TerrainGenerationData {
+           tg_smootheness = 3,
+	   tg_biome = fromMaybe GrasslandBiome $ lookup (creature_species_name creature) player_race_to_biome,
+	   tg_placements = [recreantFactories seed] }
 
 -- |
 -- Begins the game with the specified starting player creature and the specified starting character class.

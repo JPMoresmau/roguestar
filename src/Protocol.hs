@@ -289,8 +289,7 @@ dbSelectPlayerRace race_name = case (selectPlayerRace race_name)
 dbSelectPlayerClass :: String -> Creature -> DB String
 dbSelectPlayerClass class_name creature = 
     let eligable_base_classes = getEligableBaseCharacterClasses creature
-	in case find (\x -> (map toLower . show) x == class_name) eligable_base_classes
-	   of
+	in case find (\x -> (map toLower . show) x == class_name) eligable_base_classes of
 	   Nothing -> return ("protocol-error: unrecognized or invalid class '" ++ class_name ++ "'")
 	   Just the_class -> do dbBeginGame creature the_class
 			        done
