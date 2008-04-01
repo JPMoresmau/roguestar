@@ -10,6 +10,7 @@ data LibraryModel =
   | QuestionMark
   | NullModel
   | Encephalon
+  | Recreant
   | PhasePistol
   | MachineArmLower
   | MachineArmUpper

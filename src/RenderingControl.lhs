@@ -22,6 +22,7 @@ import Models.LibraryData
 import RSAGL.CoordinateSystems
 import RSAGL.Affine
 import RSAGL.ModelingExtras
+import RSAGL.Interpolation
 import ProtocolTypes
 import RSAGL.Time
 import RSAGL.AbstractVector
@@ -241,6 +242,7 @@ creatureAvatar = proc () ->
        switchContinue -< (fmap switchTo m_species,())
        returnA -< Nothing
   where switchTo "encephalon" = encephalonAvatar
+        switchTo "recreant" = recreantAvatar
         switchTo _ = questionMarkAvatar
 
 genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
@@ -259,6 +261,14 @@ encephalonAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
+recreantAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
+    do libraryA -< (Local,Recreant)
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
+           bothArms MachineArmUpper MachineArmLower (Vector3D 0 (-1.0) 0) (Point3D 0.3 0.075 0) 0.5 (Point3D 0.5 0.075 0.2) -< ()
+       returnA -< CreatureThreadOutput {
+           cto_wield_point = wield_point }
+
 toolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 toolAvatar = proc tti ->
     do objectTypeGuard (== "tool") -< ()
@@ -274,6 +284,12 @@ phasePistolAvatar = proc tti ->
        m_orientation <- wieldableObjectIdealOrientation -< tti
        is_being_wielded <- arr isJust <<< wieldedParent -< ()
        transformA libraryA -< maybe (id,(Local,NullModel)) (\o -> (translate (Vector3D 0 (if is_being_wielded then 0.0 else 0.2) 0) . const o,(Local,PhasePistol))) m_orientation
+
+floatBobbing :: Double -> Double -> RSAnimAX any t i o j p -> RSAnimAX any t i o j p
+floatBobbing ay by animationA = proc j ->
+    do t <- threadTime -< ()
+       let float_y = lerpBetween (-1,sine $ fromRotations $ t `cyclical'` (fromSeconds 5),1) (ay,by)
+       transformA animationA -< (translate (Vector3D 0 float_y 0),j)
 
 questionMarkAvatar :: RSAnimA (Maybe Integer) i o i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->

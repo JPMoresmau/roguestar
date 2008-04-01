@@ -19,6 +19,7 @@ import RSAGL.Bottleneck
 import Control.Monad
 import System.IO
 import Models.Encephalon
+import Models.Recreant
 import Models.PhaseWeapons
 import Models.MachineParts
 
@@ -27,6 +28,7 @@ toModel (TerrainTile s) = terrainTile s
 toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
 toModel Encephalon = encephalon
+toModel Recreant = recreant
 toModel PhasePistol = phase_pistol
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper
