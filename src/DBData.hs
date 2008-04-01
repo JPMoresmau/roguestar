@@ -6,6 +6,7 @@ module DBData
      PlaneRef,
      ToolRef,
      TheUniverse(..),
+     the_universe,
      ReferenceType(..),
      LocationType(..),
      Location,
@@ -35,7 +36,6 @@ module DBData
      isPlaneRef,
      isToolRef,
      isTheUniverse,
-     theUniverse,
      toCreatureRef,
      toPlaneRef,
      toToolRef,
@@ -86,8 +86,8 @@ isTheUniverse :: Reference a -> Bool
 isTheUniverse UniverseRef = True
 isTheUniverse _ = False
 
-theUniverse :: Reference TheUniverse
-theUniverse = UniverseRef
+the_universe :: Reference TheUniverse
+the_universe = UniverseRef
 
 toToolRef :: Reference a -> Maybe (Reference Tool)
 toToolRef (ToolRef x) = Just $ ToolRef x

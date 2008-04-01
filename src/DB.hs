@@ -34,6 +34,9 @@ module DB
      ro,
      mapRO, filterRO,
      dbSimulate,
+     dbGetTimeCoordinate,
+     dbAdvanceTime,
+     dbNextTurn,
      module DBData)
     where
 
@@ -52,6 +55,8 @@ import ToolData
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
+import TimeCoordinate
+import Data.Ord
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
@@ -76,54 +81,9 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 				 db_planes :: Map PlaneRef Plane,
 				 db_tools :: Map ToolRef Tool,
 				 db_hierarchy :: HierarchicalDatabase (Location () () ()),
+				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
 				 db_error_flag :: String }
-
--- |
--- Serial form of the roguestar database.
---
-data DB_Persistant_BaseType = DB_Persistant_BaseType { db_state_ :: DBState,
-						       db_random_number_generator_seed_ :: Integer,
-                                                       db_next_object_ref_ :: Integer,
-						       db_starting_race_ :: Maybe Species,
-						       db_creatures_ :: [(CreatureRef,Creature)],
-						       db_planes_ :: [(PlaneRef,Plane)],
-						       db_tools_ :: [(ToolRef,Tool)],
-						       db_hierarchy_ :: [Location () () ()]}
-                              deriving (Read,Show)
-
-toPersistant :: DB_BaseType -> DB_Persistant_BaseType
-toPersistant db = DB_Persistant_BaseType {
-					  db_state_ = db_state db,
-					  db_random_number_generator_seed_ = (db_random_number_stream_stream db) !! 0 !! 0,
-					  db_next_object_ref_ = db_next_object_ref db,
-					  db_starting_race_ = db_starting_race db,
-					  db_creatures_ = Map.toList $ db_creatures db,
-					  db_planes_ = Map.toList $ db_planes db,
-					  db_tools_ = Map.toList $ db_tools db,
-					  db_hierarchy_ = HierarchicalDatabase.toList $ db_hierarchy db
-					 }
-
-fromPersistant :: DB_Persistant_BaseType -> DB_BaseType
-fromPersistant persistant = DB_BaseType {
-					 db_state = db_state_ persistant,
-					 db_random_number_stream_stream = randomIntegerStreamStream $ db_random_number_generator_seed_ persistant,
-					 db_next_object_ref = db_next_object_ref_ persistant,
-					 db_starting_race = db_starting_race_ persistant,
-					 db_creatures = Map.fromList $ db_creatures_ persistant,
-					 db_planes = Map.fromList $ db_planes_ persistant,
-					 db_tools = Map.fromList $ db_tools_ persistant,
-					 db_hierarchy = HierarchicalDatabase.fromList $ db_hierarchy_ persistant,
-					 db_error_flag = []
-					}
-
-fromPersistant_tupled :: (DB_Persistant_BaseType,String) -> (DB_BaseType,String)
-fromPersistant_tupled (persistant,str) = (fromPersistant persistant,str)
-
-instance Read DB_BaseType where
-    readsPrec n = \x -> Prelude.map fromPersistant_tupled (readsPrec n x)
-
-instance Show DB_BaseType where
-    show db = show (toPersistant db)
+    deriving (Read,Show)
 
 data DBError =
     DBError String
@@ -178,7 +138,8 @@ initialDB = do (TOD seconds picos) <- getClockTime
 				    db_planes = Map.fromList [],
 				    db_tools = Map.fromList [],
 				    db_hierarchy = HierarchicalDatabase.fromList [],
-				    db_error_flag = []
+				    db_error_flag = [],
+				    db_time_coordinates = Map.fromList [(genericReference the_universe, zero_time)]
 				  }
 
 -- |
@@ -230,6 +191,7 @@ dbAddObjectComposable constructReference updateObject constructLocation thing lo
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
+       dbSetTimeCoordinate (genericReference ref) =<< dbGetTimeCoordinate (genericReference the_universe)
        return ref
 
 -- |
@@ -410,6 +372,35 @@ dbNextRandomIntegerStream = do db <- get
                                let rngss = db_random_number_stream_stream db
                                put db { db_random_number_stream_stream=(tail rngss) }
                                return (head rngss)
+
+-- |
+-- Gets the time of an object.
+-- 
+dbGetTimeCoordinate :: (DBReadable db) => Reference a -> db TimeCoordinate
+dbGetTimeCoordinate ref = dbgets (fromMaybe (error "dbGetTimeCoordinate: missing time coordinate.") . 
+                                  Map.lookup (genericReference ref) . db_time_coordinates)
+
+-- |
+-- Sets the time of an object.
+--
+dbSetTimeCoordinate :: Reference a -> TimeCoordinate -> DB ()
+dbSetTimeCoordinate ref tc = modify (\db -> db { db_time_coordinates = Map.insert (genericReference ref) tc $ db_time_coordinates db })
+
+-- |
+-- Advances the time of an object.
+--
+dbAdvanceTime :: Rational -> Reference a -> DB ()
+dbAdvanceTime t ref = dbSetTimeCoordinate ref =<< (return . (advanceTime t)) =<< dbGetTimeCoordinate ref
+
+-- |
+-- Finds the object whose turn is next, among a restricted group of objects.
+--
+dbNextTurn :: (DBReadable db) => [Reference a] -> db (Reference a)
+dbNextTurn [] = error "dbNextTurn: empty list"
+dbNextTurn refs =
+    dbgets (\db -> fst $ minimumBy (comparing snd) $
+                   List.map (\r -> (r,fromMaybe (error "dbNextTurn: missing time coordinate") $
+                                      Map.lookup (genericReference r) (db_time_coordinates db))) refs)
 
 -- |
 -- Answers the starting race.
