@@ -5,7 +5,8 @@ module Creature
      creatureTests,
      dbNewCreature,
      dbTurnCreature,
-     dbStepCreature)
+     dbStepCreature,
+     dbGetCreatureFaction)
     where
 
 import Control.Monad.State
@@ -75,6 +76,9 @@ dbStepCreature face = dbWalkCreature face (facingToRelative face)
 
 dbTurnCreature :: Facing -> CreatureRef -> DB ()
 dbTurnCreature face = dbWalkCreature face (0,0)
+
+dbGetCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
+dbGetCreatureFaction = liftM creature_faction . dbGetCreature
 
 creatureTests :: [TestCase]
 creatureTests = [testHitPointCalculation,testAlive,testDead,

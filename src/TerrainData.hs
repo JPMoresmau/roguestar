@@ -97,7 +97,7 @@ recreantFactories seed = TerrainPlacement {
 -- or for constructing buildings.
 --
 difficult_terrains :: [TerrainPatch]
-difficult_terrains = [RockFace,Forest,DeepForest,Water,DeepWater,Ice,Lava]
+difficult_terrains = [RockFace,Forest,DeepForest,Water,DeepWater,Ice,Lava,RecreantFactory]
 
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
 terrainFrequencies RockBiome = [(15,RockFace),(15,Rubble),(55,RockyGround),(15,Sand)]

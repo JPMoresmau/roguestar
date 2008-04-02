@@ -42,32 +42,34 @@ dbGetCurrentPlane =
 
 -- |
 -- Selects sites at random until one seems reasonably clear.  It begins at
--- the center (0,0) of the map, and then picks more sites further and further away from the center
+-- the specified Position on the map, and then picks more sites further and further away from the center
 -- until it one seems clear -- this tends to concentrate sites near the center.
 --
 -- A site is considered clear if there are no objects at all within object_clear squares, and
--- no difficult terrain (mountain,water,lava,etc) within terrain_clear squares.
+-- only appropriate terrain (as defined by a predicate) within terrain_clear squares.
 --
 -- This function will return an unsuitable site if it can't find a suitable one.
 -- Such a site may have unsuitable terrain around it or it may be outside of
 -- the search_radius.
 --
-pickRandomClearSite :: Integer -> Integer -> Integer -> PlaneRef -> DB Position
-pickRandomClearSite search_radius object_clear terrain_clear plane_ref =
+pickRandomClearSite :: Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> DB Position
+pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
     do xys <- liftM2 (\a b -> map Position $ zip a b)
-           (mapM (\x -> roll [-x..x]) [1..search_radius])
-           (mapM (\x -> roll [-x..x]) [1..search_radius])
+           (mapM (\x -> liftM (+start_x) $ roll [-x..x]) [1..search_radius])
+           (mapM (\x -> liftM (+start_y) $ roll [-x..x]) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
        clutter_locations <- liftM (mapMaybe position) $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 
-               all (not . (`elem` difficult_terrains)) $
+               all terrainPredicate $
                    concat [[gridAt terrain (x',y') | 
                             x' <- [x-terrain_clear..x+terrain_clear]] |
 			    y' <- [y-terrain_clear..y+terrain_clear]]
-       let clutterIsClear p = not $ p `elem` clutter_locations
+       let clutterIsClear (Position (x,y)) = not $ any (\(Position (x',y')) -> abs (x' - x) <= object_clear && y' - y <= object_clear) clutter_locations
        maybe (pickRandomClearSite (search_radius + 1) 
                                   object_clear 
                                   (max 0 $ terrain_clear - 1) 
-                                  plane_ref) 
+                                  (Position (start_x,start_y))
+				  terrainPredicate
+				  plane_ref) 
              return $
              find (\p -> terrainIsClear p && clutterIsClear p) xys

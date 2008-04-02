@@ -89,7 +89,7 @@ exampleCreature1 = Creature
 		     creature_species_name = "Example-Creature-1",
 		     creature_random_id=0,
 		     creature_damage = 0,
-		     creature_faction = MonstersInc }
+		     creature_faction = Monsters }
 
 creatureScore :: Score -> Creature -> Integer
 creatureScore MaxHitPoints = \c -> max 6 (str c + con c + dex c + mind c) + 2 * attributeCount ToughnessTrait c

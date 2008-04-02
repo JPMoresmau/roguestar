@@ -25,7 +25,9 @@ import Facing
 import ToolData
 import Control.Monad.Error
 import Numeric
-import Behavior
+import Turns
+-- Don't call dbBehave, use dbPerformPlayerTurn
+import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
 import DBPrivate (Reference(..))
 
@@ -200,51 +202,51 @@ dbDispatch ["action","select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
 
 dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbBehave (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
 
 dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbBehave (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
 
 dbDispatch ["action","pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
        case pickups of
-           [tool_ref] -> dbBehave (Pickup tool_ref) creature_ref >> return ()
+           [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-there"
 	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
        done
 
 dbDispatch ["action","pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
-       dbBehave (Pickup tool_ref) creature_ref
+       dbPerformPlayerTurn (Pickup tool_ref) creature_ref
        done
 
 dbDispatch ["action","drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do inventory <- dbGetCarried creature_ref
        case inventory of
-           [tool_ref] -> dbBehave (Drop tool_ref) creature_ref >> return ()
+           [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
 	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBDropMode)
        done
 
 dbDispatch ["action","drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
-       dbBehave (Drop tool_ref) creature_ref
+       dbPerformPlayerTurn (Drop tool_ref) creature_ref
        done
 
 dbDispatch ["action","wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do inventory <- dbGetInventory creature_ref
        case inventory of
-           [tool_ref] -> dbBehave (Wield tool_ref) creature_ref >> return ()
+           [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
 	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBWieldMode)
        done
 
 dbDispatch ["action","wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
-       dbBehave (Wield tool_ref) creature_ref
+       dbPerformPlayerTurn (Wield tool_ref) creature_ref
        done
 
-dbDispatch ["action","unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbBehave Unwield creature_ref >> done 
+dbDispatch ["action","unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
 
 dbDispatch ["query","player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 

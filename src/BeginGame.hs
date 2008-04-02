@@ -45,8 +45,8 @@ dbBeginGame :: Creature -> CharacterClass -> DB ()
 dbBeginGame creature character_class = 
     do let first_level_creature = applyCharacterClass character_class creature
        plane_ref <- dbCreateStartingPlane creature
-       landing_site <- pickRandomClearSite 200 30 2 plane_ref
+       landing_site <- pickRandomClearSite 200 30 2 (Position (0,0)) (not . (`elem` difficult_terrains)) plane_ref
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
-       phaser_position <- pickRandomClearSite 200 30 2 plane_ref
+       phaser_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
        dbAddTool phase_pistol (Dropped plane_ref phaser_position)
        dbSetState $ DBPlayerCreatureTurn creature_ref DBNotSpecial

@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 
 module PlaneVisibility
     (dbGetVisibleTerrainForFaction,
@@ -18,6 +19,7 @@ import Grids
 import GridRayCaster
 import VisibilityData
 import Facing
+import Data.Ratio
 
 dbGetSeersForFaction :: (DBReadable db) => Faction -> PlaneRef -> db [CreatureRef]
 dbGetSeersForFaction faction plane_ref = 
@@ -74,7 +76,7 @@ dbIsPlanarVisibleTo creature_ref obj_ref |
 dbIsPlanarVisibleTo creature_ref obj_ref =
     do creature_loc <- dbGetPlanarLocation creature_ref
        obj_loc <- dbGetPlanarLocation obj_ref
-       spot_check <- liftM2 (-) (dbGetSpotCheck creature_ref) (dbGetHideCheck obj_ref)
+       spot_check <- dbGetOpposedSpotCheck creature_ref obj_ref
        case (creature_loc,obj_loc) of
 		(Nothing,_) -> return False
 		(_,Nothing) -> return False
@@ -86,13 +88,18 @@ dbIsPlanarVisibleTo creature_ref obj_ref =
 		       terrain <- liftM plane_terrain $ dbGetPlane c_plane -- falling through all other tests, cast a ray for visibility
 		       return $ castRay (cx,cy) (ox,oy) (spot_check - distanceCostForSight Here delta_at) (terrainOpacity . gridAt terrain)
 
+dbGetOpposedSpotCheck :: (DBReadable db) => CreatureRef -> Reference a -> db Integer
+dbGetOpposedSpotCheck creature_ref object_ref =
+    do spot <- dbGetSpotCheck creature_ref
+       hide <- dbGetHideCheck object_ref
+       return $ spot * (round $ min 1 $ spot % hide)
+
 dbGetSpotCheck :: (DBReadable db) => CreatureRef -> db Integer
 dbGetSpotCheck creature_ref = liftM (creatureScore Spot) $ dbGetCreature creature_ref
 
 dbGetHideCheck :: (DBReadable db) => Reference a -> db Integer
-dbGetHideCheck ref | isCreatureRef ref = liftM (creatureScore Hide) $ dbGetCreature $ 
-                                             fromJust $ toCreatureRef ref
-dbGetHideCheck _ = return 0
+dbGetHideCheck ref | Just creature_ref <- toCreatureRef ref = liftM (creatureScore Hide) $ dbGetCreature creature_ref
+dbGetHideCheck _ = return 1
 
 -- |
 -- visibleTerrain (creature's location) (spot check) (the terrain map) gives
