@@ -1,29 +1,21 @@
 
 module Creature 
     (dbGenerateInitialPlayerCreature,
-     runCreatureGenerationTest, 
-     creatureTests,
      dbNewCreature,
      dbTurnCreature,
      dbStepCreature,
      dbGetCreatureFaction)
     where
 
-import Control.Monad.State
 import Data.Maybe
 import CreatureData
 import DB
 import SpeciesData
 import Species
-import Tests
 import DBData
 import FactionData
 import Facing
 import Control.Monad.Error
-
-runCreatureGenerationTest :: IO ()
-runCreatureGenerationTest = do db0 <- initialDB
-			       putStrLn $ show $ evalState (runErrorT $ generateCreatureData exampleSpecies) db0
 
 -- |
 -- Generates a new Creature from the specified species.
@@ -80,35 +72,3 @@ dbTurnCreature face = dbWalkCreature face (0,0)
 dbGetCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 dbGetCreatureFaction = liftM creature_faction . dbGetCreature
 
-creatureTests :: [TestCase]
-creatureTests = [testHitPointCalculation,testAlive,testDead,
-                 testEffectiveLevel,testMeleeAttackBonus]
-
-testHitPointCalculation :: TestCase
-testHitPointCalculation = if (creatureScore MaxHitPoints exampleCreature1 == 33)
-			  then return (Passed "testHitPointCalculation")
-			  else return (Failed ("testHitPointCalculation" ++ "(" ++ (show (creatureScore MaxHitPoints exampleCreature1)) ++ ")"))
-
-testAlive :: TestCase
-testAlive = if (alive $ injure 34 exampleCreature1)
-	    then return (Passed "testAlive")
-	    else return (Failed "testAlive")
-
-testDead :: TestCase
-testDead = if (dead $ injure 36 exampleCreature1)
-           then return (Passed "testDead")
-	   else return (Failed "testDead")
-
-testEffectiveLevel :: TestCase
-testEffectiveLevel = let effective_level = (creatureScore EffectiveLevel exampleCreature1)
-                         result_string = "testEffectiveLevel: (" ++ (show effective_level) ++ ")"
-                         in if effective_level == 14
-                            then return (Passed result_string)
-                            else return (Failed result_string)
-
-testMeleeAttackBonus :: TestCase
-testMeleeAttackBonus = let bonus = (creatureScore MeleeAttack exampleCreature1)
-                           result_string = "testMeleeAttackBonus: (" ++ (show bonus) ++ ")"
-                           in if bonus == 23
-                              then return (Passed result_string)
-                              else return (Failed result_string)

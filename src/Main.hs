@@ -7,7 +7,6 @@ import System
 import System.Random
 import List
 import Tests
-import Creature
 import HierarchicalDatabase
 import Control.Monad
 import TerrainData
@@ -33,7 +32,6 @@ program_id_string = (program_name ++ " " ++ program_version_number ++ " (" ++ pr
 runByArgs :: String -> IO ()
 
 runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ 
-						   creatureTests ++
 						   insidenessTests ++
 						   hopListTests ++
 						   gridRayCasterTests)
@@ -42,8 +40,6 @@ runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++
 			  else putStrLn "Error: a test failed."
 
 runByArgs "version" = do putStrLn program_id_string
-
-runByArgs "test-character-generator" = do runCreatureGenerationTest
 
 runByArgs "test-terrain-generator" = do seed <- randomIO
 					let example_terrain = generateExampleTerrain seed
@@ -54,8 +50,7 @@ runByArgs "test-terrain-generator" = do seed <- randomIO
 						  putStrLn "Terrain Map of (5461..5501),(-1009..-989)"
                                                   mapM_ putStrLn $ prettyPrintTerrain ((5461,5501),(-1009,-989)) example_terrain
 
-runByArgs "begin" = do db0 <- initialDB
-		       mainLoop db0
+runByArgs "begin" = mainLoop initial_db
 
 runByArgs "over" = putStrLn "over"
 
@@ -63,8 +58,7 @@ runByArgs "help" = do putStrLn "Commands:"
 		      putStrLn "begin                    - begin a protocol session (used by GUI clients and experts)"
 		      putStrLn "help                     - print this message"
 		      putStrLn "over                     - print \"over\" on a line by itself"
-		      putStrLn "tests                    - run unit tests"
-		      putStrLn "test-character-generator - generate a random sample creature"
+		      putStrLn "tests                    - run a few tests"
 		      putStrLn "test-terrain-generator   - display an example terrain map"
 		      putStrLn "version                  - print the version string"
 

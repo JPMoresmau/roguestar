@@ -49,4 +49,4 @@ dbBeginGame creature character_class =
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
        phaser_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
        dbAddTool phase_pistol (Dropped plane_ref phaser_position)
-       dbSetState $ DBPlayerCreatureTurn creature_ref DBNotSpecial
+       dbSetState $ DBPlayerCreatureTurn creature_ref DBNormal

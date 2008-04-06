@@ -5,7 +5,6 @@ module Protocol
 
 import Data.Char
 import Data.List as List
-import Control.Monad.State
 import CreatureData
 import Creature
 import Character
@@ -45,7 +44,7 @@ done = return "done"
 -- Perform an action assuming the database is in the DBRaceSelectionState,
 -- otherwise returns an error message.
 --
-dbRequiresRaceSelectionState :: DB String -> DB String
+dbRequiresRaceSelectionState :: (DBReadable db) => db String -> db String
 dbRequiresRaceSelectionState action = do state <- dbState
 					 case state of
 						    DBRaceSelectionState -> action
@@ -55,7 +54,7 @@ dbRequiresRaceSelectionState action = do state <- dbState
 -- Perform an action assuming the database is in the DBClassSelectionState,
 -- otherwise returns an error message.
 --
-dbRequiresClassSelectionState :: (Creature -> DB String) -> DB String
+dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresClassSelectionState action = do state <- dbState
 					  case state of
 						     DBClassSelectionState creature -> action creature
@@ -68,7 +67,7 @@ dbRequiresClassSelectionState action = do state <- dbState
 -- DBClassSelectionState
 -- DBPlayerCreatureTurn
 --
-dbRequiresPlayerCenteredState :: (Creature -> DB String) -> DB String
+dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresPlayerCenteredState action =
     do state <- dbState
        case state of
@@ -82,7 +81,7 @@ dbRequiresPlayerCenteredState action =
 --
 -- DBPlayerCreaturePickupMode 
 --
-dbRequiresPlanarTurnState :: (CreatureRef -> DB String) -> DB String
+dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlanarTurnState action =
     do state <- dbState
        case state of
@@ -95,7 +94,7 @@ dbRequiresPlanarTurnState action =
 --
 -- DBPlayerCreatureTurn
 --
-dbRequiresPlayerTurnState :: (CreatureRef -> DB String) -> DB String
+dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlayerTurnState action =
     do state <- dbState
        case state of
@@ -106,23 +105,29 @@ ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
 ioDispatch ["quit"] _ = exitWith ExitSuccess
 
-ioDispatch ["reset"] _ = do db0 <- initialDB
-			    putStrLn "done"
-			    return db0
+ioDispatch ["reset"] _ = do putStrLn "done"
+			    return initial_db
 
-ioDispatch ("game":args) db0 = 
-    case runState (runErrorT $ dbDispatch args) db0 of
-        (Right outstr,db1) -> do putStrLn (map toLower outstr)
-				 return db1
-        (Left (DBErrorFlag errstr),_) -> do putStrLn "done"
-	                                    return $ db0 { db_error_flag = errstr }
-	(Left (DBError errstr),_) -> do putStrLn ("error: " ++ map toLower errstr ++ "\n")
-	                                return db0
+ioDispatch ("game":game) db0 = 
+    do a <- case game of
+                ("query":args) -> runDB (ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) db0
+		("action":args) -> runDB (dbDispatchAction args) db0
+                _ -> return $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords game ++ "`"
+       case a of
+           Right (outstr,db1) -> 
+	       do putStrLn (map toLower outstr)
+	          return db1
+           Left (DBErrorFlag errstr) -> 
+	       do putStrLn "done"
+	          return $ db0 { db_error_flag = errstr }
+  	   Left (DBError errstr) -> 
+	       do putStrLn (map toLower errstr ++ "\n")
+	          return db0
 
-ioDispatch ("save":_) db0 = do putStrLn "error: save not implemented"
+ioDispatch ("save":_) db0 = do putStrLn "engine-error: save not implemented"
 			       return db0
 
-ioDispatch ("load":_) db0 = do putStrLn "error: load not implemented"
+ioDispatch ("load":_) db0 = do putStrLn "engine-error: load not implemented"
 			       return db0
 
 ioDispatch ("noop":_) db0 = return db0
@@ -130,31 +135,31 @@ ioDispatch ("noop":_) db0 = return db0
 ioDispatch unknown_command db0 = do putStrLn ("protocol-error: unknown command " ++ (unwords unknown_command))
 				    return db0
 
-dbDispatch :: [String] -> DB String
-
-dbDispatch ["query","state"] = 
+dbDispatchQuery :: (DBReadable db) => [String] -> db String
+dbDispatchQuery ["state"] = 
     do state <- dbState
        return $ case state of
 			   DBRaceSelectionState -> "answer: state race-selection"
 			   DBClassSelectionState {} -> "answer: state class-selection"
-			   DBPlayerCreatureTurn _ DBNotSpecial -> "answer: state player-turn"
+			   DBPlayerCreatureTurn _ DBNormal -> "answer: state player-turn"
                            DBPlayerCreatureTurn _ DBPickupMode -> "answer: state pickup"
                            DBPlayerCreatureTurn _ DBDropMode -> "answer: state drop"
                            DBPlayerCreatureTurn _ DBWieldMode -> "answer: state wield"
+                           DBEvent (DBAttackEvent {}) -> "answer: state attack"
 
-dbDispatch ["query","player-races","0"] =
+dbDispatchQuery ["player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
 	    unlines player_race_names ++
 	    "end-table")
 
-dbDispatch ["query","visible-terrain","0"] =
+dbDispatchQuery ["visible-terrain","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
        return ("begin-table visible-terrain 0 x y terrain-type\n" ++
 	       (unlines $ map (\(terrain_type,Position (x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
 
-dbDispatch ["query","visible-objects","0"] = 
+dbDispatchQuery ["visible-objects","0"] = 
     do maybe_plane_ref <- dbGetCurrentPlane
        objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
        table_rows <- mapM dbObjectToTableRow objects
@@ -167,7 +172,7 @@ dbDispatch ["query","visible-objects","0"] =
                                  (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,maybe "Here" show maybe_face]
                                  _ -> ""
 
-dbDispatch ["query","object-details",_] = ro $
+dbDispatchQuery ["object-details",_] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
      visibles <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
      let creature_refs = mapMaybe toCreatureRef visibles
@@ -192,81 +197,25 @@ dbDispatch ["query","object-details",_] = ro $
                "object-type tool\n" ++
                (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ toolData tool)
 
-dbDispatch ["action","select-race",race_name] = 
-    dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
+dbDispatchQuery ["player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
-dbDispatch ["action","reroll"] =
-    dbRequiresClassSelectionState $ dbRerollRace
+dbDispatchQuery ["center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
 
-dbDispatch ["action","select-class",class_name] =
-    dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
+dbDispatchQuery ["base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
-dbDispatch ["action","move",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
-
-dbDispatch ["action","turn",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
-
-dbDispatch ["action","pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do pickups <- dbAvailablePickups creature_ref
-       case pickups of
-           [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-there"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
-       done
-
-dbDispatch ["action","pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do tool_ref <- readUID ToolRef tool_uid
-       dbPerformPlayerTurn (Pickup tool_ref) creature_ref
-       done
-
-dbDispatch ["action","drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- dbGetCarried creature_ref
-       case inventory of
-           [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBDropMode)
-       done
-
-dbDispatch ["action","drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do tool_ref <- readUID ToolRef tool_uid
-       dbPerformPlayerTurn (Drop tool_ref) creature_ref
-       done
-
-dbDispatch ["action","wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- dbGetInventory creature_ref
-       case inventory of
-           [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBWieldMode)
-       done
-
-dbDispatch ["action","wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do tool_ref <- readUID ToolRef tool_uid
-       dbPerformPlayerTurn (Wield tool_ref) creature_ref
-       done
-
-dbDispatch ["action","unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
-
-dbDispatch ["query","player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
-
-dbDispatch ["query","center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCenterCoordinates
-
-dbDispatch ["query","base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
-
-dbDispatch ["query","pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
+dbDispatchQuery ["pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
     do pickups <- dbAvailablePickups creature_ref
        return $ "begin-table pickups 0 uid\n" ++
                 unlines (map (show . toUID) pickups) ++
 		"end-table"
 
-dbDispatch ["query","inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
+dbDispatchQuery ["inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
        return $ "begin-table inventory 0 uid\n" ++
                 unlines (map (show . toUID) inventory) ++
 		"end-table"
 
-dbDispatch ["query","wielded-objects","0"] =
+dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
        creature_refs <- liftM (mapMaybe toCreatureRef) $ maybe (return []) (dbGetVisibleObjectsForFaction Player) m_plane_ref
        wielded_tool_refs <- mapM dbGetWielded creature_refs
@@ -276,7 +225,66 @@ dbDispatch ["query","wielded-objects","0"] =
                 unlines (catMaybes $ zipWith wieldedPairToTable creature_refs wielded_tool_refs) ++
 		"end-table"
 
-dbDispatch unrecognized = return ("protocol-error: unrecognized request `" ++ (unwords unrecognized) ++ "`")
+dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
+
+dbDispatchAction :: [String] -> DB String
+dbDispatchAction ["select-race",race_name] = 
+    dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
+
+dbDispatchAction ["reroll"] =
+    dbRequiresClassSelectionState $ dbRerollRace
+
+dbDispatchAction ["select-class",class_name] =
+    dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
+
+dbDispatchAction ["move",direction] | isJust $ stringToFacing direction =
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
+
+dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
+
+dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do pickups <- dbAvailablePickups creature_ref
+       case pickups of
+           [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
+	   [] -> throwError $ DBErrorFlag "nothing-there"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
+       done
+
+dbDispatchAction ["pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do tool_ref <- readUID ToolRef tool_uid
+       dbPerformPlayerTurn (Pickup tool_ref) creature_ref
+       done
+
+dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do inventory <- dbGetCarried creature_ref
+       case inventory of
+           [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
+	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBDropMode)
+       done
+
+dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do tool_ref <- readUID ToolRef tool_uid
+       dbPerformPlayerTurn (Drop tool_ref) creature_ref
+       done
+
+dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do inventory <- dbGetInventory creature_ref
+       case inventory of
+           [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
+	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBWieldMode)
+       done
+
+dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
+    do tool_ref <- readUID ToolRef tool_uid
+       dbPerformPlayerTurn (Wield tool_ref) creature_ref
+       done
+
+dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
+
+dbDispatchAction unrecognized = return ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
 
 dbSelectPlayerRace :: String -> DB String
 dbSelectPlayerRace race_name = case (selectPlayerRace race_name)
@@ -298,7 +306,7 @@ dbRerollRace _ = do starting_race <- dbGetStartingRace
 		    dbGenerateInitialPlayerCreature $ fromJust starting_race
 		    done
 
-dbQueryPlayerStats :: Creature -> DB String
+dbQueryPlayerStats :: (DBReadable db) => Creature -> db String
 dbQueryPlayerStats creature = return $ playerStatsTable creature
 
 -- |
@@ -339,7 +347,7 @@ toolData :: Tool -> [(String,String)]
 toolData g@(Gun {}) = [("tool-type","gun"),
                        ("tool",toolName g)]
 
-dbQueryBaseClasses :: Creature -> DB String
+dbQueryBaseClasses :: (DBReadable db) => Creature -> db String
 dbQueryBaseClasses creature = return $ baseClassesTable creature
 
 baseClassesTable :: Creature -> String
@@ -348,7 +356,7 @@ baseClassesTable creature =
     (unlines $ map show $ getEligableBaseCharacterClasses creature) ++
     "end-table"
 
-dbQueryCenterCoordinates :: CreatureRef -> DB String
+dbQueryCenterCoordinates :: (DBReadable db) => CreatureRef -> db String
 dbQueryCenterCoordinates creature_ref =
     do loc <- dbWhere creature_ref
        case (position loc,facing loc) of

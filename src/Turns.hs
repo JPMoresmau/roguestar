@@ -46,7 +46,7 @@ dbFinishPlanarAITurns plane_ref =
 	          if (faction /= Player)
 		      then do dbPerform1CreatureAITurn creature_ref
 		              dbFinishPlanarAITurns plane_ref
-		      else dbSetState (DBPlayerCreatureTurn creature_ref DBNotSpecial)
+		      else dbSetState (DBPlayerCreatureTurn creature_ref DBNormal)
 		  return ()
 	   _ -> error "dbFinishPlanarAITurns: impossible case"
 

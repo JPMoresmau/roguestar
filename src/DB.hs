@@ -2,15 +2,17 @@
 
 module DB
     (DB,
+     runDB,
+     DBReadable(..),
      dbState,
      dbSetState,
      DBState(..),
-     DBReadable(..),
-     DBSpecialMode(..),
+     DBCreatureTurnMode(..),
+     DBEvent(..),
      DBError(..),
      CreatureLocation(..),
      ToolLocation(..),
-     initialDB,
+     initial_db,
      DB_BaseType(db_error_flag),
      dbAddCreature,
      dbAddPlane,
@@ -27,16 +29,16 @@ module DB
      dbGetAncestors,
      dbWhere,
      dbGetContents,
-     dbNextRandomInteger,
-     dbNextRandomIntegerStream,
      dbSetStartingRace,
      dbGetStartingRace,
      ro,
      mapRO, filterRO,
-     dbSimulate,
      dbGetTimeCoordinate,
      dbAdvanceTime,
      dbNextTurn,
+     dbPushSnapshot,
+     dbPeepOldestSnapshot,
+     dbPopOldestSnapshot,
      module DBData)
     where
 
@@ -53,28 +55,36 @@ import SpeciesData
 import Data.Maybe
 import ToolData
 import Control.Monad.State
-import Control.Monad.Reader
 import Control.Monad.Error
+import Control.Monad.Reader
 import TimeCoordinate
 import Data.Ord
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
-	     | DBPlayerCreatureTurn CreatureRef DBSpecialMode
+	     | DBPlayerCreatureTurn CreatureRef DBCreatureTurnMode
+	     | DBEvent DBEvent
 	     deriving (Read,Show)
 
-data DBSpecialMode =
-    DBNotSpecial
+data DBCreatureTurnMode =
+    DBNormal
   | DBPickupMode
   | DBDropMode
   | DBWieldMode
       deriving (Read,Show)
 
--- |
--- Random access form of the roguestar database.
---
+data DBEvent = DBAttackEvent {
+    attack_event_source_creature :: CreatureRef,
+    attack_event_source_weapon :: ToolRef,
+    attack_event_target_creature :: Maybe CreatureRef }
+        deriving (Read,Show)
+
+data DB_History = DB_History {
+    db_here :: DB_BaseType,
+    db_pop :: Maybe DB_BaseType,
+    db_random :: [[Integer]] }
+
 data DB_BaseType = DB_BaseType { db_state :: DBState,
-				 db_random_number_stream_stream :: [[Integer]],
 				 db_next_object_ref :: Integer,
 				 db_starting_race :: Maybe Species,
 			         db_creatures :: Map CreatureRef Creature,
@@ -82,7 +92,8 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 				 db_tools :: Map ToolRef Tool,
 				 db_hierarchy :: HierarchicalDatabase (Location () () ()),
 				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
-				 db_error_flag :: String }
+				 db_error_flag :: String,
+				 db_prior_snapshot :: Maybe DB_BaseType}
     deriving (Read,Show)
 
 data DBError =
@@ -93,60 +104,115 @@ data DBError =
 instance Error DBError where
     strMsg = DBError
 
-type DB a = ErrorT DBError (State DB_BaseType) a
+newtype DB a = DB (ErrorT DBError (State DB_History) a)
 
-type DBRO a = ErrorT DBError (Reader DB_BaseType) a
+runDB :: DB a -> DB_BaseType -> IO (Either DBError (a,DB_BaseType))
+runDB (DB actionM) db = 
+    do hist <- setupDBHistory db
+       return $ case runState (runErrorT actionM) hist of
+                    (Right a,DB_History { db_here = db' }) -> Right (a,db')
+	            (Left e,_) -> Left e
 
-class (MonadError DBError m,Monad m) => DBReadable m where
-    dbget :: m DB_BaseType
+instance Monad DB where
+    (DB k) >>= m = DB $ k >>= (\x -> let DB n = m x in n)
+    return = DB . return
+    fail s = DB $ throwError $ DBError $ "engine-error: " ++ s
 
-instance DBReadable (ErrorT DBError (State DB_BaseType)) where
-    dbget = get
+instance MonadState DB_BaseType DB where
+    get = liftM getActiveDB $ DB get
+    put = DB . modify . modifyActiveDB . const
 
-instance DBReadable (ErrorT DBError (Reader DB_BaseType)) where
-    dbget = ask
+instance MonadReader DB_BaseType DB where
+    ask = liftM getActiveDB $ DB get
+    local f actionM = 
+        do s <- get
+	   modify f
+           a <- catchError (liftM Right actionM) (return . Left)
+	   put s
+           either throwError return a
 
-ro :: (DBReadable db) => DBRO a -> db a
-ro actionM = 
-    do result <- dbgets (runReader $ runErrorT actionM)
-       case result of
-           Right x -> return x
-	   Left err -> throwError err
+instance MonadError DBError DB where
+    throwError = DB . throwError
+    catchError (DB actionM) handlerM = DB $ catchError actionM (\e -> let DB n = handlerM e in n)
 
-filterRO :: (DBReadable db) => (a -> DBRO Bool) -> [a] -> db [a]
+class (Monad db,MonadError DBError db,MonadReader DB_BaseType db) => DBReadable db where
+    dbNextRandomInteger :: db Integer
+    dbNextRandomIntegerStream :: db [Integer]
+    dbSimulate :: DB a -> db a
+    dbPeepSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db (Maybe a)
+
+instance DBReadable DB where
+    dbNextRandomInteger = 
+        do db <- DB get
+	   let rngss0 = db_random db 
+               (rngs0,rngss1) = (head rngss0, tail rngss0)
+               (result,rngs1) = (head rngs0, tail rngs0)
+           DB $ put db { db_random=(rngs1:rngss1) }
+           return (result)
+    dbNextRandomIntegerStream = 
+        do db <- DB get
+           let rngss = db_random db
+           DB $ put db { db_random=(tail rngss) }
+           return (head rngss)
+    dbSimulate = local id
+    dbPeepSnapshot actionM =
+        do s <- DB $ gets db_pop
+	   m_snapshot <- gets db_prior_snapshot
+	   case m_snapshot of
+	       Just snapshot ->
+	           do DB $ modify $ \hist -> hist { db_here = snapshot,
+	                                            db_pop = Just (db_here hist) }
+	              a <- dbSimulate actionM
+                      DB $ modify $ \hist -> hist { db_here = fromMaybe (error "dbPopSnapshot (DB): impossible case") $ db_pop hist,
+	                                            db_pop = s }
+	              return $ Just a
+               Nothing ->  return Nothing
+	   
+
+ro :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
+ro db = dbSimulate db
+
+getActiveDB :: DB_History -> DB_BaseType
+getActiveDB = db_here
+
+modifyActiveDB :: (DB_BaseType -> DB_BaseType) -> DB_History -> DB_History
+modifyActiveDB f hist = hist { db_here = f $ db_here hist }
+
+filterRO :: (DBReadable db) => (forall m. DBReadable m => a -> m Bool) -> [a] -> db [a]
 filterRO f xs = ro $ filterM f xs
 
-mapRO :: (DBReadable db) => (a -> DBRO b) -> [a] -> db [b]
+mapRO :: (DBReadable db) => (forall m. DBReadable m => a -> m b) -> [a] -> db [b]
 mapRO f xs = ro $ mapM f xs
-
-dbSimulate :: (DBReadable db) => DB a -> db (Either DBError a)
-dbSimulate dbAction = liftM (evalState $ runErrorT dbAction) $ dbgets id 
-
-dbgets :: (DBReadable m) => (DB_BaseType -> a) -> m a
-dbgets f = liftM f dbget
 
 -- |
 -- Generates an initial DB state.
 --
-initialDB :: IO DB_BaseType
-initialDB = do (TOD seconds picos) <- getClockTime
-	       return DB_BaseType { db_state = DBRaceSelectionState,
-				    db_random_number_stream_stream = randomIntegerStreamStream (seconds + picos),
-				    db_next_object_ref = 0,
-				    db_starting_race = Nothing,
-				    db_creatures = Map.fromList [],
-				    db_planes = Map.fromList [],
-				    db_tools = Map.fromList [],
-				    db_hierarchy = HierarchicalDatabase.fromList [],
-				    db_error_flag = [],
-				    db_time_coordinates = Map.fromList [(genericReference the_universe, zero_time)]
-				  }
+initial_db :: DB_BaseType
+initial_db = DB_BaseType { 
+    db_state = DBRaceSelectionState,
+    db_next_object_ref = 0,
+    db_starting_race = Nothing,
+    db_creatures = Map.fromList [],
+    db_planes = Map.fromList [],
+    db_tools = Map.fromList [],
+    db_hierarchy = HierarchicalDatabase.fromList [],
+    db_error_flag = [],
+    db_time_coordinates = Map.fromList [(genericReference the_universe, zero_time)],
+    db_prior_snapshot = Nothing }
+
+setupDBHistory :: DB_BaseType -> IO DB_History
+setupDBHistory db =
+    do (TOD seconds picos) <- getClockTime
+       return $ DB_History {
+           db_here = db,
+	   db_pop = Nothing,
+	   db_random = randomIntegerStreamStream (seconds + picos) }
 
 -- |
 -- Returns the DBState of the database.
 --
 dbState :: (DBReadable m) => m DBState
-dbState = dbgets db_state
+dbState = asks db_state
 
 -- |
 -- Sets the DBState of the database.
@@ -245,7 +311,7 @@ dbPutTool = dbPutObjectComposable db_tools (\x db_base_type -> db_base_type { db
 --
 dbGetObjectComposable :: (DBReadable db,Ord a) => (DB_BaseType -> Map a b) -> a -> db b
 dbGetObjectComposable get_fn ref = 
-    dbgets (fromMaybe (error "dbGetObjectComposable: Nothing") . Map.lookup ref . get_fn)
+    asks (fromMaybe (error "dbGetObjectComposable: Nothing") . Map.lookup ref . get_fn)
 
 -- |
 -- Gets a Creature from a CreatureRef
@@ -313,7 +379,7 @@ dbUnwieldCreature c =
 -- the move.
 --
 dbMove :: (LocationType (Reference e),LocationType b) =>
-          (Location M (Reference e) () -> DBRO (Location M (Reference e) b)) -> 
+          (forall m. DBReadable m => Location M (Reference e) () -> m (Location M (Reference e) b)) -> 
           (Reference e) ->
           DB (Location S e (),Location S e b)
 dbMove moveF ref =
@@ -326,13 +392,13 @@ dbMove moveF ref =
 -- Verifies that a reference is in the database.
 --
 dbVerify :: (DBReadable db) => Reference e -> db Bool
-dbVerify ref = dbgets (isJust . HierarchicalDatabase.parentOf (toUID ref) . db_hierarchy)
+dbVerify ref = asks (isJust . HierarchicalDatabase.parentOf (toUID ref) . db_hierarchy)
 
 -- |
 -- Returns the location of this object.
 --
 dbWhere :: (DBReadable db) => Reference e -> db (Location S (Reference e) ())
-dbWhere item = dbgets (unsafeLocation . fromMaybe (error "dbWhere: has no location") .
+dbWhere item = asks (unsafeLocation . fromMaybe (error "dbWhere: has no location") .
                        HierarchicalDatabase.lookupParent (toUID item) . db_hierarchy)
 
 -- |
@@ -350,34 +416,14 @@ dbGetAncestors ref =
 -- Returns the location records of this object.
 --
 dbGetContents :: (DBReadable db) => Reference t -> db [Location S () (Reference t)]
-dbGetContents item = dbgets (List.map unsafeLocation . HierarchicalDatabase.lookupChildren 
+dbGetContents item = asks (List.map unsafeLocation . HierarchicalDatabase.lookupChildren 
                                (toUID item) . db_hierarchy)
-
--- |
--- Generates and returns the next random Integer.
---
-dbNextRandomInteger :: DB Integer
-dbNextRandomInteger = do db <- get
-			 let rngss0 = db_random_number_stream_stream db 
-                             (rngs0,rngss1) = (head rngss0, tail rngss0)
-                             (result,rngs1) = (head rngs0, tail rngs0)
-                         put db { db_random_number_stream_stream=(rngs1:rngss1) }
-                         return (result)
-
--- |
--- Generates and returns an infinite list of psudo-random integers.
---
-dbNextRandomIntegerStream :: DB [Integer]
-dbNextRandomIntegerStream = do db <- get
-                               let rngss = db_random_number_stream_stream db
-                               put db { db_random_number_stream_stream=(tail rngss) }
-                               return (head rngss)
 
 -- |
 -- Gets the time of an object.
 -- 
 dbGetTimeCoordinate :: (DBReadable db) => Reference a -> db TimeCoordinate
-dbGetTimeCoordinate ref = dbgets (fromMaybe (error "dbGetTimeCoordinate: missing time coordinate.") . 
+dbGetTimeCoordinate ref = asks (fromMaybe (error "dbGetTimeCoordinate: missing time coordinate.") . 
                                   Map.lookup (genericReference ref) . db_time_coordinates)
 
 -- |
@@ -398,7 +444,7 @@ dbAdvanceTime t ref = dbSetTimeCoordinate ref =<< (return . (advanceTime t)) =<<
 dbNextTurn :: (DBReadable db) => [Reference a] -> db (Reference a)
 dbNextTurn [] = error "dbNextTurn: empty list"
 dbNextTurn refs =
-    dbgets (\db -> fst $ minimumBy (comparing snd) $
+    asks (\db -> fst $ minimumBy (comparing snd) $
                    List.map (\r -> (r,fromMaybe (error "dbNextTurn: missing time coordinate") $
                                       Map.lookup (genericReference r) (db_time_coordinates db))) refs)
 
@@ -413,3 +459,24 @@ dbGetStartingRace = do gets db_starting_race
 --
 dbSetStartingRace :: Species -> DB ()
 dbSetStartingRace species = modify (\db -> db { db_starting_race = Just species })
+
+-- |
+-- Takes a snapshot of a DBEvent in progress.
+--
+dbPushSnapshot :: DBEvent -> DB ()
+dbPushSnapshot e = modify $ \db -> db {
+    db_prior_snapshot = Just $ db { db_state = DBEvent e } }
+
+dbPeepOldestSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
+dbPeepOldestSnapshot actionM =
+    do m_a <- dbPeepSnapshot $ dbPeepOldestSnapshot actionM
+       maybe actionM return m_a
+
+dbPopOldestSnapshot :: DB ()
+dbPopOldestSnapshot = modify popOldestSnapshot
+
+popOldestSnapshot :: DB_BaseType -> DB_BaseType
+popOldestSnapshot db = 
+    case isJust $ fmap db_prior_snapshot $ db_prior_snapshot db of
+        False -> db { db_prior_snapshot = Nothing }
+	True  -> db { db_prior_snapshot = fmap popOldestSnapshot $ db_prior_snapshot db }
