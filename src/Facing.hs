@@ -4,8 +4,11 @@ module Facing
      facingToRelative,
      facingToRelative7,
      stringToFacing,
-     facingDistance)
+     facingDistance,
+     isFacing)
     where
+
+import Position
 
 data Facing = North
 	    | NorthEast
@@ -71,3 +74,21 @@ facingDistance Here _ = 0
 facingDistance _ Here = 0
 facingDistance a b = toInteger $ if enum_distance > 4 then 8 - enum_distance else enum_distance
     where enum_distance = abs $ fromEnum a - fromEnum b
+
+-- |
+-- A test function to detect when one Position + Facing points directly at another Position.
+--
+isFacing :: (Position, Facing) -> Position -> Bool
+isFacing ((Position a),face) (Position b) = facingTestFunction face a b
+
+facingTestFunction :: Facing -> (Integer,Integer) -> (Integer,Integer) -> Bool
+facingTestFunction North (x,y) (u,v) = x == u && v >= y
+facingTestFunction NorthEast (x,y) (u,v) = x - u == y - v && u >= x
+facingTestFunction East (x,y) (u,v) = y == v && u >= x
+facingTestFunction SouthEast (x,y) (u,v) = x - u == v - y && u >= x
+facingTestFunction South (x,y) (u,v) = x == u && v <= y
+facingTestFunction SouthWest (x,y) (u,v) = x - u == y - v && u <= x
+facingTestFunction West (x,y) (u,v) = y == v && u <= x
+facingTestFunction NorthWest (x,y) (u,v) = x - y == v - y && u <= x
+facingTestFunction Here (x,y) (u,v) = x == u && y == v
+

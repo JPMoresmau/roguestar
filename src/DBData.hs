@@ -72,6 +72,7 @@ import CreatureData
 import PlaneData
 import Data.Maybe
 import Control.Monad
+import Position
 
 isCreatureRef :: Reference a -> Bool
 isCreatureRef = isJust . toCreatureRef

@@ -4,6 +4,7 @@ module Creature
      dbNewCreature,
      dbTurnCreature,
      dbStepCreature,
+     dbGetCreatureScore,
      dbGetCreatureFaction)
     where
 
@@ -48,6 +49,9 @@ dbNewCreature :: (CreatureLocation l) => Faction -> Species -> l -> DB CreatureR
 dbNewCreature faction species loc = 
     do creature <- dbGenerateCreature faction species
        dbAddCreature creature loc
+
+dbGetCreatureScore :: (DBReadable db) => Score -> CreatureRef -> db Integer
+dbGetCreatureScore score = liftM (creatureScore score) . dbGetCreature
 
 -- |
 -- Causes the creature to walk in the specified facing direction.

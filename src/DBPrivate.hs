@@ -24,6 +24,7 @@ import Facing
 import CreatureData
 import ToolData
 import PlaneData
+import Position
 
 --
 -- For References and Locations we make considerable use of phantom types
@@ -62,9 +63,6 @@ unsafeReference UniverseRef = UniverseRef
 toUID :: Reference a -> Integer
 toUID (UniverseRef) = 0
 toUID a = uid a
-
-newtype Position = Position (Integer,Integer)
-    deriving (Eq,Ord,Read,Show)
 
 -- |
 -- The location of a Creature standing on a Plane.

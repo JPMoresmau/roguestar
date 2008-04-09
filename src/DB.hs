@@ -39,6 +39,7 @@ module DB
      dbPushSnapshot,
      dbPeepOldestSnapshot,
      dbPopOldestSnapshot,
+     dbHasSnapshot,
      module DBData)
     where
 
@@ -73,10 +74,14 @@ data DBCreatureTurnMode =
   | DBWieldMode
       deriving (Read,Show)
 
-data DBEvent = DBAttackEvent {
-    attack_event_source_creature :: CreatureRef,
-    attack_event_source_weapon :: ToolRef,
-    attack_event_target_creature :: Maybe CreatureRef }
+data DBEvent = 
+    DBAttackEvent {
+        attack_event_source_creature :: CreatureRef,
+        attack_event_source_weapon :: ToolRef,
+        attack_event_target_creature :: CreatureRef }
+  | DBMissEvent {
+        miss_event_creature :: CreatureRef,
+	miss_event_weapon :: ToolRef }
         deriving (Read,Show)
 
 data DB_History = DB_History {
@@ -475,8 +480,11 @@ dbPeepOldestSnapshot actionM =
 dbPopOldestSnapshot :: DB ()
 dbPopOldestSnapshot = modify popOldestSnapshot
 
+dbHasSnapshot :: (DBReadable db) => db Bool
+dbHasSnapshot = liftM isJust $ dbPeepSnapshot (return ())
+
 popOldestSnapshot :: DB_BaseType -> DB_BaseType
 popOldestSnapshot db = 
-    case isJust $ fmap db_prior_snapshot $ db_prior_snapshot db of
+    case isJust $ db_prior_snapshot =<< db_prior_snapshot db of
         False -> db { db_prior_snapshot = Nothing }
 	True  -> db { db_prior_snapshot = fmap popOldestSnapshot $ db_prior_snapshot db }

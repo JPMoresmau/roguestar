@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Protocol
     (mainLoop)
@@ -40,28 +41,37 @@ mainLoop db0 = do next_command <- getLine
 done :: DB String
 done = return "done"
 
+dbOldestSnapshotOnly :: (DBReadable db) => db ()
+dbOldestSnapshotOnly = 
+    do b <- dbHasSnapshot
+       when b $ fail "protocol-error: pending snapshot"
+
 -- |
 -- Perform an action assuming the database is in the DBRaceSelectionState,
 -- otherwise returns an error message.
 --
 dbRequiresRaceSelectionState :: (DBReadable db) => db String -> db String
-dbRequiresRaceSelectionState action = do state <- dbState
-					 case state of
-						    DBRaceSelectionState -> action
-						    _ -> return $ "protocol-error: not in race selection state (" ++ show state ++ ")"
+dbRequiresRaceSelectionState action = 
+    do dbOldestSnapshotOnly
+       state <- dbState
+       case state of
+           DBRaceSelectionState -> action
+           _ -> return $ "protocol-error: not in race selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action assuming the database is in the DBClassSelectionState,
 -- otherwise returns an error message.
 --
 dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db String) -> db String
-dbRequiresClassSelectionState action = do state <- dbState
-					  case state of
-						     DBClassSelectionState creature -> action creature
-						     _ -> return $ "protocol-error: not in class selection state (" ++ show state ++ ")"
+dbRequiresClassSelectionState action = 
+    do dbOldestSnapshotOnly
+       state <- dbState
+       case state of
+           DBClassSelectionState creature -> action creature
+           _ -> return $ "protocol-error: not in class selection state (" ++ show state ++ ")"
 
 -- |
--- Perform an action based on a player creature, when the state is appropriate.
+-- Perform an action that operates on the player creature (not in any context).
 -- The states that work for this are:
 --
 -- DBClassSelectionState
@@ -69,7 +79,8 @@ dbRequiresClassSelectionState action = do state <- dbState
 --
 dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresPlayerCenteredState action =
-    do state <- dbState
+    do dbOldestSnapshotOnly
+       state <- dbState
        case state of
 		  DBClassSelectionState creature -> action creature
 		  DBPlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
@@ -79,13 +90,17 @@ dbRequiresPlayerCenteredState action =
 -- Perform an action that works during any creature's turn in a planar environment.
 -- The states that work for this are:
 --
--- DBPlayerCreaturePickupMode 
+-- DBPlayerCreaturePickupMode
+-- DBEvent
 --
 dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlanarTurnState action =
-    do state <- dbState
+    do dbOldestSnapshotOnly
+       state <- dbState
        case state of
 		  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
+		  DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
+		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
 		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
 -- |
@@ -96,7 +111,8 @@ dbRequiresPlanarTurnState action =
 --
 dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlayerTurnState action =
-    do state <- dbState
+    do dbOldestSnapshotOnly
+       state <- dbState
        case state of
                   DBPlayerCreatureTurn creature_ref _ -> action creature_ref
                   _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
@@ -110,6 +126,7 @@ ioDispatch ["reset"] _ = do putStrLn "done"
 
 ioDispatch ("game":game) db0 = 
     do a <- case game of
+                ["query","snapshot"] -> runDB (ro $ liftM (\b -> "answer: snapshot " ++ if b then "yes" else "no") $ dbHasSnapshot) db0
                 ("query":args) -> runDB (ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) db0
 		("action":args) -> runDB (dbDispatchAction args) db0
                 _ -> return $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords game ++ "`"
@@ -146,6 +163,20 @@ dbDispatchQuery ["state"] =
                            DBPlayerCreatureTurn _ DBDropMode -> "answer: state drop"
                            DBPlayerCreatureTurn _ DBWieldMode -> "answer: state wield"
                            DBEvent (DBAttackEvent {}) -> "answer: state attack"
+                           DBEvent (DBMissEvent {}) -> "answer: state miss"
+
+dbDispatchQuery ["who-attacks"] =
+    do state <- dbState
+       return $ case state of
+           DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+	   DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+	   _ -> "answer: who-attacks 0"
+
+dbDispatchQuery ["who-hit"] =
+    do state <- dbState
+       return $ case state of
+           DBEvent (DBAttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
+	   _ -> "answer: who-hit 0"
 
 dbDispatchQuery ["player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
@@ -228,6 +259,8 @@ dbDispatchQuery ["wielded-objects","0"] =
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
 
 dbDispatchAction :: [String] -> DB String
+dbDispatchAction ["continue"] = dbPopOldestSnapshot >> done
+
 dbDispatchAction ["select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
 
@@ -283,6 +316,8 @@ dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref 
        done
 
 dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
+
+dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
 
 dbDispatchAction unrecognized = return ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
 

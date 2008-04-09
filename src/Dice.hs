@@ -6,5 +6,5 @@ import Control.Monad.State
 import DB
 import RandomUtils
 
-roll :: [a] -> DB a
+roll :: (DBReadable db) => [a] -> db a
 roll xs = liftM (pick xs) dbNextRandomInteger

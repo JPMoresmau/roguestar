@@ -10,6 +10,7 @@ import Creature
 import Data.Ratio
 import Tool
 import Control.Monad.Error
+import Combat
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -21,6 +22,7 @@ data Behavior =
   | Wield ToolRef
   | Unwield
   | Drop ToolRef
+  | Fire Facing
 
 dbBehave :: Behavior -> CreatureRef -> DB ()
 dbBehave (Step face) creature_ref =
@@ -50,3 +52,12 @@ dbBehave (Drop tool_ref) creature_ref =
        when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag "not-in-inventory"
        dbMove dbDropTool tool_ref
        return ()
+
+dbBehave (Fire face) creature_ref =
+    do dbTurnCreature face creature_ref
+       dbResolveRangedAttack creature_ref face
+       return ()
+
+
+
+
