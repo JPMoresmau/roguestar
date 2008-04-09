@@ -12,6 +12,7 @@ module PrintText
      TextType(..),
      getInputBuffer,
      setInputBuffer,
+     setPrintTextMode,
      clearOutputBuffer,
      clearInputBuffer,
      keyCallback)
@@ -72,6 +73,10 @@ setInputBuffer (PrintTextObject pto) new_input_buffer = modifyIORef pto $
 clearOutputBuffer :: PrintTextObject -> IO ()
 clearOutputBuffer (PrintTextObject pto) = modifyIORef pto $ \ptd -> ptd { text_output_buffer = [] }
 
+setPrintTextMode :: PrintTextObject -> PrintTextMode -> IO ()
+setPrintTextMode (PrintTextObject pto) pt_mode =
+    do modifyIORef pto $ \print_text -> print_text { text_output_mode = pt_mode }
+
 clearInputBuffer :: PrintTextObject -> IO ()
 clearInputBuffer (PrintTextObject pto) = modifyIORef pto $ \ptd -> ptd { text_input_buffer = [] }
 
@@ -95,7 +100,7 @@ renderText (PrintTextObject pto) =
        let lines_to_print = restrictLines max_characters_height max_characters_width $ 
 			    (case (text_output_mode ptd) of
 			        PrintTextData.Disabled -> []
-			        Limited -> take 3 (text_output_buffer ptd)
+			        Limited -> reverse $ take 3 $ reverse $ text_output_buffer ptd
 	        		Unlimited -> (text_output_buffer ptd)) ++
                             (if length (text_input_buffer ptd) > 0 || (text_output_mode ptd) /= PrintTextData.Disabled 
 			        then [(Query,"> " ++ (text_input_buffer ptd))] 
@@ -120,7 +125,7 @@ drawLine (textType,str) = do (Vertex4 x y _ _) <- get currentRasterPosition
 			     currentRasterPosition $= (Vertex4 x (y + fromIntegral font_height_pixels) 0 1)
 
 restrictLines :: Int -> Int -> [(TextType,String)] -> [(TextType,String)]
-restrictLines height width text_lines = take height $ concatMap splitLongLines text_lines
+restrictLines height width text_lines = reverse $ take height $ reverse $ concatMap splitLongLines text_lines
     where splitLongLines (_,[]) = []
 	  splitLongLines (textType,str) = (textType,take width str):(splitLongLines (textType,drop width str))
 

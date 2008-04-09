@@ -23,14 +23,14 @@ you forgot to use \texttt{fixKeymap}.
 
 \begin{code}
 fixKeymap :: Keymap -> Keymap
-fixKeymap = concatMap (\(x,y) -> 
-    if (length x > 1) --add a return/newline to the end of any multi-character command, so that the user must press enter to confirm the command
-    then let keystrokes = concat $ intersperse "-" $ words x in [(keystrokes ++ "\r",y),(keystrokes ++ "\n",y)] 
-    else [(x,y)])
+fixKeymap = concatMap $ \(x,y) -> 
+    case x of
+        [c] -> [([c],y)]
+	('>':keystrokes) | (not $ null keystrokes) -> [(keystrokes,y)]
+	command -> let keystrokes = concat $ intersperse "-" $ words command in [(keystrokes ++ "\r",y),(keystrokes ++ "\n",y)]
 \end{code}
 
 \texttt{validKeyMap} reduces a \texttt{Keymap} to one that contains only those actions that are valid at this instant.
-For example, 
 
 \begin{code}
 validKeyMap :: ActionInput -> Keymap -> IO [(String,String)]

@@ -54,15 +54,15 @@ instance ProtocolType WieldedObject where
     fromTable _ = Nothing
 
 facingToAngle :: String -> BoundAngle
-facingToAngle "north" = BoundAngle $ fromDegrees 0
-facingToAngle "northeast" = BoundAngle $ fromDegrees 45
+facingToAngle "south" = BoundAngle $ fromDegrees 0
+facingToAngle "southeast" = BoundAngle $ fromDegrees 45
 facingToAngle "east" = BoundAngle $ fromDegrees 90
-facingToAngle "southeast" = BoundAngle $ fromDegrees 135
-facingToAngle "south" = BoundAngle $ fromDegrees 180
-facingToAngle "southwest" = BoundAngle $ fromDegrees 225
+facingToAngle "northeast" = BoundAngle $ fromDegrees 135
+facingToAngle "north" = BoundAngle $ fromDegrees 180
+facingToAngle "northwest" = BoundAngle $ fromDegrees 225
 facingToAngle "west" = BoundAngle $ fromDegrees 270
-facingToAngle "northwest" = BoundAngle $ fromDegrees 315
-facingToAngle "here" = BoundAngle $ fromDegrees 180
+facingToAngle "southwest" = BoundAngle $ fromDegrees 315
+facingToAngle "here" = BoundAngle $ fromDegrees 0
 facingToAngle s = trace ("facingToAngle: what is " ++ s ++ "?") $ BoundAngle $ fromDegrees 180
 
 tableSelectTyped :: (ProtocolType t) => RoguestarTable -> [t]

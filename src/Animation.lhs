@@ -16,10 +16,13 @@ module Animation
      printTextOnce,
      debugA,
      debugOnce,
-     printMenuItemOnce,
-     printMenuOnce,
+     printMenuItemA,
+     printMenuA,
+     clearPrintTextA,
      clearPrintTextOnce,
-     libraryA)
+     libraryA,
+     blockContinue,
+     requestPrintTextMode)
     where
 
 import RSAGL.FRP
@@ -47,12 +50,15 @@ import Actions
 import Data.List
 import Data.Ord
 import Strings
+import Actions
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator,
     animstate_driver_object :: DriverObject,
     animstate_print_text_object :: PrintTextObject,
-    animstate_library :: Library }
+    animstate_library :: Library,
+    animstate_block_continue :: Bool,
+    animstate_print_text_mode :: PrintTextMode }
 
 instance CoordinateSystemClass AnimationState where
     getCoordinateSystem = getCoordinateSystem . animstate_scene_accumulator
@@ -87,8 +93,12 @@ runRoguestarAnimationObject lib driver_object print_text_object rso =
                animstate_scene_accumulator = null_scene_accumulator,
 	       animstate_driver_object = driver_object,
 	       animstate_print_text_object = print_text_object,
-	       animstate_library = lib })
+	       animstate_library = lib,
+	       animstate_block_continue = False,
+	       animstate_print_text_mode = Limited })
        putMVar (rso_arrow rso) new_rso_program
+       when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput driver_object print_text_object
+       setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
        assembleScene result_camera $ animstate_scene_accumulator result_animstate
 
 ioA :: (j -> IO p) -> RSAnimAX any t i o j p
@@ -137,13 +147,16 @@ actionNameToKeysA action_name = Arrow.lift $ proc () ->
                                       (animstate_print_text_object animstate)
        app -< (Arrow.lift $ Kleisli $ const $ IOGuard $ actionNameToKeys action_input default_keymap action_name,())
 
-printMenuOnce :: [String] -> RSAnimAX any t i o () ()
-printMenuOnce = foldr (>>>) (arr id) . map printMenuItemOnce
+printMenuA :: [String] -> RSAnimAX any t i o () ()
+printMenuA = foldr (>>>) (arr id) . map printMenuItemA
 
-printMenuItemOnce :: String -> RSAnimAX any t i o () ()
-printMenuItemOnce action_name = proc () ->
+printMenuItemA :: String -> RSAnimAX any t i o () ()
+printMenuItemA action_name = proc () ->
     do keys <- actionNameToKeysA action_name -< ()
-       printTextOnce -< fmap (\s -> (Query,s ++ " - " ++ hrstring action_name)) $ listToMaybe $ sortBy (comparing length) keys
+       printTextA -< fmap (\s -> (Query,s ++ " - " ++ hrstring action_name)) $ listToMaybe $ sortBy (comparing length) keys
+
+clearPrintTextA :: RSAnimAX any t i o () ()
+clearPrintTextA = Arrow.lift clearPrintText_ <<< arr (const $ Just ())
 
 clearPrintTextOnce :: RSAnimAX any t i o () ()
 clearPrintTextOnce = onceA clearPrintText_ <<< arr (const $ Just ())
@@ -163,4 +176,17 @@ libraryA :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
        accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Good)
+
+blockContinue :: RSAnimAX any t i o Bool ()
+blockContinue = Arrow.lift $ proc b ->
+    do animstate <- fetch -< ()
+       store -< animstate { animstate_block_continue = animstate_block_continue animstate || b }
+
+requestPrintTextMode :: RSAnimAX any t i o PrintTextMode ()
+requestPrintTextMode = Arrow.lift $ proc s ->
+    do animstate <- fetch -< ()
+       store -< animstate { animstate_print_text_mode = case (animstate_print_text_mode animstate,s) of
+	   (_,Disabled) -> Disabled
+	   (Limited,Unlimited) -> Unlimited
+           (m,_) -> m }
 \end{code}

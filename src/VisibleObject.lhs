@@ -91,7 +91,7 @@ objectDestination = arr (fmap vo_xy) <<< visibleObject
 objectIdealPosition :: RSAnimA (Maybe Integer) i o () (Maybe Vector3D)
 objectIdealPosition = 
     whenJust (approachA 0.25 (perSecond 3)) <<< 
-    arr (fmap (\(x,y) -> Vector3D (realToFrac x) 0 (realToFrac y))) <<< 
+    arr (fmap (\(x,y) -> Vector3D (realToFrac x) 0 (negate $ realToFrac y))) <<< 
     objectDestination
 
 objectFacing :: RSAnimA (Maybe Integer) i o () (Maybe BoundAngle)

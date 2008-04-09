@@ -7,7 +7,8 @@ module Actions
      getValidActions,
      ActionInput(..),
      select_race_action_names,
-     select_base_class_action_names)
+     select_base_class_action_names,
+     executeContinueAction)
     where
 
 import System.Exit
@@ -38,6 +39,11 @@ executeAction action_input action =
        either (\s -> printText (action_print_text_object action_input) UnexpectedEvent ("unable to execute action: " ++ s))
               (id)
               result
+       return ()
+
+executeContinueAction :: ActionInput -> IO ()
+executeContinueAction action_input =
+    do either (const $ return()) id =<< (runErrorT $ (snd continue_action) action_input)
        return ()
 
 quit_action :: (String,Action)
@@ -113,11 +119,19 @@ stateLinkedAction allowed_state action_name =
      stateGuard allowed_state $ \action_input ->
          return $ driverAction (action_driver_object action_input) [action_name])
 
+continue_action :: (String,Action)
+continue_action = ("continue",\action_input ->
+    do guard =<< (liftM (== Just "yes") $ lift $ driverGetAnswer (action_driver_object action_input) "snapshot")
+       return $ driverAction (action_driver_object action_input) ["continue"])
+
 moveAction :: String -> (String,Action)
 moveAction = parameterizedAction "player-turn" "move"
 
 turnAction :: String -> (String,Action)
 turnAction = parameterizedAction "player-turn" "turn"
+
+fireAction :: String -> (String,Action)
+fireAction = parameterizedAction "player-turn" "fire"
 
 reroll_action :: (String,Action)
 reroll_action = stateLinkedAction "class-selection" "reroll"
@@ -184,12 +198,16 @@ move_actions = map moveAction eight_directions
 turn_actions :: [(String,Action)]
 turn_actions = map turnAction eight_directions
 
+fire_actions :: [(String,Action)]
+fire_actions = map fireAction eight_directions
+
 all_actions :: [(String,Action)]
-all_actions = [quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action] ++
+all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
 	      move_actions ++
-              turn_actions
+              turn_actions ++
+	      fire_actions
 
 lookupAction :: String -> (String,Action)
 lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action named " ++ x) $ lookup x all_actions)

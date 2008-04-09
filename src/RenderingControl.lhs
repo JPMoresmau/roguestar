@@ -106,9 +106,10 @@ menuDispatch = menuStateHeader (const False) >>> arr (const basic_camera)
 menuRaceSelection :: RSAnimA1 () Camera () Camera
 menuRaceSelection = proc s -> 
     do menuStateHeader (== "race-selection") -< s
-       clearPrintTextOnce -< ()
-       printMenuOnce select_race_action_names -< ()
-       printTextOnce -< Just (Query,"Select a Race:")
+       requestPrintTextMode -< Unlimited
+       clearPrintTextA -< ()
+       printMenuA select_race_action_names -< ()
+       printTextA -< Just (Query,"Select a Race:")
        returnA -< basic_camera
 
 menuClassSelection :: RSAnimA1 () Camera () Camera
@@ -116,11 +117,12 @@ menuClassSelection = proc () ->
     do menuStateHeader (== "class-selection") -< ()
        changed <- edgep <<< sticky isJust Nothing <<<arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
        switchContinue -< (if changed then Just menuClassSelection else Nothing,())
-       clearPrintTextOnce -< ()
+       requestPrintTextMode -< Unlimited
+       clearPrintTextA -< ()
        printCharacterStats 0 -< ()
-       printMenuOnce select_base_class_action_names -< ()
-       printMenuItemOnce "reroll" -< ()
-       printTextOnce -< Just (Query,"Select a Class:")
+       printMenuA select_base_class_action_names -< ()
+       printMenuItemA "reroll" -< ()
+       printTextA -< Just (Query,"Select a Class:")
        returnA -< basic_camera
 
 printCharacterStats :: Integer -> RSAnimAX any t i o () ()
@@ -137,19 +139,20 @@ printCharacterStats unique_id = proc () ->
 print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,String) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
-       printTextOnce -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
+       printTextA -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
 \end{code}
 
 \subsection{The Planar Gameplay Dispatch}
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","pickup"]
+planar_states = ["player-turn","pickup","drop","wield","attack","miss"]
 
 planarGameplayDispatch :: RSAnimA1 () Camera () Camera
 planarGameplayDispatch = proc () ->
     do mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
+       frp1Context eventMessager -< ()
        frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
            frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 
@@ -158,13 +161,13 @@ planarGameplayDispatch = proc () ->
            ToolThreadInput {
 	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
        lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
-           arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (realToFrac y))) <<< centerCoordinates -< ()
+           arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (negate $ realToFrac y))) <<< centerCoordinates -< ()
        accumulateSceneA -< (Infinite,lightSource $ DirectionalLight (Vector3D 0.15 1 (-0.3)) (scaleRGB 0.6 $ rgb 1.0 0.9 0.75) (scaleRGB 0.4 $ rgb 0.75 0.9 1.0))
        returnA -< maybe basic_camera cameraLookAtToCamera lookat
 
 cameraLookAtToCamera :: Point3D -> Camera
 cameraLookAtToCamera look_at = PerspectiveCamera {
-    camera_position = translate (Vector3D 0 3 (-3)) look_at,
+    camera_position = translate (Vector3D 0 3 3) look_at,
     camera_lookat = look_at,
     camera_up = Vector3D 0 1 0,
     camera_fov = fromDegrees 60 }
@@ -201,7 +204,7 @@ renderTerrainTile :: ProtocolTypes.TerrainTile -> RSAnimA t i o Time Bool
 renderTerrainTile (ProtocolTypes.TerrainTile terrain_type (x,y)) = proc t ->
     do let awayness = max 0 $ min 0.99 $ (toSeconds t)^2
        terrain_elements <- terrainElements -< ()
-       transformA libraryA -< (translate (Vector3D (realToFrac x) (negate awayness) (realToFrac y)) . scale' (1 - awayness),
+       transformA libraryA -< (translate (Vector3D (realToFrac x) (negate awayness) (negate $ realToFrac y)) . scale' (1 - awayness),
                                (Local,Models.LibraryData.TerrainTile terrain_type))
        returnA -< isJust $ find (\a -> tt_xy a == (x,y)) terrain_elements
 
@@ -310,4 +313,29 @@ questionMarkAvatar = proc _ ->
            do wield_point <- m_wield_point
 	      return $ CreatureThreadOutput {
                            cto_wield_point = wield_point }
+\end{code}
+
+\subsection{Messages}
+
+\begin{code}
+eventStateHeader :: (String -> Bool) -> RSAnimA1 () () () ()
+eventStateHeader = genericStateHeader switchTo
+    where switchTo "attack" = attackEventMessage
+          switchTo "miss" = missEventMessage
+          switchTo _ = eventMessager
+
+eventMessager :: RSAnimA1 () () () ()
+eventMessager = proc () -> 
+    do blockContinue -< True 
+       switchTerminate -< (Just $ eventStateHeader (const False),())
+
+attackEventMessage :: RSAnimA1 () () () ()
+attackEventMessage = proc () -> 
+    do eventStateHeader (== "attack") -< ()
+       printTextOnce -< Just (Event,"You attack!  You hit!")
+
+missEventMessage :: RSAnimA1 () () () ()
+missEventMessage = proc () ->
+    do eventStateHeader (== "miss") -< ()
+       printTextOnce -< Just (Event,"You attack!  You miss.")
 \end{code}
