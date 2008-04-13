@@ -57,6 +57,8 @@ dbGetCurrentPlane =
 		      liftM (fmap fst) $ dbGetPlanarLocation attacker_ref
 		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) ->
 		      liftM (fmap fst) $ dbGetPlanarLocation attacker_ref
+		  DBEvent (DBKilledEvent killed_ref) ->
+		      liftM (fmap fst) $ dbGetPlanarLocation killed_ref
 		  _ -> return Nothing
 
 -- |

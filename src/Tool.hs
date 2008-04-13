@@ -50,3 +50,4 @@ dbGetCarried = liftM (map entity . mapMaybe toToolLocation) . dbGetContents
 
 dbGetWielded :: (DBReadable db) => CreatureRef -> db (Maybe ToolRef)
 dbGetWielded = liftM (listToMaybe . map entity . mapMaybe toToolLocation . mapMaybe toWieldedLocation) . dbGetContents
+

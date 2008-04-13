@@ -51,8 +51,7 @@ dbFinishPlanarAITurns plane_ref =
 	   _ -> error "dbFinishPlanarAITurns: impossible case"
 
 dbPerform1UniverseAITurn :: DB ()
-dbPerform1UniverseAITurn = dbAdvanceTime (1%100) the_universe -- 1/100 is an arbitrary value smaller than most creature turns should take
-                                                              -- this is the clock of the entire universe!
+dbPerform1UniverseAITurn = dbAdvanceTime (1%100) the_universe 
 
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
 dbPerform1PlanarAITurn plane_ref = 

@@ -7,9 +7,6 @@ module CreatureData
      Score(..),
      applyCreatureAttribute,
      exampleCreature1,
-     injure,
-     alive,
-     dead,
      creatureGender,
      characterClassLevels,
      isFavoredClass)
@@ -55,7 +52,7 @@ data CreatureAttribute = Gender CreatureGender
 		       | HideSkill                       -- unit is harder to see
 		       | SpotSkill                       -- unit can see farther away
                        | StatBonus Statistic             -- +1 to any statistic
-                       | AlignmentBonus AlignmentSchool  -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
+                       | AlignmentBonus EthicalAlignment -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
 		       | CharacterLevel CharacterClass   -- record of a character class being applied to the creature, has no game effect
 		       | FavoredClass CharacterClass     -- creature is able to take the specified class without any prerequisites
 			 deriving (Eq, Show, Read)
@@ -108,10 +105,6 @@ creatureScore Hide = \c -> max 0 $ per c + attributeCount HideSkill c
 -- The creature's effective level.
 --
 -- This sums all of the ability scores and attributes that a creature has and determines
--- approximately how powerful the creature is.
---
--- It is possible for a creature to have a negative effective level,
--- especially if its ability scores are poor.
 --
 creatureScore EffectiveLevel = \c -> sum (map ($ c) [str,dex,con,int,per,cha,mind] ++
 					  map levelAdjustment (creature_attribs c))
@@ -125,25 +118,6 @@ attributeCount attrib creature = count attrib $ creature_attribs creature
 --
 statPlusDouble :: Statistic -> CreatureAttribute -> Creature -> Integer
 statPlusDouble statistic attrib creature = max 0 $ getStatistic statistic creature + 2 * attributeCount attrib creature
-
--- |
--- Does the specified damage against the Creature.
---
-injure :: Integer -> Creature -> Creature
-injure damage creature = let actual_damage = max 0 (damage - (con $ creature_stats creature) `quot` 2)
-			     in creature { creature_damage=(creature_damage creature + actual_damage) }
-
--- |
--- True if the creature is alive.
---
-alive :: Creature -> Bool
-alive creature = creatureScore HitPoints creature >= 0
-
--- |
--- True if the creature is dead.
---
-dead :: Creature -> Bool
-dead = not . alive
 
 -- |
 -- Answers the number of levels a Creature has taken in a particular CharacterClass.

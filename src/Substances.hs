@@ -1,259 +1,194 @@
 
 module Substances
     (Gas(..),
-     Fuel(..),
-     Metal(..),
+     Material(..),
      Chromalite(..),
      Solid(..),
-     Element,
-     elements,
-     isGas,
-     isFuel,
-     isMetal,
-     isChromalite,
-     toGas,
-     toFuel,
-     toMetal,
-     toChromalite,
-     isSolid,
-     toSolid,
+     materialValue,
+     MaterialValue(..),
+     Substance,
+     substances,
+     prettySubstance,
+     printSubstances,
+     gasWeight,
      chromaliteAlignment,
      chromalitePotency)
     where
 
 import Alignment
+import Data.List
+import Data.Ord
 
-data Element = GasElement Gas
-             | FuelElement Fuel
-             | MetalElement Metal
-             | ChromaliteElement Chromalite
+data Substance = 
+    GasSubstance Gas
+  | MaterialSubstance Material
+  | ChromaliteSubstance Chromalite
              deriving (Read,Show,Eq,Ord)
-             
-data Solid = MetalSolid Metal
+
+substances :: [Substance]
+substances = map GasSubstance [minBound..maxBound] ++
+             map MaterialSubstance [minBound..maxBound] ++
+	     map ChromaliteSubstance [minBound..maxBound]
+
+prettySubstance :: Substance -> String
+prettySubstance (GasSubstance x) = show x
+prettySubstance (MaterialSubstance x) = show x
+prettySubstance (ChromaliteSubstance x) = show x
+
+printSubstances :: IO ()
+printSubstances = putStrLn $ unlines $ map (\(x,y) -> prettySubstance y ++ ":  " ++ show x) $ sortBy (comparing fst) $ map (\x -> (substanceValue x,x)) substances
+
+data Solid = MaterialSolid Material
            | ChromaliteSolid Chromalite
            deriving (Read,Show,Eq,Ord)
              
-elements :: [Element]
-elements = map toElement [minBound..maxBound :: Gas] ++
-           map toElement [minBound..maxBound :: Fuel] ++
-           map toElement [minBound..maxBound :: Metal] ++
-           map toElement [minBound..maxBound :: Chromalite]
-             
-isGas :: Element -> Bool
-isGas (GasElement _) = True
-isGas _ = False
-
-isFuel :: Element -> Bool
-isFuel (FuelElement _) = True
-isFuel _ = False
-
-isMetal :: Element -> Bool
-isMetal (MetalElement _) = True
-isMetal _ = False
-
-isChromalite :: Element -> Bool
-isChromalite (ChromaliteElement _) = True
-isChromalite _ = False
-
-isSolid :: Element -> Bool
-isSolid x = isMetal x || isChromalite x
-
-toSolid :: (Elemental a) => a -> Solid
-toSolid elemental = case toElement elemental of
-                                             MetalElement x -> MetalSolid x
-                                             ChromaliteElement x -> ChromaliteSolid x
-                                             _ -> error "toSolid: not a solid"
-
-toGas :: Element -> Gas
-toGas (GasElement x) = x
-toGas _ = error "toGas: not a Gas"
-
-toFuel :: Element -> Fuel
-toFuel (FuelElement x) = x
-toFuel _ = error "toFuel: not a Fuel"
-
-toMetal :: Element -> Metal
-toMetal (MetalElement x) = x
-toMetal _ = error "toMetal: not a Metal"
-
-toChromalite :: Element -> Chromalite
-toChromalite (ChromaliteElement x) = x
-toChromalite _ = error "toChromalite: not a Chromalite"
-
-data Gas = Hydrogen -- Gasses
-	     | Helium
-	     | Oxygen
-	     | Nitrogen
-	     | Flourine
-	     | Neon
-	     | Argon
-	     | Krypton
-	     | Xenon
-	     | Radon
-	     | Chlorine deriving (Eq,Enum,Ord,Show,Read,Bounded)
+data Gas = 
+    Hydrogen
+  | Helium
+  | Oxygen
+  | Nitrogen
+  | Flourine
+  | Neon
+  | Argon
+  | Krypton
+  | Xenon
+  | Radon
+  | Chlorine deriving (Eq,Enum,Ord,Show,Read,Bounded)
 	
-data Fuel = Deuteronium  -- Fuels
-	  | Tritonium
-	  | Uranium
-	  | Plutonium
-	  | Thorium
-	  | Endurium deriving (Eq,Enum,Ord,Show,Read,Bounded)
-	  
-data Metal = Aluminum-- Metals
-	   | Titanium
-	   | Palladium
-           | Molybdenum
-           | Lead
-           | Copper
-           | Iron
-           | Cobalt
-           | Zirconium
-           | Gold
-           | Silver
-           | Platinum
-           | Zinc
-           | MetallicCarbon deriving (Eq,Enum,Ord,Show,Read,Bounded)
-	     
-data Chromalite = Rutilium -- red Chromalite
-	        | Crudnium -- green Chromalite
-	        | Pteulanium -- blue Chromalite
-	        | Candonium -- white Chromalite
-	        | Canitium -- gray Chromalite
-	        | Infuscanoid -- black Chromalite
-	        | Argentate -- silver Chromalite
-	        | Trabanate -- brown Chromalite
-	        | Arumate -- gold Chromalite
-	        | Svartium -- dark Chromalite
-	        | Adomite -- red Metachromalite
-	        | Yarokate -- green Metachromalite
-	        | Kakohlate -- blue Metachromalite
-	        | Lahvanium -- white Metachromalite
-	        | Afrate -- gray Metachromalite
-	        | Shahkrate -- black Metachromalite
-	        | Tekletium -- silver Metachromalite
-	        | Koomite -- brown Metachromalite
-	        | Zahovate -- gold Metachromalite
-	        | Vitrium -- bright Chromalite
-	        | Bectonite -- corrupt Chromalite
-	          deriving (Eq,Enum,Ord,Show,Read,Bounded)
+data Material = 
+    Aluminum
+  | Titanium
+  | Palladium
+  | Molybdenum
+  | Lead
+  | Copper
+  | Iron
+  | Cobalt
+  | Zirconium
+  | Gold
+  | Silver
+  | Platinum
+  | Zinc
+  | Uranium
+  | Plutonium
+  | Thorium
+  | Diamond
+  | Carbon
+  | Wood
+  | Plastic
+        deriving (Eq,Enum,Ord,Show,Read,Bounded)
 
-fuelValue :: (Elemental a) => a -> Integer
-fuelValue e = case toElement e of
-                               FuelElement x -> fuelValue_ x
-                               _ -> 0
+--
+-- Chromalite is an engineered, crystaline metamaterial capable of storing many times it's own rest mass energy.
+-- Precisely how many times is indicated by the chromalitePotency function.
+--
+-- Because any accidental release of this energy would obviously be catastrophic, chromalite is itself intelligent
+-- and capable of adapting to stressful situations to avoid any such accidental release.
+--
+data Chromalite = 
+    Rutilium     -- red Chromalite
+  | Crudnium     -- green Chromalite
+  | Pteulanium   -- blue Chromalite
+  | Caerulite    -- azure Chromalite
+  | Ionidium     -- violet Chromalite
+  | Aurite       -- yellow Chromalite
+  | Argentate    -- silver Chromalite
+  | Trabanate    -- brown Chromalite
+  | Arumate      -- gold Chromalite
+  | Candonium    -- white Chromalite
+  | Canitium     -- gray Chromalite
+  | Infuscanoid  -- black Chromalite
+  | Endurium     -- blue/shadowy Chromalite
+  | Malignite    -- yellow/shadowy Chromalite
+  | Diabolite    -- radiant white Chromalite
+  | Bectonite    -- radiant black Chromalite
+     deriving (Eq,Enum,Ord,Show,Read,Bounded)
 
-fuelValue_ :: Fuel -> Integer
-fuelValue_ Deuteronium = 2
-fuelValue_ Tritonium = 3
-fuelValue_ Uranium = 10
-fuelValue_ Plutonium = 12
-fuelValue_ Endurium = 1000
-fuelValue_ Thorium = 15
+data MaterialValue = MaterialValue {
+    material_construction_value :: Integer, -- value of material for constructing buildings, pipes, casings for gadgets, etc
+    material_critical_value :: Integer,     -- value of material for critical purposes, such as miniature electronic components
+    material_scarcity :: Integer }          -- how rare the material is in nature and by synthesis
 
-materialValue :: (Elemental a) => a -> (Integer,Integer)
-materialValue e = case toElement e of
-                                   MetalElement x -> materialValue_ x
-                                   _ -> (0,0)
+gasWeight :: Gas -> Integer
+gasWeight Hydrogen = 1
+gasWeight Helium = 4
+gasWeight Oxygen = 16
+gasWeight Nitrogen = 14
+gasWeight Flourine = 19
+gasWeight Neon = 20
+gasWeight Argon = 40
+gasWeight Krypton = 84
+gasWeight Xenon = 131
+gasWeight Radon = 222
+gasWeight Chlorine = 35
 
-materialValue_ :: Metal -> (Integer,Integer)
-materialValue_ Aluminum = (8,2)
-materialValue_ Titanium = (13,3)
-materialValue_ Palladium = (1,144)
-materialValue_ Molybdenum = (1,8)
-materialValue_ Lead = (1,1)
-materialValue_ Copper = (3,5)
-materialValue_ Iron = (3,1)
-materialValue_ Zirconium = (1,13)
-materialValue_ Cobalt = (5,55)
-materialValue_ Gold = (2,89)
-materialValue_ Silver = (2,21)
-materialValue_ Platinum = (2,34)
-materialValue_ Zinc = (5,15)
-materialValue_ MetallicCarbon = (25,25)
+materialValue :: Material -> MaterialValue
+materialValue Aluminum =    MaterialValue   10  10  10
+materialValue Titanium =    MaterialValue   15  10  20
+materialValue Palladium =   MaterialValue    2 150   5
+materialValue Molybdenum =  MaterialValue    1  50   3
+materialValue Lead =        MaterialValue    3  20   2
+materialValue Copper =      MaterialValue    8  80  15
+materialValue Iron =        MaterialValue    5  10   2
+materialValue Cobalt =      MaterialValue    3  60   7
+materialValue Zirconium =   MaterialValue    2  40  10
+materialValue Gold =        MaterialValue    4  20  50
+materialValue Silver =      MaterialValue    3  30  20
+materialValue Platinum =    MaterialValue    1 100  70
+materialValue Zinc =        MaterialValue    6  50   4
+materialValue Uranium =     MaterialValue    1 300  40
+materialValue Plutonium =   MaterialValue    1 500 100
+materialValue Thorium =     MaterialValue    2 200   4
+materialValue Diamond =     MaterialValue   40  20  15
+materialValue Carbon =      MaterialValue    2  20   1
+materialValue Wood =        MaterialValue    3   0   2
+materialValue Plastic =     MaterialValue    4   0   2
 
-chromaliteAlignment :: (Elemental a) => a -> Maybe Alignment
-chromaliteAlignment e = case toElement e of
-                                         ChromaliteElement x -> Just $ chromaliteAlignment_ x
-                                         _ -> Nothing
+chromaliteAlignment :: Chromalite -> Alignment
+chromaliteAlignment Rutilium = (Chaotic,Strategic)
+chromaliteAlignment Crudnium = (Neutral,Strategic)
+chromaliteAlignment Pteulanium = (Lawful,Strategic)
+chromaliteAlignment Caerulite = (Lawful,Tactical)
+chromaliteAlignment Ionidium = (Neutral,Tactical)
+chromaliteAlignment Aurite = (Chaotic,Tactical)
+chromaliteAlignment Argentate = (Lawful,Diplomatic)
+chromaliteAlignment Trabanate = (Neutral,Diplomatic)
+chromaliteAlignment Arumate = (Chaotic,Diplomatic)
+chromaliteAlignment Candonium = (Lawful,Indifferent)
+chromaliteAlignment Canitium = (Neutral,Indifferent)
+chromaliteAlignment Infuscanoid = (Chaotic,Indifferent)
+chromaliteAlignment Endurium = (Evil,Strategic)
+chromaliteAlignment Malignite = (Evil,Tactical)
+chromaliteAlignment Diabolite = (Evil,Diplomatic)
+chromaliteAlignment Bectonite = (Evil,Indifferent)
 
-chromaliteAlignment_ :: Chromalite -> Alignment
-chromaliteAlignment_ Rutilium = (Moderate,Chaotic,Tactical) -- red Chromalite
-chromaliteAlignment_ Crudnium = (Moderate,Neutral,Tactical) -- green Chromalite
-chromaliteAlignment_ Pteulanium = (Moderate,Lawful,Tactical) -- blue Chromalite
-chromaliteAlignment_ Candonium = (Moderate,Lawful,Strategic) -- white Chromalite
-chromaliteAlignment_ Canitium = (Moderate,Neutral,Strategic) -- gray Chromalite
-chromaliteAlignment_ Infuscanoid = (Moderate,Chaotic,Strategic) -- black Chromalite
-chromaliteAlignment_ Argentate = (Moderate,Lawful,Diplomatic) -- silver Chromalite
-chromaliteAlignment_ Trabanate = (Moderate,Neutral,Diplomatic) -- brown Chromalite
-chromaliteAlignment_ Arumate = (Moderate,Neutral,Diplomatic) -- gold Chromalite
-chromaliteAlignment_ Svartium = (Moderate,Evil,Tactical) -- dark Chromalite
-chromaliteAlignment_ Adomite = (Strong,Chaotic,Tactical) -- red Metachromalite
-chromaliteAlignment_ Yarokate = (Strong,Neutral,Tactical) -- green Metachromalite
-chromaliteAlignment_ Kakohlate = (Strong,Lawful,Tactical) -- blue Metachromalite
-chromaliteAlignment_ Lahvanium = (Strong,Lawful,Strategic) -- white Metachromalite
-chromaliteAlignment_ Afrate = (Strong,Neutral,Strategic) -- gray Metachromalite
-chromaliteAlignment_ Shahkrate = (Strong,Chaotic,Strategic) -- black Metachromalite
-chromaliteAlignment_ Tekletium = (Strong,Lawful,Diplomatic) -- silver Metachromalite
-chromaliteAlignment_ Koomite = (Strong,Neutral,Diplomatic) -- brown Metachromalite
-chromaliteAlignment_ Zahovate = (Strong,Chaotic,Diplomatic) -- gold Metachromalite
-chromaliteAlignment_ Vitrium = (Strong,Evil,Diplomatic) -- bright Chromalite
-chromaliteAlignment_ Bectonite = (Moderate,Evil,Strategic)
+class SubstanceType a where
+    substanceValue :: a -> Integer
+    toSubstance :: a -> Substance
 
-class Elemental a where
-    elementValue :: a -> Integer
-    toElement :: a -> Element
-
-instance Elemental Gas where
-    elementValue _ = 1
-    toElement x = GasElement x
+instance SubstanceType Gas where
+    substanceValue x = gasWeight x ^ 2 - gasWeight x
+    toSubstance x = GasSubstance x
     
-instance Elemental Fuel where
-    elementValue x = fuelValue x ^ 2
-    toElement x = FuelElement x
+instance SubstanceType Material where
+    substanceValue x = nom * crit * scarce + nom + crit + scarce
+        where MaterialValue nom crit scarce = materialValue x
+    toSubstance x = MaterialSubstance x
 
-instance Elemental Metal where
-    elementValue x = let (norm,crit) = materialValue x
-                         in 10*norm + crit
-    toElement x = MetalElement x
+instance SubstanceType Chromalite where
+    substanceValue x = 10 * chromalitePotency x ^ 2 + 100 * chromalitePotency x
+    toSubstance x = ChromaliteSubstance x
 
-instance Elemental Chromalite where
-    elementValue = elementAlignmentValue . chromaliteAlignment_
-    toElement x = ChromaliteElement x
+instance SubstanceType Substance where
+    substanceValue (GasSubstance x) = substanceValue x
+    substanceValue (MaterialSubstance x) = substanceValue x
+    substanceValue (ChromaliteSubstance x) = substanceValue x
+    toSubstance x = x
 
-instance Elemental Element where
-    elementValue (GasElement x) = elementValue x
-    elementValue (FuelElement x) = elementValue x
-    elementValue (MetalElement x) = elementValue x
-    elementValue (ChromaliteElement x) = elementValue x
-    toElement x = x
+instance SubstanceType Solid where
+    substanceValue = substanceValue . toSubstance
+    toSubstance (MaterialSolid x) = toSubstance x
+    toSubstance (ChromaliteSolid x) = toSubstance x
 
-instance Elemental Solid where
-    elementValue = elementValue . toElement
-    toElement (MetalSolid x) = toElement x
-    toElement (ChromaliteSolid x) = toElement x
-
-elementStrengthValue :: AlignmentStrength -> Integer
-elementStrengthValue Weak = 1
-elementStrengthValue Moderate = 5
-elementStrengthValue Strong = 15
-
-elementEthicalValue :: AlignmentEthic -> Integer
-elementEthicalValue Lawful = 5
-elementEthicalValue Chaotic = 3
-elementEthicalValue Neutral = 1
-elementEthicalValue Evil = 12
-
-elementSchoolValue :: AlignmentSchool -> Integer
-elementSchoolValue Strategic = 3
-elementSchoolValue Tactical = 2
-elementSchoolValue Diplomatic = 5
-elementSchoolValue Indifferent = 1
-
-elementAlignmentValue :: Alignment -> Integer
-elementAlignmentValue (strength,ethical,schl) = (elementStrengthValue strength) *
-						(elementEthicalValue ethical) *
-						(elementSchoolValue schl)
-						
 chromalitePotency :: Chromalite -> Integer
-chromalitePotency c = case chromaliteAlignment_ c of
-                                                  (strength,ethical,schl) -> elementStrengthValue strength + elementEthicalValue ethical + elementSchoolValue schl
+chromalitePotency = alignmentPotency . chromaliteAlignment

@@ -144,13 +144,13 @@ unwieldTool :: Location m ToolRef Wielded -> Location m ToolRef Inventory
 unwieldTool l = InInventory (entity l) (Inventory c)
     where Wielded c = location l
 
-genericLocation :: Location m e t -> Location m () ()
+genericLocation :: Location m e t -> Location m (Reference ()) ()
 genericLocation = unsafeLocation
 
 genericLocationP :: Location m e t -> Location m e ()
 genericLocationP = unsafeLocation
 
-genericLocationC :: Location m e t -> Location m () t
+genericLocationC :: Location m e t -> Location m (Reference ()) t
 genericLocationC = unsafeLocation
 
 genericParent :: Location m e t -> Reference ()

@@ -55,9 +55,6 @@ dbBehave (Drop tool_ref) creature_ref =
 
 dbBehave (Fire face) creature_ref =
     do dbTurnCreature face creature_ref
-       dbResolveRangedAttack creature_ref face
+       atomic $ liftM dbExecuteRangedAttack $ dbResolveRangedAttack creature_ref face
        return ()
-
-
-
 

@@ -1,38 +1,53 @@
 module ToolData 
     (Tool(..),
-     GunType(..),
+     Gun,
+     gunEnergyOutput,
+     gunThroughput,
+     gunEndurance,
      toolName,
-     phase_pistol,
-     phaser,
-     phase_rifle)
+     phase_pistol)
     where
 
 import Substances
 
-data Tool = Gun { gun_power_cell :: Chromalite,
-                  gun_type :: GunType }
+data Tool = GunTool Gun
             deriving (Read,Show)
 
-data GunType = Pistol   -- itty bitty
-             | Carbine  -- moderate size
-             | Rifle    -- big
-             deriving (Read,Show)
-             
-gun :: GunType -> Chromalite -> Tool
-gun t c = Gun { gun_power_cell = c,
-                gun_type = t }
-      
-phase_pistol :: Tool
-phase_pistol = gun Pistol Pteulanium
-             
-phaser :: Tool
-phaser = gun Carbine Pteulanium
+data GunSize = Pistol
+             | Carbine
+             | Rifle
+	     | Cannon
+	     | Launcher
+             deriving (Read,Show,Eq)
 
-phase_rifle :: Tool
-phase_rifle = gun Rifle Pteulanium
+data Gun = Gun {
+   gun_name :: String,
+   gun_power_cell :: Chromalite,
+   gun_substrate :: Material,
+   gun_casing :: Material,
+   gun_medium :: Gas,
+   gun_size :: GunSize }
+     deriving (Eq,Read,Show)
+
+phase_pistol :: Tool
+phase_pistol = GunTool $ Gun "phase_pistol" Pteulanium Palladium Zinc Argon Pistol
+
+gunEnergyOutput :: Gun -> Integer
+gunEnergyOutput g = gunSizeClass g * (chromalitePotency $ gun_power_cell g)
+
+gunThroughput :: Gun -> Integer
+gunThroughput g = ((material_critical_value $ materialValue $ gun_substrate g) + 1) *
+                  (gasWeight $ gun_medium g)
+
+gunEndurance :: Gun -> Integer
+gunEndurance g = 10 * (material_construction_value $ materialValue $ gun_casing g)^2
+
+gunSizeClass :: Gun -> Integer
+gunSizeClass (Gun { gun_size = Pistol }) = 1
+gunSizeClass (Gun { gun_size = Carbine}) = 3
+gunSizeClass (Gun { gun_size = Rifle}) = 4
+gunSizeClass (Gun { gun_size = Cannon}) = 7
+gunSizeClass (Gun { gun_size = Launcher}) = 10
 
 toolName :: Tool -> String
-toolName (Gun { gun_power_cell = Pteulanium, gun_type = Pistol }) = "phase_pistol"
-toolName (Gun { gun_power_cell = Pteulanium, gun_type = Carbine }) = "phaser"
-toolName (Gun { gun_power_cell = Pteulanium, gun_type = Rifle }) = "phase_rifle"
-toolName (Gun {}) = "unknown_gun"
+toolName (GunTool (Gun { gun_name = s })) = s

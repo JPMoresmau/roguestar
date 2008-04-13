@@ -101,6 +101,7 @@ dbRequiresPlanarTurnState action =
 		  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
 		  DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
 		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
+		  DBEvent (DBKilledEvent killed_ref) -> action killed_ref
 		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
 -- |
@@ -164,6 +165,7 @@ dbDispatchQuery ["state"] =
                            DBPlayerCreatureTurn _ DBWieldMode -> "answer: state wield"
                            DBEvent (DBAttackEvent {}) -> "answer: state attack"
                            DBEvent (DBMissEvent {}) -> "answer: state miss"
+                           DBEvent (DBKilledEvent {}) -> "answer: state killed"
 
 dbDispatchQuery ["who-attacks"] =
     do state <- dbState
@@ -177,6 +179,12 @@ dbDispatchQuery ["who-hit"] =
        return $ case state of
            DBEvent (DBAttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
 	   _ -> "answer: who-hit 0"
+
+dbDispatchQuery ["who-killed"] =
+    do state <- dbState
+       return $ case state of
+           DBEvent (DBKilledEvent killed_ref) -> "answer: who-killed " ++ (show $ toUID killed_ref)
+	   _ -> "answer: who-killed 0"
 
 dbDispatchQuery ["player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
@@ -379,7 +387,7 @@ creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `d
 -- Information about non-owned tools.
 --
 toolData :: Tool -> [(String,String)]
-toolData g@(Gun {}) = [("tool-type","gun"),
+toolData g@(GunTool {}) = [("tool-type","gun"),
                        ("tool",toolName g)]
 
 dbQueryBaseClasses :: (DBReadable db) => Creature -> db String

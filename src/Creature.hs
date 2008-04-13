@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 
 module Creature 
     (dbGenerateInitialPlayerCreature,
@@ -5,7 +6,12 @@ module Creature
      dbTurnCreature,
      dbStepCreature,
      dbGetCreatureScore,
-     dbGetCreatureFaction)
+     dbGetCreatureFaction,
+     dbRollInjury,
+     dbInjureCreature,
+     dbGetDead,
+     dbDeleteCreature,
+     dbSweepDead)
     where
 
 import Data.Maybe
@@ -17,6 +23,8 @@ import DBData
 import FactionData
 import Facing
 import Control.Monad.Error
+import Dice
+import Tool
 
 -- |
 -- Generates a new Creature from the specified species.
@@ -76,3 +84,30 @@ dbTurnCreature face = dbWalkCreature face (0,0)
 dbGetCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 dbGetCreatureFaction = liftM creature_faction . dbGetCreature
 
+dbRollInjury :: (DBReadable db) => CreatureRef -> Integer -> db Integer
+dbRollInjury creature_ref damage_roll = 
+    do ideal_dr <- dbGetCreatureScore DamageReduction creature_ref
+       dr_roll <- roll [0..ideal_dr]
+       return $ max 0 $ damage_roll - dr_roll
+       
+dbInjureCreature :: Integer -> CreatureRef -> DB ()
+dbInjureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
+
+dbGetDead :: (DBReadable db) => Reference a -> db [CreatureRef]
+dbGetDead parent_ref =
+    do critters <- liftM (mapMaybe $ toCreatureRef . entity) $ dbGetContents parent_ref
+       filterRO (liftM (\c -> creatureScore HitPoints c <= 0) . dbGetCreature) critters
+
+dbDeleteCreature :: CreatureRef -> DB ()
+dbDeleteCreature = dbUnsafeDeleteObject $ \l ->
+    do m_dropped_loc <- maybe (return Nothing) (liftM Just . dbDropTool) $ toToolLocation l
+       return $ case () of
+           () | Just dropped_loc <- m_dropped_loc -> genericLocation dropped_loc
+	   () | otherwise -> error "dbKillCreature: no case for this type of entity"
+
+dbSweepDead :: Reference a -> DB ()
+dbSweepDead ref =
+    do worst_to_best_critters <- sortByRO (dbGetCreatureScore HitPoints) =<< dbGetDead ref
+       flip mapM_ worst_to_best_critters $ \creature_ref ->
+           do dbPushSnapshot (DBKilledEvent creature_ref)
+	      dbDeleteCreature creature_ref

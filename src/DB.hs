@@ -17,6 +17,7 @@ module DB
      dbAddCreature,
      dbAddPlane,
      dbAddTool,
+     dbUnsafeDeleteObject,
      dbGetCreature,
      dbGetPlane,
      dbGetTool,
@@ -31,8 +32,8 @@ module DB
      dbGetContents,
      dbSetStartingRace,
      dbGetStartingRace,
-     ro,
-     mapRO, filterRO,
+     ro, atomic,
+     mapRO, filterRO, sortByRO,
      dbGetTimeCoordinate,
      dbAdvanceTime,
      dbNextTurn,
@@ -60,6 +61,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import TimeCoordinate
 import Data.Ord
+import Control.Arrow (first)
 
 data DBState = DBRaceSelectionState
 	     | DBClassSelectionState Creature
@@ -82,11 +84,12 @@ data DBEvent =
   | DBMissEvent {
         miss_event_creature :: CreatureRef,
 	miss_event_weapon :: ToolRef }
-        deriving (Read,Show)
+  | DBKilledEvent {
+        killed_event_creature :: CreatureRef }
+            deriving (Read,Show)
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,
-    db_pop :: Maybe DB_BaseType,
     db_random :: [[Integer]] }
 
 data DB_BaseType = DB_BaseType { db_state :: DBState,
@@ -124,11 +127,11 @@ instance Monad DB where
     fail s = DB $ throwError $ DBError $ "engine-error: " ++ s
 
 instance MonadState DB_BaseType DB where
-    get = liftM getActiveDB $ DB get
-    put = DB . modify . modifyActiveDB . const
+    get = liftM db_here $ DB get
+    put s = DB $ modify (\x -> x { db_here = s })
 
 instance MonadReader DB_BaseType DB where
-    ask = liftM getActiveDB $ DB get
+    ask = liftM db_here $ DB get
     local f actionM = 
         do s <- get
 	   modify f
@@ -161,15 +164,13 @@ instance DBReadable DB where
            return (head rngss)
     dbSimulate = local id
     dbPeepSnapshot actionM =
-        do s <- DB $ gets db_pop
+        do s <- DB $ gets db_here
 	   m_snapshot <- gets db_prior_snapshot
 	   case m_snapshot of
 	       Just snapshot ->
-	           do DB $ modify $ \hist -> hist { db_here = snapshot,
-	                                            db_pop = Just (db_here hist) }
+	           do DB $ modify $ \hist -> hist { db_here = snapshot }
 	              a <- dbSimulate actionM
-                      DB $ modify $ \hist -> hist { db_here = fromMaybe (error "dbPopSnapshot (DB): impossible case") $ db_pop hist,
-	                                            db_pop = s }
+                      DB $ modify $ \hist -> hist { db_here = s }
 	              return $ Just a
                Nothing ->  return Nothing
 	   
@@ -177,17 +178,27 @@ instance DBReadable DB where
 ro :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
 ro db = dbSimulate db
 
-getActiveDB :: DB_History -> DB_BaseType
-getActiveDB = db_here
-
-modifyActiveDB :: (DB_BaseType -> DB_BaseType) -> DB_History -> DB_History
-modifyActiveDB f hist = hist { db_here = f $ db_here hist }
-
 filterRO :: (DBReadable db) => (forall m. DBReadable m => a -> m Bool) -> [a] -> db [a]
 filterRO f xs = ro $ filterM f xs
 
 mapRO :: (DBReadable db) => (forall m. DBReadable m => a -> m b) -> [a] -> db [b]
 mapRO f xs = ro $ mapM f xs
+
+sortByRO :: (DBReadable db,Ord b) => (forall m. DBReadable m => a -> m b) -> [a] -> db [a]
+sortByRO f xs =
+    liftM (List.map fst . sortBy (comparing snd)) $ flip mapRO xs $ \x -> 
+         do y <- f x
+	    return (x,y)
+
+atomic :: (forall m. DBReadable m => m (DB a)) -> DB a
+atomic transaction = 
+    do db_a <- ro transaction
+       (a,s) <- dbSimulate $
+           do a <- db_a
+	      s <- get
+              return (a,s)
+       put s
+       return a
 
 -- |
 -- Generates an initial DB state.
@@ -210,7 +221,6 @@ setupDBHistory db =
     do (TOD seconds picos) <- getClockTime
        return $ DB_History {
            db_here = db,
-	   db_pop = Nothing,
 	   db_random = randomIntegerStreamStream (seconds + picos) }
 
 -- |
@@ -282,6 +292,23 @@ dbAddPlane = dbAddObjectComposable PlaneRef dbPutPlane (\a () -> InTheUniverse a
 --
 dbAddTool :: (ToolLocation l) => Tool -> l -> DB ToolRef
 dbAddTool = dbAddObjectComposable ToolRef dbPutTool toolLocation
+
+-- |
+-- This deletes an object, but leaves any of it's contents dangling.
+--
+dbUnsafeDeleteObject :: (forall m. DBReadable m => 
+                    Location M (Reference ()) (Reference e) -> 
+		    m (Location M (Reference ()) ())) ->
+		  Reference e -> 
+		  DB ()
+dbUnsafeDeleteObject f ref =
+    do dbMoveAllWithin f ref
+       modify $ \db -> db {
+           db_creatures = Map.delete (unsafeReference ref) $ db_creatures db,
+           db_planes = Map.delete (unsafeReference ref) $ db_planes db,
+           db_tools = Map.delete (unsafeReference ref) $ db_tools db,
+           db_hierarchy = HierarchicalDatabase.delete (toUID ref)  $ db_hierarchy db,
+           db_time_coordinates = Map.delete (genericReference ref) $ db_time_coordinates db }
 
 -- |
 -- Puts an object into the database using getter and setter functions.
@@ -386,12 +413,19 @@ dbUnwieldCreature c =
 dbMove :: (LocationType (Reference e),LocationType b) =>
           (forall m. DBReadable m => Location M (Reference e) () -> m (Location M (Reference e) b)) -> 
           (Reference e) ->
-          DB (Location S e (),Location S e b)
+          DB (Location S (Reference e) (),Location S (Reference e) b)
 dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
        dbSetLocation new
        return (unsafeLocation old, unsafeLocation new)
+
+dbMoveAllWithin :: (forall m. DBReadable m => 
+                       Location M (Reference ()) (Reference e) ->
+		       m (Location M (Reference ()) ())) ->
+                   Reference e ->
+		   DB [(Location S (Reference ()) (Reference e),Location S (Reference ()) ())]
+dbMoveAllWithin f ref = mapM (liftM (first unsafeLocation) . dbMove (f . unsafeLocation) . genericChild) =<< dbGetContents ref
 
 -- |
 -- Verifies that a reference is in the database.
@@ -420,7 +454,7 @@ dbGetAncestors ref =
 -- |
 -- Returns the location records of this object.
 --
-dbGetContents :: (DBReadable db) => Reference t -> db [Location S () (Reference t)]
+dbGetContents :: (DBReadable db) => Reference t -> db [Location S (Reference ()) (Reference t)]
 dbGetContents item = asks (List.map unsafeLocation . HierarchicalDatabase.lookupChildren 
                                (toUID item) . db_hierarchy)
 
