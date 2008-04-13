@@ -146,7 +146,7 @@ print1CharacterStat = proc (m_player_stats,stat_str) ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","pickup","drop","wield","attack","miss"]
+planar_states = ["player-turn","pickup","drop","wield","attack","miss","killed"]
 
 planarGameplayDispatch :: RSAnimA1 () Camera () Camera
 planarGameplayDispatch = proc () ->
@@ -320,22 +320,19 @@ questionMarkAvatar = proc _ ->
 \begin{code}
 eventStateHeader :: (String -> Bool) -> RSAnimA1 () () () ()
 eventStateHeader = genericStateHeader switchTo
-    where switchTo "attack" = attackEventMessage
-          switchTo "miss" = missEventMessage
-          switchTo _ = eventMessager
+    where switchTo s = fromMaybe eventMessager $ lookup s messages
 
 eventMessager :: RSAnimA1 () () () ()
 eventMessager = proc () -> 
-    do blockContinue -< True 
-       switchTerminate -< (Just $ eventStateHeader (const False),())
+    do eventStateHeader (isNothing . flip lookup messages) -< () 
+       blockContinue -< True 
 
-attackEventMessage :: RSAnimA1 () () () ()
-attackEventMessage = proc () -> 
-    do eventStateHeader (== "attack") -< ()
-       printTextOnce -< Just (Event,"You attack!  You hit!")
+messageState :: String -> RSAnimA1 () () () () -> (String,RSAnimA1 () () () ())
+messageState s actionA = (s,eventStateHeader (== s) >>> actionA)
 
-missEventMessage :: RSAnimA1 () () () ()
-missEventMessage = proc () ->
-    do eventStateHeader (== "miss") -< ()
-       printTextOnce -< Just (Event,"You attack!  You miss.")
+messages :: [(String,RSAnimA1 () () () ())]
+messages = [
+    messageState "attack" $ proc () -> printTextOnce -< Just (Event,"You attack!  You hit!"),
+    messageState "miss" $ proc () -> printTextOnce -< Just (Event,"You attack!  You miss."),
+    messageState "killed" $ proc () -> printTextOnce -< Just (Event,"You kill it!")]
 \end{code}
