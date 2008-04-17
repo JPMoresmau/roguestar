@@ -17,6 +17,7 @@ import Dice
 import TerrainData
 import Data.Maybe
 import Behavior
+import Perception
 
 dbPerformPlayerTurn :: Behavior -> CreatureRef -> DB ()
 dbPerformPlayerTurn beh creature_ref =
@@ -67,4 +68,4 @@ dbPerform1PlanarAITurn plane_ref =
        dbAdvanceTime t plane_ref
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
-dbPerform1CreatureAITurn = dbAdvanceTime (1%10)
+dbPerform1CreatureAITurn creature_ref = atomic $ liftM (flip dbBehave creature_ref) $ runPerception creature_ref $ return (Attack North)

@@ -79,11 +79,11 @@ data DBCreatureTurnMode =
 data DBEvent = 
     DBAttackEvent {
         attack_event_source_creature :: CreatureRef,
-        attack_event_source_weapon :: ToolRef,
+        attack_event_source_weapon :: Maybe ToolRef,
         attack_event_target_creature :: CreatureRef }
   | DBMissEvent {
         miss_event_creature :: CreatureRef,
-	miss_event_weapon :: ToolRef }
+	miss_event_weapon :: Maybe ToolRef }
   | DBKilledEvent {
         killed_event_creature :: CreatureRef }
             deriving (Read,Show)

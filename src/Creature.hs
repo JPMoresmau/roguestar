@@ -5,7 +5,8 @@ module Creature
      dbNewCreature,
      dbTurnCreature,
      dbStepCreature,
-     dbGetCreatureScore,
+     Roll(..),
+     dbRollCreatureScore,
      dbGetCreatureFaction,
      dbRollInjury,
      dbInjureCreature,
@@ -58,8 +59,16 @@ dbNewCreature faction species loc =
     do creature <- dbGenerateCreature faction species
        dbAddCreature creature loc
 
-dbGetCreatureScore :: (DBReadable db) => Score -> CreatureRef -> db Integer
-dbGetCreatureScore score = liftM (creatureScore score) . dbGetCreature
+data Roll = Roll { 
+    ideal_score :: Integer,
+    other_situation_bonus :: Integer,
+    actual_roll :: Integer }
+
+dbRollCreatureScore :: (DBReadable db) => Score -> Integer -> CreatureRef -> db Roll
+dbRollCreatureScore score bonus creature_ref =
+    do ideal <- liftM ((+ bonus) . creatureScore score) $ dbGetCreature creature_ref
+       actual <- roll [0..ideal]
+       return $ Roll ideal bonus actual
 
 -- |
 -- Causes the creature to walk in the specified facing direction.
@@ -86,9 +95,8 @@ dbGetCreatureFaction = liftM creature_faction . dbGetCreature
 
 dbRollInjury :: (DBReadable db) => CreatureRef -> Integer -> db Integer
 dbRollInjury creature_ref damage_roll = 
-    do ideal_dr <- dbGetCreatureScore DamageReduction creature_ref
-       dr_roll <- roll [0..ideal_dr]
-       return $ max 0 $ damage_roll - dr_roll
+    do damage_reduction <- liftM actual_roll $ dbRollCreatureScore DamageReduction 0 creature_ref
+       return $ max 0 $ damage_roll - damage_reduction
        
 dbInjureCreature :: Integer -> CreatureRef -> DB ()
 dbInjureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
@@ -107,7 +115,7 @@ dbDeleteCreature = dbUnsafeDeleteObject $ \l ->
 
 dbSweepDead :: Reference a -> DB ()
 dbSweepDead ref =
-    do worst_to_best_critters <- sortByRO (dbGetCreatureScore HitPoints) =<< dbGetDead ref
+    do worst_to_best_critters <- sortByRO (liftM ideal_score . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
            do dbPushSnapshot (DBKilledEvent creature_ref)
 	      dbDeleteCreature creature_ref
