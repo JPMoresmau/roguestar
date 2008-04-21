@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts #-}
 
 module Combat
     (dbResolveRangedAttack,
@@ -28,7 +28,7 @@ data RangedAttackOutcome =
 
 dbResolveRangedAttack :: (DBReadable db) => CreatureRef -> Facing -> db RangedAttackOutcome
 dbResolveRangedAttack attacker_ref face =
-    do m_defender_ref <- liftM (listToMaybe . mapMaybe (toCreatureRef . entity)) $ dbFindRangedTargets attacker_ref face
+    do m_defender_ref <- liftM listToMaybe $ dbFindRangedTargets attacker_ref face
        tool_ref <- maybe (throwError $ DBErrorFlag "no-weapon-wielded") return =<< dbGetWielded attacker_ref
        attack_roll <- dbRollRangedAttack attacker_ref
        damage_roll <- dbRollRangedDamage attacker_ref tool_ref
@@ -47,7 +47,7 @@ data MeleeAttackOutcome =
 
 dbResolveMeleeAttack :: (DBReadable db) => CreatureRef -> Facing -> db MeleeAttackOutcome
 dbResolveMeleeAttack attacker_ref face =
-    do m_defender_ref <- liftM (listToMaybe . mapMaybe (toCreatureRef . entity)) $ dbFindMeleeTargets attacker_ref face
+    do m_defender_ref <- liftM listToMaybe $ dbFindMeleeTargets attacker_ref face
        attack_roll <- dbRollMeleeAttack attacker_ref
        damage_roll <- dbRollMeleeDamage attacker_ref
        case m_defender_ref of
@@ -65,7 +65,7 @@ dbExecuteRangedAttack (RangedAttackMiss attacker_ref tool_ref) =
 dbExecuteRangedAttack (RangedAttackHitCreature attacker_ref tool_ref defender_ref damage) =
     do dbPushSnapshot (DBAttackEvent attacker_ref (Just tool_ref) defender_ref)
        dbInjureCreature damage defender_ref
-       dbSweepDead =<< liftM genericParent (dbWhere attacker_ref)
+       dbSweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbExecuteMeleeAttack :: MeleeAttackOutcome -> DB ()
 dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
@@ -73,7 +73,7 @@ dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
 dbExecuteMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
     do dbPushSnapshot (DBAttackEvent attacker_ref Nothing defender_ref)
        dbInjureCreature damage defender_ref
-       dbSweepDead =<< liftM genericParent (dbWhere attacker_ref)
+       dbSweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbRollRangedDamage :: (DBReadable db) => CreatureRef -> ToolRef -> db Integer
 dbRollRangedDamage _ weapon_ref =
@@ -97,30 +97,30 @@ dbRollRangedDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Referen
 dbRollRangedDefense attacker_ref x_defender_ref =
     do distance <- liftM (fromMaybe (error "dbGetOpposedAttackRoll: defender and attacker are on different planes")) $ dbDistanceBetweenSquared attacker_ref x_defender_ref 
        case () of
-           () | Just defender_ref <- toCreatureRef x_defender_ref -> liftM actual_roll $ dbRollCreatureScore RangedDefense distance defender_ref
+           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM actual_roll $ dbRollCreatureScore RangedDefense distance defender_ref
 	   () | otherwise -> return distance
        
 dbRollMeleeDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
 dbRollMeleeDefense _ x_defender_ref = 
     case () of
-        () | Just defender_ref <- toCreatureRef x_defender_ref -> liftM actual_roll $ dbRollCreatureScore MeleeDefense 0 defender_ref
+        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM actual_roll $ dbRollCreatureScore MeleeDefense 0 defender_ref
         () | otherwise -> return 1
 
-dbFindRangedTargets :: (DBReadable db,ReferenceType a) => Reference a -> Facing -> db [Location S (Reference ()) Position]
+dbFindRangedTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
 dbFindRangedTargets attacker_ref face =
     do m_l <- dbGetPlanarLocation attacker_ref
        flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
-           liftM (sortBy (comparing (distanceBetweenSquared pos . location)) .
-	          filter ((/= genericReference attacker_ref) . entity) . 
-	          filter (isFacing (pos,face) . location) . 
-		  mapMaybe coerceLocation) $ 
+           liftM (mapMaybe fromLocation .
+	          sortBy (comparing (distanceBetweenSquared pos . location)) .
+	          filter ((/= generalizeReference attacker_ref) . entity) . 
+	          filter (isFacing (pos,face) . location)) $ 
 		      dbGetContents plane_ref
 
-dbFindMeleeTargets :: (DBReadable db,ReferenceType a) => Reference a -> Facing -> db [Location S (Reference ()) Position]
+dbFindMeleeTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
 dbFindMeleeTargets attacker_ref face =
     do m_l <- dbGetPlanarLocation attacker_ref
        flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
-           liftM (filter (\x -> (location x == (offsetPosition (facingToRelative face) pos) || location x == pos) &&
-	                        genericReference attacker_ref /= entity x) .
-	          mapMaybe coerceLocation) $
+           liftM (mapMaybe fromLocation .
+	          filter (\x -> (location x == (offsetPosition (facingToRelative face) pos) || location x == pos) &&
+	                        generalizeReference attacker_ref /= entity x)) $
 	       dbGetContents plane_ref

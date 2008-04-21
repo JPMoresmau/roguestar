@@ -71,7 +71,7 @@ data Standing =
     Standing { standing_plane :: PlaneRef,
                standing_position :: Position,
                standing_facing :: Facing }
-    deriving (Read,Show)
+    deriving (Read,Show,Eq,Ord)
 
 -- |
 -- The location of a Tool dropped on a Plane.
@@ -79,21 +79,21 @@ data Standing =
 data Dropped = 
     Dropped { dropped_plane :: PlaneRef,
               dropped_position :: Position }
-    deriving (Read,Show)
+    deriving (Read,Show,Eq,Ord)
 
 -- |
 -- The location of a tool carried by a creature.
 --
 data Inventory =
     Inventory { inventory_creature :: CreatureRef }
-    deriving (Read,Show)
+    deriving (Read,Show,Eq,Ord)
 
 -- |
 -- The location of a weapon wielded in the hand of a creature.
 --
 data Wielded =
     Wielded { wielded_creature :: CreatureRef }
-    deriving (Read,Show)
+    deriving (Read,Show,Eq,Ord)
 -- |
 -- A relational data structure defining the location of any entity.
 -- All of the type variables of Location are phantom types.
@@ -128,7 +128,7 @@ data Location m e t =
    | InInventory ToolRef Inventory
    | IsWielded ToolRef Wielded
    | InTheUniverse PlaneRef
-    deriving (Read,Show)
+    deriving (Read,Show,Eq,Ord)
 
 unsafeLocation :: Location a b c -> Location d e f
 unsafeLocation (IsStanding a b) = IsStanding a b

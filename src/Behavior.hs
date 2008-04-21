@@ -24,6 +24,7 @@ data Behavior =
   | Drop ToolRef
   | Fire Facing
   | Attack Facing
+  | Wait
 
 dbBehave :: Behavior -> CreatureRef -> DB ()
 dbBehave (Step face) creature_ref =
@@ -65,3 +66,6 @@ dbBehave (Attack face) creature_ref =
        atomic $ liftM dbExecuteMeleeAttack $ dbResolveMeleeAttack creature_ref face
        dbAdvanceTime (1%20) creature_ref
        return ()
+
+dbBehave Wait creature_ref =
+    do dbAdvanceTime (1%40) creature_ref

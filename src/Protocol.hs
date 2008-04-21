@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification, PatternSignatures #-}
 
 module Protocol
     (mainLoop)
@@ -200,23 +200,23 @@ dbDispatchQuery ["visible-terrain","0"] =
 
 dbDispatchQuery ["visible-objects","0"] = 
     do maybe_plane_ref <- dbGetCurrentPlane
-       objects <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
-       table_rows <- mapM dbObjectToTableRow objects
+       (objects :: [Location S (Reference ()) ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+       table_rows <- mapM (dbObjectToTableRow . entity) objects
        return ("begin-table visible-objects 0 object-unique-id x y facing\n" ++
                (unlines $ table_rows) ++
                "end-table")
         where dbObjectToTableRow obj_ref = 
-                do loc <- dbWhere obj_ref
-                   return $ case (position loc,facing loc) of
-                                 (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,maybe "Here" show maybe_face]
+                do l <- dbWhere obj_ref
+                   return $ case (extractLocation l,extractLocation l) of
+                                 (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,show $ fromMaybe Here maybe_face]
                                  _ -> ""
 
 dbDispatchQuery ["object-details",_] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
-     visibles <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
-     let creature_refs = mapMaybe toCreatureRef visibles
+     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+     let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
-     let tool_refs = mapMaybe toToolRef visibles ++ wielded
+     let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
      tools <- liftM (zip tool_refs)$ mapRO dbGetTool tool_refs
      return $ unlines $ (map creatureToTableData creatures ++
@@ -249,14 +249,14 @@ dbDispatchQuery ["pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
 		"end-table"
 
 dbDispatchQuery ["inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- liftM (map entity . mapMaybe toToolLocation) $ dbGetContents creature_ref
+    do (inventory :: [ToolRef]) <- dbGetContents creature_ref
        return $ "begin-table inventory 0 uid\n" ++
                 unlines (map (show . toUID) inventory) ++
 		"end-table"
 
 dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
-       creature_refs <- liftM (mapMaybe toCreatureRef) $ maybe (return []) (dbGetVisibleObjectsForFaction Player) m_plane_ref
+       creature_refs <- maybe (return []) (dbGetVisibleObjectsForFaction Player) m_plane_ref
        wielded_tool_refs <- mapM dbGetWielded creature_refs
        let wieldedPairToTable :: CreatureRef -> Maybe ToolRef -> Maybe String
            wieldedPairToTable creature_ref = fmap (\tool_ref -> (show $ toUID tool_ref) ++ " " ++ (show $ toUID creature_ref))
@@ -298,7 +298,7 @@ dbDispatchAction ["pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref
        done
 
 dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- dbGetCarried creature_ref
+    do inventory <- dbGetContents creature_ref
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
@@ -311,7 +311,7 @@ dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref -
        done
 
 dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- dbGetInventory creature_ref
+    do inventory <- dbGetContents creature_ref
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
@@ -401,8 +401,8 @@ baseClassesTable creature =
 
 dbQueryCenterCoordinates :: (DBReadable db) => CreatureRef -> db String
 dbQueryCenterCoordinates creature_ref =
-    do loc <- dbWhere creature_ref
-       case (position loc,facing loc) of
+    do l <- dbWhere creature_ref
+       case (extractLocation l,extractLocation l :: Maybe Facing) of
 		(Just (Position (x,y)),Nothing) -> 
                     return (begin_table ++
 			    "x " ++ show x ++ "\n" ++

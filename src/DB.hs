@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
+{-# LANGUAGE MultiParamTypeClasses, ExistentialQuantification, FlexibleContexts, Rank2Types, RelaxedPolyRec #-}
 
 module DB
     (DB,
@@ -98,7 +98,7 @@ data DB_BaseType = DB_BaseType { db_state :: DBState,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
 				 db_tools :: Map ToolRef Tool,
-				 db_hierarchy :: HierarchicalDatabase (Location () () ()),
+				 db_hierarchy :: HierarchicalDatabase (Location S (Reference ()) ()),
 				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
 				 db_error_flag :: String,
 				 db_prior_snapshot :: Maybe DB_BaseType}
@@ -213,7 +213,7 @@ initial_db = DB_BaseType {
     db_tools = Map.fromList [],
     db_hierarchy = HierarchicalDatabase.fromList [],
     db_error_flag = [],
-    db_time_coordinates = Map.fromList [(genericReference the_universe, zero_time)],
+    db_time_coordinates = Map.fromList [(generalizeReference the_universe, zero_time)],
     db_prior_snapshot = Nothing }
 
 setupDBHistory :: DB_BaseType -> IO DB_History
@@ -263,16 +263,16 @@ instance ToolLocation Wielded where
 -- |
 -- Adds something to a map in the database using a new object reference.
 --
-dbAddObjectComposable :: (LocationType (Reference a),LocationType l) =>
+dbAddObjectComposable :: (ReferenceType a,LocationType (Reference a),LocationType l) =>
                          (Integer -> (Reference a)) -> 
                          (Reference a -> a -> DB ()) -> 
-                         (Reference a -> l -> Location () (Reference a) l) -> 
+                         (Reference a -> l -> Location S (Reference a) l) -> 
                          a -> l -> DB (Reference a)
 dbAddObjectComposable constructReference updateObject constructLocation thing loc = 
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
-       dbSetTimeCoordinate (genericReference ref) =<< dbGetTimeCoordinate (genericReference the_universe)
+       dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference the_universe)
        return ref
 
 -- |
@@ -296,11 +296,12 @@ dbAddTool = dbAddObjectComposable ToolRef dbPutTool toolLocation
 -- |
 -- This deletes an object, but leaves any of it's contents dangling.
 --
-dbUnsafeDeleteObject :: (forall m. DBReadable m => 
-                    Location M (Reference ()) (Reference e) -> 
-		    m (Location M (Reference ()) ())) ->
-		  Reference e -> 
-		  DB ()
+dbUnsafeDeleteObject :: (ReferenceType e) =>
+        (forall m. DBReadable m => 
+         Location M (Reference ()) (Reference e) -> 
+	 m (Location M (Reference ()) ())) ->
+    Reference e -> 
+    DB ()
 dbUnsafeDeleteObject f ref =
     do dbMoveAllWithin f ref
        modify $ \db -> db {
@@ -308,7 +309,7 @@ dbUnsafeDeleteObject f ref =
            db_planes = Map.delete (unsafeReference ref) $ db_planes db,
            db_tools = Map.delete (unsafeReference ref) $ db_tools db,
            db_hierarchy = HierarchicalDatabase.delete (toUID ref)  $ db_hierarchy db,
-           db_time_coordinates = Map.delete (genericReference ref) $ db_time_coordinates db }
+           db_time_coordinates = Map.delete (generalizeReference ref) $ db_time_coordinates db }
 
 -- |
 -- Puts an object into the database using getter and setter functions.
@@ -391,9 +392,9 @@ dbModTool = dbModObjectComposable dbGetTool dbPutTool
 -- |
 -- Set the location of an object.
 --
-dbSetLocation :: (LocationType e,LocationType t) => Location m e t -> DB ()
+dbSetLocation :: (LocationType e,LocationType t) => Location S e t -> DB ()
 dbSetLocation loc = 
-    do case (fmap location $ toWieldedLocation loc) of
+    do case (fmap location $ coerceLocationTyped _wielded loc) of
            Just (Wielded c) -> dbUnwieldCreature c
 	   Nothing -> return ()
        modify (\db -> db { db_hierarchy=HierarchicalDatabase.insert (unsafeLocation loc) $ db_hierarchy db })
@@ -402,9 +403,7 @@ dbSetLocation loc =
 -- Shunt any wielded objects into inventory.
 --
 dbUnwieldCreature :: CreatureRef -> DB ()
-dbUnwieldCreature c =
-    do cs_tools <- dbGetContents c
-       mapM_ (maybe (return ()) (dbSetLocation . unwieldTool) . coerceLocation) cs_tools
+dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<< dbGetContents c
 
 -- |
 -- Moves an object, returning the location of the object before and after
@@ -417,7 +416,7 @@ dbMove :: (LocationType (Reference e),LocationType b) =>
 dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
-       dbSetLocation new
+       dbSetLocation $ generalizeLocationRecord $ unsafeLocation new
        return (unsafeLocation old, unsafeLocation new)
 
 dbMoveAllWithin :: (forall m. DBReadable m => 
@@ -425,7 +424,7 @@ dbMoveAllWithin :: (forall m. DBReadable m =>
 		       m (Location M (Reference ()) ())) ->
                    Reference e ->
 		   DB [(Location S (Reference ()) (Reference e),Location S (Reference ()) ())]
-dbMoveAllWithin f ref = mapM (liftM (first unsafeLocation) . dbMove (f . unsafeLocation) . genericChild) =<< dbGetContents ref
+dbMoveAllWithin f ref = mapM (liftM (first unsafeLocation) . dbMove (f . unsafeLocation)) =<< dbGetContents ref
 
 -- |
 -- Verifies that a reference is in the database.
@@ -444,48 +443,48 @@ dbWhere item = asks (unsafeLocation . fromMaybe (error "dbWhere: has no location
 -- Returns all ancestor Locations of this element starting with the location
 -- of the element and ending with theUniverse.
 --
-dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location S () ()]
-dbGetAncestors ref | isTheUniverse ref = return []
+dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location S (Reference ()) ()]
+dbGetAncestors ref | isReferenceTyped _the_universe ref = return []
 dbGetAncestors ref =
-    do this <- liftM unsafeLocation $ dbWhere ref
-       rest <- dbGetAncestors $ genericParent this
+    do this <- dbWhere $ generalizeReference ref
+       rest <- dbGetAncestors $ getLocation this
        return $ this : rest
 
 -- |
 -- Returns the location records of this object.
 --
-dbGetContents :: (DBReadable db) => Reference t -> db [Location S (Reference ()) (Reference t)]
-dbGetContents item = asks (List.map unsafeLocation . HierarchicalDatabase.lookupChildren 
+dbGetContents :: (DBReadable db,GenericReference a S) => Reference t -> db [a]
+dbGetContents item = asks (Data.Maybe.mapMaybe fromLocation . HierarchicalDatabase.lookupChildren 
                                (toUID item) . db_hierarchy)
 
 -- |
 -- Gets the time of an object.
 -- 
-dbGetTimeCoordinate :: (DBReadable db) => Reference a -> db TimeCoordinate
+dbGetTimeCoordinate :: (DBReadable db,ReferenceType a) => Reference a -> db TimeCoordinate
 dbGetTimeCoordinate ref = asks (fromMaybe (error "dbGetTimeCoordinate: missing time coordinate.") . 
-                                  Map.lookup (genericReference ref) . db_time_coordinates)
+                                  Map.lookup (generalizeReference ref) . db_time_coordinates)
 
 -- |
 -- Sets the time of an object.
 --
-dbSetTimeCoordinate :: Reference a -> TimeCoordinate -> DB ()
-dbSetTimeCoordinate ref tc = modify (\db -> db { db_time_coordinates = Map.insert (genericReference ref) tc $ db_time_coordinates db })
+dbSetTimeCoordinate :: (ReferenceType a) => Reference a -> TimeCoordinate -> DB ()
+dbSetTimeCoordinate ref tc = modify (\db -> db { db_time_coordinates = Map.insert (generalizeReference ref) tc $ db_time_coordinates db })
 
 -- |
 -- Advances the time of an object.
 --
-dbAdvanceTime :: Rational -> Reference a -> DB ()
+dbAdvanceTime :: (ReferenceType a) => Rational -> Reference a -> DB ()
 dbAdvanceTime t ref = dbSetTimeCoordinate ref =<< (return . (advanceTime t)) =<< dbGetTimeCoordinate ref
 
 -- |
 -- Finds the object whose turn is next, among a restricted group of objects.
 --
-dbNextTurn :: (DBReadable db) => [Reference a] -> db (Reference a)
+dbNextTurn :: (DBReadable db,ReferenceType a) => [Reference a] -> db (Reference a)
 dbNextTurn [] = error "dbNextTurn: empty list"
 dbNextTurn refs =
     asks (\db -> fst $ minimumBy (comparing snd) $
                    List.map (\r -> (r,fromMaybe (error "dbNextTurn: missing time coordinate") $
-                                      Map.lookup (genericReference r) (db_time_coordinates db))) refs)
+                                      Map.lookup (generalizeReference r) (db_time_coordinates db))) refs)
 
 -- |
 -- Answers the starting race.

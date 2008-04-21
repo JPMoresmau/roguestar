@@ -5,10 +5,13 @@ module Facing
      facingToRelative7,
      stringToFacing,
      facingDistance,
-     isFacing)
+     isFacing,
+     faceAt)
     where
 
 import Position
+import Data.Ord
+import Data.List
 
 data Facing = North
 	    | NorthEast
@@ -19,7 +22,7 @@ data Facing = North
 	    | West
 	    | NorthWest
 	    | Here
-	      deriving (Eq,Enum,Bounded,Read,Show)
+	      deriving (Eq,Ord,Enum,Bounded,Read,Show)
 
 -- |
 -- Takes an abbreviation (n,e,sw, etc) and answers a facing.
@@ -53,7 +56,6 @@ facingToRelative Here = (0,0)
 
 -- |
 -- In relative coordinates, roughly seven integral steps in the specified direction.
--- Note: 7 is a small integer such that the square root of 2*5^2 is quite close to 7.
 --
 facingToRelative7 :: Facing -> (Integer,Integer)
 facingToRelative7 North = (0,7)
@@ -79,16 +81,23 @@ facingDistance a b = toInteger $ if enum_distance > 4 then 8 - enum_distance els
 -- A test function to detect when one Position + Facing points directly at another Position.
 --
 isFacing :: (Position, Facing) -> Position -> Bool
-isFacing ((Position a),face) (Position b) = facingTestFunction face a b
+isFacing ((Position a),face) (Position b) = f face a b
+    where f :: Facing -> (Integer,Integer) -> (Integer,Integer) -> Bool
+          f North (x,y) (u,v) = x == u && v >= y
+          f NorthEast (x,y) (u,v) = x - u == y - v && u >= x
+          f East (x,y) (u,v) = y == v && u >= x
+          f SouthEast (x,y) (u,v) = x - u == v - y && u >= x
+          f South (x,y) (u,v) = x == u && v <= y
+          f SouthWest (x,y) (u,v) = x - u == y - v && u <= x
+          f West (x,y) (u,v) = y == v && u <= x
+          f NorthWest (x,y) (u,v) = x - y == v - y && u <= x
+          f Here xy uv = xy == uv
 
-facingTestFunction :: Facing -> (Integer,Integer) -> (Integer,Integer) -> Bool
-facingTestFunction North (x,y) (u,v) = x == u && v >= y
-facingTestFunction NorthEast (x,y) (u,v) = x - u == y - v && u >= x
-facingTestFunction East (x,y) (u,v) = y == v && u >= x
-facingTestFunction SouthEast (x,y) (u,v) = x - u == v - y && u >= x
-facingTestFunction South (x,y) (u,v) = x == u && v <= y
-facingTestFunction SouthWest (x,y) (u,v) = x - u == y - v && u <= x
-facingTestFunction West (x,y) (u,v) = y == v && u <= x
-facingTestFunction NorthWest (x,y) (u,v) = x - y == v - y && u <= x
-facingTestFunction Here (x,y) (u,v) = x == u && y == v
-
+-- |
+-- Which facing most closely points from the first Position to the second.
+--
+faceAt :: Position -> Position -> Facing
+faceAt here there = fst $ minimumBy (comparing snd) $
+    map (\x -> let face = Position $ facingToRelative7 x in
+                      (x,distanceBetweenSquared there face -
+                         distanceBetweenSquared here face)) [minBound..maxBound]

@@ -4,7 +4,7 @@ module Position
      offsetPosition)
     where
 
-newtype Position = Position (Integer,Integer)
+newtype Position = Position { fromPosition :: (Integer,Integer) }
     deriving (Eq,Ord,Read,Show)
 
 offsetPosition :: (Integer,Integer) -> Position -> Position

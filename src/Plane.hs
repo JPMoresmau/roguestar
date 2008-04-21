@@ -29,7 +29,7 @@ dbNewPlane tg_data =
 --
 dbGetPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (PlaneRef,Position))
 dbGetPlanarLocation ref =
-    liftM (fmap location . listToMaybe . mapMaybe coerceParent) $ dbGetAncestors ref
+    liftM (fmap location . listToMaybe . mapMaybe coerceLocation) $ dbGetAncestors ref
 
 -- |
 -- Distance between two entities.
@@ -79,7 +79,7 @@ pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,
            (mapM (\x -> liftM (+start_x) $ roll [-x..x]) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ roll [-x..x]) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
-       clutter_locations <- liftM (mapMaybe position) $ dbGetContents plane_ref
+       clutter_locations <- locationsOf $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 
                all terrainPredicate $
                    concat [[gridAt terrain (x',y') | 

@@ -76,12 +76,11 @@ dbRollCreatureScore score bonus creature_ref =
 dbWalkCreature :: Facing -> (Integer,Integer) -> CreatureRef -> DB ()
 dbWalkCreature face (x',y') creature_ref =
     do flip dbMove creature_ref $ \l -> return $ fromMaybe l $
-          do p <- liftM location $ toPlanarLocation l
-             Position (x,y) <- liftM location $ toPositionLocation l
+          do (p,Position (x,y)) <- extractLocation l
              let standing = Standing { standing_plane = p,
                                        standing_position = Position (x+x',y+y'),
                                        standing_facing = face } 
-	     return $ genericLocationP $ standCreature standing l
+	     return $ generalizeLocation $ toStanding standing l
        return ()
 
 dbStepCreature :: Facing -> CreatureRef -> DB ()
@@ -102,16 +101,14 @@ dbInjureCreature :: Integer -> CreatureRef -> DB ()
 dbInjureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
 
 dbGetDead :: (DBReadable db) => Reference a -> db [CreatureRef]
-dbGetDead parent_ref =
-    do critters <- liftM (mapMaybe $ toCreatureRef . entity) $ dbGetContents parent_ref
-       filterRO (liftM (\c -> creatureScore HitPoints c <= 0) . dbGetCreature) critters
+dbGetDead parent_ref = filterRO (liftM (\c -> creatureScore HitPoints c <= 0) . dbGetCreature) =<< dbGetContents parent_ref
 
 dbDeleteCreature :: CreatureRef -> DB ()
 dbDeleteCreature = dbUnsafeDeleteObject $ \l ->
-    do m_dropped_loc <- maybe (return Nothing) (liftM Just . dbDropTool) $ toToolLocation l
-       return $ case () of
-           () | Just dropped_loc <- m_dropped_loc -> genericLocation dropped_loc
-	   () | otherwise -> error "dbKillCreature: no case for this type of entity"
+    do m_dropped_loc <- maybe (return Nothing) (liftM Just . dbDropTool) $ coerceEntityTyped _tool l
+       return $ case m_dropped_loc of
+           Just dropped_loc -> generalizeLocationRecord dropped_loc
+	   Nothing -> error "dbDeleteCreature: no case for this type of entity"
 
 dbSweepDead :: Reference a -> DB ()
 dbSweepDead ref =

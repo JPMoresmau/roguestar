@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies, UndecidableInstances #-}
 
 module DBData
     (Reference,
@@ -7,6 +8,9 @@ module DBData
      ToolRef,
      TheUniverse(..),
      the_universe,
+     (=:=),
+     GenericReference(..),
+     locationsOf,
      ReferenceType(..),
      LocationType(..),
      Location,
@@ -15,54 +19,39 @@ module DBData
      Dropped(..),
      Inventory(..),
      Wielded(..),
+     _creature,
+     _tool,
+     _plane,
+     _standing,
+     _dropped,
+     _inventory,
+     _wielded,
+     _position,
+     _facing,
+     _the_universe,
+     asLocationTyped,
      DBPrivate.S,
-     genericReference,
-     genericChild,
-     genericParent,
-     genericLocation,
-     genericLocationP,
-     genericLocationC,
-     standCreature,
-     dropTool,
-     pickupTool,
-     wieldTool,
-     unwieldTool,
-     entity,
      location,
+     entity,
+     coerceReferenceTyped,
+     isReferenceTyped,
+     coerceLocationTyped,
+     isLocationTyped,
+     coerceEntityTyped,
+     isEntityTyped,
+     coerceLocationRecord,
      coerceLocation,
-     coerceParent,
-     coerceChild,
-     isCreatureRef,
-     isPlaneRef,
-     isToolRef,
-     isTheUniverse,
-     toCreatureRef,
-     toPlaneRef,
-     toToolRef,
-     isCreatureLocation,
-     toCreatureLocation,
-     isToolLocation,
-     toToolLocation,
-     isPlaneLocation,
-     toPlaneLocation,
-     isStandingLocation,
-     toStandingLocation,
-     isDroppedLocation,
-     toDroppedLocation,
-     isInventoryLocation,
-     toInventoryLocation,
-     isWieldedLocation,
-     toWieldedLocation,
-     isPlanarLocation,
-     toPlanarLocation,
-     isCarriedLocation,
-     toCarriedLocation,
-     position,
-     isPositionLocation,
-     toPositionLocation,
-     facing,
-     isFacingLocation,
-     toFacingLocation)
+     coerceEntity,
+     getLocation,
+     getEntity,
+     generalizeLocation,
+     generalizeEntity,
+     generalizeLocationRecord,
+     toStanding,
+     toDropped,
+     toInventory,
+     toWielded,
+     returnToInventory)
     where
 
 import Facing
@@ -74,36 +63,77 @@ import Data.Maybe
 import Control.Monad
 import Position
 
-isCreatureRef :: Reference a -> Bool
-isCreatureRef = isJust . toCreatureRef
+--
+-- Type Instances
+--
+newtype Type a = Type a
 
-isPlaneRef :: Reference a -> Bool
-isPlaneRef = isJust . toPlaneRef
+_creature :: Type CreatureRef
+_creature = Type $ error "_creature: undefined"
 
-isToolRef :: Reference a -> Bool
-isToolRef = isJust . toToolRef
+_tool :: Type ToolRef
+_tool = Type $ error "_tool: undefined"
 
-isTheUniverse :: Reference a -> Bool
-isTheUniverse UniverseRef = True
-isTheUniverse _ = False
+_plane :: Type PlaneRef
+_plane = Type $ error "_plane: undefined"
+
+_standing :: Type Standing
+_standing = Type $ error "_standing: undefined"
+
+_dropped :: Type Dropped
+_dropped = Type $ error "_dropped: undefined"
+
+_inventory :: Type Inventory
+_inventory = Type $ error "_inventory: undefined"
+
+_wielded :: Type Wielded
+_wielded = Type $ error "_wielded: undefined"
+
+_position :: Type Position
+_position = Type $ error "_position: undefined"
+
+_facing :: Type Facing
+_facing = Type $ error "_facing: undefined"
+
+_the_universe :: Type (Reference TheUniverse)
+_the_universe = Type $ error "_the_universe: undefined"
+
+--
+-- Getting References generically.
+--
+class GenericReference a m | a -> m where
+    fromLocation :: (ReferenceType x) => Location m (Reference x) b -> Maybe a
+    generalizeReference :: a -> Reference ()
+
+instance (ReferenceType a) => GenericReference (Reference a) m where
+    fromLocation = coerceReference . entity
+    generalizeReference = unsafeReference
+
+instance (LocationType a,LocationType b) => GenericReference (Location m a b) m where
+    fromLocation = coerceLocationRecord
+    generalizeReference = getEntity
+
+locationsOf :: (Monad m,LocationType a) => m [Location S (Reference ()) a] -> m [a]
+locationsOf = liftM (map location)
+
+--
+-- Reference Equality
+--
+(=:=) :: (GenericReference a m,GenericReference b n) => a -> b -> Bool
+a =:= b = generalizeReference a == generalizeReference b
+
+--
+-- References
+--
 
 the_universe :: Reference TheUniverse
 the_universe = UniverseRef
 
-toToolRef :: Reference a -> Maybe (Reference Tool)
-toToolRef (ToolRef x) = Just $ ToolRef x
-toToolRef _ = Nothing
+coerceReferenceTyped :: (ReferenceType a) => Type (Reference a) -> Reference x -> Maybe (Reference a)
+coerceReferenceTyped = const coerceReference
 
-toCreatureRef :: Reference a -> Maybe (Reference Creature)
-toCreatureRef (CreatureRef x) = Just $ CreatureRef x
-toCreatureRef _ = Nothing
-
-toPlaneRef :: Reference a -> Maybe (Reference Plane)
-toPlaneRef (PlaneRef x) = Just $ PlaneRef x
-toPlaneRef _ = Nothing
-
-genericReference :: Reference a -> Reference ()
-genericReference = unsafeReference
+isReferenceTyped :: (ReferenceType a) => Type (Reference a) -> Reference x -> Bool
+isReferenceTyped a = isJust . coerceReferenceTyped a
 
 class ReferenceType a where
     coerceReference :: Reference x -> Maybe (Reference a)
@@ -112,201 +142,154 @@ instance ReferenceType () where
     coerceReference = Just . unsafeReference
 
 instance ReferenceType Plane where
-    coerceReference = toPlaneRef
-
-instance ReferenceType Tool where
-    coerceReference = toToolRef
-
-instance ReferenceType Creature where
-    coerceReference = toCreatureRef
-
-instance ReferenceType TheUniverse where
-    coerceReference (UniverseRef) = Just UniverseRef
+    coerceReference (PlaneRef ref) = Just $ PlaneRef ref
     coerceReference _ = Nothing
 
-standCreature :: Standing -> Location m CreatureRef t -> Location m CreatureRef Standing
-standCreature s l | isCreatureLocation l = IsStanding (entity l) s
-standCreature _ _ = error "standCreature: type error"
+instance ReferenceType Tool where
+    coerceReference (ToolRef ref) = Just $ ToolRef ref
+    coerceReference _ = Nothing
 
-dropTool :: Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
-dropTool d l | isToolLocation l = IsDropped (entity l) d
-dropTool _ _ = error "dropTool: type error"
+instance ReferenceType Creature where
+    coerceReference (CreatureRef ref) = Just $ CreatureRef ref
+    coerceReference _ = Nothing
 
-pickupTool :: Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
-pickupTool i l | isToolLocation l = InInventory (entity l) i
-pickupTool _ _ = error "pickupTool: type error"
+instance ReferenceType TheUniverse where
+    coerceReference UniverseRef = Just UniverseRef
+    coerceReference _ = Nothing
 
-wieldTool :: Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
-wieldTool i l | isToolLocation l = IsWielded (entity l) i
-wieldTool _ _ = error "wieldTool: type error"
+--
+-- Locations
+--
+generalizeLocationRecord :: Location m e t -> Location m (Reference ()) ()
+generalizeLocationRecord = unsafeLocation
 
-unwieldTool :: Location m ToolRef Wielded -> Location m ToolRef Inventory
-unwieldTool l = InInventory (entity l) (Inventory c)
-    where Wielded c = location l
+generalizeLocation :: Location m e t -> Location m e ()
+generalizeLocation = unsafeLocation
 
-genericLocation :: Location m e t -> Location m (Reference ()) ()
-genericLocation = unsafeLocation
+generalizeEntity :: Location m e t -> Location m (Reference ()) t
+generalizeEntity = unsafeLocation
 
-genericLocationP :: Location m e t -> Location m e ()
-genericLocationP = unsafeLocation
+getLocation :: Location m e t -> Reference ()
+getLocation (IsStanding _ s) = unsafeReference $ standing_plane s
+getLocation (IsDropped _ d) = unsafeReference $ dropped_plane d
+getLocation (InInventory _ c) = unsafeReference $ inventory_creature c
+getLocation (IsWielded _ c) = unsafeReference $ wielded_creature c
+getLocation (InTheUniverse _) = unsafeReference UniverseRef
 
-genericLocationC :: Location m e t -> Location m (Reference ()) t
-genericLocationC = unsafeLocation
+getEntity :: Location m e t -> Reference ()
+getEntity (IsStanding r _) = unsafeReference r
+getEntity (IsDropped r _) = unsafeReference r
+getEntity (InInventory r _) = unsafeReference r
+getEntity (IsWielded r _) = unsafeReference r
+getEntity (InTheUniverse r) = unsafeReference r
 
-genericParent :: Location m e t -> Reference ()
-genericParent (IsStanding _ s) = unsafeReference $ standing_plane s
-genericParent (IsDropped _ d) = unsafeReference $ dropped_plane d
-genericParent (InInventory _ c) = unsafeReference $ inventory_creature c
-genericParent (IsWielded _ c) = unsafeReference $ wielded_creature c
-genericParent (InTheUniverse _) = unsafeReference UniverseRef
+asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
+asLocationTyped _ _ = id
 
-genericChild :: Location m e t -> Reference ()
-genericChild (IsStanding r _) = unsafeReference r
-genericChild (IsDropped r _) = unsafeReference r
-genericChild (InInventory r _) = unsafeReference r
-genericChild (IsWielded r _) = unsafeReference r
-genericChild (InTheUniverse r) = unsafeReference r
+coerceLocationTyped :: (LocationType e,LocationType t) => Type t -> Location m e x -> Maybe (Location m e t)
+coerceLocationTyped = const coerceLocation
 
-isCreatureLocation :: (LocationType e) => Location m e t -> Bool
-isCreatureLocation = isCreatureRef . genericChild
+isLocationTyped :: (LocationType e,LocationType t) => Type t -> Location m e x -> Bool
+isLocationTyped t = isJust . coerceLocationTyped t
 
-isToolLocation :: (LocationType e) => Location m e t -> Bool
-isToolLocation = isToolRef . genericChild
+coerceEntityTyped :: (LocationType e,LocationType t) => Type e -> Location m x t -> Maybe (Location m e t)
+coerceEntityTyped = const coerceEntity
 
-isPlaneLocation :: (LocationType e) => Location m e t -> Bool
-isPlaneLocation = isPlaneRef . genericChild
+isEntityTyped :: (LocationType e,LocationType t) => Type e -> Location m x t -> Bool
+isEntityTyped t  = isJust . coerceEntityTyped t
 
-isStandingLocation :: (LocationType e) => Location m e t -> Bool
-isStandingLocation = isJust . toStandingLocation
+coerceLocation :: (LocationType e,LocationType t) => Location m e x -> Maybe (Location m e t)
+coerceLocation = coerceLocationRecord
 
-isDroppedLocation :: (LocationType e) => Location m e t -> Bool
-isDroppedLocation = isJust . toDroppedLocation
+coerceEntity :: (LocationType e,LocationType t) => Location m x t -> Maybe (Location m e t)
+coerceEntity = coerceLocationRecord
 
-isInventoryLocation :: (LocationType e) => Location m e t -> Bool
-isInventoryLocation = isJust . toInventoryLocation
-
-isWieldedLocation :: (LocationType e) => Location m e t -> Bool
-isWieldedLocation = isJust . toWieldedLocation
-
-toCreatureLocation :: (LocationType t) => Location m e t -> Maybe (Location m CreatureRef t)
-toCreatureLocation = coerceLocation
-
-toToolLocation :: (LocationType t) => Location m e t -> Maybe (Location m ToolRef t)
-toToolLocation = coerceLocation
-
-toPlaneLocation :: (LocationType t) => Location m e t -> Maybe (Location m PlaneRef t)
-toPlaneLocation = coerceLocation
-
-toStandingLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Standing)
-toStandingLocation = coerceLocation
-
-toDroppedLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Dropped)
-toDroppedLocation = coerceLocation
-
-toInventoryLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Inventory)
-toInventoryLocation = coerceLocation
-
-toWieldedLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Wielded)
-toWieldedLocation = coerceLocation
-
-coerceParent :: (LocationType e,LocationType t) => Location m e x -> Maybe (Location m e t)
-coerceParent = coerceLocation
-
-coerceChild :: (LocationType e,LocationType t) => Location m e x -> Maybe (Location m e t)
-coerceChild = coerceLocation
-
-coerceLocation :: (LocationType e,LocationType t) => Location m x y -> Maybe (Location m e t)
-coerceLocation = fmap fst . coerceUnify
+coerceLocationRecord :: (LocationType e,LocationType t) => Location m x y -> Maybe (Location m e t)
+coerceLocationRecord = fmap fst . coerceUnify
     where coerceUnify :: (LocationType e,LocationType t) => 
                              Location m x y -> Maybe (Location m e t,(e,t))
           coerceUnify l = do t <- extractLocation l
-                             e <- extractChild l
+                             e <- extractEntity l
                              return (unsafeLocation l,(e,t))
 
 location :: (LocationType t) => Location m e t -> t
 location l = fromMaybe (error "location: type error") $ extractLocation l
 
 entity :: (LocationType e) => Location m e t -> e
-entity l = fromMaybe (error "entity: type error") $ extractChild l
+entity l = fromMaybe (error "entity: type error") $ extractEntity l
 
-class LocationType a where
+class (Eq a,Ord a) => LocationType a where
     extractLocation :: Location m e t -> Maybe a
-    extractChild :: Location m e t -> Maybe a
+    extractEntity :: Location m e t -> Maybe a
 
 instance LocationType Standing where
     extractLocation (IsStanding _ s) = Just s
     extractLocation _ = Nothing
-    extractChild = const Nothing
+    extractEntity = const Nothing
 
 instance LocationType Dropped where
     extractLocation (IsDropped _ d) = Just d
     extractLocation _ = Nothing
-    extractChild = const Nothing
+    extractEntity = const Nothing
 
 instance LocationType Inventory where
     extractLocation (InInventory _ i) = Just i
     extractLocation _ = Nothing
-    extractChild = const Nothing
+    extractEntity = const Nothing
 
 instance LocationType Wielded where
     extractLocation (IsWielded _ i) = Just i
     extractLocation _ = Nothing
-    extractChild = const Nothing
-
-instance LocationType Facing where
-    extractLocation = facing
-    extractChild = const Nothing
-
-instance LocationType Position where
-    extractLocation = position
-    extractChild = const Nothing
+    extractEntity = const Nothing
 
 instance LocationType () where
     extractLocation = const $ Just ()
-    extractChild = const $ Just ()
+    extractEntity = const Nothing
+
+instance LocationType Position where
+    extractLocation (IsStanding _ s) = Just $ standing_position s
+    extractLocation (IsDropped _ d) = Just $ dropped_position d
+    extractLocation (InInventory {}) = Nothing
+    extractLocation (IsWielded {}) = Nothing
+    extractLocation (InTheUniverse {}) = Nothing
+    extractEntity = const Nothing
+
+instance LocationType Facing where
+    extractLocation (IsStanding _ s) = Just $ standing_facing s
+    extractLocation (IsDropped {}) = Nothing
+    extractLocation (InInventory {}) = Nothing
+    extractLocation (IsWielded {}) = Nothing
+    extractLocation (InTheUniverse {}) = Nothing
+    extractEntity = const Nothing
 
 instance ReferenceType a => LocationType (Reference a) where
-    extractLocation = coerceReference . genericParent
-    extractChild = coerceReference . genericChild
+    extractLocation = coerceReference . getLocation
+    extractEntity = coerceReference . getEntity
 
 instance (LocationType a,LocationType b) => LocationType (a,b) where
     extractLocation l = liftM2 (,) (extractLocation l) (extractLocation l)
-    extractChild l = liftM2 (,) (extractChild l) (extractChild l)
+    extractEntity l = liftM2 (,) (extractEntity l) (extractEntity l)
 
-position :: Location m e t -> Maybe Position
-position (IsStanding _ s) = Just $ standing_position s
-position (IsDropped _ d) = Just $ dropped_position d
-position (InInventory {}) = Nothing
-position (IsWielded {}) = Nothing
-position (InTheUniverse {}) = Nothing
+--
+-- Manipulating Locations
+--
+toStanding :: (LocationType t) => Standing -> Location m CreatureRef t -> Location m CreatureRef Standing
+toStanding s l | isEntityTyped _creature l = IsStanding (entity l) s
+toStanding _ _ = error "toStanding: type error"
 
-facing :: Location m e t -> Maybe Facing
-facing (IsStanding _ s) = Just $ standing_facing s
-facing (IsDropped {}) = Nothing
-facing (InInventory {}) = Nothing
-facing (IsWielded {}) = Nothing
-facing (InTheUniverse {}) = Nothing
+toDropped :: (LocationType t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
+toDropped d l | isEntityTyped _tool l = IsDropped (entity l) d
+toDropped _ _ = error "toDropped: type error"
 
-isFacingLocation :: Location m e t -> Bool
-isFacingLocation = isJust . facing
+toInventory :: (LocationType t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
+toInventory i l | isEntityTyped _tool l = InInventory (entity l) i
+toInventory _ _ = error "toInventory: type error"
 
-toFacingLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Facing)
-toFacingLocation = coerceLocation
+toWielded :: (LocationType t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
+toWielded i l | isEntityTyped _tool l = IsWielded (entity l) i
+toWielded _ _ = error "toWielded: type error"
 
-isPositionLocation :: Location m e t -> Bool
-isPositionLocation = isJust . position
+returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory
+returnToInventory l = InInventory (entity l) (Inventory c)
+    where Wielded c = location l
 
-toPositionLocation :: (LocationType e) => Location m e t -> Maybe (Location m e Position)
-toPositionLocation = coerceLocation
-
-isPlanarLocation :: Location m e t -> Bool
-isPlanarLocation = isPlaneRef . genericParent
-
-toPlanarLocation :: (LocationType e) => Location m e t -> Maybe (Location m e PlaneRef)
-toPlanarLocation = coerceLocation
-
-isCarriedLocation :: Location m e t -> Bool
-isCarriedLocation = isCreatureRef . genericParent
-
-toCarriedLocation :: (LocationType e) => Location m e t -> Maybe (Location m e CreatureRef)
-toCarriedLocation = coerceLocation
