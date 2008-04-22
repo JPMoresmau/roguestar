@@ -19,6 +19,7 @@ module DBData
      Dropped(..),
      Inventory(..),
      Wielded(..),
+     _nullary,
      _creature,
      _tool,
      _plane,
@@ -67,6 +68,9 @@ import Position
 -- Type Instances
 --
 newtype Type a = Type a
+
+_nullary :: Type (Reference ())
+_nullary = Type $ error "_nullary: undefined"
 
 _creature :: Type CreatureRef
 _creature = Type $ error "_creature: undefined"

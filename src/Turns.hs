@@ -4,6 +4,8 @@ module Turns
     (dbPerformPlayerTurn)
     where
 
+import Control.Monad.Maybe
+import Control.Monad.Trans
 import DB
 import DBData
 import FactionData
@@ -18,6 +20,7 @@ import TerrainData
 import Data.Maybe
 import Behavior
 import Perception
+import Position
 
 dbPerformPlayerTurn :: Behavior -> CreatureRef -> DB ()
 dbPerformPlayerTurn beh creature_ref =
@@ -68,9 +71,12 @@ dbPerform1PlanarAITurn plane_ref =
        dbAdvanceTime t plane_ref
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
-dbPerform1CreatureAITurn creature_ref = atomic $ liftM (flip dbBehave creature_ref) $ runPerception creature_ref $
-    do m_player <- liftM listToMaybe $ filterM (liftM (== Player) . creatureFaction . entity) =<< visibleObjects 
-       maybe (return Wait)
-           (\player -> liftM (Step . flip faceAt (location player)) myPosition)
-	   m_player
+dbPerform1CreatureAITurn creature_ref = 
+    atomic $ liftM (flip dbBehave creature_ref) $ runPerception creature_ref $ liftM (fromMaybe Wait) $ runMaybeT $
+        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . creatureFaction . entity) =<< visibleObjects 
+           my_position <- lift myPosition
+	   let face_to_player = faceAt my_position (location player)
+	   return $ case distanceBetweenChessboard my_position (location player) of
+	       1 -> Attack $ face_to_player
+	       _ -> Step $ face_to_player
 

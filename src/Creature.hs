@@ -3,8 +3,6 @@
 module Creature 
     (dbGenerateInitialPlayerCreature,
      dbNewCreature,
-     dbTurnCreature,
-     dbStepCreature,
      Roll(..),
      dbRollCreatureScore,
      dbGetCreatureFaction,
@@ -22,7 +20,6 @@ import SpeciesData
 import Species
 import DBData
 import FactionData
-import Facing
 import Control.Monad.Error
 import Dice
 import Tool
@@ -69,25 +66,6 @@ dbRollCreatureScore score bonus creature_ref =
     do ideal <- liftM ((+ bonus) . creatureScore score) $ dbGetCreature creature_ref
        actual <- roll [0..ideal]
        return $ Roll ideal bonus actual
-
--- |
--- Causes the creature to walk in the specified facing direction.
---
-dbWalkCreature :: Facing -> (Integer,Integer) -> CreatureRef -> DB ()
-dbWalkCreature face (x',y') creature_ref =
-    do flip dbMove creature_ref $ \l -> return $ fromMaybe l $
-          do (p,Position (x,y)) <- extractLocation l
-             let standing = Standing { standing_plane = p,
-                                       standing_position = Position (x+x',y+y'),
-                                       standing_facing = face } 
-	     return $ generalizeLocation $ toStanding standing l
-       return ()
-
-dbStepCreature :: Facing -> CreatureRef -> DB ()
-dbStepCreature face = dbWalkCreature face (facingToRelative face)
-
-dbTurnCreature :: Facing -> CreatureRef -> DB ()
-dbTurnCreature face = dbWalkCreature face (0,0)
 
 dbGetCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 dbGetCreatureFaction = liftM creature_faction . dbGetCreature

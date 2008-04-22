@@ -71,7 +71,8 @@ dbGetCurrentPlane =
 --
 -- This function will return an unsuitable site if it can't find a suitable one.
 -- Such a site may have unsuitable terrain around it or it may be outside of
--- the search_radius.
+-- the search_radius (it is never impossible to find an area free of objects, since
+-- terrain is infinite and objects are not).
 --
 pickRandomClearSite :: Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> DB Position
 pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
