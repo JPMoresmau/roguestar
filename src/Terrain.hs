@@ -22,8 +22,8 @@ whatIsOccupying :: (DBReadable db,GenericReference a S) => PlaneRef -> Position 
 whatIsOccupying plane_ref position =
     liftM (mapMaybe fromLocation . filter ((== position) . location) . map (asLocationTyped _nullary _position)) $ dbGetContents plane_ref
 
-isTerrainPassable :: (DBReadable db) => PlaneRef -> Position -> db Bool
-isTerrainPassable plane_ref position = 
-    do (critters :: [CreatureRef]) <- whatIsOccupying plane_ref position
+isTerrainPassable :: (DBReadable db) => PlaneRef -> CreatureRef -> Position -> db Bool
+isTerrainPassable plane_ref creature_ref position = 
+    do (critters :: [CreatureRef]) <- liftM (filter (/= creature_ref)) $ whatIsOccupying plane_ref position
        terrain <- terrainAt plane_ref position
        return $ not (terrain `elem` [RockFace,Forest,DeepForest]) && null critters

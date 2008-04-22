@@ -19,7 +19,7 @@ walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
        let standing = Standing { standing_plane = plane_ref,
                                  standing_position = Position (x+x',y+y'),
                                  standing_facing = face } 
-       flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref $ standing_position standing)
+       flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (entity l) $ standing_position standing)
        return $ generalizeLocation $ toStanding standing l
 
 stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
