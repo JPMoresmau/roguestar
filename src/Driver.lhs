@@ -34,7 +34,10 @@ data DriverData = DriverData {
 newtype DriverObject = DriverObject (IORef DriverData)
 
 newDriverObject :: IO DriverObject
-newDriverObject = liftM DriverObject $ newIORef $ DriverData {
+newDriverObject = liftM DriverObject $ newIORef initial_driver_data
+
+initial_driver_data :: DriverData
+initial_driver_data = DriverData {
     driver_engine_input_lines = [],
     driver_engine_input_line_fragment = [],
     driver_engine_output_lines = [],
@@ -162,6 +165,9 @@ interpretText driver_object =
     do final_state <- foldM (interpretLine driver_object) DINeutral =<< driverGet driver_object (reverse . driver_engine_input_lines)
        when (final_state /= DINeutral) $ do hPutStr stderr "interpretText concluded in a non-neutral state, which was:"
 					    hPutStr stderr (show final_state)
+					    modifyDriver driver_object $ \driver -> initial_driver_data { 
+					        driver_dones = driver_dones driver,
+						driver_engine_state = driver_engine_state driver }
        modifyDriver driver_object $ \driver -> driver { driver_engine_input_lines = [] }
 
 modifyEngineState :: DriverObject -> (RoguestarEngineState -> RoguestarEngineState) -> IO ()
@@ -187,13 +193,13 @@ interpretLine driver_object DINeutral "done" =
        return DINeutral
 
 interpretLine _ di_state "done" = 
-    do hPutStr stderr  ("gui-side protocol error: unexpected \"done\" in " ++ (show di_state) ++ " state.")
+    do hPutStr stderr  ("client-side protocol error: unexpected \"done\" in " ++ (show di_state) ++ " state.")
        return DIError
 
 interpretLine _ DINeutral "over" = return DINeutral
 
 interpretLine _ (DIScanningTable {}) "over" = 
-    do hPutStr stderr "gui-side protocol error: 'over' issued while reading a data table"
+    do hPutStr stderr "client-side protocol error: 'over' issued while reading a data table"
        return DIError
 
 interpretLine driver_object DINeutral str | (head $ words str) == "answer:" && (length $ words str) == 3 =
@@ -211,7 +217,7 @@ interpretLine _ DINeutral str | (head $ words str) == "begin-table" && (length $
                                                   table_data = []}
 
 interpretLine _ _ str | (head $ words str) == "begin-table" =
-    do hPutStr stderr "gui-side protocol error: incomplete begin-table header"
+    do hPutStr stderr "client-side protocol error: incomplete begin-table header"
        return DIError
 
 interpretLine driver_object (DIScanningTable table) str | (head $ words str) == "end-table" =
@@ -222,7 +228,7 @@ interpretLine _ (DIScanningTable table) str =
     let table_row = words str
         in (if length table_row == (length $ table_header table)
 	then return $ DIScanningTable (table { table_data = table_row : table_data table })
-	else do hPutStr stderr "gui-side protocol error: malformed table row"
+	else do hPutStr stderr "client-side protocol error: malformed table row"
 		return DIError )
 
 interpretLine _ _ str = 

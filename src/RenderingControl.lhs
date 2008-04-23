@@ -71,6 +71,7 @@ mainStateHeader :: (String -> Bool) -> RSAnimA1 () Camera () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo menu_state | menu_state `elem` menu_states = menuManager
         switchTo planar_state | planar_state `elem` planar_states = planarGameplayDispatch
+	switchTo "game-over" = gameOver
 	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ unknown_state
 
 genericStateHeader :: (String -> RSAnimA1 i o i o) -> (String -> Bool) -> RSAnimA1 i o i ()
@@ -140,6 +141,15 @@ print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,String) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
        printTextA -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
+\end{code}
+
+\subsection{The Game Over State}
+
+\begin{code}
+gameOver :: RSAnimA1 () Camera () Camera
+gameOver = proc () ->
+    do printTextOnce -< Just (Event,"You have been killed.")
+       returnA -< basic_camera
 \end{code}
 
 \subsection{The Planar Gameplay Dispatch}
