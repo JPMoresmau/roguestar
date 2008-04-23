@@ -4,11 +4,11 @@ module DB
     (DB,
      runDB,
      DBReadable(..),
-     dbState,
-     dbSetState,
-     DBState(..),
-     DBCreatureTurnMode(..),
-     DBEvent(..),
+     playerState,
+     setPlayerState,
+     PlayerState(..),
+     CreatureTurnMode(..),
+     SnapshotEvent(..),
      DBError(..),
      CreatureLocation(..),
      ToolLocation(..),
@@ -63,28 +63,30 @@ import TimeCoordinate
 import Data.Ord
 import Control.Arrow (first)
 
-data DBState = DBRaceSelectionState
-	     | DBClassSelectionState Creature
-	     | DBPlayerCreatureTurn CreatureRef DBCreatureTurnMode
-	     | DBEvent DBEvent
+data PlayerState = 
+    RaceSelectionState
+  | ClassSelectionState Creature
+  | PlayerCreatureTurn CreatureRef CreatureTurnMode
+  | SnapshotEvent SnapshotEvent
+  | GameOver
 	     deriving (Read,Show)
 
-data DBCreatureTurnMode =
-    DBNormal
-  | DBPickupMode
-  | DBDropMode
-  | DBWieldMode
+data CreatureTurnMode =
+    NormalMode
+  | PickupMode
+  | DropMode
+  | WieldMode
       deriving (Read,Show)
 
-data DBEvent = 
-    DBAttackEvent {
+data SnapshotEvent = 
+    AttackEvent {
         attack_event_source_creature :: CreatureRef,
         attack_event_source_weapon :: Maybe ToolRef,
         attack_event_target_creature :: CreatureRef }
-  | DBMissEvent {
+  | MissEvent {
         miss_event_creature :: CreatureRef,
 	miss_event_weapon :: Maybe ToolRef }
-  | DBKilledEvent {
+  | KilledEvent {
         killed_event_creature :: CreatureRef }
             deriving (Read,Show)
 
@@ -92,7 +94,7 @@ data DB_History = DB_History {
     db_here :: DB_BaseType,
     db_random :: [[Integer]] }
 
-data DB_BaseType = DB_BaseType { db_state :: DBState,
+data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 				 db_next_object_ref :: Integer,
 				 db_starting_race :: Maybe Species,
 			         db_creatures :: Map CreatureRef Creature,
@@ -205,7 +207,7 @@ atomic transaction =
 --
 initial_db :: DB_BaseType
 initial_db = DB_BaseType { 
-    db_state = DBRaceSelectionState,
+    db_player_state = RaceSelectionState,
     db_next_object_ref = 0,
     db_starting_race = Nothing,
     db_creatures = Map.fromList [],
@@ -226,14 +228,14 @@ setupDBHistory db =
 -- |
 -- Returns the DBState of the database.
 --
-dbState :: (DBReadable m) => m DBState
-dbState = asks db_state
+playerState :: (DBReadable m) => m PlayerState
+playerState = asks db_player_state
 
 -- |
 -- Sets the DBState of the database.
 --
-dbSetState :: DBState -> DB ()
-dbSetState state = modify (\db -> db { db_state = state })
+setPlayerState :: PlayerState -> DB ()
+setPlayerState state = modify (\db -> db { db_player_state = state })
 
 -- |
 -- Gets the next ObjectRef integer, after incrementing it.
@@ -272,7 +274,8 @@ dbAddObjectComposable constructReference updateObject constructLocation thing lo
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
-       dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference the_universe)
+       parent_ref <- liftM (getLocation) $ dbWhere ref
+       dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference parent_ref)
        return ref
 
 -- |
@@ -501,9 +504,9 @@ dbSetStartingRace species = modify (\db -> db { db_starting_race = Just species 
 -- |
 -- Takes a snapshot of a DBEvent in progress.
 --
-dbPushSnapshot :: DBEvent -> DB ()
+dbPushSnapshot :: SnapshotEvent -> DB ()
 dbPushSnapshot e = modify $ \db -> db {
-    db_prior_snapshot = Just $ db { db_state = DBEvent e } }
+    db_prior_snapshot = Just $ db { db_player_state = SnapshotEvent e } }
 
 dbPeepOldestSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
 dbPeepOldestSnapshot actionM =

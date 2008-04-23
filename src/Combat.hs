@@ -61,17 +61,17 @@ dbResolveMeleeAttack attacker_ref face =
 
 dbExecuteRangedAttack :: RangedAttackOutcome -> DB ()
 dbExecuteRangedAttack (RangedAttackMiss attacker_ref tool_ref) = 
-    do dbPushSnapshot (DBMissEvent attacker_ref (Just tool_ref))
+    do dbPushSnapshot (MissEvent attacker_ref (Just tool_ref))
 dbExecuteRangedAttack (RangedAttackHitCreature attacker_ref tool_ref defender_ref damage) =
-    do dbPushSnapshot (DBAttackEvent attacker_ref (Just tool_ref) defender_ref)
+    do dbPushSnapshot (AttackEvent attacker_ref (Just tool_ref) defender_ref)
        dbInjureCreature damage defender_ref
        sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbExecuteMeleeAttack :: MeleeAttackOutcome -> DB ()
 dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
-    do dbPushSnapshot (DBMissEvent attacker_ref Nothing)
+    do dbPushSnapshot (MissEvent attacker_ref Nothing)
 dbExecuteMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
-    do dbPushSnapshot (DBAttackEvent attacker_ref Nothing defender_ref)
+    do dbPushSnapshot (AttackEvent attacker_ref Nothing defender_ref)
        dbInjureCreature damage defender_ref
        sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 

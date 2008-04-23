@@ -37,11 +37,12 @@ dbFinishPendingAITurns =
 dbFinishPlanarAITurns :: PlaneRef -> DB ()
 dbFinishPlanarAITurns plane_ref =
     do (all_creatures_on_plane :: [CreatureRef]) <- dbGetContents plane_ref
-       next_turn <- dbNextTurn $ map generalizeReference all_creatures_on_plane ++ [generalizeReference plane_ref, generalizeReference the_universe]
+       any_players_left <- liftM (any (== Player)) $ mapM getCreatureFaction all_creatures_on_plane
+       next_turn <- dbNextTurn $ map generalizeReference all_creatures_on_plane ++ [generalizeReference plane_ref]
        case next_turn of
-           ref | ref =:= the_universe -> 
-	       do dbPerform1UniverseAITurn
-	          dbFinishPlanarAITurns plane_ref
+           _ | not any_players_left ->
+	       do setPlayerState GameOver
+	          return ()
 	   ref | ref =:= plane_ref -> 
 	       do dbPerform1PlanarAITurn plane_ref
 	          dbFinishPlanarAITurns plane_ref
@@ -50,12 +51,9 @@ dbFinishPlanarAITurns plane_ref =
 	          if (faction /= Player)
 		      then do dbPerform1CreatureAITurn creature_ref
 		              dbFinishPlanarAITurns plane_ref
-		      else dbSetState (DBPlayerCreatureTurn creature_ref DBNormal)
+		      else setPlayerState (PlayerCreatureTurn creature_ref NormalMode)
 		  return ()
 	   _ -> error "dbFinishPlanarAITurns: impossible case"
-
-dbPerform1UniverseAITurn :: DB ()
-dbPerform1UniverseAITurn = dbAdvanceTime (1%100) the_universe 
 
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
 dbPerform1PlanarAITurn plane_ref = 
@@ -67,8 +65,7 @@ dbPerform1PlanarAITurn plane_ref =
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
 	      dbNewCreature Pirates recreant (Standing plane_ref spawn_position Here)
 	      return ()
-       t <- roll [1%100,1%50,1%25,1%10,1%5,1%4,1%3] -- limit player's influence of when creatures spawn
-       dbAdvanceTime t plane_ref
+       dbAdvanceTime (1%100) plane_ref
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 

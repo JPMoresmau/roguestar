@@ -49,15 +49,15 @@ dbDistanceBetweenSquared a_ref b_ref =
 --
 dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
 dbGetCurrentPlane = 
-    do state <- dbState
+    do state <- playerState
        case state of
-		  DBPlayerCreatureTurn creature_ref _ -> 
+		  PlayerCreatureTurn creature_ref _ -> 
                       liftM (fmap $ fst . location) $ getPlanarLocation creature_ref
-		  DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) ->
+		  SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) ->
 		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) ->
+		  SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) ->
 		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-		  DBEvent (DBKilledEvent killed_ref) ->
+		  SnapshotEvent (KilledEvent killed_ref) ->
 		      liftM (fmap $ fst . location) $ getPlanarLocation killed_ref
 		  _ -> return Nothing
 

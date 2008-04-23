@@ -46,7 +46,7 @@ dbGenerateInitialPlayerCreature :: Species -> DB ()
 dbGenerateInitialPlayerCreature species = 
     do newc <- dbGenerateCreature Player species
        dbSetStartingRace species
-       dbSetState (DBClassSelectionState newc)
+       setPlayerState (ClassSelectionState newc)
 
 -- |
 -- Generates a new Creature from the specified Species and adds it to the database.
@@ -92,5 +92,5 @@ sweepDead :: Reference a -> DB ()
 sweepDead ref =
     do worst_to_best_critters <- sortByRO (liftM ideal_score . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
-           do dbPushSnapshot (DBKilledEvent creature_ref)
+           do dbPushSnapshot (KilledEvent creature_ref)
 	      deleteCreature creature_ref

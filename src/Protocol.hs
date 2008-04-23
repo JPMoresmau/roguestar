@@ -53,9 +53,9 @@ dbOldestSnapshotOnly =
 dbRequiresRaceSelectionState :: (DBReadable db) => db String -> db String
 dbRequiresRaceSelectionState action = 
     do dbOldestSnapshotOnly
-       state <- dbState
+       state <- playerState
        case state of
-           DBRaceSelectionState -> action
+           RaceSelectionState -> action
            _ -> return $ "protocol-error: not in race selection state (" ++ show state ++ ")"
 
 -- |
@@ -65,9 +65,9 @@ dbRequiresRaceSelectionState action =
 dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresClassSelectionState action = 
     do dbOldestSnapshotOnly
-       state <- dbState
+       state <- playerState
        case state of
-           DBClassSelectionState creature -> action creature
+           ClassSelectionState creature -> action creature
            _ -> return $ "protocol-error: not in class selection state (" ++ show state ++ ")"
 
 -- |
@@ -80,10 +80,10 @@ dbRequiresClassSelectionState action =
 dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresPlayerCenteredState action =
     do dbOldestSnapshotOnly
-       state <- dbState
+       state <- playerState
        case state of
-		  DBClassSelectionState creature -> action creature
-		  DBPlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
+		  ClassSelectionState creature -> action creature
+		  PlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
 		  _ -> return $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
 
 -- |
@@ -96,12 +96,12 @@ dbRequiresPlayerCenteredState action =
 dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlanarTurnState action =
     do dbOldestSnapshotOnly
-       state <- dbState
+       state <- playerState
        case state of
-		  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
-		  DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
-		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
-		  DBEvent (DBKilledEvent killed_ref) -> action killed_ref
+		  PlayerCreatureTurn creature_ref _ -> action creature_ref
+		  SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
+		  SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
+		  SnapshotEvent (KilledEvent killed_ref) -> action killed_ref
 		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
 -- |
@@ -113,9 +113,9 @@ dbRequiresPlanarTurnState action =
 dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlayerTurnState action =
     do dbOldestSnapshotOnly
-       state <- dbState
+       state <- playerState
        case state of
-                  DBPlayerCreatureTurn creature_ref _ -> action creature_ref
+                  PlayerCreatureTurn creature_ref _ -> action creature_ref
                   _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
@@ -155,35 +155,36 @@ ioDispatch unknown_command db0 = do putStrLn ("protocol-error: unknown command "
 
 dbDispatchQuery :: (DBReadable db) => [String] -> db String
 dbDispatchQuery ["state"] = 
-    do state <- dbState
+    do state <- playerState
        return $ case state of
-			   DBRaceSelectionState -> "answer: state race-selection"
-			   DBClassSelectionState {} -> "answer: state class-selection"
-			   DBPlayerCreatureTurn _ DBNormal -> "answer: state player-turn"
-                           DBPlayerCreatureTurn _ DBPickupMode -> "answer: state pickup"
-                           DBPlayerCreatureTurn _ DBDropMode -> "answer: state drop"
-                           DBPlayerCreatureTurn _ DBWieldMode -> "answer: state wield"
-                           DBEvent (DBAttackEvent {}) -> "answer: state attack"
-                           DBEvent (DBMissEvent {}) -> "answer: state miss"
-                           DBEvent (DBKilledEvent {}) -> "answer: state killed"
+			   RaceSelectionState -> "answer: state race-selection"
+			   ClassSelectionState {} -> "answer: state class-selection"
+			   PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
+                           PlayerCreatureTurn _ PickupMode -> "answer: state pickup"
+                           PlayerCreatureTurn _ DropMode -> "answer: state drop"
+                           PlayerCreatureTurn _ WieldMode -> "answer: state wield"
+                           SnapshotEvent (AttackEvent {}) -> "answer: state attack"
+                           SnapshotEvent (MissEvent {}) -> "answer: state miss"
+                           SnapshotEvent (KilledEvent {}) -> "answer: state killed"
+                           GameOver -> "answer: game-over"
 
 dbDispatchQuery ["who-attacks"] =
-    do state <- dbState
+    do state <- playerState
        return $ case state of
-           DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-	   DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+           SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+	   SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
 	   _ -> "answer: who-attacks 0"
 
 dbDispatchQuery ["who-hit"] =
-    do state <- dbState
+    do state <- playerState
        return $ case state of
-           DBEvent (DBAttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
+           SnapshotEvent (AttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
 	   _ -> "answer: who-hit 0"
 
 dbDispatchQuery ["who-killed"] =
-    do state <- dbState
+    do state <- playerState
        return $ case state of
-           DBEvent (DBKilledEvent killed_ref) -> "answer: who-killed " ++ (show $ toUID killed_ref)
+           SnapshotEvent (KilledEvent killed_ref) -> "answer: who-killed " ++ (show $ toUID killed_ref)
 	   _ -> "answer: who-killed 0"
 
 dbDispatchQuery ["player-races","0"] =
@@ -289,7 +290,7 @@ dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
        case pickups of
            [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-there"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBPickupMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref PickupMode)
        done
 
 dbDispatchAction ["pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
@@ -302,7 +303,7 @@ dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBDropMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref DropMode)
        done
 
 dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
@@ -315,7 +316,7 @@ dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> dbSetState (DBPlayerCreatureTurn creature_ref DBWieldMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref WieldMode)
        done
 
 dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
