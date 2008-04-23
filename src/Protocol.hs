@@ -166,7 +166,7 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (AttackEvent {}) -> "answer: state attack"
                            SnapshotEvent (MissEvent {}) -> "answer: state miss"
                            SnapshotEvent (KilledEvent {}) -> "answer: state killed"
-                           GameOver -> "answer: game-over"
+                           GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["who-attacks"] =
     do state <- playerState
