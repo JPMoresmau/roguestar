@@ -4,7 +4,7 @@ module Plane
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
      pickRandomClearSite,
-     dbGetPlanarLocation)
+     getPlanarLocation)
     where
 
 import Grids
@@ -27,17 +27,17 @@ dbNewPlane tg_data =
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
 -- returns the position of this object on that plane.
 --
-dbGetPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (PlaneRef,Position))
-dbGetPlanarLocation ref =
-    liftM (fmap location . listToMaybe . mapMaybe coerceLocation) $ dbGetAncestors ref
+getPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,Position)))
+getPlanarLocation ref =
+    liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
 
 -- |
 -- Distance between two entities.
 --
 dbDistanceBetweenSquared :: (DBReadable db,ReferenceType a,ReferenceType b) => Reference a -> Reference b -> db (Maybe Integer)
 dbDistanceBetweenSquared a_ref b_ref =
-    do m_a <- dbGetPlanarLocation a_ref
-       m_b <- dbGetPlanarLocation b_ref
+    do m_a <- liftM (fmap location) $ getPlanarLocation a_ref
+       m_b <- liftM (fmap location) $ getPlanarLocation b_ref
        return $
            do (p_a,a) <- m_a
 	      (p_b,b) <- m_b
@@ -52,13 +52,13 @@ dbGetCurrentPlane =
     do state <- dbState
        case state of
 		  DBPlayerCreatureTurn creature_ref _ -> 
-                      liftM (fmap fst) $ dbGetPlanarLocation creature_ref
+                      liftM (fmap $ fst . location) $ getPlanarLocation creature_ref
 		  DBEvent (DBAttackEvent { attack_event_source_creature = attacker_ref }) ->
-		      liftM (fmap fst) $ dbGetPlanarLocation attacker_ref
+		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
 		  DBEvent (DBMissEvent { miss_event_creature = attacker_ref }) ->
-		      liftM (fmap fst) $ dbGetPlanarLocation attacker_ref
+		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
 		  DBEvent (DBKilledEvent killed_ref) ->
-		      liftM (fmap fst) $ dbGetPlanarLocation killed_ref
+		      liftM (fmap $ fst . location) $ getPlanarLocation killed_ref
 		  _ -> return Nothing
 
 -- |

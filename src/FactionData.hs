@@ -14,4 +14,4 @@ data Faction = Player
 	     | Whispers                       -- the dark indifferent destroyers of worlds
 	     | Proselytes                     -- evil entities that possess others' minds
 	     | Civilian                       -- merchants, children -- don't kill these
-	       deriving (Eq,Read,Show)
+	       deriving (Eq,Read,Show,Enum,Bounded)

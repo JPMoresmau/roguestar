@@ -11,6 +11,11 @@ import Tool
 import Control.Monad.Error
 import Combat
 import Travel
+import Creature
+import Plane
+import PlaneVisibility
+import Data.List
+import Control.Monad.Maybe
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -25,6 +30,7 @@ data Behavior =
   | Fire Facing
   | Attack Facing
   | Wait
+  | Vanish
 
 dbBehave :: Behavior -> CreatureRef -> DB ()
 dbBehave (Step face) creature_ref =
@@ -69,3 +75,11 @@ dbBehave (Attack face) creature_ref =
 
 dbBehave Wait creature_ref =
     do dbAdvanceTime (1%40) creature_ref
+
+dbBehave Vanish creature_ref = liftM (const ()) $ runMaybeT $
+    do plane_ref <- MaybeT $ liftM (fmap $ fst . location) $ getPlanarLocation creature_ref
+       lift $
+           do faction <- getCreatureFaction creature_ref
+              is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 
+	          mapM (flip dbGetVisibleObjectsForFaction plane_ref) (delete faction [minBound..maxBound])
+              when (not is_visible_to_anyone_else) $ deleteCreature creature_ref

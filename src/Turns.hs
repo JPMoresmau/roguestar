@@ -19,7 +19,7 @@ import Dice
 import TerrainData
 import Data.Maybe
 import Behavior
-import Perception
+import qualified Perception as P
 import Position
 
 dbPerformPlayerTurn :: Behavior -> CreatureRef -> DB ()
@@ -46,7 +46,7 @@ dbFinishPlanarAITurns plane_ref =
 	       do dbPerform1PlanarAITurn plane_ref
 	          dbFinishPlanarAITurns plane_ref
 	   ref | Just creature_ref <- coerceReferenceTyped _creature ref -> 
-	       do faction <- dbGetCreatureFaction creature_ref
+	       do faction <- getCreatureFaction creature_ref
 	          if (faction /= Player)
 		      then do dbPerform1CreatureAITurn creature_ref
 		              dbFinishPlanarAITurns plane_ref
@@ -60,8 +60,8 @@ dbPerform1UniverseAITurn = dbAdvanceTime (1%100) the_universe
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
 dbPerform1PlanarAITurn plane_ref = 
     do creature_locations <- dbGetContents plane_ref
-       player_locations <- filterRO (liftM (== Player) . dbGetCreatureFaction . entity) creature_locations
-       native_locations <- filterRO (liftM (/= Player) . dbGetCreatureFaction . entity) creature_locations
+       player_locations <- filterRO (liftM (== Player) . getCreatureFaction . entity) creature_locations
+       native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . entity) creature_locations
        when (length native_locations < length player_locations * 2) $
            do p <- roll $ map location player_locations
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
@@ -72,9 +72,9 @@ dbPerform1PlanarAITurn plane_ref =
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 
-    atomic $ liftM (flip dbBehave creature_ref) $ runPerception creature_ref $ liftM (fromMaybe Wait) $ runMaybeT $
-        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . creatureFaction . entity) =<< visibleObjects 
-           my_position <- lift myPosition
+    atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
+        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects 
+           my_position <- lift P.myPosition
 	   let face_to_player = faceAt my_position (location player)
 	   return $ case distanceBetweenChessboard my_position (location player) of
 	       1 -> Attack $ face_to_player

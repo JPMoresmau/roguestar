@@ -5,12 +5,12 @@ module Creature
      dbNewCreature,
      Roll(..),
      dbRollCreatureScore,
-     dbGetCreatureFaction,
+     getCreatureFaction,
      dbRollInjury,
      dbInjureCreature,
      dbGetDead,
-     dbDeleteCreature,
-     dbSweepDead)
+     deleteCreature,
+     sweepDead)
     where
 
 import Data.Maybe
@@ -67,8 +67,8 @@ dbRollCreatureScore score bonus creature_ref =
        actual <- roll [0..ideal]
        return $ Roll ideal bonus actual
 
-dbGetCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
-dbGetCreatureFaction = liftM creature_faction . dbGetCreature
+getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
+getCreatureFaction = liftM creature_faction . dbGetCreature
 
 dbRollInjury :: (DBReadable db) => CreatureRef -> Integer -> db Integer
 dbRollInjury creature_ref damage_roll = 
@@ -81,16 +81,16 @@ dbInjureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage
 dbGetDead :: (DBReadable db) => Reference a -> db [CreatureRef]
 dbGetDead parent_ref = filterRO (liftM (\c -> creatureScore HitPoints c <= 0) . dbGetCreature) =<< dbGetContents parent_ref
 
-dbDeleteCreature :: CreatureRef -> DB ()
-dbDeleteCreature = dbUnsafeDeleteObject $ \l ->
+deleteCreature :: CreatureRef -> DB ()
+deleteCreature = dbUnsafeDeleteObject $ \l ->
     do m_dropped_loc <- maybe (return Nothing) (liftM Just . dbDropTool) $ coerceEntityTyped _tool l
        return $ case m_dropped_loc of
            Just dropped_loc -> generalizeLocationRecord dropped_loc
 	   Nothing -> error "dbDeleteCreature: no case for this type of entity"
 
-dbSweepDead :: Reference a -> DB ()
-dbSweepDead ref =
+sweepDead :: Reference a -> DB ()
+sweepDead ref =
     do worst_to_best_critters <- sortByRO (liftM ideal_score . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
            do dbPushSnapshot (DBKilledEvent creature_ref)
-	      dbDeleteCreature creature_ref
+	      deleteCreature creature_ref

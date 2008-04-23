@@ -12,10 +12,11 @@ module Perception
      runPerception,
      visibleObjects,
      myFaction,
-     creatureFaction,
+     Perception.getCreatureFaction,
      whereAmI,
      myPosition,
-     whereIs)
+     whereIs,
+     Perception.roll)
     where
 
 import Control.Monad.Reader
@@ -26,6 +27,7 @@ import Creature
 import PlaneVisibility
 import Data.Maybe
 import Facing
+import Dice
 
 newtype (DBReadable db) => DBPerception db a = DBPerception { fromPerception :: (ReaderT CreatureRef db a) }
 
@@ -45,14 +47,14 @@ runPerception creature_ref perception = dbSimulate $ runReaderT (fromPerception 
 visibleObjects :: (DBReadable db,LocationType a,LocationType b) => DBPerception db [Location S a b]
 visibleObjects =
     do me <- whoAmI
-       faction <- liftDB $ dbGetCreatureFaction me
+       faction <- myFaction
        liftDB $ maybe (return []) (dbGetVisibleObjectsForFaction faction) =<< liftM extractLocation (dbWhere me)
 
 myFaction :: (DBReadable db) => DBPerception db Faction
-myFaction = creatureFaction =<< whoAmI
+myFaction = Perception.getCreatureFaction =<< whoAmI
 
-creatureFaction :: (DBReadable db) => CreatureRef -> DBPerception db Faction
-creatureFaction creature_ref = liftDB $ dbGetCreatureFaction creature_ref
+getCreatureFaction :: (DBReadable db) => CreatureRef -> DBPerception db Faction
+getCreatureFaction creature_ref = liftDB $ Creature.getCreatureFaction creature_ref
 
 whereAmI :: (DBReadable db) => DBPerception db (Facing,Position)
 whereAmI = liftM (fromMaybe (error "whereAmI: I'm not on a plane") . extractLocation) $ whereIs =<< whoAmI
@@ -62,3 +64,6 @@ myPosition = liftM snd whereAmI
 
 whereIs :: (DBReadable db) => Reference a -> DBPerception db (Location S (Reference a) ())
 whereIs ref = liftDB $ dbWhere ref
+
+roll :: (DBReadable db) => [a] -> DBPerception db a
+roll xs = liftDB $ Dice.roll xs

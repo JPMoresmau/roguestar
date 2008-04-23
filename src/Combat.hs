@@ -65,7 +65,7 @@ dbExecuteRangedAttack (RangedAttackMiss attacker_ref tool_ref) =
 dbExecuteRangedAttack (RangedAttackHitCreature attacker_ref tool_ref defender_ref damage) =
     do dbPushSnapshot (DBAttackEvent attacker_ref (Just tool_ref) defender_ref)
        dbInjureCreature damage defender_ref
-       dbSweepDead =<< liftM getLocation (dbWhere attacker_ref)
+       sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbExecuteMeleeAttack :: MeleeAttackOutcome -> DB ()
 dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
@@ -73,7 +73,7 @@ dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
 dbExecuteMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
     do dbPushSnapshot (DBAttackEvent attacker_ref Nothing defender_ref)
        dbInjureCreature damage defender_ref
-       dbSweepDead =<< liftM getLocation (dbWhere attacker_ref)
+       sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbRollRangedDamage :: (DBReadable db) => CreatureRef -> ToolRef -> db Integer
 dbRollRangedDamage _ weapon_ref =
@@ -108,7 +108,7 @@ dbRollMeleeDefense _ x_defender_ref =
 
 dbFindRangedTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
 dbFindRangedTargets attacker_ref face =
-    do m_l <- dbGetPlanarLocation attacker_ref
+    do m_l <- liftM (fmap location) $ getPlanarLocation attacker_ref
        flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
            liftM (mapMaybe fromLocation .
 	          sortBy (comparing (distanceBetweenSquared pos . location)) .
@@ -118,7 +118,7 @@ dbFindRangedTargets attacker_ref face =
 
 dbFindMeleeTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
 dbFindMeleeTargets attacker_ref face =
-    do m_l <- dbGetPlanarLocation attacker_ref
+    do m_l <- liftM (fmap location) $ getPlanarLocation attacker_ref
        flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
            liftM (mapMaybe fromLocation .
 	          filter (\x -> (location x == (offsetPosition (facingToRelative face) pos) || location x == pos) &&
