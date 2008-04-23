@@ -337,12 +337,33 @@ eventMessager = proc () ->
     do eventStateHeader (isNothing . flip lookup messages) -< () 
        blockContinue -< True 
 
-messageState :: String -> RSAnimA1 () () () () -> (String,RSAnimA1 () () () ())
-messageState s actionA = (s,eventStateHeader (== s) >>> actionA)
+messageState :: String -> RSAnimA1 () () () (Maybe String) -> (String,RSAnimA1 () () () ())
+messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
+    do m_string <- actionA -< ()
+       blockContinue -< isNothing m_string
+       printTextOnce -< fmap ((,) Event) m_string))
 
 messages :: [(String,RSAnimA1 () () () ())]
 messages = [
-    messageState "attack" $ proc () -> printTextOnce -< Just (Event,"You attack!  You hit!"),
-    messageState "miss" $ proc () -> printTextOnce -< Just (Event,"You attack!  You miss."),
-    messageState "killed" $ proc () -> printTextOnce -< Just (Event,"You kill it!")]
+    messageState "attack" $ proc () -> 
+        do m_weapon <- driverGetAnswerA -< "weapon-used"
+	   returnA -< 
+	       do weapon <- m_weapon
+	          return $ case () of
+		      () | weapon == "0" -> "It attacks!  It hits!"
+		      () | otherwise -> "You attack!  You hit!",
+    messageState "miss" $ proc () -> 
+        do m_weapon <- driverGetAnswerA -< "weapon-used"
+	   returnA -<
+	       do weapon <- m_weapon
+	          return $ case () of
+		      () | weapon == "0" -> "It attacks!  It misses."
+		      () | otherwise -> "You attack!  You miss.",
+    messageState "killed" $ proc () -> 
+        do m_who_killed <- driverGetAnswerA -< "who-killed"
+	   returnA -<
+	       do who_killed <- m_who_killed
+	          return $ case () of
+		      () | who_killed == "2" -> "You are mortally wounded."
+		      () | otherwise -> "You kill it!"]
 \end{code}
