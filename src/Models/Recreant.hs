@@ -9,7 +9,7 @@ import RSAGL.Material
 import RSAGL.ModelingExtras
 import RSAGL.Vector
 import RSAGL.Affine
-import Models.RecreantMaterials
+import Models.AllianceMaterials
 
 recreant_antenna_small :: Quality -> Modeling ()
 recreant_antenna_small _ = 
@@ -44,4 +44,4 @@ recreant q = scale' 0.05 $
     do recreant_antenna_small q
        recreant_antenna_large q
        recreant_body q
-       recreant_metal
+       alliance_metal
