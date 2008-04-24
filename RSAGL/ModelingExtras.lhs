@@ -65,7 +65,7 @@ gray256 x = rgb256 x x x
 smoothbox :: (Monoid attr) => Double -> Point3D -> Point3D -> Modeling attr
 smoothbox u p q = model $
     do box p q
-       deform $ \(SurfaceVertex3D point vector) -> SurfaceVertex3D point $ vectorNormalize $ lerp u (vector,vectorNormalize $ vectorToFrom p midpoint)
+       deform $ \(SurfaceVertex3D point vector) -> SurfaceVertex3D point $ vectorNormalize $ lerp u (vector,vectorNormalize $ vectorToFrom point midpoint)
         where midpoint = lerp 0.5 (p,q)
 \end{code}
 

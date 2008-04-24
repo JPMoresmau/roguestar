@@ -391,9 +391,11 @@ of transparent \texttt{IntermediateModel}s.
 \begin{code}
 splitOpaques :: IntermediateModel -> (IntermediateModel,[IntermediateModel])
 splitOpaques (IntermediateModel ms) = (IntermediateModel opaques,map (\x -> IntermediateModel [x]) transparents)
-    where opaques = filter isOpaque ms
-          transparents = filter (not . isOpaque) ms
-          isOpaque (IntermediateModeledSurface layers _) = isOpaqueLayer $ snd $ head layers
+    where opaques = filter isOpaque surfaces
+          transparents = filter (not . isOpaque) surfaces
+          isOpaque (IntermediateModeledSurface layers _) = any (isOpaqueLayer . snd) layers
+	  notEmpty (IntermediateModeledSurface layers _) = not $ null layers
+	  surfaces = filter notEmpty ms
 \end{code}
 
 \subsubsection{Vertex Clouds and Bounding Boxes for IntermediateModels}
@@ -406,7 +408,8 @@ instance Bound3D IntermediateModel where
     boundingBox (IntermediateModel ms) = boundingBox ms
 
 intermediateModeledSurfaceToVertexCloud :: IntermediateModeledSurface -> [SurfaceVertex3D]
-intermediateModeledSurfaceToVertexCloud (IntermediateModeledSurface layers _) = map strip $ tesselatedSurfaceToVertexCloud $ fst $ head layers
+intermediateModeledSurfaceToVertexCloud (IntermediateModeledSurface layers _) = 
+    fromMaybe [] $ fmap (map strip . tesselatedSurfaceToVertexCloud . fst) $ listToMaybe layers
         where strip (SingleMaterialSurfaceVertex3D sv3d _) = sv3d
 
 instance Bound3D IntermediateModeledSurface where

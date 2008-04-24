@@ -94,10 +94,13 @@ tesselateAsRightSidedTriangle :: [Either a a] -> ([a],[Either a a])
 tesselateAsRightSidedTriangle = first (\x -> take 1 x ++ reverse (drop 1 x)) . tesselateAsSidedTriangle isRight
 
 tesselateAsSidedTriangle :: (Either a a -> Bool) -> [Either a a] -> ([a],[Either a a])
-tesselateAsSidedTriangle test lrs =    -- looking for a pattern that contains at least two Lefts and exactly one Right (except the test may be reversed Left for Right)
-        if ok then (map stripEither $ right_vertex : (leading_lefts ++ trailing_lefts),-- the triangle strip defined by on right edge and several left edges
-                    right_vertex : (last $ leading_lefts ++ trailing_lefts) : rest)      -- the right edge and the trailing left edge define the start of the next strip
-              else ([],lrs)   -- pattern match failure, return the parameters as we recieved them to pattern match on something else
+tesselateAsSidedTriangle test lrs =    -- looking for a pattern that contains at least two Lefts and exactly one Right 
+                                       -- (except the test may be reversed Left for Right)
+        if ok then (map stripEither $ right_vertex : (leading_lefts ++ trailing_lefts),
+	                               -- the triangle strip defined by on right edge and several left edges
+                    right_vertex : (last $ leading_lefts ++ trailing_lefts) : rest)      
+		                       -- the right edge and the trailing left edge define the start of the next strip
+              else ([],lrs)            -- pattern match failure, return the parameters as we recieved them to pattern match on something else
     where (leading_lefts,trailing) = span test lrs
           right_vertex = head trailing
           (trailing_lefts,rest) = span test $ tail trailing
