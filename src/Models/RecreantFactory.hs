@@ -9,7 +9,7 @@ import RSAGL.Material
 import RSAGL.ModelingExtras
 import RSAGL.Vector
 import RSAGL.Affine
-import Models.RecreantMaterials
+import Models.Materials
 
 recreant_factory :: Quality -> Modeling ()
 recreant_factory _ = model $

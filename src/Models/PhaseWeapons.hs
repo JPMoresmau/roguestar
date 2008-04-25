@@ -3,7 +3,7 @@ module Models.PhaseWeapons
     where
 
 import Quality
-import Models.ConcordanceMaterials
+import Models.Materials
 import RSAGL.Vector
 import RSAGL.Model
 import RSAGL.ModelingExtras

@@ -20,6 +20,7 @@ import Control.Monad
 import System.IO
 import Models.Encephalon
 import Models.Recreant
+import Models.Androsynth
 import Models.PhaseWeapons
 import Models.MachineParts
 
@@ -29,9 +30,11 @@ toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
 toModel Encephalon = encephalon
 toModel Recreant = recreant
+toModel Androsynth = androsynth
 toModel PhasePistol = phase_pistol
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper
+toModel ThinLimb = thin_limb
 
 all_library_models :: [LibraryModel]
 all_library_models =

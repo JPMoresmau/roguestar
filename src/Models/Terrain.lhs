@@ -33,16 +33,20 @@ known_terrain_types =
      "rockface",
      "recreantfactory"]
 
-terrainTileShape :: Double -> Modeling ()
-terrainTileShape height = model $
+terrainTileShape :: Double -> Double -> Modeling ()
+terrainTileShape squash height = model $
     do regularPrism (origin_point_3d,0.75) (Point3D 0 1 0,0.0001) 4
        deform $ \(Point3D x y z) -> Point3D x (sqrt $ max 0 y) z
        affine $ scale (Vector3D 1 height 1) . rotate (Vector3D 0 1 0) (fromDegrees 45)
+       deform $ \(SurfaceVertex3D p v) -> SurfaceVertex3D (scale (Vector3D 1 squash 1) p) v
 
 terrainTile :: String -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
+terrainTile "rockface" _ = model $
+    do terrainTileShape 1.0 (terrainHeight "rockface")
+       terrainTexture "rockface"
 terrainTile s _ = model $
-    do terrainTileShape (terrainHeight s)
+    do terrainTileShape 0.01 (terrainHeight s)
        terrainTexture s
        
 terrainHeight :: String -> Double

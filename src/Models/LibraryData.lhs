@@ -11,8 +11,10 @@ data LibraryModel =
   | NullModel
   | Encephalon
   | Recreant
+  | Androsynth
   | PhasePistol
   | MachineArmLower
   | MachineArmUpper
+  | ThinLimb
       deriving (Eq,Ord,Show)
 \end{code}      

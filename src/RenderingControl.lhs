@@ -256,6 +256,7 @@ creatureAvatar = proc () ->
        returnA -< Nothing
   where switchTo "encephalon" = encephalonAvatar
         switchTo "recreant" = recreantAvatar
+	switchTo "androsynth" = androsynthAvatar
         switchTo _ = questionMarkAvatar
 
 genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
@@ -279,6 +280,15 @@ recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
     do libraryA -< (Local,Recreant)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms MachineArmUpper MachineArmLower (Vector3D 0 (-1.0) 0) (Point3D 0.3 0.075 0) 0.5 (Point3D 0.5 0.075 0.2) -< ()
+       returnA -< CreatureThreadOutput {
+           cto_wield_point = wield_point }
+
+androsynthAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+androsynthAvatar = genericCreatureAvatar $ proc () ->
+    do libraryA -< (Local,Androsynth)
+       bothLegs ThinLimb ThinLimb (Vector3D 0 0 1) (Point3D (0.07) 0.5 (-0.08)) 0.7 (Point3D 0.07 0 0.0) -< ()
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
+           bothArms ThinLimb ThinLimb (Vector3D (1.0) (-1.0) (-1.0)) (Point3D 0.05 0.65 0.0) 0.45 (Point3D 0.15 0.34 0.1) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 

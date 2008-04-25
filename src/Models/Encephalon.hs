@@ -7,8 +7,7 @@ import RSAGL.Vector
 import RSAGL.CurveExtras
 import RSAGL.Model
 import RSAGL.ModelingExtras
-import Models.EncephalonMaterials
-import Models.AllianceMaterials
+import Models.Materials
 import RSAGL.Affine
 
 encephalon_head :: Quality -> Modeling ()

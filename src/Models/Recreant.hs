@@ -9,7 +9,7 @@ import RSAGL.Material
 import RSAGL.ModelingExtras
 import RSAGL.Vector
 import RSAGL.Affine
-import Models.AllianceMaterials
+import Models.Materials
 
 recreant_antenna_small :: Quality -> Modeling ()
 recreant_antenna_small _ = 
