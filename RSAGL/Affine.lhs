@@ -12,6 +12,7 @@ The IO monad itself is AffineTransformable.  This is done by wrapping the IO act
 module RSAGL.Affine
     (AffineTransformable(..),
      transformAbout,
+     translateToFrom,
      rotateToFrom)
     where
 
@@ -20,7 +21,9 @@ import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Angle
 import RSAGL.Homogenous
+\end{code}
 
+\begin{code}
 class AffineTransformable a where
     transform :: RSAGL.Matrix.Matrix -> a -> a
     scale :: Vector3D -> a -> a
@@ -50,6 +53,9 @@ transformAbout center tform =
     RSAGL.Affine.translate (vectorToFrom center origin_point_3d) .
     tform .
     RSAGL.Affine.translate (vectorToFrom origin_point_3d center)
+
+translateToFrom :: (AffineTransformable a) => Point3D -> Point3D -> a -> a
+translateToFrom a b = RSAGL.Affine.translate (vectorToFrom a b)
 
 rotateToFrom :: (AffineTransformable a) => Vector3D -> Vector3D -> a -> a
 rotateToFrom u v = RSAGL.Affine.rotate c a

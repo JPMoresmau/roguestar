@@ -60,7 +60,7 @@ rotationM v a =
 animateM :: AniM AffineTransformation -> AniM b -> AniM b
 animateM affineF action =
     do at <- affineF
-       transformM at action
+       transformM (affineOf at) action
 
 rotateM :: Vector3D -> Rate Angle -> AniM a -> AniM a
 rotateM v a = animateM (rotationM v a)

@@ -58,7 +58,7 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
                              leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ jointAnimation upper_leg_anim lower_leg_anim
        return $ proc () ->
            do accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb test_quality)
-              transformA pointAtCameraA -< (Affine.translate (Vector3D 0 1.05 0),(Local,getQuality qo_glow_orb test_quality))
+              transformA pointAtCameraA -< (Affine $ Affine.translate (Vector3D 0 1.05 0),(Local,getQuality qo_glow_orb test_quality))
               accumulateSceneA -< (Local,lightSource $ PointLight (Point3D 0 0 0)
                                                                   (measure (Point3D 0 0 0) (Point3D 0 6 0))
                                                                   (scaleRGB 0.5 white) blackbody)
@@ -100,12 +100,12 @@ testScene =
               rotation_orb <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 7)
               accumulateSceneM Local $ sceneObject $ getQuality qo_ground test_quality
               accumulateSceneM Local $ sceneObject $ getQuality qo_monolith test_quality
-              transformM (Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
+              transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
                   accumulateSceneM Infinite $ sceneObject $ getQuality qo_station test_quality
-              transformM (rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
+              transformM (affineOf $ rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
                   do runAnimationObject ao_walking_orb ()
-              transformM (Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM rotation_planet $ accumulateSceneM Infinite $ sceneObject $ getQuality qo_planet test_quality
+              transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
+                  do transformM (affineOf rotation_planet) $ accumulateSceneM Infinite $ sceneObject $ getQuality qo_planet test_quality
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
                      accumulateSceneM Infinite $ sceneObject $ getQuality qo_ring test_quality

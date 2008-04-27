@@ -11,7 +11,10 @@ module RSAGL.CoordinateSystems
     (AffineTransformation,
      affine_identity,
      CoordinateSystem,
+     Affine(..),
+     affineOf,
      CoordinateSystemClass(..),
+     NestedCoordinateSystemTransformer,
      root_coordinate_system,
      migrate,
      transformation,
@@ -81,22 +84,29 @@ root_coordinate_system = CoordinateSystem $ identityMatrix 4
 \subsection{Abstract Affine Transformations}
 
 \begin{code}
-type AffineTransformation = CoordinateSystem -> CoordinateSystem
+newtype Affine = Affine { affine_transformation :: forall a. AffineTransformable a => a -> a }
+type AffineTransformation = Affine -> Affine
+
+instance AffineTransformable Affine where
+   transform m (Affine f) = Affine $ transform m . f
 
 affine_identity :: AffineTransformation
 affine_identity = id
 
+affineOf :: AffineTransformation -> Affine
+affineOf = ($ (Affine id))
+
+affineTransformationToMatrix :: AffineTransformation -> Matrix
+affineTransformationToMatrix f = affine_transformation (affineOf f) $ identityMatrix 4
+
 transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-transformation f = transform m
-    where CoordinateSystem m = f root_coordinate_system
+transformation = transform . affineTransformationToMatrix
 
 inverseTransformation :: (AffineTransformable a) => AffineTransformation -> a -> a
-inverseTransformation f = inverseTransform m
-    where CoordinateSystem m = f root_coordinate_system
+inverseTransformation = inverseTransform . affineTransformationToMatrix
 
 postmultiplyTransformation :: AffineTransformation -> CoordinateSystem -> CoordinateSystem
-postmultiplyTransformation f (CoordinateSystem cs) = CoordinateSystem $ cs `matrixMultiply` m
-    where CoordinateSystem m = f root_coordinate_system
+postmultiplyTransformation f (CoordinateSystem cs) = CoordinateSystem $ cs `matrixMultiply` affineTransformationToMatrix f
 \end{code}
 
 \subsection{Coordinate System Neutral Data}
@@ -139,7 +149,7 @@ exportToA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransform
 exportToA cs = exportA >>> arr (importCSN cs)
 
 exportCoordinateSystem :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr AffineTransformation CoordinateSystem
-exportCoordinateSystem = exportToA root_coordinate_system <<< arr ($ root_coordinate_system)
+exportCoordinateSystem = exportToA root_coordinate_system <<< arr (flip transformation root_coordinate_system)
 
 importA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,AffineTransformable a) => arr (CSN a) a
 importA = proc a ->
@@ -158,18 +168,29 @@ remoteA = proc (context,f,a) ->
 \subsection{Affine Transformation in State Monads and State Arrows}
 
 \begin{code}
-transformM :: (Monad m,MonadState s m,CoordinateSystemClass s) => AffineTransformation -> m a -> m a
-transformM affine_transformation action =
+class NestedCoordinateSystemTransformer a where
+    transformCoordinateSystem :: a -> CoordinateSystem -> CoordinateSystem
+
+instance NestedCoordinateSystemTransformer Affine where
+    transformCoordinateSystem (Affine f) = postmultiplyTransformation f
+
+instance NestedCoordinateSystemTransformer CoordinateSystem where
+    transformCoordinateSystem cs = const cs
+
+transformM :: (Monad m,MonadState s m,CoordinateSystemClass s,
+               NestedCoordinateSystemTransformer cst) => cst -> m a -> m a
+transformM ncst action =
     do s <- liftM getCoordinateSystem get
-       modify (storeCoordinateSystem (postmultiplyTransformation affine_transformation s))
+       modify (storeCoordinateSystem (transformCoordinateSystem ncst s))
        a <- action
        modify (storeCoordinateSystem s)
        return a
 
-transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s) => arr a b -> arr (AffineTransformation,a) b
-transformA action = proc (affine_transformation,a) ->
+transformA :: (Arrow arr,ArrowState s arr,CoordinateSystemClass s,
+               NestedCoordinateSystemTransformer cst) => arr a b -> arr (cst,a) b
+transformA action = proc (ncst,a) ->
     do s <- fetch -< ()
-       store -< storeCoordinateSystem (postmultiplyTransformation affine_transformation $ getCoordinateSystem s) s
+       store -< storeCoordinateSystem (transformCoordinateSystem ncst $ getCoordinateSystem s) s
        b <- action -< a
        s' <- fetch -< ()
        store -< storeCoordinateSystem (getCoordinateSystem s) s'

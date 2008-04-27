@@ -43,7 +43,7 @@ rotationA v a = proc _ ->
 animateA :: (Arrow a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => FRP i o a j AffineTransformation -> FRP i o a j p -> FRP i o a j p
 animateA affineA action = proc i ->
     do at <- affineA -< i
-       transformA action -< (at,i)
+       transformA action -< (affineOf at,i)
 
 rotateA :: (Arrow a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => Vector3D -> Rate Angle -> FRP i o a j p -> FRP i o a j p
 rotateA v a = animateA (rotationA v a)
@@ -97,5 +97,5 @@ accelerationModel :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,Coordina
 accelerationModel f pv forceA actionA = proc j ->
     do (p,v) <- integralRK4' f (flip translate) pv <<< forceA -< j
        a <- derivative -< v
-       transformA actionA -< (translate (vectorToFrom p origin_point_3d),((p,v,a),j))
+       transformA actionA -< (affineOf $ translate (vectorToFrom p origin_point_3d),((p,v,a),j))
 \end{code}

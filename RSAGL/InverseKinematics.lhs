@@ -67,14 +67,14 @@ of the legs always try to touch the ground.
 newtype Leg threaded t i o a = Leg (FRPX threaded t i o a [Bool] [Bool])
 
 instance (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => AffineTransformable (Leg threaded t i o a) where
-    transform m (Leg l) = Leg (proc x -> transformA l -< (transform m,x))
+    transform m (Leg l) = Leg (proc x -> transformA l -< (Affine $ transform m,x))
 
 leg :: (ArrowApply a,ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => Vector3D -> Point3D -> Double -> Point3D -> (FRPX threaded t i o a Joint ()) -> Leg threaded t i o a
 leg bend base len end animation = Leg $ proc feet_that_are_down ->
     do let declare_emergency_foot_down = length (filter id feet_that_are_down) < length (filter not feet_that_are_down) &&
                                          not (and $ take 1 feet_that_are_down)
        (p,foot_is_down) <- first importA <<< 
-                           transformA (foot foot_radius foot_radius (foot_radius/5)) -< (translate (vectorToFrom end origin_point_3d),declare_emergency_foot_down)
+                           transformA (foot foot_radius foot_radius (foot_radius/5)) -< (Affine $ translate (vectorToFrom end origin_point_3d),declare_emergency_foot_down)
        animation -< joint bend base len p
        returnA -< (foot_is_down || declare_emergency_foot_down) : feet_that_are_down
   where foot_radius = sqrt (len^2 - (distanceBetween base end)^2) / 2
@@ -88,8 +88,8 @@ legs ls = (foldl (>>>) (arr $ const []) $ map (\(Leg l) -> l) ls) >>> (arr $ con
 \begin{code}
 jointAnimation :: (ArrowChoice a,ArrowState s a,CoordinateSystemClass s) => FRPX any t i o a () () -> FRPX any t i o a () () -> FRPX any t i o a Joint ()
 jointAnimation upperJoint lowerJoint = proc j ->
-    do transformA upperJoint -< (joint_arm_upper j,())
-       transformA lowerJoint -< (joint_arm_lower j,())
+    do transformA upperJoint -< (affineOf $ joint_arm_upper j,())
+       transformA lowerJoint -< (affineOf $ joint_arm_lower j,())
 \end{code}
 
 \subsection{Approach}
