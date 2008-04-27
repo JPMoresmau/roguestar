@@ -245,12 +245,16 @@ sceneToOpenGL aspect_ratio nearfar scene =
        preservingMatrix $ 
            do infiniteCameraToOpenGL aspect_ratio nearfar (scene_camera scene)
               mapM_ render1Object (scene_infinite_opaques scene)
+	      depthMask $= Disabled
               mapM_ render1Object (scene_infinite_transparents scene)
+	      depthMask $= Enabled
        clear [DepthBuffer]
        preservingMatrix $ 
            do cameraToOpenGL aspect_ratio nearfar (scene_camera scene)
               mapM_ render1Object (scene_local_opaques scene)
+	      depthMask $= Disabled
               mapM_ render1Object (scene_local_transparents scene)
+	      depthMask $= Enabled
        lightModelAmbient $= save_light_model_ambient
        lighting $= save_lighting
        depthMask $= save_depth_mask
