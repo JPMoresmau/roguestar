@@ -12,6 +12,7 @@ data LibraryModel =
   | Encephalon
   | Recreant
   | Androsynth
+  | AscendantGlow
   | PhasePistol
   | MachineArmLower
   | MachineArmUpper

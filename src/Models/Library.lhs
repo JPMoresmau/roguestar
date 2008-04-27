@@ -21,6 +21,7 @@ import System.IO
 import Models.Encephalon
 import Models.Recreant
 import Models.Androsynth
+import Models.Ascendant
 import Models.PhaseWeapons
 import Models.MachineParts
 
@@ -31,6 +32,7 @@ toModel NullModel = const $ return ()
 toModel Encephalon = encephalon
 toModel Recreant = recreant
 toModel Androsynth = androsynth
+toModel AscendantGlow = ascendant_glow
 toModel PhasePistol = phase_pistol
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper

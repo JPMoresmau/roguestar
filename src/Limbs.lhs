@@ -26,8 +26,8 @@ import RSAGL.Time
 
 libraryJointAnimation :: Double -> LibraryModel -> LibraryModel -> RSAnimAX any t i o Joint ()
 libraryJointAnimation maximum_length upper lower = proc joint_info ->
-    jointAnimation (proc () -> transformA libraryA -< (scale' (maximum_length/2),(Local,upper)))
-                   (proc () -> transformA libraryA -< (scale' (maximum_length/2),(Local,lower))) -< joint_info
+    jointAnimation (proc () -> transformA libraryA -< (Affine $ scale' (maximum_length/2),(Local,upper)))
+                   (proc () -> transformA libraryA -< (Affine $ scale' (maximum_length/2),(Local,lower))) -< joint_info
 
 arm :: LibraryModel -> LibraryModel -> Vector3D -> Double -> RSAnimAX any t i o (Point3D,Point3D) Joint
 arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_point) ->

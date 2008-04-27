@@ -88,10 +88,10 @@ objectDetailsLookup field = proc _ ->
 objectDestination :: RSAnimA (Maybe Integer) i o () (Maybe (Integer,Integer))
 objectDestination = arr (fmap vo_xy) <<< visibleObject
     
-objectIdealPosition :: RSAnimA (Maybe Integer) i o () (Maybe Vector3D)
+objectIdealPosition :: RSAnimA (Maybe Integer) i o () (Maybe Point3D)
 objectIdealPosition = 
     whenJust (approachA 0.25 (perSecond 3)) <<< 
-    arr (fmap (\(x,y) -> Vector3D (realToFrac x) 0 (negate $ realToFrac y))) <<< 
+    arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (negate $ realToFrac y))) <<< 
     objectDestination
 
 objectFacing :: RSAnimA (Maybe Integer) i o () (Maybe BoundAngle)
@@ -102,11 +102,11 @@ objectIdealFacing = arr (fmap unboundAngle) <<< whenJust (approachA 0.1 (perSeco
 
 objectIdealOrientation :: RSAnimA (Maybe Integer) i o () (Maybe CoordinateSystem)
 objectIdealOrientation = proc () ->
-    do m_v <- objectIdealPosition -< ()
+    do m_p <- objectIdealPosition -< ()
        m_a <- objectIdealFacing -< ()
-       returnA -< do v <- m_v
+       returnA -< do p <- m_p
                      a <- m_a
-		     return $ translate v $ rotateY a $ root_coordinate_system
+		     return $ translate (vectorToFrom p origin_point_3d) $ rotateY a $ root_coordinate_system
 
 wieldableObjectIdealOrientation :: RSAnimA (Maybe Integer) i o ToolThreadInput (Maybe CoordinateSystem)
 wieldableObjectIdealOrientation = proc tti ->

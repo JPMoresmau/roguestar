@@ -21,6 +21,7 @@ module Animation
      clearPrintTextA,
      clearPrintTextOnce,
      libraryA,
+     libraryPointAtCamera,
      blockContinue,
      requestPrintTextMode)
     where
@@ -28,6 +29,7 @@ module Animation
 import RSAGL.FRP
 import RSAGL.CoordinateSystems
 import RSAGL.Scene
+import RSAGL.AnimationExtras
 import Control.Monad.State
 import Control.Arrow
 import Control.Arrow.Transformer hiding (lift)
@@ -176,6 +178,11 @@ libraryA :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
        accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Good)
+
+libraryPointAtCamera :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
+libraryPointAtCamera = proc (layer,lm) ->
+    do lib <- arr animstate_library <<< fetch -< ()
+       pointAtCameraA -< (layer,lookupModel lib lm Good)
 
 blockContinue :: RSAnimAX any t i o Bool ()
 blockContinue = Arrow.lift $ proc b ->
