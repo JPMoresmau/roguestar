@@ -9,12 +9,17 @@ module RSAGL.AnimationExtras
      rotateA,
      pointAtCameraA,
      inverseSquareLaw,
+     quadraticTrap,
+     drag,
+     concatForces,
+     constrainForce,
      accelerationModel)
     where
 
 import RSAGL.Vector
 import RSAGL.FRP
 import RSAGL.Time
+import RSAGL.AbstractVector
 import Control.Arrow
 import Control.Arrow.Operations
 import RSAGL.CoordinateSystems
@@ -70,9 +75,25 @@ inverseSquareLaw :: Double -> Point3D -> ForceFunction
 inverseSquareLaw g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * (recip $ vectorLengthSquared v)) v
     where v = vectorToFrom attractor p
 
+quadraticTrap :: Double -> Point3D -> ForceFunction
+quadraticTrap g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * vectorLengthSquared v) v
+    where v = vectorToFrom attractor p
+
+drag :: Double -> ForceFunction
+drag x _ _ v' = perSecond $ perSecond $ vectorScaleTo (negate $ x * vectorLengthSquared v) v
+    where v = v' `over` fromSeconds 1 
+
+concatForces :: [ForceFunction] -> ForceFunction
+concatForces ffs t p v = abstractSum $ map (\f -> f t p v) ffs
+
+constrainForce :: (Time -> Point3D -> Rate Vector3D -> Bool) -> ForceFunction -> ForceFunction
+constrainForce predicate f t p v = if predicate t p v
+    then f t p v
+    else zero
+
 accelerationModel :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,CoordinateSystemClass s) => 
-                     Frequency -> PV -> FRP i o a j ForceFunction ->
-                     FRP i o a (PVA,j) p -> FRP i o a j p
+                     Frequency -> PV -> FRPX any t i o a j ForceFunction ->
+                     FRPX any t i o a (PVA,j) p -> FRPX any t i o a j p
 accelerationModel f pv forceA actionA = proc j ->
     do (p,v) <- integralRK4' f (flip translate) pv <<< forceA -< j
        a <- derivative -< v
