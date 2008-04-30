@@ -114,6 +114,27 @@ instance (Applicative f,AbstractScale v) => AbstractScale (ApplicativeWrapper f 
 instance (Applicative f,AbstractVector v) => AbstractVector (ApplicativeWrapper f v)
 \end{code}
 
+\subsection{Instances for Tuples}
+
+\begin{code}
+instance (AbstractZero a,AbstractZero b) => AbstractZero (a,b) where
+    zero = (zero,zero)
+
+instance (AbstractAdd a a',AbstractAdd b b') => AbstractAdd (a,b) (a',b') where
+    add (a,b) (c,d) = (add a c,add b d)
+
+instance (AbstractSubtract a a',AbstractSubtract b b') => AbstractSubtract (a,b) (a',b') where
+    sub (a,b) (c,d) = (sub a c,sub b d)
+
+instance (AbstractScale a,AbstractScale b) => AbstractScale (a,b) where
+    scalarMultiply d (a,b) = (scalarMultiply d a,scalarMultiply d b)
+
+instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) where
+    magnitude (a,b) = sqrt $ magnitude a ^ 2 * magnitude b ^ 2
+
+instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
+\end{code}
+
 \subsection{Operations on Abstract Vectors}
 
 \begin{code}
