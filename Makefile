@@ -7,19 +7,23 @@ doc :
 tests: rsagl-tests rsagl-modelview
 
 rsagl-tests :
+	ghc --version
 	-rm -f rsagl-tests.tix
 	ghc -fhpc -prof -auto-all -Wall -Werror -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests
 
 optimized : rsagl-tests-optimized rsagl-modelview-optimized
 
 rsagl-tests-optimized :
+	ghc --version
 	ghc -threaded -Wall -fno-warn-type-defaults -O2 --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
 
 rsagl-modelview:
+	ghc --version
 	-rm -f rsagl-modelview.tix
 	ghc -fhpc -prof -auto-all -lglut -Wall -Werror -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
 
 rsagl-modelview-optimized:
+	ghc --version
 	ghc -threaded -lglut -Wall -fno-warn-type-defaults -fexcess-precision -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-optimized
 
 colors:
@@ -37,8 +41,8 @@ hpc-metrics: rsagl-tests rsagl-modelview
 	-rm -f rsagl-sum.tix
 	./rsagl-tests
 	./rsagl-modelview +RTS -C0
-	hpc6 sum --union rsagl-tests.tix rsagl-modelview.tix > rsagl-sum.tix
-	hpc6 markup rsagl-sum.tix
+	hpc sum --union rsagl-tests.tix rsagl-modelview.tix > rsagl-sum.tix
+	hpc markup rsagl-sum.tix
 
 clean :
 	-rm -f RSAGL/*.dvi
