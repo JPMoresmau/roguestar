@@ -308,8 +308,10 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
 sor :: (Monoid attr) => Curve Point3D -> Modeling attr
 sor c = model $ generalSurface $ Left $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
 
-tube :: (Monoid attr) => Curve Double -> Curve Point3D -> Modeling attr
-tube radius spine = model $ generalSurface $ Left $ extrudeTube radius spine
+tube :: (Monoid attr) => Curve (Double,Point3D) -> Modeling attr
+tube c | radius <- fmap fst c 
+       , spine <- fmap snd c = 
+    model $ generalSurface $ Left $ extrudeTube radius spine
 
 prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
 prism upish ara brb c = model $ generalSurface $ Left $ extrudePrism upish ara brb c

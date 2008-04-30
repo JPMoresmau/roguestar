@@ -11,6 +11,7 @@ import RSAGL.Auxiliary
 import System.Random
 import RSAGL.Angle
 import RSAGL.CurveExtras
+import RSAGL.Curve
 
 ring :: Modeling ()
 ring = model $ do openDisc 0.75 1.0
@@ -94,7 +95,7 @@ orb = model $
                 (0.5,0.55),
                 (-0.001,0.6)]
        sequence_ $ rotationGroup (Vector3D 0 1 0) 5 $
-           tube (pure 0.05) $ smoothCurve 3 0.4 $ loopedLinearInterpolation $ points3d
+           tube $ zipCurve (,) (pure 0.05) $ smoothCurve 3 0.4 $ loopedLinearInterpolation $ points3d
                [(0.4,0.2,0.4),
                 (0.4,0.8,0.8),
                 (-0.4,0.8,0.8),
@@ -110,7 +111,7 @@ glow_orb = translate (Vector3D 0 1 0) $
 
 orb_upper_leg :: Modeling ()
 orb_upper_leg =
-    do tube (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
+    do tube $ zipCurve (,) (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
        sphere (Point3D 0 0 1) 0.05
        pigment $ pure gold
        specular 64 $ pure silver
