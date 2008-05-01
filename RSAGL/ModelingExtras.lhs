@@ -104,7 +104,7 @@ pattern _ [(_,constant_pattern)] = constant_pattern
 pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpMap color_map $ realToFrac $ f sv3d) $ sv3d)
 
 cloudy :: Int -> Double -> Pattern
-cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) * 0.5 + 0.5
+cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) + 0.5
     where frequency = recip wave_length
           offset = vectorNormalize $ fst $ randomXYZ (-1000.0*wave_length,1000.0*wave_length) (mkStdGen seed)
 
