@@ -8,6 +8,7 @@ import RSAGL.ModelingExtras
 import RSAGL.Affine
 import RSAGL.Vector
 import RSAGL.CurveExtras
+import RSAGL.Curve
 
 question_mark_material :: Modeling () 
 question_mark_material = 
@@ -20,7 +21,7 @@ question_mark = model $ scale' 0.1 $
            points2d [(0.1,-4.5),
                      (0.5,-5),
                      (0.1,-5.5)]
-       tube (pure 0.5) $ linearInterpolation $
+       tube $ zipCurve (,) (pure 0.5) $ linearInterpolation $
            points2d [(2,0),
                      (2,2),
                      (1,3),

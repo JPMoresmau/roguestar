@@ -260,6 +260,7 @@ creatureAvatar = proc () ->
         switchTo "recreant" = recreantAvatar
 	switchTo "androsynth" = androsynthAvatar
 	switchTo "ascendant" = ascendantAvatar
+	switchTo "caduceator" = caduceatorAvatar
         switchTo _ = questionMarkAvatar
 
 genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
@@ -325,6 +326,14 @@ ascendantAvatar = genericCreatureAvatar $ proc () ->
 						     azure)
        t <- threadTime -< ()
        wield_point <- exportCoordinateSystem -< translate (rotateY (fromRotations $ t `cyclical'` (fromSeconds 3)) $ Vector3D 0.25 0.5 0)
+       returnA -< CreatureThreadOutput {
+           cto_wield_point = wield_point }
+
+caduceatorAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+caduceatorAvatar = genericCreatureAvatar $ proc () ->
+    do libraryA -< (Local,Caduceator)
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
+           bothArms CaduceatorArmUpper CaduceatorArmLower (Vector3D 1.0 (-1.0) 1.0) (Point3D 0.1 0.15 0.257) 0.34 (Point3D 0.02 0.17 0.4) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 

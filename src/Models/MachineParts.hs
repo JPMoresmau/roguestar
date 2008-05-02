@@ -14,7 +14,7 @@ import RSAGL.Angle
 import Models.Materials
 
 machine_arm_lower :: Quality -> Modeling ()
-machine_arm_lower _ = scale' (1/4) $ rotate (Vector3D 1 0 0) (fromDegrees 90) $
+machine_arm_lower _ = scale' (1/4) $ rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
     do sor $ linearInterpolation $
         points2d [(0.001,4.5),
                   (0.25,4.5),
@@ -25,7 +25,7 @@ machine_arm_lower _ = scale' (1/4) $ rotate (Vector3D 1 0 0) (fromDegrees 90) $
        alliance_metal
 
 machine_arm_upper :: Quality -> Modeling ()
-machine_arm_upper _ = scale' (1/4) $ rotate (Vector3D 1 0 0) (fromDegrees 90) $
+machine_arm_upper _ = scale' (1/4) $ rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
     do sor $ linearInterpolation $
         points2d [(0.001,4.5),
                   (0.5,4.5),

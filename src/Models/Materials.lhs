@@ -6,6 +6,7 @@ module Models.Materials
      concordance_metal,
      concordance_dark_glass,
      concordance_bright_glass,
+     caduceator_skin,
      encephalon_skin,
      recreant_metal)
     where
@@ -52,6 +53,11 @@ concordance_bright_glass =
 \section{Materials by Species}
 
 \subsubsection{Encephalon Materials}
+
+\begin{code}
+caduceator_skin :: Modeling ()
+caduceator_skin = pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure safety_orange),(1.0,pure black)]
+\end{code}
 
 \begin{code}
 encephalon_skin :: Modeling ()
