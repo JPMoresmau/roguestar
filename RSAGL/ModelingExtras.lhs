@@ -21,6 +21,8 @@ module RSAGL.ModelingExtras
      gradient,
      bumps,
      waves,
+     ColorFunction,
+     Pattern,
      module RSAGL.RSAGLColors,
      module RSAGL.Material,
      module RSAGL.ApplicativeWrapper,
