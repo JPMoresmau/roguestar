@@ -261,6 +261,7 @@ creatureAvatar = proc () ->
 	switchTo "androsynth" = androsynthAvatar
 	switchTo "ascendant" = ascendantAvatar
 	switchTo "caduceator" = caduceatorAvatar
+	switchTo "reptilian" = reptilianAvatar
         switchTo _ = questionMarkAvatar
 
 genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
@@ -334,6 +335,15 @@ caduceatorAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (Local,Caduceator)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms CaduceatorArmUpper CaduceatorArmLower (Vector3D 1.0 (-1.0) 1.0) (Point3D 0.1 0.15 0.257) 0.34 (Point3D 0.02 0.17 0.4) -< ()
+       returnA -< CreatureThreadOutput {
+           cto_wield_point = wield_point }
+
+reptilianAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+reptilianAvatar = genericCreatureAvatar $ proc () ->
+    do libraryA -< (Local,Reptilian)
+       bothLegs ReptilianLegUpper ReptilianLegLower (Vector3D 0 0 1) (Point3D (0.05) 0.25 (-0.1)) 0.29 (Point3D 0.07 0 0.0) -< ()
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
+           bothArms ReptilianArmUpper ReptilianArmLower (Vector3D 1.0 0.0 1.0) (Point3D (0.05) 0.35 (-0.1)) 0.25 (Point3D 0.07 0.25 0.12) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 

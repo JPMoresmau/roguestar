@@ -8,7 +8,10 @@ module Models.Materials
      concordance_bright_glass,
      caduceator_skin,
      encephalon_skin,
-     recreant_metal)
+     recreant_metal,
+     reptilian_skin,
+     reptilian_pigment,
+     reptilian_specular)
     where
 
 import RSAGL.Model
@@ -57,6 +60,20 @@ concordance_bright_glass =
 \begin{code}
 caduceator_skin :: Modeling ()
 caduceator_skin = pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure safety_orange),(1.0,pure black)]
+\end{code}
+
+\begin{code}
+reptilian_pigment :: ColorFunction RGB
+reptilian_pigment = pattern (cloudy 75 0.1) [(0.0,pure lavender),(1.0,pure saffron)]
+
+reptilian_specular :: ColorFunction RGB
+reptilian_specular = pattern (cloudy 75 0.1) [(0.0,pure firebrick),(1.0,pure chartreuse)]
+
+reptilian_skin :: Modeling ()
+reptilian_skin = 
+    do pigment $ reptilian_pigment
+       specular 5.0 $ reptilian_specular
+       
 \end{code}
 
 \begin{code}

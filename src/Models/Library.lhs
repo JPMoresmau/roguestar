@@ -23,6 +23,7 @@ import Models.Recreant
 import Models.Androsynth
 import Models.Ascendant
 import Models.Caduceator
+import Models.Reptilian
 import Models.PhaseWeapons
 import Models.MachineParts
 
@@ -34,12 +35,17 @@ toModel Encephalon = encephalon
 toModel Recreant = recreant
 toModel Androsynth = androsynth
 toModel Caduceator = caduceator
+toModel Reptilian = reptilian
 toModel AscendantGlow = ascendant_glow
 toModel PhasePistol = phase_pistol
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper
 toModel CaduceatorArmLower = caduceator_arm_lower
 toModel CaduceatorArmUpper = caduceator_arm_upper
+toModel ReptilianLegLower = reptilian_leg_lower
+toModel ReptilianLegUpper = reptilian_leg_upper
+toModel ReptilianArmLower = reptilian_arm_lower
+toModel ReptilianArmUpper = reptilian_arm_upper
 toModel ThinLimb = thin_limb
 
 all_library_models :: [LibraryModel]
@@ -50,12 +56,17 @@ all_library_models =
      Recreant,
      Androsynth,
      Caduceator,
+     Reptilian,
      AscendantGlow,
      PhasePistol,
      MachineArmLower,
      MachineArmUpper,
      CaduceatorArmLower,
      CaduceatorArmUpper,
+     ReptilianLegLower,
+     ReptilianLegUpper,
+     ReptilianArmLower,
+     ReptilianArmUpper,
      ThinLimb]
 
 data Library = Library 

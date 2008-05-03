@@ -14,11 +14,16 @@ data LibraryModel =
   | Androsynth
   | AscendantGlow
   | Caduceator
+  | Reptilian
   | PhasePistol
   | MachineArmLower
   | MachineArmUpper
   | CaduceatorArmLower
   | CaduceatorArmUpper
+  | ReptilianLegUpper
+  | ReptilianLegLower
+  | ReptilianArmUpper
+  | ReptilianArmLower
   | ThinLimb
       deriving (Eq,Ord,Show)
 \end{code}      
