@@ -216,7 +216,7 @@ renderTerrainTile :: ProtocolTypes.TerrainTile -> RSAnimA t i o Time Bool
 renderTerrainTile (ProtocolTypes.TerrainTile terrain_type (x,y)) = proc t ->
     do let awayness = max 0 $ min 0.99 $ (toSeconds t)^2
        terrain_elements <- terrainElements -< ()
-       transformA libraryA -< (Affine $ translate (Vector3D (realToFrac x) (negate awayness) (negate $ realToFrac y)) . scale' (1 - awayness),
+       transformA libraryA -< (Affine $ translate (Vector3D (realToFrac x) 0 (negate $ realToFrac y)) . scale' (1 - awayness),
                                (Local,Models.LibraryData.TerrainTile terrain_type))
        returnA -< isJust $ find (\a -> tt_xy a == (x,y)) terrain_elements
 
