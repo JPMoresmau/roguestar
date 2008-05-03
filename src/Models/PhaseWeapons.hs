@@ -56,7 +56,7 @@ phase_weapon_grip _ = model $
                                 
 phase_pistol :: Quality -> Modeling ()
 phase_pistol q = model $
-    scale' (1/50) $
+    scale' (1/100) $
         do translate (Vector3D 0 5 7) $ phase_weapon_emitter q
            translate (Vector3D 0 5 0) $ phase_weapon_grip q
 	   concordance_metal

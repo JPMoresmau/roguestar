@@ -276,7 +276,7 @@ encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (
 encephalonAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (Local,Encephalon)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<< 
-           bothArms MachineArmUpper MachineArmLower (Vector3D 1.0 1.0 0) (Point3D 0.25 0.2 0) 0.5 (Point3D 0.35 0.1 0.2) -< ()
+           bothArms MachineArmUpper MachineArmLower (Vector3D 0.66 0.66 0) (Point3D 0.145 0.145 0) 0.33 (Point3D 0.35 0.066 0.133) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 

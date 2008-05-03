@@ -47,7 +47,7 @@ encephalon_suit _ = model $
        alliance_metal
                           
 encephalon :: Quality -> Modeling ()
-encephalon q = model $ scale' (1/20) $
+encephalon q = model $ scale' (1/30) $
     do encephalon_head q
        encephalon_suit q
        translate (Vector3D (-1) 6 4) $ encephalon_eye q
