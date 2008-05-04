@@ -25,12 +25,7 @@ clean :
 	-rm -f products/RSAGL/*.hi
 	-rmdir products/Models
 	-rmdir products/RSAGL
-	-rm -f haddock/haddock.err.out
-	${MAKE} -C haddock clean
 	${MAKE} -C ../rsagl clean
-
-doc :
-	${MAKE} -C haddock
 
 dev : products/roguestar-gl
 	@echo "warning: you're building with development flags on (-Werror, profiling enabled)"
@@ -49,4 +44,4 @@ products/roguestar-gl : src/roguestar-gl
 	cp src/roguestar-gl products/roguestar-gl
 	chmod u+x products/roguestar-gl
 
-.PHONY : default clean doc dev dev-practical release
+.PHONY : default clean dev dev-practical release
