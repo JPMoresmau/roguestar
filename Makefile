@@ -8,7 +8,7 @@ HS_FLAGS = 	-hidir products \
 		-o products/roguestar-gl-bin \
 		-fno-warn-unused-imports
 
-default : dev-practical doc
+default : dev-practical
 
 install :
 	install products/roguestar-gl /usr/local/bin/
