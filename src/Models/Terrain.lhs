@@ -10,6 +10,7 @@ import Quality
 import Models.RecreantFactory
 import RSAGL.Model
 import RSAGL.ModelingExtras
+import Models.Tree
 import RSAGL.Vector
 import RSAGL.Curve
 import RSAGL.Interpolation
@@ -42,13 +43,24 @@ terrainTileShape squash height = model $
 
 terrainTile :: String -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
+terrainTile "forest" q =
+    do basicTerrainTile "forest"
+       leafy_tree q
+terrainTile "deepforest" q =
+    do basicTerrainTile "deepforest"
+       translate (Vector3D 0.5 0 0.5) $ leafy_tree q
+       translate (Vector3D (-0.5) 0 0.5) $ leafy_tree q
+       translate (Vector3D 0 0 (-0.5)) $ leafy_tree q
 terrainTile "rockface" _ = model $
     do terrainTileShape 1.0 (terrainHeight "rockface")
        terrainTexture "rockface"
-terrainTile s _ = model $
+terrainTile s _ = basicTerrainTile s
+
+basicTerrainTile :: String -> Modeling ()
+basicTerrainTile s = model $
     do terrainTileShape 0.01 (terrainHeight s)
        terrainTexture s
-       
+
 terrainHeight :: String -> Double
 terrainHeight "water" = 0.025
 terrainHeight "deepwater" = 0.025
