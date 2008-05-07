@@ -80,13 +80,13 @@ import Control.Arrow hiding (pure)
 
 \subsection{Modeling Primitives}
 
-A ModeledSurface consists of several essential fields: \texttt{ms_surface} is the geometric surface.  .
+A ModeledSurface consists of several essential fields: \texttt{ms\_surface} is the geometric surface.
 
-\texttt{ms_material} defaults to invisible if no material is ever applied.  The functions \texttt{pigment}, \texttt{transparent}, \texttt{emissive}, and \texttt{specular} apply material properties to a surface.
+\texttt{ms\_material} defaults to invisible if no material is ever applied.  The functions \texttt{pigment}, \texttt{transparent}, \texttt{emissive}, and \texttt{specular} apply material properties to a surface.
 
 Scope is controlled by \texttt{model} and \texttt{withAttribute}.  \texttt{model} creates a block of modeling operations that don't affect any surfaces outside of that block.  \texttt{withAttribute} restricts all operations to a subset of surfaces defined by \texttt{attribute}.
 
-\texttt{ms_tesselation} describes how the model will be tesselated into polygons before being sent to OpenGL.
+\texttt{ms\_tesselation} describes how the model will be tesselated into polygons before being sent to OpenGL.
 By default, the \texttt{adaptive} model is used, which adapts to the contour and material of each surface.
 \texttt{fixed} can be used to crudely force the tesselation of objects.
 

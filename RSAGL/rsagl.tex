@@ -67,17 +67,34 @@ RSAGL interfaces with OpenGL via the HOpenGL binding.  To learn about HOpenGL, s
 To learn about linear algebra, a free textbook is available at 
 \href{http://joshua.smcvt.edu/linearalgebra/}{joshua.smcvt.edu/linearalgebra/}.
 
-\part{Three-Dimensional Mathematics Toolset}
+\part{Modeling}
 
-\input{Vector.lhs}
+\input{Model.lhs}
+\input{Color.lhs}
+\input{Material.lhs}
+\input{Deformation.lhs}
+\input{Extrusion.lhs}
+\input{Noise.lhs}
+\input{ModelingExtras.lhs}
+\input{Optimization.lhs}
+\input{Tesselation.lhs}
+\input{QualityControl.lhs}
+\input{Bottleneck.lhs}
 
-\part{Functional Reactive Programming}
+\part{Animation}
 
 The RSAGL FRP arrow transformer is designed to support the functional reactive programming paradigm
 specifically with OpenGL.
 
 \input{FRP.lhs}
 \input{Edge.lhs}
+\input{Scene.lhs}
+\input{Animation.lhs}
+\input{AnimationExtras.lhs}
+\input{RK4.lhs}
+\input{Joint.lhs}
+\input{KinematicSensors.lhs}
+\input{InverseKinematics.lhs}
 
 \part{Arrow Primitives for Functional Reactive Programming}
 
@@ -87,8 +104,28 @@ This section contains arrow transformers used to create the RSAGL FRP arrow.
 \input{SwitchedArrow.lhs}
 \input{ThreadedArrow.lhs}
 \input{FRPBase.lhs}
+\input{ArrowTransformerOptimizer.lhs}
 
-\part{Numeric Types}
+\part{Mathematical Abstractions}
+
+\input{AbstractVector.lhs}
+\input{Interpolation.lhs}
+\input{Curve.lhs}
+\input{CurveExtras.lhs}
+
+\part{Three-Dimensional Mathematics}
+
+\input{Vector.lhs}
+\input{Matrix.lhs}
+\input{Affine.lhs}
+\input{WrappedAffine.lhs}
+\input{Homogenous.lhs}
+\input{CoordinateSystems.lhs}
+\input{Orthagonal.lhs}
+\input{BoundingBox.lhs}
+\input{RayTrace.lhs}
+
+\part{Specific Numeric Types}
 
 \input{Time.lhs}
 \input{Angle.lhs}

@@ -16,10 +16,10 @@ import RSAGL.Orthagonal
 
 \texttt{Joint} is the result of computing a joint.  It provides AffineTransformations that describe the orientations of the bases of the components of the joint.
 
-\texttt{joint_arm_upper} is the affine transformation to the position of the upper arm, where the origin is the shoulder (or base).
-\texttt{joint_arm_lower} is the affine transformation to the lower arm, where the origin is the elbow.
-\texttt{joint_arm_hand} is the affine transformation where the origin is the hand.
-\texttt{joint_shoulder}, \texttt{joint_hand}, and \texttt{joint_elbow} refer to the positions of those endpoints of the joint.
+\texttt{joint\_arm\_upper} is the affine transformation to the position of the upper arm, where the origin is the shoulder (or base).
+\texttt{joint\_arm\_lower} is the affine transformation to the lower arm, where the origin is the elbow.
+\texttt{joint\_arm\_hand} is the affine transformation where the origin is the hand.
+\texttt{joint\_shoulder}, \texttt{joint\_hand}, and \texttt{joint\_elbow} refer to the positions of those endpoints of the joint.
 
 \begin{code}
 data Joint = Joint { joint_shoulder :: Point3D,

@@ -32,15 +32,17 @@ import RSAGL.Angle
 
 This simulates a single foot that hops along by itself whenever its coordinate system moves.  A \texttt{foot} always trys to walk on the plane \texttt{y == 0}.
 \texttt{foot} takes as input a boolean which, if true, indicates that there are not enough feet on the ground and that this \texttt{foot} should perform an
-\"emergency foot down.\"  \texttt{foot} ignores the emergency foot down flag if it is already down.  \texttt{foot} emits the position of the foot and a boolean
+``emergency foot down.''  \texttt{foot} ignores the emergency foot down flag if it is already down.  \texttt{foot} emits the position of the foot and a boolean
 which indicates if the foot is up (\texttt{True}) or down (\texttt{False}).
 
 \texttt{foot} works by reading two odometers, one for forward movement and another for sideways movement.  This is like spinning the wheel by a magical odometer
 instead of spinning the odometer by the wheel.
 
-\texttt{pre_stepage} is the total odometer reading for all travel in both directions.  \texttt{stepage_adjustment} is the amount by which we need to increase
-\texttt{pre_stepage} to ensure that the foot is correct based on an accumulation of emergency foot downs.  \texttt{cyclic_stepage} is a value between 0 and 2,
+\texttt{pre\_stepage} is the total odometer reading for all travel in both directions.  \texttt{stepage\_adjustment} is the amount by which we need to increase
+\texttt{pre\_stepage} to ensure that the foot is correct based on an accumulation of emergency foot downs.  \texttt{cyclic\_stepage} is a value between 0 and 2,
 where a value greater than 1 indicates that the foot is down.
+
+FIXME: this could be done better.
 
 \begin{code}
 foot :: (Arrow a,ArrowApply a,ArrowChoice a,CoordinateSystemClass s,ArrowState s a) => Double -> Double -> Double -> FRPX any t i o a Bool (CSN Point3D,Bool)

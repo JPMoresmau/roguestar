@@ -199,7 +199,7 @@ data Scene = Scene {
     scene_local_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
     scene_camera :: Camera }
 
--- FIXME: This function is a horrible mess (I need to redo this to implement 0.0.4 features anyway).
+-- FIXME: This function is a horrible mess (I need to redo this to implement 0.4 features anyway).
 assembleScene :: Camera -> SceneAccumulator -> IO Scene
 assembleScene c sceneaccum = 
     do infinite_models <- liftM (map splitOpaquesWrapped . catMaybes) $ mapM toModel infinites

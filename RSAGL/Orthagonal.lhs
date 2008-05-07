@@ -73,7 +73,7 @@ furCorrect (FUR BackwardAxis b) = FUR ForwardAxis $ vectorScale (-1) b
 
 \texttt{modelLookAt} generates the affine transformation needed to aim a model at a given position either at a point or along a vector.
 The first parameter is the position of the model.  Typically the second parameter will be the position of the target, and the 
-third parameter will \texttt{(up $ Vector3D 0 1 0)}.
+third parameter will \texttt{(up \$ Vector3D 0 1 0)}.
 
 \begin{code}
 modelLookAt :: (AffineTransformable a) => Point3D -> FUR (Either Point3D Vector3D) -> FUR (Either Point3D Vector3D) -> a -> a

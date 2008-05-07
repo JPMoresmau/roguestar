@@ -50,14 +50,14 @@ lerpBetweenClampedMutated mutator (l,u,r) = lerpBetweenMutated (lerp_mutator_cla
 
 \subsection{Lerp mutators}
 
-\texttt{lerp_mutator_clamp} implements clamping between 0 and 1.
+\texttt{lerp\_mutator\_clamp} implements clamping between 0 and 1.
 
 \begin{code}
 lerp_mutator_clamp :: (Real r) => r -> r
 lerp_mutator_clamp = min 1 . max 0
 \end{code}
 
-\texttt{lerp_mutator_continuous_1st} implements clamping between 0 and 1, but such that the 1st derivative of the result is continuous.
+\texttt{lerp\_mutator\_continuous\_1st} implements clamping between 0 and 1, but such that the 1st derivative of the result is continuous.
 
 \begin{code}
 lerp_mutator_continuous_1st :: (Real r,Fractional r) => r -> r

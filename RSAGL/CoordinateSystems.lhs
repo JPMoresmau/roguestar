@@ -54,7 +54,7 @@ A \texttt{CoordinateSystem} is the context by which coordinate system neutral da
 
 \texttt{migrate} is the function that exports data from one coordinate system into another.
 
-All \texttt{CoordinateSystems} are affine transformations of the \texttt{root_coordinate_system}.
+All \texttt{CoordinateSystems} are affine transformations of the \texttt{root\_coordinate\_system}.
 
 \begin{code}
 data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
