@@ -14,17 +14,14 @@ import HopList
 import Protocol
 import GridRayCaster
 
-program_version_number :: String
-program_version_number = "0.0.1"
+roguestar_version_number :: String
+roguestar_version_number = "0.2"
 
-program_name :: String
-program_name = "roguestar-engine"
+roguestar_program_name :: String
+roguestar_program_name = "roguestar-engine"
 
-program_variant :: String
-program_variant = "standard"
-
-program_id_string :: String
-program_id_string = (program_name ++ " " ++ program_version_number ++ " (" ++ program_variant ++ ")")
+roguestar_id_string :: String
+roguestar_id_string = (roguestar_program_name ++ " " ++ roguestar_version_number)
 
 -- |
 -- Processes a single command line argument.
@@ -39,7 +36,7 @@ runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++
 			  then putStrLn "All tests passed."
 			  else putStrLn "Error: a test failed."
 
-runByArgs "version" = do putStrLn program_id_string
+runByArgs "version" = do putStrLn roguestar_id_string
 
 runByArgs "test-terrain-generator" = do seed <- randomIO
 					let example_terrain = generateExampleTerrain seed
