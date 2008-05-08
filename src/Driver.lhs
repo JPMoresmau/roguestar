@@ -111,7 +111,7 @@ driverWrite_ driver_object "" =
 driverWrite_ driver_object str = 
     do driverRead driver_object
        putChar $ head str
-       hPutChar stderr $ head str -- uncomment to see everything we write in stderr
+       --hPutChar stderr $ head str -- uncomment to see everything we write in stderr
        driverWrite_ driver_object $ tail str
 \end{code}
 
@@ -143,7 +143,7 @@ driverRead driver_object =
            Just next_char -> modifyDriver driver_object 
                                           (\driver -> driver { driver_engine_input_line_fragment=(next_char : 
                                                                                                   driver_engine_input_line_fragment driver) })
-       when (isJust maybe_next_char) $ do hPutChar stderr $ fromJust maybe_next_char -- uncomment to see everything we read in stderr
+       when (isJust maybe_next_char) $ do --hPutChar stderr $ fromJust maybe_next_char -- uncomment to see everything we read in stderr
                                           driverRead driver_object
 \end{code}
 
