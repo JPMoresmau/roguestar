@@ -32,6 +32,9 @@ import Models.Library
 import System.Timeout
 import System.Exit
 
+roguestar_client_version :: String
+roguestar_client_version = "0.2"
+
 default_window_size :: Size
 default_window_size = Size 800 600
 
@@ -59,7 +62,7 @@ main = do (_,_) <- getArgsAndInitialize
 	  lib <- newLibrary
 	  initialWindowSize $= default_window_size
 	  initialDisplayMode $= display_mode
-	  window <- createWindow "RogueStar GL" 
+	  window <- createWindow $ "RogueStar GL " ++ roguestar_client_version 
 	  reshapeCallback $= Just roguestarReshapeCallback
 	  displayCallback $= roguestarDisplayCallback lib driver_object print_text_object animation_object
 	  keyboardMouseCallback $= (Just $ keyCallback print_text_object)
