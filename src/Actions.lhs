@@ -157,16 +157,16 @@ selectBaseClassAction s =
     (s,selectTableAction ("base-classes","0","class") "class-selection" "select-class" s)
 
 select_race_action_names :: [String]
-select_race_action_names = ["anachronid",
+select_race_action_names = [--"anachronid",
 			    "androsynth",
 			    "ascendant",
 			    "caduceator",
 			    "encephalon",
-			    "goliath",
-			    "hellion",
-			    "kraken",
-			    "myrmidon",
-			    "perennial",
+			    --"goliath",
+			    --"hellion",
+			    --"kraken",
+			    --"myrmidon",
+			    --"perennial",
 			    "recreant",
 			    "reptilian"]
 
