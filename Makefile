@@ -1,8 +1,7 @@
 all : doc tests
 
 doc :
-	(cd RSAGL && pdflatex rsagl.tex && pdflatex rsagl.tex && pdflatex rsagl.tex)
-	cp RSAGL/rsagl.pdf ./rsagl.pdf
+	pdflatex -output-directory RSAGL rsagl.tex && cp RSAGL/rsagl.pdf ./
 
 tests: rsagl-tests rsagl-modelview
 
