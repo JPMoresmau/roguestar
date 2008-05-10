@@ -40,7 +40,8 @@ module RSAGL.Model
      model,
      RGBFunction,RGBAFunction,
      material,pigment,specular,emissive,transparent,
-     affine,
+     MonadAffine(..),
+     turbulence,
      deform,
      sphericalCoordinates,
      cylindricalCoordinates,
@@ -206,8 +207,11 @@ instance MonadAffine (ModelingM attr) where
     affine f = State.modify $ map (\x -> x { ms_affine_transform = Just $ (f .) $ fromMaybe id $ ms_affine_transform x })
 
 instance MonadAffine (MaterialM attr) where
-    affine g = State.modify $ map (\(Quasimaterial f c) -> Quasimaterial 
-        (either (wrapApplicative . (. transformation g)) pure $ unwrapApplicative f) c)
+    affine f = turbulence (inverseTransformation f)
+
+turbulence :: (SurfaceVertex3D -> SurfaceVertex3D) -> MaterialM attr ()
+turbulence g = State.modify $ map (\(Quasimaterial f c) -> Quasimaterial 
+        (either (wrapApplicative . (. g)) pure $ unwrapApplicative f) c)
 
 deform :: (DeformationClass dc) => dc -> Modeling attr
 deform dc = 
