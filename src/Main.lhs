@@ -16,9 +16,9 @@ import Data.List
 import Graphics.UI.GLUT
 import Control.Monad
 import Actions
-import Keymaps
+import Keymaps.Keymaps
 import CommandLine
-import DefaultKeymap
+import Keymaps.BuiltinKeymaps
 import RenderingControl
 import Driver
 --import Models.LibraryData

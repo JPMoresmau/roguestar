@@ -1,63 +1,44 @@
-module DefaultKeymap
-    (findKeymapOrDefault, builtin_keymaps, default_keymap, vim_keymap, numpad_keymap)
+module Keymaps.CommonKeymap
+    (commonMovementKeymap,MovementKeymap(..),common_keymap)
     where
 
 import Data.Char
 import Data.Maybe
 
-import Keymaps
+import Keymaps.Keymaps
 
-findKeymapOrDefault :: Maybe KeymapName -> Keymap
-findKeymapOrDefault m_keymap_name = maybe default_keymap id (m_keymap_name >>= (flip lookup builtin_keymaps . (map toLower)))
+data MovementKeymap = MovementKeymap {
+    mk_n, mk_s, mk_e, mk_w, mk_nw, mk_ne, mk_sw, mk_se :: String }
 
-builtin_keymaps :: [(KeymapName, Keymap)]
-builtin_keymaps = [
- ("vim", vim_keymap),
- ("numpad", numpad_keymap)]
+commonMovementKeymap :: MovementKeymap -> Keymap
+commonMovementKeymap mk = [
+ (mk_n mk,"move-n"),
+ (mk_s mk,"move-s"),
+ (mk_e mk,"move-e"),
+ (mk_w mk,"move-w"),
+ (mk_nw mk,"move-nw"),
+ (mk_ne mk,"move-ne"),
+ (mk_sw mk,"move-sw"),
+ (mk_se mk,"move-se"),
+ (">t" ++ mk_n mk,"turn-n"),
+ (">t" ++ mk_s mk,"turn-s"),
+ (">t" ++ mk_e mk,"turn-e"),
+ (">t" ++ mk_w mk,"turn-w"),
+ (">t" ++ mk_nw mk,"turn-nw"),
+ (">t" ++ mk_ne mk,"turn-ne"),
+ (">t" ++ mk_sw mk,"turn-sw"),
+ (">t" ++ mk_se mk,"turn-se"),
+ (">f" ++ mk_n mk,"fire-n"),
+ (">f" ++ mk_s mk,"fire-s"),
+ (">f" ++ mk_e mk,"fire-e"),
+ (">f" ++ mk_w mk,"fire-w"),
+ (">f" ++ mk_nw mk,"fire-nw"),
+ (">f" ++ mk_ne mk,"fire-ne"),
+ (">f" ++ mk_sw mk,"fire-sw"),
+ (">f" ++ mk_se mk,"fire-se")]
 
-default_keymap :: Keymap
-default_keymap = vim_keymap
-
-vim_keymap :: Keymap
-vim_keymap = keymapWithMovementKeys [
- ("k","move-n"),
- ("j","move-s"),
- ("h","move-w"),
- ("l","move-e"),
- ("y","move-nw"),
- ("u","move-ne"),
- ("b","move-sw"),
- ("n","move-se"),
- ("K","turn-n"),
- ("J","turn-s"),
- ("H","turn-w"),
- ("L","turn-e"),
- ("Y","turn-nw"),
- ("U","turn-ne"),
- ("B","turn-sw"),
- ("N","turn-se")]
-
-numpad_keymap :: Keymap
-numpad_keymap = keymapWithMovementKeys [
- ("8","move-n"),
- ("2","move-s"),
- ("4","move-w"),
- ("6","move-e"),
- ("7","move-nw"),
- ("9","move-ne"),
- ("1","move-sw"),
- ("3","move-se"),
- ("K","turn-n"),
- ("J","turn-s"),
- ("H","turn-w"),
- ("L","turn-e"),
- ("Y","turn-nw"),
- ("U","turn-ne"),
- ("B","turn-sw"),
- ("N","turn-se")]
-
-keymapWithMovementKeys :: Keymap -> Keymap
-keymapWithMovementKeys movement_keymap = fixKeymap $ movement_keymap ++ [
+common_keymap :: Keymap
+common_keymap = [
  (":move-n","move-n"),
  (":move-s","move-s"),
  (":move-w","move-w"),
@@ -131,20 +112,12 @@ keymapWithMovementKeys movement_keymap = fixKeymap $ movement_keymap ++ [
  (":wield","wield"),
  ("-","unwield"),
  (":unwield","unwield"),
- (">fk","fire-n"),
  (":fire-n","fire-n"),
- (">fj","fire-s"),
  (":fire-s","fire-s"),
- (">fh","fire-w"),
  (":fire-w","fire-w"),
- (">fl","fire-e"),
  (":fire-e","fire-e"),
- (">fy","fire-nw"),
  (":fire-new","fire-nw"),
- (">fu","fire-ne"),
  (":fire-ne","fire-ne"),
- (">fb","fire-sw"),
  (":fire-sw","fire-sw"),
- (">fn","fire-se"),
  (":fire-se","fire-sw"),
  (":continue","continue")]

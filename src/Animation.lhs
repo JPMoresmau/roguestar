@@ -46,8 +46,8 @@ import Models.Library
 import Models.LibraryData
 import Quality
 import Data.Maybe
-import Keymaps
-import DefaultKeymap
+import Keymaps.Keymaps
+import Keymaps.CommonKeymap
 import Actions
 import Data.List
 import Data.Ord
@@ -147,7 +147,7 @@ actionNameToKeysA action_name = Arrow.lift $ proc () ->
     do animstate <- fetch -< ()
        let action_input = ActionInput (animstate_driver_object animstate)
                                       (animstate_print_text_object animstate)
-       app -< (Arrow.lift $ Kleisli $ const $ IOGuard $ actionNameToKeys action_input default_keymap action_name,())
+       app -< (Arrow.lift $ Kleisli $ const $ IOGuard $ actionNameToKeys action_input common_keymap action_name,())
 
 printMenuA :: [String] -> RSAnimAX any t i o () ()
 printMenuA = foldr (>>>) (arr id) . map printMenuItemA

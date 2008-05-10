@@ -3,7 +3,7 @@
 \texttt{Keymap}s are simple mappings from a sequence of keystrokes to the names of various commands.
 
 \begin{code}
-module Keymaps
+module Keymaps.Keymaps
     (Keymap,
      KeymapName,
      fixKeymap,
