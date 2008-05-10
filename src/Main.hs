@@ -3,9 +3,9 @@ module Main (main)
     where
 
 import DB
-import System
+import System.Environment
 import System.Random
-import List
+import Data.List
 import Tests
 import HierarchicalDatabase
 import Control.Monad
@@ -28,7 +28,7 @@ roguestar_id_string = (roguestar_program_name ++ " " ++ roguestar_version_number
 --
 runByArgs :: String -> IO ()
 
-runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++ 
+runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++
 						   insidenessTests ++
 						   hopListTests ++
 						   gridRayCasterTests)
