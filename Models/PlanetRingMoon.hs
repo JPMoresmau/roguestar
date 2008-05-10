@@ -15,8 +15,9 @@ import RSAGL.Curve
 
 ring :: Modeling ()
 ring = model $ do openDisc 0.75 1.0
-                  transparent $ pure $ alpha 0.25 purple
-                  specular 2 $ pure purple
+                  material $
+		      do transparent $ pure $ alpha 0.25 purple
+                         specular 2 $ pure purple
                   bumps $ waves 0.2 0.01
                   twoSided True
 
@@ -33,27 +34,29 @@ planet = model $
                                     [(-0.9,pure white),(-0.85,land_and_water),(0.85,land_and_water),(0.9,pure white)]
        let planet_interior inner_core outer_core crust = pattern (spherical (Point3D 0 0 0) 0.65) 
                   [(0.0,inner_core),(0.25,inner_core),(0.5,outer_core),(0.95,outer_core),(1.0,crust)]
-       pigment $ planet_interior (pure blackbody) (pure blackbody) $ cities (pure black) planet_surface
-       emissive $ planet_interior (pure yellow) (pure red) $ cities (pure $ scaleRGB 0.2 white) (pure blackbody)
-       specular 20 $ planet_interior (pure blackbody) (pure blackbody) $ land_vs_water (pure blackbody) (pure white)
+       material $
+           do pigment $ planet_interior (pure blackbody) (pure blackbody) $ cities (pure black) planet_surface
+              emissive $ planet_interior (pure yellow) (pure red) $ cities (pure $ scaleRGB 0.2 white) (pure blackbody)
+              specular 20 $ planet_interior (pure blackbody) (pure blackbody) $ land_vs_water (pure blackbody) (pure white)
 
 moon :: Modeling ()
 moon = model $ 
     do sphere (Point3D 0 0 0) 0.2
-       pigment $ pattern (cloudy 8 0.05) [(0.0,pure slate_gray),(1.0,pure black)]
+       material $ pigment $ pattern (cloudy 8 0.05) [(0.0,pure slate_gray),(1.0,pure black)]
 
 monolith :: Modeling ()
 monolith = model $
     do smoothbox 0.1 (Point3D 4 9 1) (Point3D (-4) (-9) (-1))
        affine (translate $ Vector3D 0 9 0)
        affine (scale' 0.20)
-       pigment $ pure blackbody
-       specular 100 $ pure white
+       material $
+           do pigment $ pure blackbody
+              specular 100 $ pure white
 
 ground :: Modeling ()
 ground = model $
     do closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
-       pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
+       material $ pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
 
 station :: Modeling ()
 station = model $
@@ -62,11 +65,12 @@ station = model $
             openCone (Point3D (-0.5) 0 0,0.02) (Point3D 0.5 0 0,0.02)
             openCone (Point3D 0 0 (-0.5),0.02) (Point3D 0 0 0.5,0.02)
             closedCone (Point3D 0 0.2 0,0.2) (Point3D 0 (-0.2) 0,0.2)
-            pigment $ pure silver
-            specular 100 $ pure silver
+            material $ 
+	        do pigment $ pure silver
+                   specular 100 $ pure silver
        model $ 
          do box (Point3D (-0.15) 0.19 (-0.05)) (Point3D 0.15 0.21 0.05)
-            emissive $ pure white
+            material $ emissive $ pure white
        sequence_ $ dropRandomElements 30 (mkStdGen 19) $ concatMap (rotationGroup (Vector3D 0 1 0) 40) $ 
          [window_box,
           transformAbout (Point3D 0.5 0 0) (rotateZ $ fromDegrees 25) window_box,
@@ -78,8 +82,9 @@ station = model $
                                        (Point3D 0.49 (-0.105) (-0.03)) (Point3D 0.51 (-0.105) (-0.03))
                          quadralateral (Point3D 0.51 0.105 (-0.03)) (Point3D 0.49 0.105 (-0.03))
                                        (Point3D 0.49 0.105 0.03) (Point3D 0.51 0.105 0.03)
-                         pigment $ pure black
-                         emissive $ pure white
+                         material $
+			     do pigment $ pure black
+                                emissive $ pure white
                          tesselationHintComplexity 0
                          fixed (3,3)
 
@@ -101,23 +106,26 @@ orb = model $
                 (-0.4,0.8,0.8),
                 (-0.4,0.2,0.4)]
        regularPrism (Point3D 0 0.5 0,0.5) (Point3D 0 1.0 0,-0.001) 4
-       pigment $ pure gold
-       specular 64 $ pure silver
+       material $
+           do pigment $ pure gold
+              specular 64 $ pure silver
 
 glow_orb :: Modeling ()
 glow_orb = translate (Vector3D 0 1 0) $
     do closedDisc (Point3D 0 0 0) (Vector3D 0 1 0) 1
-       emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scaleRGB 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
+       material $ emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scaleRGB 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
 
 orb_upper_leg :: Modeling ()
 orb_upper_leg =
     do tube $ zipCurve (,) (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
        sphere (Point3D 0 0 1) 0.05
-       pigment $ pure gold
-       specular 64 $ pure silver
+       material $
+           do pigment $ pure gold
+              specular 64 $ pure silver
 
 orb_lower_leg :: Modeling ()
 orb_lower_leg =
     do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,-0.001)
-       pigment $ pure gold
-       specular 64 $ pure silver
+       material $ 
+           do pigment $ pure gold
+              specular 64 $ pure silver

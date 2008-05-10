@@ -8,6 +8,8 @@ RSAGL.Model seeks to provide a complete set of high-level modelling primitives f
 module RSAGL.Model
     (Model,
      Modeling,
+     ModelingM,
+     MaterialM,
      IntermediateModel,
      parIntermediateModel,
      generalSurface,
@@ -37,7 +39,7 @@ module RSAGL.Model
      withAttribute,
      model,
      RGBFunction,RGBAFunction,
-     pigment,specular,emissive,transparent,
+     material,pigment,specular,emissive,transparent,
      affine,
      deform,
      sphericalCoordinates,
@@ -67,7 +69,7 @@ import RSAGL.Extrusion
 import RSAGL.BoundingBox
 import Data.List as List
 import Data.Maybe
-import Control.Monad.State hiding (get)
+import qualified Control.Monad.State as State
 import Data.Monoid
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
@@ -105,13 +107,25 @@ data ModeledSurface attr = ModeledSurface {
 data ModelTesselation = Adaptive
                       | Fixed (Integer,Integer)
 
-type Modeling attr = State (Model attr) ()
+data Quasimaterial = forall a. Quasimaterial (ApplicativeWrapper ((->)SurfaceVertex3D) a) (MaterialSurface a -> Material)
+
+newtype ModelingM attr a = ModelingM (State.State (Model attr) a) deriving (Monad)
+newtype MaterialM attr a = MaterialM (State.State [Quasimaterial] a) deriving (Monad)
+type Modeling attr = ModelingM attr ()
+
+instance State.MonadState [ModeledSurface attr] (ModelingM attr) where
+    get = ModelingM State.get
+    put = ModelingM . State.put
+
+instance State.MonadState [Quasimaterial] (MaterialM attr) where
+    get = MaterialM State.get
+    put = MaterialM . State.put
 
 extractModel :: Modeling attr -> Model attr
-extractModel m = execState m []
+extractModel (ModelingM m) = State.execState m []
 
 appendSurface :: (Monoid attr) => Surface SurfaceVertex3D -> Modeling attr
-appendSurface s = modify $ mappend $ [ModeledSurface {
+appendSurface s = State.modify $ mappend $ [ModeledSurface {
     ms_surface = s,
     ms_material = mempty,
     ms_affine_transform = Nothing,
@@ -125,66 +139,86 @@ generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs
 generalSurface (Left points) = appendSurface $ surfaceNormals3D points
 
 tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
-tesselationHintComplexity i = modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
+tesselationHintComplexity i = State.modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
 
 twoSided :: (Monoid attr) => Bool -> Modeling attr
-twoSided two_sided = modify (map $ \m -> m { ms_two_sided = two_sided })
+twoSided two_sided = State.modify (map $ \m -> m { ms_two_sided = two_sided })
 
 model :: Modeling attr -> Modeling attr
-model actions = modify (execState actions [] ++)
+model (ModelingM actions) = State.modify (State.execState actions [] ++)
 
 attribute :: (Monoid attr) => attr -> Modeling attr
-attribute attr = modify (map $ \m -> m { ms_attributes = attr `mappend` ms_attributes m })
+attribute attr = State.modify (map $ \m -> m { ms_attributes = attr `mappend` ms_attributes m })
 
 withAttribute :: (attr -> Bool) -> Modeling attr -> Modeling attr
-withAttribute f actions = modify (\m -> execState actions (goods m) ++ bads m)
-    where goods = filter (f . ms_attributes)
-          bads = filter (not . f . ms_attributes)
+withAttribute f actions = withFilter (f . ms_attributes) actions
 
-material :: (ApplicativeWrapper ((->)SurfaceVertex3D) a) -> (MaterialSurface a -> Material) -> Modeling attr
-material vertexwise_f material_constructor | isPure vertexwise_f = modify (map $ \m ->
+withFilter :: (ModeledSurface attr -> Bool) -> Modeling attr -> Modeling attr
+withFilter f (ModelingM actions) = State.modify (\m -> State.execState actions (filter f m) ++ filter (not . f) m)
+
+class MonadMaterial m where
+    material :: MaterialM attr () -> m attr ()
+
+instance MonadMaterial ModelingM where
+    material (MaterialM actions) = withFilter (materialIsEmpty . ms_material) $ mapM_ appendQuasimaterial $ State.execState actions []
+
+instance MonadMaterial MaterialM where
+    material (MaterialM actions) = State.modify (++ State.execState actions [])
+
+appendQuasimaterial :: Quasimaterial -> ModelingM attr ()
+appendQuasimaterial (Quasimaterial vertexwise_f material_constructor) | isPure vertexwise_f = State.modify (map $ \m ->
     m { ms_material = ms_material m `mappend` (material_constructor $ pure $ fromJust $ fromPure vertexwise_f) })
-material vertexwise_f material_constructor = modify (map $ \m ->
+appendQuasimaterial (Quasimaterial vertexwise_f material_constructor) = State.modify (map $ \m ->
     m { ms_material = ms_material m `mappend` (material_constructor $ 
                           wrapApplicative $ fmap (toApplicative vertexwise_f) $ ms_surface m) })
 
 type RGBFunction = ApplicativeWrapper ((->) SurfaceVertex3D) RGB
 type RGBAFunction = ApplicativeWrapper ((->) SurfaceVertex3D) RGBA
 
-pigment :: RGBFunction -> Modeling attr
-pigment rgbf = material rgbf diffuseLayer
+pigment :: RGBFunction -> MaterialM attr ()
+pigment rgbf = State.modify (++ [Quasimaterial rgbf diffuseLayer])
 
-specular :: GLfloat -> RGBFunction -> Modeling attr
-specular shininess rgbf = material rgbf (flip specularLayer shininess)
+specular :: GLfloat -> RGBFunction -> MaterialM attr ()
+specular shininess rgbf = State.modify (++ [Quasimaterial rgbf (flip specularLayer shininess)])
 
-emissive :: RGBFunction -> Modeling attr
-emissive rgbf = material rgbf emissiveLayer
+emissive :: RGBFunction -> MaterialM attr ()
+emissive rgbf = State.modify (++ [Quasimaterial rgbf emissiveLayer])
 
-transparent :: RGBAFunction -> Modeling attr
-transparent rgbaf = material rgbaf transparentLayer
+transparent :: RGBAFunction -> MaterialM attr ()
+transparent rgbaf = State.modify (++ [Quasimaterial rgbaf transparentLayer])
 
 adaptive :: Modeling attr
-adaptive = modify (map $ \m -> m { ms_tesselation = ms_tesselation m `mplus` (Just Adaptive) })
+adaptive = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just Adaptive) })
 
 fixed :: (Integer,Integer) -> Modeling attr
-fixed x = modify (map $ \m -> m { ms_tesselation = ms_tesselation m `mplus` (Just $ Fixed x) })
+fixed x = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just $ Fixed x) })
 
-instance AffineTransformable (Modeling attr) where
+instance AffineTransformable (ModelingM attr ()) where
     transform mx m = model $ m >> affine (transform mx)
 
-affine :: AffineTransformation -> Modeling attr
-affine f = modify $ map (\x -> x { ms_affine_transform = Just $ (f .) $ fromMaybe id $ ms_affine_transform x })
+instance AffineTransformable (MaterialM attr ()) where
+    transform mx m = material $ m >> affine (transform mx)
+
+class MonadAffine m where
+    affine :: AffineTransformation -> m ()
+
+instance MonadAffine (ModelingM attr) where
+    affine f = State.modify $ map (\x -> x { ms_affine_transform = Just $ (f .) $ fromMaybe id $ ms_affine_transform x })
+
+instance MonadAffine (MaterialM attr) where
+    affine g = State.modify $ map (\(Quasimaterial f c) -> Quasimaterial 
+        (either (wrapApplicative . (. transformation g)) pure $ unwrapApplicative f) c)
 
 deform :: (DeformationClass dc) => dc -> Modeling attr
 deform dc = 
     do finishModeling
        case deformation dc of
-                (Left f) -> modify (map $ \m -> m { ms_surface = surfaceNormals3D $ fmap f $ ms_surface m })
-                (Right f) -> modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
+                (Left f) -> State.modify (map $ \m -> m { ms_surface = surfaceNormals3D $ fmap f $ ms_surface m })
+                (Right f) -> State.modify (map $ \m -> m { ms_surface = fmap (sv3df f) $ ms_surface m })
   where sv3df f sv3d = let SurfaceVertex3D p v = f sv3d in SurfaceVertex3D p (vectorNormalize v)
 
 finishModeling :: Modeling attr
-finishModeling = modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
+finishModeling = State.modify (map $ \m -> if isNothing (ms_affine_transform m) then m else finishAffine m)
     where finishAffine m = m { ms_surface = fmap (\(SurfaceVertex3D p v) -> SurfaceVertex3D p (vectorNormalize v)) $
                                                      transformation (fromJust $ ms_affine_transform m) (ms_surface m),
                                ms_affine_transform = Nothing }

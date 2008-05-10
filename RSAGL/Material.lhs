@@ -5,7 +5,7 @@
 
 module RSAGL.Material
     (module RSAGL.Color,
-     MaterialLayer,MaterialSurface,Material,
+     MaterialLayer,MaterialSurface,Material,materialIsEmpty,
      toLayers,materialLayerSurface,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
      isOpaqueLayer,
      diffuseLayer,RSAGL.Material.specularLayer,transparentLayer,emissiveLayer)
@@ -72,6 +72,9 @@ instance Monoid Material where
     mempty = Material []
     mappend (Material xs) (Material ys) = Material $ combineLayers $ (\zs -> if null (snd zs) then fst zs else snd zs) $
                                                      span (not . isOpaqueLayer) $ xs ++ ys
+
+materialIsEmpty :: Material -> Bool
+materialIsEmpty (Material xs) = null xs
 
 materialLayerComplexity :: MaterialLayer -> Integer
 materialLayerComplexity layer | fromPure (materialLayerRelevant layer) == Just False = 0

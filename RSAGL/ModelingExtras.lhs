@@ -131,17 +131,17 @@ gradient center vector (SurfaceVertex3D p _) = dotProduct vector (vectorToFrom p
 \subsection{Materials}
 
 \begin{code}
-glass :: RGBFunction -> Modeling attr
+glass :: RGBFunction -> MaterialM attr ()
 glass rgbf = 
     do transparent $ (alpha 0.05) <$> rgbf
        specular 100 $ (\rgb_color -> curry (lerp (brightness rgb_color)) rgb_color white) <$> rgbf
 
-plastic :: RGBFunction -> Modeling attr
+plastic :: RGBFunction -> MaterialM attr ()
 plastic rgbf = 
     do pigment rgbf
        specular 50 (pure white)
 
-metallic :: RGBFunction -> Modeling attr
+metallic :: RGBFunction -> MaterialM attr ()
 metallic rgbf = 
     do pigment rgbf
        specular 75 rgbf
