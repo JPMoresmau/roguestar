@@ -1,11 +1,79 @@
 module DefaultKeymap
-    (default_keymap)
+    (findKeymapOrDefault, builtin_keymaps, default_keymap, vim_keymap, numpad_keymap)
     where
+
+import Data.Char
+import Data.Maybe
 
 import Keymaps
 
-default_keymap :: [(String,String)]
-default_keymap = fixKeymap [
+findKeymapOrDefault :: Maybe KeymapName -> Keymap
+findKeymapOrDefault m_keymap_name = maybe default_keymap id (m_keymap_name >>= (flip lookup builtin_keymaps . (map toLower)))
+
+builtin_keymaps :: [(KeymapName, Keymap)]
+builtin_keymaps = [
+ ("vim", vim_keymap),
+ ("numpad", numpad_keymap)]
+
+default_keymap :: Keymap
+default_keymap = vim_keymap
+
+vim_keymap :: Keymap
+vim_keymap = keymapWithMovementKeys [
+ ("k","move-n"),
+ ("j","move-s"),
+ ("h","move-w"),
+ ("l","move-e"),
+ ("y","move-nw"),
+ ("u","move-ne"),
+ ("b","move-sw"),
+ ("n","move-se"),
+ ("K","turn-n"),
+ ("J","turn-s"),
+ ("H","turn-w"),
+ ("L","turn-e"),
+ ("Y","turn-nw"),
+ ("U","turn-ne"),
+ ("B","turn-sw"),
+ ("N","turn-se")]
+
+numpad_keymap :: Keymap
+numpad_keymap = keymapWithMovementKeys [
+ ("8","move-n"),
+ ("2","move-s"),
+ ("4","move-w"),
+ ("6","move-e"),
+ ("7","move-nw"),
+ ("9","move-ne"),
+ ("1","move-sw"),
+ ("3","move-se"),
+ ("K","turn-n"),
+ ("J","turn-s"),
+ ("H","turn-w"),
+ ("L","turn-e"),
+ ("Y","turn-nw"),
+ ("U","turn-ne"),
+ ("B","turn-sw"),
+ ("N","turn-se")]
+
+keymapWithMovementKeys :: Keymap -> Keymap
+keymapWithMovementKeys movement_keymap = fixKeymap $ movement_keymap ++ [
+ (":move-n","move-n"),
+ (":move-s","move-s"),
+ (":move-w","move-w"),
+ (":move-e","move-e"),
+ (":move-nw","move-nw"),
+ (":move-ne","move-ne"),
+ (":move-sw","move-sw"),
+ (":move-se","move-se"),
+ (":turn-n","turn-n"),
+ (":turn-s","turn-s"),
+ (":turn-w","turn-w"),
+ (":turn-e","turn-e"),
+ (":turn-nw","turn-nw"),
+ (":turn-ne","turn-ne"),
+ (":turn-sw","turn-sw"),
+ (":turn-se","turn-se"),
  ("x","anachronid"),
  (":anachronid","anachronid"),
  ("a","androsynth"),
@@ -54,38 +122,6 @@ default_keymap = fixKeymap [
  (":thief","thief"),
  ("w","warrior"),
  (":warrior","warrior"),
- ("k","move-n"),
- (":move-n","move-n"),
- ("j","move-s"),
- (":move-s","move-s"),
- ("h","move-w"),
- (":move-w","move-w"),
- ("l","move-e"),
- (":move-e","move-e"),
- ("y","move-nw"),
- (":move-nw","move-nw"),
- ("u","move-ne"),
- (":move-ne","move-ne"),
- ("b","move-sw"),
- (":move-sw","move-sw"),
- ("n","move-se"),
- (":move-se","move-se"),
- ("K","turn-n"),
- (":turn-n","turn-n"),
- ("J","turn-s"),
- (":turn-s","turn-s"),
- ("H","turn-w"),
- (":turn-w","turn-w"),
- ("L","turn-e"),
- (":turn-e","turn-e"),
- ("Y","turn-nw"),
- (":turn-nw","turn-nw"),
- ("U","turn-ne"),
- (":turn-ne","turn-ne"),
- ("B","turn-sw"),
- (":turn-sw","turn-sw"),
- ("N","turn-se"),
- (":turn-se","turn-se"),
  ("#quit","quit"),
  (",","pickup"),
  (":pickup","pickup"),

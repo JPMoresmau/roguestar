@@ -5,6 +5,7 @@
 \begin{code}
 module Keymaps
     (Keymap,
+     KeymapName,
      fixKeymap,
      filterKeySequence,
      keysToActionNames,
@@ -16,6 +17,7 @@ import Data.List
 import Control.Monad
 
 type Keymap = [(String,String)]
+type KeymapName = String
 \end{code}
 
 \texttt{fixKeymap} processes a keymap to make it usable.  If you type in a multi-character command and it executes before you press enter,

@@ -17,6 +17,7 @@ import Graphics.UI.GLUT
 import Control.Monad
 import Actions
 import Keymaps
+import CommandLine
 import DefaultKeymap
 import RenderingControl
 import Driver
@@ -55,19 +56,22 @@ timer_callback_millis = 30
 --qualityFromArgs args = qualityFromArgs $ tail args
 
 main :: IO ()
-main = do (_,_) <- getArgsAndInitialize
-	  driver_object <- newDriverObject
-	  print_text_object <- newPrintTextObject
-	  animation_object <- newRoguestarAnimationObject mainAnimationLoop
-	  lib <- newLibrary
-	  initialWindowSize $= default_window_size
-	  initialDisplayMode $= display_mode
-	  window <- createWindow $ "RogueStar GL " ++ roguestar_client_version 
-	  reshapeCallback $= Just roguestarReshapeCallback
-	  displayCallback $= roguestarDisplayCallback lib driver_object print_text_object animation_object
-	  keyboardMouseCallback $= (Just $ keyCallback print_text_object)
-	  addTimerCallback timer_callback_millis (roguestarTimerCallback driver_object print_text_object window)
-	  mainLoop
+main =
+    do (_, command_line) <- getArgsAndInitialize
+       let command_line_options = parseCommandLine command_line
+       let keymap = findKeymapOrDefault $ keymap_name command_line_options
+       driver_object <- newDriverObject
+       print_text_object <- newPrintTextObject
+       animation_object <- newRoguestarAnimationObject mainAnimationLoop
+       lib <- newLibrary
+       initialWindowSize $= default_window_size
+       initialDisplayMode $= display_mode
+       window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
+       reshapeCallback $= Just roguestarReshapeCallback
+       displayCallback $= roguestarDisplayCallback lib driver_object print_text_object animation_object
+       keyboardMouseCallback $= (Just $ keyCallback print_text_object)
+       addTimerCallback timer_callback_millis (roguestarTimerCallback driver_object print_text_object keymap window)
+       mainLoop
 
 roguestarReshapeCallback :: Size -> IO ()
 roguestarReshapeCallback (Size width height) = 
@@ -90,13 +94,13 @@ roguestarDisplayCallback lib driver_object print_text_object animation_object =
 	         exitWith $ ExitFailure 1
 	 else return ()
 
-roguestarTimerCallback :: DriverObject -> PrintTextObject -> Window -> IO ()
-roguestarTimerCallback driver_object print_text_object window = 
+roguestarTimerCallback :: DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
+roguestarTimerCallback driver_object print_text_object keymap window =
     do result <- timeout 20000000 $
-        do addTimerCallback timer_callback_millis $ roguestarTimerCallback driver_object print_text_object window
+        do addTimerCallback timer_callback_millis $ roguestarTimerCallback driver_object print_text_object keymap window
            driverRead driver_object
            postRedisplay $ Just window
-           maybeExecuteKeymappedAction driver_object print_text_object default_keymap
+           maybeExecuteKeymappedAction driver_object print_text_object keymap
        if isNothing result
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled timer callback (timed out after 20 seconds)"
 	           exitWith $ ExitFailure 1
@@ -110,5 +114,5 @@ maybeExecuteKeymappedAction driver_object print_text_object keymap =
        worked <- takeUserInputAction action_input actions
        if worked
            then clearInputBuffer print_text_object
-	   else setInputBuffer print_text_object =<< filterKeySequence action_input default_keymap buffer_contents
+	   else setInputBuffer print_text_object =<< filterKeySequence action_input keymap buffer_contents
 \end{code}
