@@ -24,7 +24,7 @@ import RSAGL.ModelingExtras
 
 \begin{code}
 alliance_metal :: Modeling ()
-alliance_metal = 
+alliance_metal = material $
     do pigment $ pure $ scaleRGB 0.6 gold
        specular 75 $ pure $ scaleRGB 1.0 gold
 \end{code}
@@ -33,21 +33,21 @@ alliance_metal =
 
 \begin{code}
 concordance_metal :: Modeling ()
-concordance_metal =
+concordance_metal = material $
     do pigment $ pure slate_gray
        specular 45 $ pure lilac
 \end{code}
 
 \begin{code}
 concordance_dark_glass :: Modeling ()
-concordance_dark_glass =
+concordance_dark_glass = material $
     do pigment $ pure black
        specular 85 $ pure eggplant
 \end{code}
 
 \begin{code}
 concordance_bright_glass :: Modeling ()
-concordance_bright_glass =
+concordance_bright_glass = material $
     do pigment $ pure black
        emissive $ pure puce
        specular 85 $ pure eggplant
@@ -59,7 +59,7 @@ concordance_bright_glass =
 
 \begin{code}
 caduceator_skin :: Modeling ()
-caduceator_skin = pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure safety_orange),(1.0,pure black)]
+caduceator_skin = material $ pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure safety_orange),(1.0,pure black)]
 \end{code}
 
 \begin{code}
@@ -70,7 +70,7 @@ reptilian_specular :: ColorFunction RGB
 reptilian_specular = pattern (cloudy 75 0.1) [(0.0,pure firebrick),(1.0,pure chartreuse)]
 
 reptilian_skin :: Modeling ()
-reptilian_skin = 
+reptilian_skin = material $
     do pigment $ reptilian_pigment
        specular 5.0 $ reptilian_specular
        
@@ -78,14 +78,14 @@ reptilian_skin =
 
 \begin{code}
 encephalon_skin :: Modeling ()
-encephalon_skin = pigment $ pattern (cloudy 32 0.1) [(0.0,pure sepia),(1.0,pure amethyst)]
+encephalon_skin = material $ pigment $ pattern (cloudy 32 0.1) [(0.0,pure sepia),(1.0,pure amethyst)]
 \end{code}
 
 \subsubsection{Recreant Materials}
 
 \begin{code}
 recreant_metal :: Modeling ()
-recreant_metal = 
+recreant_metal = material $
     do pigment $ pure camouflage_green 
        specular 25 $ pure white
 \end{code}

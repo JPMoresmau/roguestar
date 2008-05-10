@@ -44,7 +44,7 @@ reptilian _ = model $
        model $
            do sphere (Point3D 0.5 11 2) 0.25
 	      sphere (Point3D (-0.5) 11 2) 0.25
-	      pigment $ pure black
+	      material $ pigment $ pure black
        affine $ scale' (1/20)
 
 reptilian_leg_upper :: Quality -> Modeling ()
@@ -56,8 +56,9 @@ reptilian_leg_upper _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (1,7.5),
 		     (0.75,10.6),
 		     (0.0001,10.8)]
-       pigment $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_pigment),(1.0,pure burgundy)]
-       specular 5.0 $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_specular),(1.0,pure crimson)]
+       material $
+           do pigment $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_pigment),(1.0,pure burgundy)]
+              specular 5.0 $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_specular),(1.0,pure crimson)]
        affine $ scale' (1/10)
 
 reptilian_leg_lower :: Quality -> Modeling ()
@@ -72,8 +73,9 @@ reptilian_leg_lower _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
        openCone (Point3D 0 9.5 0,0.5) (Point3D 0 10 7,0.0001)
        openCone (Point3D 0 9.5 0,0.5) (Point3D 5 10 5,0.0001)
        openCone (Point3D 0 9.5 0,0.5) (Point3D (-5) 10 5,0.0001)
-       pigment $ pure burgundy
-       specular 5.0 $ pure crimson
+       material $ 
+          do pigment $ pure burgundy
+             specular 5.0 $ pure crimson
        affine $ scale' (1/10)
 
 reptilian_arm_upper :: Quality -> Modeling ()
@@ -86,8 +88,9 @@ reptilian_arm_upper _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (0.5,9.0),
 		     (1.0,9.9),
 		     (0.0001,0.0)]
-       pigment $ pure burgundy
-       specular 5.0 $ pure crimson
+       material $
+           do pigment $ pure burgundy
+              specular 5.0 $ pure crimson
        affine $ scale' (1/10)
 
 reptilian_arm_lower :: Quality -> Modeling ()
@@ -99,7 +102,8 @@ reptilian_arm_lower _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (0.5,9.0),
 		     (0.5,9.9),
 		     (0.0001,0.0)]
-       pigment $ pure burgundy
-       specular 5.0 $ pure crimson
+       material $
+           do pigment $ pure burgundy
+              specular 5.0 $ pure crimson
        affine $ scale' (1/10)
        

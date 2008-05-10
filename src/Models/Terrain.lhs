@@ -53,13 +53,13 @@ terrainTile "deepforest" q =
        translate (Vector3D 0 0 (-0.5)) $ leafy_tree q
 terrainTile "rockface" _ = model $
     do terrainTileShape 1.0 (terrainHeight "rockface")
-       terrainTexture "rockface"
+       material $ terrainTexture "rockface"
 terrainTile s _ = basicTerrainTile s
 
 basicTerrainTile :: String -> Modeling ()
 basicTerrainTile s = model $
     do terrainTileShape 0.01 (terrainHeight s)
-       terrainTexture s
+       material $ terrainTexture s
 
 terrainHeight :: String -> Double
 terrainHeight "water" = 0.025
@@ -78,7 +78,7 @@ terrainHeight "rubble" = 0.2
 terrainHeight "rockface" = 0.5
 terrainHeight _ = 2.0
 
-terrainTexture :: String -> Modeling ()
+terrainTexture :: String -> MaterialM () ()
 terrainTexture "water" =
     do pigment $ pure blue
        specular 100 $ pure white

@@ -20,20 +20,20 @@ leafy_tree Poor = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 
 leafy_tree Good = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 0.1 4) (mkStdGen 45)
 leafy_tree Super = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 0.1 5) (mkStdGen 45)
 
-leafyTreeBranch :: Point3D -> Vector3D -> Double -> Int -> RandT StdGen (State (Model ())) ()
+leafyTreeBranch :: Point3D -> Vector3D -> Double -> Int -> RandT StdGen (ModelingM ()) ()
 leafyTreeBranch point vector thickness recursion | recursion <= 0 = 
      do b <- getRandom
         when b $ lift $ model $
             do sphere point (vectorLength vector + thickness)
-               pigment $ pure forest_green
+               material $ pigment $ pure forest_green
 leafyTreeBranch point vector thickness recursion =
     do lift $ model $
            do closedCone (point,thickness) (translate vector point,thickness/2)
-	      pigment $ pure dark_brown
+	      material $ pigment $ pure dark_brown
        us <- liftM (take recursion) $ getRandomRs (0.0,1.0)
        mapM leafyTreeBranchFrom us
        leafyTreeBranchFrom 1.0
-  where leafyTreeBranchFrom :: Double -> RandT StdGen (State (Model ())) ()
+  where leafyTreeBranchFrom :: Double -> RandT StdGen (ModelingM ()) ()
         leafyTreeBranchFrom u =
 	    do let new_vector_constraint = vectorLength vector / 1.5
 	       (x:y:z:_) <- getRandomRs (-new_vector_constraint,new_vector_constraint)

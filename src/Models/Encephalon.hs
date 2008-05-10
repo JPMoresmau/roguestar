@@ -31,7 +31,7 @@ encephalon_head _ = model $
 encephalon_eye :: Quality -> Modeling ()
 encephalon_eye _ = model $
     do sphere origin_point_3d 0.4
-       pigment $ pure black
+       material $ pigment $ pure black
 
 encephalon_suit :: Quality -> Modeling ()
 encephalon_suit _ = model $ 

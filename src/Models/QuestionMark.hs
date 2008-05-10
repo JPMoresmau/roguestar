@@ -11,7 +11,7 @@ import RSAGL.CurveExtras
 import RSAGL.Curve
 
 question_mark_material :: Modeling () 
-question_mark_material = 
+question_mark_material = material $
     do pigment $ pure blackbody
        emissive $ pure fuchsia
 

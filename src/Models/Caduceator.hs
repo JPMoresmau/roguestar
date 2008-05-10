@@ -46,7 +46,7 @@ caduceator _ = model $
        model $
            do sphere (Point3D 1.25 7.5 5) 0.25
 	      sphere (Point3D (-1.25) 7.5 5) 0.25
-	      pigment $ pure black
+	      material $ pigment $ pure black
        affine $ scale' (1/20)
 
 caduceator_arm_upper :: Quality -> Modeling ()
