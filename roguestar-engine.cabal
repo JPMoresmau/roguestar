@@ -1,6 +1,5 @@
 name:                roguestar-engine
 version:             0.2
-license:             GPL
 license-file:        LICENSE
 author:              Christopher Lane Hinson
 maintainer:          Christopher Lane Hinson <lane@downstairspeople.org>
