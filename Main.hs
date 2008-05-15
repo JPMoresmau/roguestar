@@ -10,8 +10,8 @@ module Main (main) where
 import System.Cmd (system)
 
 main :: IO ()
-main =  do system $ "hose localhost 5618 --out --in --unix " ++ "roguestar-engine version over begin" ++ " &"
+main =  do system $ "faucet 5618 --out --in --unix --once " ++ "roguestar-engine version over begin" ++ " &"
            system "sleep 2" -- TODO: Figure out some in-Haskell way
-           system $ "faucet 5618 --out --in --unix --once " ++ "roguestar-gl-bin" ++ " &"
+           system $ "hose localhost 5618 --out --in --unix " ++ "roguestar-gl-bin" ++ " &"
            return ()
 
