@@ -1,5 +1,5 @@
 name:                rsagl
-version:             0.2
+version:             0.3
 license:             BSD3
 license-file:        LICENSE
 author:              Christopher Lane Hinson
@@ -12,13 +12,10 @@ description:         RSAGL, the RogueStar Animation and Graphics Library, includ
                      as well as an animation monad and arrow, which is more or less like YAMPA
                      as a stack of arrow transformers.  RSAGL was specifically designed for
                      roguestar, but every effort has been made (including the license) to make
-                     it accessable to other projects that might benefit from it.  Performance
-                     is an issue, but there is a lot of low-hanging fruit in this area.
+                     it accessable to other projects that might benefit from it.
                      .
-                     The Darcs repository is available at <http://www.downstairspeople.org/darcs/roguestar>.
+                     The Darcs repository is available at <http://www.downstairspeople.org/darcs/rsagl>.
 homepage:            http://roguestar.downstairspeople.org/
--- Note that the pdf is generated as 'cd RSAG:pdflatex RSAGL/rsagl.tex'; do that before an sdist or build
-data-files:          rsagl-rgb.html, rsagl-rgb.txt, RSAGL/rsagl.tex, rsagl.pdf
 
 build-depends:       base>3, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2
 build-type:          Simple
@@ -42,5 +39,5 @@ exposed-modules:     Models.PlanetRingMoon,
                      RSAGL.AbstractVector, RSAGL.ThreadedArrow, RSAGL.Edge,
                      RSAGL.Homogenous
 
-ghc-options:         -Wall
+ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
