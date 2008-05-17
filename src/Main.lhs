@@ -34,7 +34,7 @@ import System.Timeout
 import System.Exit
 
 roguestar_client_version :: String
-roguestar_client_version = "0.3"
+roguestar_client_version = "0.2.1"
 
 default_window_size :: Size
 default_window_size = Size 800 600
