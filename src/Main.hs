@@ -15,7 +15,7 @@ import Protocol
 import GridRayCaster
 
 roguestar_version_number :: String
-roguestar_version_number = "0.3"
+roguestar_version_number = "0.2.1"
 
 roguestar_program_name :: String
 roguestar_program_name = "roguestar-engine"
