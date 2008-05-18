@@ -9,8 +9,6 @@ module Main
 
 import System.IO
 import PrintText
---import Quality
-import Data.IORef
 import Data.Maybe
 import Data.List
 import Graphics.UI.GLUT
@@ -21,14 +19,8 @@ import CommandLine
 import Keymaps.BuiltinKeymaps
 import RenderingControl
 import Driver
---import Models.LibraryData
---import Models.Library
---import Camera
 import Animation
 import RSAGL.Scene
-import RSAGL.Vector
-import RSAGL.Angle
-import Control.Arrow
 import Models.Library
 import System.Timeout
 import System.Exit

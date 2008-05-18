@@ -3,7 +3,6 @@ module Keymaps.CommonKeymap
     where
 
 import Data.Char
-import Data.Maybe
 
 import Keymaps.Keymaps
 

@@ -2,9 +2,6 @@ module Keymaps.VIKeymap
     (vi_movement_keymap,vi_keymap)
     where
 
-import Data.Char
-import Data.Maybe
-
 import Keymaps.Keymaps
 import Keymaps.CommonKeymap
 

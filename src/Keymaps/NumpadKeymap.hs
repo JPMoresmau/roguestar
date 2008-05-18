@@ -2,9 +2,6 @@ module Keymaps.NumpadKeymap
     (numpad_movement_keymap,numpad_keymap)
     where
 
-import Data.Char
-import Data.Maybe
-
 import Keymaps.CommonKeymap
 import Keymaps.Keymaps
 

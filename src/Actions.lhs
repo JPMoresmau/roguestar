@@ -12,10 +12,8 @@ module Actions
     where
 
 import System.Exit
-import Control.Monad
 import Control.Monad.Error
 import Driver
-import Data.IORef
 import Data.List
 import PrintText
 import Tables

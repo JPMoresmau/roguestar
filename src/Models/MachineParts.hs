@@ -6,7 +6,6 @@ module Models.MachineParts
     
 import Quality
 import RSAGL.Model
-import RSAGL.ModelingExtras
 import RSAGL.CurveExtras
 import RSAGL.Affine
 import RSAGL.Vector

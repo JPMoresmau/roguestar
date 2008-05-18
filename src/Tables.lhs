@@ -14,7 +14,6 @@ import Data.List
 import Data.Maybe
 import RSAGL.Time
 import Control.Monad
-import RSAGL.AbstractVector
 \end{code}
 
 \texttt{RoguestarTable} is a crude implementation of a relational data table that is used to represent information that has been sent to us from roguestar-engine.

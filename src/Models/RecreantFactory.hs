@@ -4,11 +4,7 @@ module Models.RecreantFactory
     
 import Quality
 import RSAGL.Model
-import RSAGL.CurveExtras
-import RSAGL.Material
-import RSAGL.ModelingExtras
 import RSAGL.Vector
-import RSAGL.Affine
 import Models.Materials
 
 recreant_factory :: Quality -> Modeling ()

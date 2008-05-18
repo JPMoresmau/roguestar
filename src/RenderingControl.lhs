@@ -27,14 +27,12 @@ import ProtocolTypes
 import RSAGL.Time
 import RSAGL.AbstractVector
 import VisibleObject
-import Data.Fixed
 import RSAGL.InverseKinematics
 import RSAGL.AnimationExtras
 import Actions
 import Strings
 import Control.Applicative
 import qualified Data.Map as Map
-import Data.Monoid
 import Limbs
 import RSAGL.Joint
 import RSAGL.AbstractVector

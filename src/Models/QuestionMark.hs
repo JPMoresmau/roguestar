@@ -2,7 +2,6 @@ module Models.QuestionMark
     (question_mark)
     where
     
-import Quality
 import RSAGL.Model
 import RSAGL.ModelingExtras
 import RSAGL.Affine

@@ -2,7 +2,6 @@
 module CommandLine(CommandLineOptions, keymap_name, parseCommandLine) where
 
 import Keymaps.Keymaps
-import Keymaps.BuiltinKeymaps
 
 data CommandLineOptions = CommandLineOptions {
 	keymap_name :: Maybe KeymapName

@@ -35,7 +35,6 @@ import RSAGL.Vector
 import RSAGL.Angle
 import RSAGL.Affine
 import RSAGL.CoordinateSystems
-import Control.Applicative
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad

@@ -12,7 +12,6 @@ import RSAGL.Model
 import RSAGL.ModelingExtras
 import Models.Tree
 import RSAGL.Vector
-import RSAGL.Curve
 import RSAGL.Interpolation
 import RSAGL.Affine
 import RSAGL.Angle

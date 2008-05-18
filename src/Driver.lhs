@@ -18,7 +18,6 @@ import Data.List
 import System.IO
 import Tables
 import RSAGL.Time
-import Control.Concurrent
 
 data RoguestarEngineState = RoguestarEngineState { 
     restate_tables :: [RoguestarTable], 

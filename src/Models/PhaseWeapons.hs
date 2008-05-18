@@ -6,7 +6,6 @@ import Quality
 import Models.Materials
 import RSAGL.Vector
 import RSAGL.Model
-import RSAGL.ModelingExtras
 import RSAGL.Affine
 import RSAGL.CurveExtras
 import RSAGL.Angle

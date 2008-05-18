@@ -11,10 +11,8 @@ module Limbs
     where
 import VisibleObject
 import Animation
-import RSAGL.Animation
 import RSAGL.Joint
 import RSAGL.Affine
-import Models.Library
 import Models.LibraryData
 import Control.Arrow
 import RSAGL.Vector
