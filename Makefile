@@ -1,3 +1,7 @@
+not-a-makefile-base-project:
+	@echo "This isn't a Makefile-based project!"
+	@echo "You probably want to: runhaskell Setup.hs configure/build/install"
+
 all : doc tests
 
 doc :
@@ -30,17 +34,16 @@ colors:
 	./rsagl-process-colors
 
 darcstest :
-	make clean
-	make
-	make clean
+	${MAKE} clean
+	${MAKE} all
+	${MAKE} clean
 
 hpc-metrics: rsagl-tests rsagl-modelview
 	-rm -f rsagl-tests.tix
 	-rm -f rsagl-modelview.tix
 	-rm -f rsagl-sum.tix
 	./rsagl-tests
-	./rsagl-modelview +RTS -C0
-	hpc sum --union rsagl-tests.tix rsagl-modelview.tix > rsagl-sum.tix
+	hpc sum --union rsagl-tests.tix > rsagl-sum.tix
 	hpc markup rsagl-sum.tix
 
 clean :
