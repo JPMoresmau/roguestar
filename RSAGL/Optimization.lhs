@@ -100,7 +100,7 @@ lengthProportional :: (p -> p -> Double) -> Surface p -> Integer -> SurfaceConfi
 lengthProportional ruler s n =
     let curve_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width s
         transpose_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width $ flipTransposeSurface s
-        base_width = max 2 $ floor $ sqrt $ fromInteger n
+        base_width = max 5 $ floor $ sqrt $ fromInteger n
         improved_width = max 5 $ round $ sqrt (sum transpose_lengths / sum curve_lengths) * realToFrac base_width
         roundOdd x = case floor x of
                           x' | even x' -> x' + 1

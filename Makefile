@@ -18,7 +18,7 @@ optimized : rsagl-tests-optimized rsagl-modelview-optimized
 
 rsagl-tests-optimized :
 	ghc --version
-	ghc -threaded -Wall -fno-warn-type-defaults -O2 --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
+	ghc -threaded -Wall -fno-warn-type-defaults -O2 -fexcess-precision --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
 
 rsagl-modelview:
 	ghc --version

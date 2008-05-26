@@ -6,6 +6,7 @@ Implements simple bounding boxes and spheres.
 module RSAGL.BoundingBox
     (BoundingBox,
      Bound3D(..),
+     boundingCenterRadius,
      minimalDistanceToBoundingBox)
    where
 
@@ -69,7 +70,7 @@ boundingBoxToPointCloud bbox =
 boundingCenterRadius :: BoundingBox -> (Point3D,Double)
 boundingCenterRadius bbox = (lerp 0.5 (nlb,frt),distanceBetween nlb frt / 2)
     where nlb = Point3D (bbox_near bbox) (bbox_left bbox) (bbox_bottom bbox)
-          frt = Point3D (bbox_near bbox) (bbox_left bbox) (bbox_bottom bbox)
+          frt = Point3D (bbox_far bbox) (bbox_right bbox) (bbox_top bbox)
 
 minimalDistanceToBoundingBox :: Point3D -> BoundingBox -> Double
 minimalDistanceToBoundingBox p bbox = distanceBetween p c - r

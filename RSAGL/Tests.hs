@@ -30,6 +30,7 @@ import Control.Parallel.Strategies
 import RSAGL.RK4
 import RSAGL.Bottleneck
 import RSAGL.Joint
+import Data.Maybe
 
 --
 -- State machine that adds its input to its state
@@ -273,7 +274,7 @@ testVectorAverage =
 
 testNewell :: IO ()
 testNewell =
-    do let (x,y,z) = toXYZ $ newell [point3d (1,0,0),point3d (0,1,0),point3d (0,0,-1)]
+    do let (x,y,z) = toXYZ $ fromMaybe (error "testNewell: Nothing") $ newell [point3d (1,0,0),point3d (0,1,0),point3d (0,0,-1)]
        testClose "testNewell(x)" x (-0.57735) equalClose
        testClose "testNewell(y)" y (-0.57735) equalClose
        testClose "testNewell(z)" z 0.57735 equalClose

@@ -1,7 +1,7 @@
 \section{Points and Vectors: RSAGL.Vector}
 
 \begin{code}
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies, PatternGuards #-}
 module RSAGL.Vector
     (Point3D(..),
      origin_point_3d,
@@ -19,6 +19,7 @@ module RSAGL.Vector
      distanceBetween,
      distanceBetweenSquared,
      aNonZeroVector,
+     aLargeVector,
      vectorAdd,
      vectorSum,
      vectorScale,
@@ -158,8 +159,18 @@ instance NFData SurfaceVertex3D where
 
 \begin{code}
 aNonZeroVector :: Vector3D -> Maybe Vector3D
-aNonZeroVector (Vector3D 0 0 0) = Nothing
-aNonZeroVector vector = Just vector
+aNonZeroVector v = case vectorLength v of
+    x | x <= 0 -> Nothing
+    x | isDenormalized x -> Nothing
+    x | isNaN x -> Nothing
+    x | isInfinite x -> Nothing
+    _ | otherwise -> Just v
+
+aLargeVector :: Double -> Vector3D -> Maybe Vector3D
+aLargeVector x v_ =
+    case aNonZeroVector v_ of
+        Just v | vectorLength v > x -> Just v
+        _ | otherwise -> Nothing
 
 dotProduct :: Vector3D -> Vector3D -> Double
 dotProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
@@ -231,21 +242,19 @@ vectorAverage vects = vectorNormalize $ vectorSum $ map vectorNormalize vects
 
 \subsection{Generating normal vectors}
 
-newell calculates the normal vector of an arbitrary polygon.  If the points specified are non-coplanar,
-newell often calculates a reasonable result.
+\texttt{newell} calculates the normal vector of an arbitrary polygon.  If the points specified are non-coplanar,
+\texttt{newell} often calculates a reasonable result; if they are colinear or singular \texttt{newell} will fail.
 
 The result is a normalized vector.
 
 \begin{code}
-newell :: [Point3D] -> Vector3D
-newell points = vectorNormalize $ fromMaybe (error errmsg) $ aNonZeroVector $ vectorSum $ map newell_ $ loopedDoubles points
+newell :: [Point3D] -> Maybe Vector3D
+newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ $ loopedDoubles points
     where newell_ (Point3D x0 y0 z0,Point3D x1 y1 z1) =
               (Vector3D 
                ((y0 - y1)*(z0 + z1))
                ((z0 - z1)*(x0 + x1))
                ((x0 - x1)*(y0 + y1)))
-          errmsg = "newell: zero vector.  This is typically caused by colinear geometries, such as degenerate triangles, zero-radius spheres " ++
-                   "or certain extrusions with a linear spine and no explicit orientation."
 \end{code}
 
 \subsection{Randomly Generated Coordinates}

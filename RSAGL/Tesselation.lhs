@@ -20,6 +20,7 @@ import Data.List
 import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd
+import Data.Maybe
 \end{code}
 
 Tesselation is a stage of transforming a model into OpenGL procedure calls.  Tesselation is done by breaking a surface into a sequence of polylines (a grid).  Pairs of polylines, possibly of differing length, describe a polygon strip.  We subdivide that strip into triangle fans and quadralateral strips, as described by the OpenGL specification.
@@ -137,7 +138,7 @@ class ConcavityDetection a where
     toPoint3D :: a -> Point3D
 
 instance ConcavityDetection Point3D where
-    isConcave = any ((<= 0) . uncurry dotProduct) . doubles . map newell . loopedConsecutives 3
+    isConcave = any ((<= 0) . uncurry dotProduct) . doubles . map (fromMaybe zero_vector . newell) . loopedConsecutives 3
     toPoint3D = id
 
 instance ConcavityDetection SurfaceVertex3D where

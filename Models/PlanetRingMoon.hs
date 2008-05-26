@@ -42,7 +42,8 @@ planet = model $
 moon :: Modeling ()
 moon = model $ 
     do sphere (Point3D 0 0 0) 0.2
-       material $ pigment $ pattern (cloudy 8 0.05) [(0.0,pure slate_gray),(1.0,pure black)]
+       material $ pigment $ pattern (cloudy 8 0.05) [(0.0,pure slate_gray),(1.0,pure white)]
+       regenerateNormals
 
 monolith :: Modeling ()
 monolith = model $
@@ -55,8 +56,11 @@ monolith = model $
 
 ground :: Modeling ()
 ground = model $
-    do closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
+    do --closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
+       openDisc 0.0 75 -- deliberately make a large disc with a degenerate center
+       regenerateNormals
        material $ pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
+       affine $ translate (Vector3D 0 (-0.1) 0)
 
 station :: Modeling ()
 station = model $
@@ -125,7 +129,7 @@ orb_upper_leg =
 
 orb_lower_leg :: Modeling ()
 orb_lower_leg =
-    do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,-0.001)
+    do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,0)
        material $ 
            do pigment $ pure gold
               specular 64 $ pure silver

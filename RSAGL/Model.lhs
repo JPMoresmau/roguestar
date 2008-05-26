@@ -35,6 +35,7 @@ module RSAGL.Model
      fixed,
      tesselationHintComplexity,
      twoSided,
+     regenerateNormals,
      attribute,
      withAttribute,
      model,
@@ -81,7 +82,7 @@ import Graphics.Rendering.OpenGL.GL.Polygons
 import Control.Arrow hiding (pure)
 \end{code}
 
-\subsection{Modeling Primitives}
+\subsection{Modeling Monad}
 
 A ModeledSurface consists of several essential fields: \texttt{ms\_surface} is the geometric surface.
 
@@ -139,12 +140,41 @@ generalSurface :: (Monoid attr) => Either (Surface Point3D) (Surface (Point3D,Ve
 generalSurface (Right pvs) = appendSurface $ uncurry SurfaceVertex3D <$> pvs
 generalSurface (Left points) = appendSurface $ surfaceNormals3D points
 
+twoSided :: (Monoid attr) => Bool -> Modeling attr
+twoSided two_sided = State.modify (map $ \m -> m { ms_two_sided = two_sided })
+\end{code}
+
+\subsection{Tesselation Hints}
+
+\begin{code}
 tesselationHintComplexity :: (Monoid attr) => Integer -> Modeling attr
 tesselationHintComplexity i = State.modify (map $ \m -> m { ms_tesselation_hint_complexity = i })
 
-twoSided :: (Monoid attr) => Bool -> Modeling attr
-twoSided two_sided = State.modify (map $ \m -> m { ms_two_sided = two_sided })
+adaptive :: Modeling attr
+adaptive = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just Adaptive) })
 
+fixed :: (Integer,Integer) -> Modeling attr
+fixed x = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just $ Fixed x) })
+\end{code}
+
+\texttt{regenerateNormals} is mostly used for debugging and strips and recomputes the normal vector data for
+every surface that is in scope.
+
+\begin{code}
+regenerateNormals :: (Monoid attr) => Modeling attr
+regenerateNormals = deform (id :: Point3D -> Point3D)
+\end{code}
+
+\subsection{Scoping Rules}
+
+The \texttt{Modeling} monad has scoping rules that prevent nested modeling operations
+from affecting unrelated surfaces.
+
+\texttt{model} brackets which surfaces are considered in scope.  
+\texttt{attribute} tags all surfaces that are in scope with a user attribute.
+\texttt{withAttribute} filters which surfaces are considered in scope.
+
+\begin{code}
 model :: Modeling attr -> Modeling attr
 model (ModelingM actions) = State.modify (State.execState actions [] ++)
 
@@ -156,7 +186,11 @@ withAttribute f actions = withFilter (f . ms_attributes) actions
 
 withFilter :: (ModeledSurface attr -> Bool) -> Modeling attr -> Modeling attr
 withFilter f (ModelingM actions) = State.modify (\m -> State.execState actions (filter f m) ++ filter (not . f) m)
+\end{code}
 
+\subsection{Materials}
+
+\begin{code}
 class MonadMaterial m where
     material :: MaterialM attr () -> m attr ()
 
@@ -187,13 +221,11 @@ emissive rgbf = State.modify (++ [Quasimaterial rgbf emissiveLayer])
 
 transparent :: RGBAFunction -> MaterialM attr ()
 transparent rgbaf = State.modify (++ [Quasimaterial rgbaf transparentLayer])
+\end{code}
 
-adaptive :: Modeling attr
-adaptive = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just Adaptive) })
+\subsection{Transformations of Surfaces and Materials}
 
-fixed :: (Integer,Integer) -> Modeling attr
-fixed x = State.modify (map $ \m -> m { ms_tesselation = ms_tesselation m `State.mplus` (Just $ Fixed x) })
-
+\begin{code}
 instance AffineTransformable (ModelingM attr ()) where
     transform mx m = model $ m >> affine (transform mx)
 
@@ -232,10 +264,10 @@ finishModeling = State.modify (map $ \m -> if isNothing (ms_affine_transform m) 
 
 \begin{code}
 sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
-sphericalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi) * (1 - 0.5^10))))
+sphericalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
 
 cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
-cylindricalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
+cylindricalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
 
 toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
@@ -255,6 +287,9 @@ transformUnitCubeToUnitSphere p =
         p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
         k = recip $ distanceBetween origin_point_3d p_projected
         in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
+
+clampV :: Surface a -> Surface a
+clampV = pretransformSurface id (min 1 . max 0)
 \end{code}
 
 \subsection{Simple Geometric Shapes}
@@ -321,7 +356,8 @@ closedCone a b = model $
 
 quadralateral :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Point3D -> Modeling attr
 quadralateral a b c d = model $ 
-    do normal_vector <- return $ newell [a,b,c,d]
+    do let degenerate_message = error $ "quadralateral: " ++ show (a,b,c,d) ++ " seems to be degenerate."
+       normal_vector <- return $ fromMaybe (degenerate_message) $ newell [a,b,c,d]
        generalSurface $ Right $ surface $ \u v -> (lerp v (lerp u (a,b), lerp u (d,c)),normal_vector)
 
 triangle :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Modeling attr
@@ -344,15 +380,15 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
        quadralateral (Point3D hx ly' lz') (Point3D hx hy' lz') (Point3D hx hy' hz') (Point3D hx ly' hz')  -- right
 
 sor :: (Monoid attr) => Curve Point3D -> Modeling attr
-sor c = model $ generalSurface $ Left $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
+sor c = model $ generalSurface $ Left $ clampV $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
 
 tube :: (Monoid attr) => Curve (Double,Point3D) -> Modeling attr
 tube c | radius <- fmap fst c 
        , spine <- fmap snd c = 
-    model $ generalSurface $ Left $ extrudeTube radius spine
+    model $ generalSurface $ Left $ clampV $ extrudeTube radius spine
 
 prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
-prism upish ara brb c = model $ generalSurface $ Left $ extrudePrism upish ara brb c
+prism upish ara brb c = model $ generalSurface $ Left $ clampV $ extrudePrism upish ara brb c
 \end{code}
 
 \subsection{Rendering Models to OpenGL}

@@ -26,17 +26,23 @@ module RSAGL.Curve
      uv_identity,
      surfaceDerivative,
      curveDerivative,
+     orientationLoops,
+     newellCurve,
      surfaceNormals3D)
     where
 
 import Control.Arrow hiding (pure)
 import RSAGL.Vector
+import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.Affine
 import Data.List
+import Data.Maybe
 import Control.Parallel.Strategies
 import Control.Applicative
 import RSAGL.AbstractVector
+import Debug.Trace
+import RSAGL.BoundingBox
 \end{code}
 
 \subsection{The Curve}
@@ -88,7 +94,7 @@ pretransformCurve :: (Double -> Double) -> Curve a -> Curve a
 pretransformCurve g = mapCurve (\f (h,u) -> f (h,g u))
 
 pretransformCurve2 :: (Double -> Double) -> (Double -> Double) -> Curve (Curve a) -> Curve (Curve a)
-pretransformCurve2 fx fy = mapCurve2 $ (\f x y -> f (second fx x) (second fy y))
+pretransformCurve2 fu fv = mapCurve2 $ (\f u v -> f (second fu u) (second fv v))
 
 transposeCurve :: Curve (Curve a) -> Curve (Curve a)
 transposeCurve = mapCurve2 flip
@@ -103,7 +109,7 @@ curve = Curve . uncurry . const
 newtype Surface a = Surface (Curve (Curve a)) deriving (NFData,AffineTransformable)
 
 surface :: (Double -> Double -> a) -> Surface a
-surface f = Surface $ curve (\x -> curve $ flip f x)
+surface f = Surface $ curve (\u -> curve $ flip f u)
 
 wrapSurface :: Curve (Curve a) -> Surface a
 wrapSurface = Surface
@@ -131,7 +137,7 @@ zipSurface :: (x -> y -> z) -> Surface x -> Surface y -> Surface z
 zipSurface f (Surface x) (Surface y) = Surface $ zipCurve (zipCurve f) x y
 
 pretransformSurface :: (Double -> Double) -> (Double -> Double) -> Surface a -> Surface a
-pretransformSurface fx fy = Surface . pretransformCurve2 fx fy . unwrapSurface
+pretransformSurface fu fv = Surface . pretransformCurve2 fv fu . unwrapSurface
 
 flipTransposeSurface :: Surface a -> Surface a
 flipTransposeSurface = pretransformSurface id (1-) . transposeSurface
@@ -149,7 +155,35 @@ curveDerivative (Curve f) = Curve $ \(h,u) -> scalarMultiply (recip $ 2 * h) $ f
 surfaceDerivative :: (AbstractSubtract p v,AbstractScale v) => Surface p -> Surface (v,v)
 surfaceDerivative s = zipSurface (,) (curvewiseDerivative s) (transposeSurface $ curvewiseDerivative $ transposeSurface s)
     where curvewiseDerivative (Surface t) = Surface $ fmap curveDerivative t
+\end{code}
+
+\subsection{Determining the Orientation of a Surface}
+
+\begin{code}
+orientationLoops :: Surface p -> Surface (Curve p)
+orientationLoops (Surface s) = Surface $ Curve $ \(uh,u) -> Curve $ \(vh,v) ->
+                                     curve $ \t -> f (uh/2,u + uh*(sine $ fromRotations t)) 
+				                     (vh/2,v + vh*(cosine $ fromRotations t))
+   where f = fromCurve . fromCurve s
+
+newellCurve :: Curve Point3D -> Maybe Vector3D
+newellCurve c = newell $ iterateCurve 16 c
+
+surfaceNormals3DByOrientationLoops :: Surface Point3D -> Surface SurfaceVertex3D
+surfaceNormals3DByOrientationLoops s = SurfaceVertex3D <$> s <*> ((\c -> errmsg c (newellCurve c)) <$> orientationLoops s)
+    where errmsg c = fromMaybe (trace ("surfaceNormals3DByOrientationLoops: zero normal gave up: " ++ show (iterateCurve 16 c)) (Vector3D 0 0 0))
+
+surfaceNormals3DByPartialDerivatives :: Surface Point3D -> Surface (Maybe Vector3D)
+surfaceNormals3DByPartialDerivatives s = safeCrossProduct <$> surfaceDerivative s
+    where x = snd $ boundingCenterRadius $ boundingBox $ concat $ iterateSurface (8,8) s
+          safeCrossProduct (u_,v_) =
+              do u <- aLargeVector (x/100) u_
+	         v <- aLargeVector (x/100) v_
+		 return $ vectorNormalize $ crossProduct u v
 
 surfaceNormals3D :: Surface Point3D -> Surface SurfaceVertex3D
-surfaceNormals3D s = SurfaceVertex3D <$> s <*> fmap (vectorNormalize . uncurry crossProduct) (surfaceDerivative s)
+surfaceNormals3D s = (\p by_pd by_newell -> case by_pd of
+                           Just v -> SurfaceVertex3D p v
+			   Nothing -> by_newell) <$>
+                     s <*> (surfaceNormals3DByPartialDerivatives s) <*> (surfaceNormals3DByOrientationLoops s)
 \end{code}

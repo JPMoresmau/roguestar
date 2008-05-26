@@ -130,9 +130,16 @@ instance (AbstractScale a,AbstractScale b) => AbstractScale (a,b) where
     scalarMultiply d (a,b) = (scalarMultiply d a,scalarMultiply d b)
 
 instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) where
-    magnitude (a,b) = sqrt $ magnitude a ^ 2 * magnitude b ^ 2
+    magnitude (a,b) = sqrt $ magnitude a ^ 2 + magnitude b ^ 2
 
 instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
+\end{code}
+
+\subsection{Instances for Lists}
+
+\begin{code}
+instance (AbstractScale a) => AbstractScale [a] where
+    scalarMultiply d = map (scalarMultiply d)
 \end{code}
 
 \subsection{Operations on Abstract Vectors}

@@ -67,7 +67,7 @@ plane :: Point3D -> Vector3D -> Plane
 plane p v = Plane p $ vectorNormalize v
 
 plane3 :: Point3D -> Point3D -> Point3D -> Plane
-plane3 p1 p2 p3 = plane p1 $ newell [p1,p2,p3]
+plane3 p1 p2 p3 = plane p1 $ fromMaybe (error $ "plane3: " ++ show (p1,p2,p3) ++ " don't uniquely define a plane.") $ newell [p1,p2,p3]
 \end{code}
 
 \subsection{Algorithms}
