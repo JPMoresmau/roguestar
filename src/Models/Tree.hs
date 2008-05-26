@@ -23,6 +23,9 @@ leafyTreeBranch point vector thickness recursion | recursion <= 0 =
      do b <- getRandom
         when b $ lift $ model $
             do sphere point (vectorLength vector + thickness)
+	       return vector
+	       return thickness
+	       return point
                material $ pigment $ pure forest_green
 leafyTreeBranch point vector thickness recursion =
     do lift $ model $

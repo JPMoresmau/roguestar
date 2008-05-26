@@ -31,11 +31,11 @@ recreant_body :: Quality -> Modeling ()
 recreant_body _ = 
     do sor $ linearInterpolation $
                   points2d $ reverse
-		           [(0.001,3),
+		           [(0,3),
                             (4,3),
                             (6,2),
                             (7,1),
-			    (0.001,0)]
+			    (0,0)]
                             
 recreant :: Quality -> Modeling ()
 recreant q = scale' 0.05 $
