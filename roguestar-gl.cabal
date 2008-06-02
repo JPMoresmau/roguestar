@@ -41,3 +41,4 @@ ghc-prof-options:    -prof -auto-all
 executable:          roguestar
 main-is:             Main.hs
 build-depends:       process
+ghc-options:         -threaded
