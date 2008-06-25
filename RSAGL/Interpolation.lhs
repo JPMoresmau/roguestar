@@ -3,6 +3,7 @@
 \begin{code}
 module RSAGL.Interpolation
     (lerp,
+     lerpClamped,
      lerpBetween,
      lerpBetweenMutated,
      lerpBetweenClamped,
@@ -34,6 +35,9 @@ The ``clamped'' versions of the lerp functions clamp the u-value to lie between 
 interpolations, the u-value may lie outside of its boundaries.
 
 \begin{code}
+lerpClamped :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r) => r -> (p,p) -> p
+lerpClamped u = lerpBetweenClamped (0,u,1)
+
 lerpBetween :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r) => (r,r,r) -> (p,p) -> p
 lerpBetween = lerpBetweenMutated id
 

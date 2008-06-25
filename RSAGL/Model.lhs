@@ -358,7 +358,7 @@ quadralateral :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Point3D -> Mo
 quadralateral a b c d = model $ 
     do let degenerate_message = error $ "quadralateral: " ++ show (a,b,c,d) ++ " seems to be degenerate."
        normal_vector <- return $ fromMaybe (degenerate_message) $ newell [a,b,c,d]
-       generalSurface $ Right $ surface $ \u v -> (lerp v (lerp u (a,b), lerp u (d,c)),normal_vector)
+       generalSurface $ Right $ surface $ \u v -> (lerpClamped v (lerpClamped u (a,b), lerpClamped u (d,c)),normal_vector)
 
 triangle :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Modeling attr
 triangle a b c | distanceBetween a b > distanceBetween b c = triangle c a b
