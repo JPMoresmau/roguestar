@@ -16,6 +16,7 @@ main =
        let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ ["version","over","begin"]
        (input,out,err,roguestar_engine) <- runInteractiveProcess "roguestar-engine" engine_args Nothing Nothing
        roguestar_gl <- runProcess "roguestar-gl" gl_args Nothing Nothing (Just out) (Just input) Nothing
+       forkIO $ mapM_ putStrLn =<< liftM (map ("*** " ++) . lines) (hGetContents err)
        forkIO $
            do roguestar_engine_exit <- waitForProcess roguestar_engine
               case roguestar_engine_exit of
@@ -30,7 +31,7 @@ main =
 getNumberOfCPUCores :: IO Int
 getNumberOfCPUCores =
     do m_cpuinfo <- scanCPUInfo
-       maybe (return ()) (\n -> hPutStr stderr $ "roguestar: " ++ show n ++ " CPU cores based on cpuinfo.") m_cpuinfo
+       maybe (return ()) (\n -> hPutStrLn stderr $ "roguestar: " ++ show n ++ " CPU cores based on cpuinfo.") m_cpuinfo
        case m_cpuinfo of
            Just n -> return n
 	   Nothing -> do hPutStrLn stderr "roguestar: couldn't find number of CPU cores, assuming 1 core"
