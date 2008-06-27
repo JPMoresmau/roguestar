@@ -30,12 +30,21 @@ main =
 
 getNumberOfCPUCores :: IO Int
 getNumberOfCPUCores =
-    do m_cpuinfo <- scanCPUInfo
-       maybe (return ()) (\n -> hPutStrLn stderr $ "roguestar: " ++ show n ++ " CPU cores based on cpuinfo.") m_cpuinfo
-       case m_cpuinfo of
-           Just n -> return n
-	   Nothing -> do hPutStrLn stderr "roguestar: couldn't find number of CPU cores, assuming 1 core"
-	                 return 1
+    do m_nop <- readNumberOfProcessors
+       m_cpuinfo <- scanCPUInfo
+       case (m_nop,m_cpuinfo) of
+           (Just n,_) -> do hPutStrLn stderr $ "roguestar: " ++ show n ++ 
+	                        " CPU core(s) based on windows environment variable NUMBER_OF_PROCESSORS. "
+			    return n
+           (_,Just n) -> do hPutStrLn stderr $ "roguestar: " ++ show n ++ " CPU core(s) based on /proc/cpuinfo. " 
+	                    return n
+	   _ ->          do hPutStrLn stderr "roguestar: couldn't find number of CPU cores, assuming 1 core"
+	                    return 1
+
+readNumberOfProcessors :: IO (Maybe Int)
+readNumberOfProcessors = flip catch (const $ return Nothing) $ liftM Just $
+    do n <- getEnv "NUMBER_OF_PROCESSORS"
+       return $! read n
 
 scanCPUInfo :: IO (Maybe Int)
 scanCPUInfo = catch (liftM (Just . length . filter isProcessorLine . map words . lines) $ readFile "/proc/cpuinfo")
