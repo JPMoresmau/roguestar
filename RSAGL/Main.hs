@@ -45,21 +45,21 @@ moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
                       (arr $ const $ inverseSquareLaw 1.0 origin_point_3d)
-                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (Infinite,sceneObject im)
+                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite,sceneObject im)
                                          exportA -< origin_point_3d)
 
 walking_orb_animation :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
                          QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
                          IO (AniA () i o () ())
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
-    do let upper_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_upper_leg 50)
-       let lower_leg_anim = proc () -> accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb_lower_leg 50)
+    do let upper_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getQuality qo_orb_upper_leg 50)
+       let lower_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getQuality qo_orb_lower_leg 50)
        let orb_legs = legs $ rotationGroup (Vector3D 0 1 0) 7 $
                              leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ jointAnimation upper_leg_anim lower_leg_anim
        return $ proc () ->
-           do accumulateSceneA -< (Local,sceneObject $ getQuality qo_orb test_quality)
-              transformA pointAtCameraA -< (Affine $ Affine.translate (Vector3D 0 1.05 0),(Local,getQuality qo_glow_orb test_quality))
-              accumulateSceneA -< (Local,lightSource $ PointLight (Point3D 0 0 0)
+           do accumulateSceneA -< (std_scene_layer_local,sceneObject $ getQuality qo_orb test_quality)
+              transformA pointAtCameraA -< (Affine $ Affine.translate (Vector3D 0 1.05 0),(std_scene_layer_local,getQuality qo_glow_orb test_quality))
+              accumulateSceneA -< (std_scene_layer_local,lightSource $ PointLight (Point3D 0 0 0)
                                                                   (measure (Point3D 0 0 0) (Point3D 0 6 0))
                                                                   (scaleRGB 0.5 white) blackbody)
               orb_legs -< ()
@@ -98,17 +98,16 @@ testScene =
               rotation_station <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 5)
               rotation_camera <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 3)
               rotation_orb <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 7)
-              accumulateSceneM Local $ sceneObject $ getQuality qo_ground test_quality
-              accumulateSceneM Local $ sceneObject $ getQuality qo_monolith test_quality
-              transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ 
-                  accumulateSceneM Infinite $ sceneObject $ getQuality qo_station test_quality
+              accumulateSceneM std_scene_layer_local $ sceneObject $ getQuality qo_ground test_quality
+              accumulateSceneM std_scene_layer_local $ sceneObject $ getQuality qo_monolith test_quality
+              transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_station test_quality
               transformM (affineOf $ rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
                   do runAnimationObject ao_walking_orb ()
               transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM (affineOf rotation_planet) $ accumulateSceneM Infinite $ sceneObject $ getQuality qo_planet test_quality
-                     accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
-                     accumulateSceneM Infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
-                     accumulateSceneM Infinite $ sceneObject $ getQuality qo_ring test_quality
+                  do transformM (affineOf rotation_planet) $ accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_planet test_quality
+                     accumulateSceneM std_scene_layer_infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
+                     accumulateSceneM std_scene_layer_infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
+                     accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_ring test_quality
                      runAnimationObject ao_moon_orbit $ getQuality qo_moon test_quality
               return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 1 2 (-8))
                                            (Point3D 0 2.5 2)

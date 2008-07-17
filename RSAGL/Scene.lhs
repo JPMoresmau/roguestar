@@ -9,9 +9,11 @@ A \texttt{Scene} is a complete description of an image to be rendered, consistin
 module RSAGL.Scene
     (Scene,
      Camera(..),
+     infiniteCameraOf,
      LightSource(..),
+     infiniteLightSourceOf,
      SceneObject,
-     SceneLayer(..),
+     SceneLayer,
      ScenicAccumulator(..),
      SceneAccumulator,
      null_scene_accumulator,
@@ -21,7 +23,12 @@ module RSAGL.Scene
      accumulateSceneM,
      accumulateSceneA,
      assembleScene,
-     sceneToOpenGL)
+     sceneToOpenGL,
+     stdSceneLayers,
+     std_scene_layer_hud,
+     std_scene_layer_cockpit,
+     std_scene_layer_local,
+     std_scene_layer_infinite)
     where
 
 import Data.Ord
@@ -39,6 +46,9 @@ import RSAGL.Color as Color
 import Graphics.UI.GLUT as GLUT
 import Data.Maybe
 import RSAGL.WrappedAffine
+import RSAGL.Orthagonal
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 \end{code}
 
 \subsection{Cameras}
@@ -70,9 +80,15 @@ cameraToOpenGL aspect_ratio (near,far)
        matrixMode $= Modelview 0
        lookAt (Vertex3 px py pz) (Vertex3 lx ly lz) (Vector3 ux uy uz)
 
-infiniteCameraToOpenGL :: Double -> (Double,Double) -> Camera -> IO ()
-infiniteCameraToOpenGL aspect_ratio nearfar pc =
-    cameraToOpenGL aspect_ratio nearfar $ Affine.translate (vectorToFrom origin_point_3d $ camera_position pc) pc
+infiniteCameraOf :: Camera -> Camera
+infiniteCameraOf pc = translateToFrom origin_point_3d (camera_position pc) pc
+
+cameraOrientation :: (AffineTransformable a) => Camera -> a -> a
+cameraOrientation c = modelLookAt (camera_position c) (forward $ Left $ camera_lookat c) 
+                                                      (up $ Right $ camera_up c)
+
+cameraLookAt :: (AffineTransformable a) => Camera -> a -> a
+cameraLookAt = inverseTransformation . cameraOrientation 
 \end{code}
 
 \subsection{Light Sources}
@@ -88,10 +104,10 @@ data LightSource =
                    lightsource_ambient :: Color.RGB }
     | NoLight
 
-makeInfinite :: LightSource -> LightSource
-makeInfinite NoLight = NoLight
-makeInfinite (d@(DirectionalLight {})) = d
-makeInfinite (p@PointLight {}) = DirectionalLight {
+infiniteLightSourceOf :: LightSource -> LightSource
+infiniteLightSourceOf NoLight = NoLight
+infiniteLightSourceOf (d@(DirectionalLight {})) = d
+infiniteLightSourceOf (p@PointLight {}) = DirectionalLight {
     lightsource_direction = vectorToFrom origin_point_3d $ lightsource_position p,
     lightsource_color = scaleRGB scale_factor $ lightsource_color p,
     lightsource_ambient = scaleRGB scale_factor $ lightsource_ambient p }
@@ -146,7 +162,7 @@ instance AffineTransformable SceneObject where
     transform m (LightSource ls) = LightSource $ transform m ls
     transform m (Model imodel) = Model $ \c -> liftM (transform m) (imodel c)
 
-data SceneLayer = Local | Infinite deriving (Eq)
+type SceneLayer = Integer
 
 data SceneAccumulator = SceneAccumulator {
     sceneaccum_objs :: [(SceneLayer,SceneObject)],
@@ -192,43 +208,59 @@ accumulateSceneA = proc (slayer,scobj) ->
 Once all objects have been accumulated, the accumulation is used to generate a \texttt{Scene} object.
 
 \begin{code}
-data Scene = Scene {
-    scene_infinite_opaques :: [(WrappedAffine IntermediateModel,[LightSource])],
-    scene_infinite_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
-    scene_local_opaques :: [(WrappedAffine IntermediateModel,[LightSource])],
-    scene_local_transparents :: [(WrappedAffine IntermediateModel,[LightSource])],
-    scene_camera :: Camera }
+data SceneElement = SceneElement {
+    scene_elem_layer :: SceneLayer,
+    scene_elem_opaque :: Bool,
+    scene_elem_model :: WrappedAffine IntermediateModel,
+    scene_elem_light_sources :: [LightSource] }
 
--- FIXME: This function is a horrible mess (I need to redo this to implement 0.4 features anyway).
-assembleScene :: Camera -> SceneAccumulator -> IO Scene
-assembleScene c sceneaccum = 
-    do infinite_models <- liftM (map splitOpaquesWrapped . catMaybes) $ mapM toModel infinites
-       local_models <- liftM (map splitOpaquesWrapped . catMaybes) $ mapM toModel locals
-       return $ Scene {
-           scene_infinite_opaques = map (\m -> (fst m,infinite_light_sources)) infinite_models,
-           scene_infinite_transparents = map (\m -> (m,infinite_light_sources)) $ sortModels origin_point_3d $ concatMap snd infinite_models,
-           scene_local_opaques = map (\m -> (fst m,local_light_sources)) local_models,
-           scene_local_transparents = map (\m -> (m,local_light_sources)) $ sortModels (camera_position c) $ concatMap snd local_models,
-           scene_camera = c }
-        where infinites = map snd $ filter ((Infinite ==) . fst) $ sceneaccum_objs sceneaccum
-              locals = map snd $ filter ((Local ==) . fst) $ sceneaccum_objs sceneaccum
-              infinite_light_sources = mapMaybe toLightSource infinites
-              local_light_sources = map makeInfinite infinite_light_sources ++ mapMaybe toLightSource locals
-              sortModels :: Point3D -> [WrappedAffine IntermediateModel] -> [WrappedAffine IntermediateModel]
-              sortModels p = map fst . sortBy (comparing $ negate . minimalDistanceToBoundingBox p . snd) .
-                             map (\(wa@(WrappedAffine cs m)) -> (wa,migrate cs root_coordinate_system $ boundingBox m))
-              splitOpaquesWrapped (WrappedAffine a m) =
+data Scene = Scene { 
+    scene_elements :: Map.Map (SceneLayer,Bool) [SceneElement],
+    scene_layerToCamera :: (SceneLayer -> Camera) }
+
+assembleScene :: (SceneLayer -> Camera) -> SceneAccumulator -> IO Scene
+assembleScene layerToCamera scene_accum = 
+    do elements <- liftM (Map.mapWithKey (\(_,opaque) -> if not opaque then sortModels else id) .
+		          foldr (\se -> Map.alter (Just . (se:) . fromMaybe []) 
+			         (scene_elem_layer se,scene_elem_opaque se)) Map.empty . concat) $
+                          mapM toElement $ sceneaccum_objs scene_accum
+       return $ Scene { scene_elements = elements,
+                        scene_layerToCamera = layerToCamera }
+    where splitOpaquesWrapped :: WrappedAffine IntermediateModel -> (WrappedAffine IntermediateModel,
+                                                                     [WrappedAffine IntermediateModel])
+          splitOpaquesWrapped (WrappedAffine a m) =
                   let (opaques,transparents) = splitOpaques m
-                      in (WrappedAffine a opaques,map (WrappedAffine a) transparents)
-              toLightSource so = case so of
-                  LightSource ls -> Just ls
-                  _ -> Nothing
-              toModel so = case so of
-                  Model m -> liftM Just (m c)
-                  _ -> return Nothing
+                      in (WrappedAffine a opaques,map (WrappedAffine a) transparents) 
+          toLightSource :: SceneLayer -> (SceneLayer,SceneObject) -> Maybe LightSource
+          toLightSource n_want (n_actual,LightSource ls) | n_want == n_actual = Just ls
+	  toLightSource n_want (n_actual,LightSource ls) | n_want < n_actual = Just $
+	      cameraOrientation (layerToCamera n_want) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera n_actual) ls
+	  toLightSource _ _ = Nothing
+	  sortModels :: [SceneElement] -> [SceneElement]
+	  sortModels = map fst . sortBy (comparing $ \(se,bbox) -> negate $ 
+	                   minimalDistanceToBoundingBox (camera_position $ layerToCamera $ scene_elem_layer se) bbox) .
+                       map (\(se@(SceneElement { scene_elem_model = WrappedAffine cs m })) -> 
+		             (se,migrate cs root_coordinate_system $ boundingBox m))
+	  toElement :: (SceneLayer,SceneObject) -> IO [SceneElement]
+          toElement (n,Model f) = 
+	      do (opaque,transparents) <- liftM splitOpaquesWrapped $ f (layerToCamera n)
+	         let light_sources = mapMaybe (toLightSource n) (sceneaccum_objs scene_accum) 
+		 let base_element = SceneElement {
+		     scene_elem_layer = n,
+		     scene_elem_opaque = True,
+		     scene_elem_model = opaque,
+		     scene_elem_light_sources = light_sources }
+		 return $ base_element : map (\m -> base_element { scene_elem_model = m,
+		                                                   scene_elem_opaque = False }) transparents
+          toElement _ = return []
 
 sceneToOpenGL :: Double -> (Double,Double) -> Scene -> IO ()
-sceneToOpenGL aspect_ratio nearfar scene =
+sceneToOpenGL aspect_ratio nearfar s =
+    do let ns = reverse $ Set.toList $ Set.map fst $ Map.keysSet $ scene_elements s
+       mapM_ (render1Layer aspect_ratio nearfar s) ns
+
+render1Layer :: Double -> (Double,Double) -> Scene -> SceneLayer -> IO ()
+render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
     do save_rescale_normal <- GLUT.get rescaleNormal
        save_cull_face <- GLUT.get cullFace
        save_depth_func <- GLUT.get depthFunc
@@ -243,18 +275,10 @@ sceneToOpenGL aspect_ratio nearfar scene =
        lightModelAmbient $= (Color4 0 0 0 1)
        clear [DepthBuffer]
        preservingMatrix $ 
-           do infiniteCameraToOpenGL aspect_ratio nearfar (scene_camera scene)
-              mapM_ render1Object (scene_infinite_opaques scene)
-	      depthMask $= Disabled
-              mapM_ render1Object (scene_infinite_transparents scene)
-	      depthMask $= Enabled
-       clear [DepthBuffer]
-       preservingMatrix $ 
-           do cameraToOpenGL aspect_ratio nearfar (scene_camera scene)
-              mapM_ render1Object (scene_local_opaques scene)
-	      depthMask $= Disabled
-              mapM_ render1Object (scene_local_transparents scene)
-	      depthMask $= Enabled
+           do cameraToOpenGL aspect_ratio nearfar (layerToCamera n)
+              mapM_ render1Element $ fromMaybe [] $ Map.lookup (n,True) elems
+              depthMask $= Disabled
+              mapM_ render1Element $ fromMaybe [] $ Map.lookup (n,False) elems
        lightModelAmbient $= save_light_model_ambient
        lighting $= save_lighting
        depthMask $= save_depth_mask
@@ -262,8 +286,33 @@ sceneToOpenGL aspect_ratio nearfar scene =
        cullFace $= save_cull_face
        rescaleNormal $= save_rescale_normal
 
-render1Object :: (WrappedAffine IntermediateModel,[LightSource]) -> IO ()
-render1Object (WrappedAffine m imodel,lss) =
+render1Element :: SceneElement -> IO ()
+render1Element (SceneElement { scene_elem_light_sources = lss, scene_elem_model = (WrappedAffine m imodel)}) =
     do setLightSources lss
        transformation (migrate m root_coordinate_system) $ intermediateModelToOpenGL imodel
+\end{code}
+
+\subsection{Standard Scene Layers}
+
+This is an example of how to implement scene layers that should be adequate to most purposes.
+
+\begin{code}
+stdSceneLayers :: Camera -> SceneLayer -> Camera
+stdSceneLayers c sl | sl <= std_scene_layer_hud = c
+stdSceneLayers c sl | sl == std_scene_layer_cockpit = c {
+    camera_position = origin_point_3d,
+    camera_lookat = Point3D 0 0 (-1),
+    camera_up = Vector3D 0 1 0 }
+stdSceneLayers c sl | sl == std_scene_layer_local = c
+stdSceneLayers c sl | sl >= std_scene_layer_infinite = infiniteCameraOf c
+stdSceneLayers _ _ = error "stdSceneLayers: impossible case"
+
+std_scene_layer_hud :: SceneLayer
+std_scene_layer_hud = 0
+std_scene_layer_cockpit :: SceneLayer
+std_scene_layer_cockpit = 1
+std_scene_layer_local :: SceneLayer
+std_scene_layer_local = 2
+std_scene_layer_infinite :: SceneLayer
+std_scene_layer_infinite = 3
 \end{code}

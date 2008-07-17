@@ -49,7 +49,7 @@ runAniM :: AniM (a,Camera) -> IO (a,Scene)
 runAniM anim = 
     do t <- getTime
        ((a,c),TimePlusSceneAccumulator (_,sa)) <- runStateT anim $ TimePlusSceneAccumulator (t,null_scene_accumulator)
-       result_scene <- assembleScene c sa
+       result_scene <- assembleScene (stdSceneLayers c) sa
        return (a,result_scene)
 
 rotationM :: Vector3D -> Rate Angle -> AniM AffineTransformation

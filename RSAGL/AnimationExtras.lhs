@@ -58,7 +58,7 @@ pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumula
 pointAtCameraA = proc (slayer,imodel) ->
     do cs <- arr getCoordinateSystem <<< fetch -< ()
        accumulateSceneA -< (slayer,cameraRelativeSceneObject $ \c -> 
-           liftM ((rotateToFrom (vectorToFrom (migrate root_coordinate_system cs $ if slayer == Infinite then origin_point_3d else camera_position c) $ origin_point_3d)
+           liftM ((rotateToFrom (vectorToFrom (migrate root_coordinate_system cs $ camera_position c) $ origin_point_3d)
                                        (Vector3D 0 1 0)) . wrapAffine) imodel)
 \end{code}
 
