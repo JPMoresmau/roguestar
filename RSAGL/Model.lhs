@@ -20,6 +20,9 @@ module RSAGL.Model
      splitOpaques,
      modelingToOpenGL,
      sphere,
+     skySphere,
+     hemisphere,
+     skyHemisphere,
      torus,
      openCone,
      closedCone,
@@ -53,6 +56,7 @@ module RSAGL.Model
     where
 
 import RSAGL.Curve
+import RSAGL.CurveExtras
 import RSAGL.Auxiliary
 import Control.Applicative
 import RSAGL.ApplicativeWrapper
@@ -260,38 +264,6 @@ finishModeling = State.modify (map $ \m -> if isNothing (ms_affine_transform m) 
                                ms_affine_transform = Nothing }
 \end{code}
 
-\subsection{Coordinate System Alternatives for Parametric Surface Models}
-
-\begin{code}
-sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
-sphericalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
-
-cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
-cylindricalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
-
-toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
-toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
-
-planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double)) -> Surface (Point3D,Vector3D)
-planarCoordinates center upish f = surface (curry $ g . f)
-    where (u',v') = orthos upish
-          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, upish)
-
-transformUnitSquareToUnitCircle :: (Double,Double) -> (Double,Double)
-transformUnitSquareToUnitCircle (u,v) = (x,z)
-    where (Point3D x _ z) = transformUnitCubeToUnitSphere (Point3D u 0.5 v)
-
-transformUnitCubeToUnitSphere :: Point3D -> Point3D
-transformUnitCubeToUnitSphere p =
-    let p_centered@(Point3D x y z) = scale' 2.0 $ translate (Vector3D (-0.5) (-0.5) (-0.5)) p
-        p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
-        k = recip $ distanceBetween origin_point_3d p_projected
-        in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
-
-clampV :: Surface a -> Surface a
-clampV = pretransformSurface id (min 1 . max 0)
-\end{code}
-
 \subsection{Simple Geometric Shapes}
 
 \begin{code}
@@ -310,6 +282,25 @@ sphere (Point3D x y z) radius = model $ do
                                   (sinev)
                                   (cosinev * sineu)
                 in (point,vector))
+
+skySphere :: (Monoid attr) => Point3D -> Double -> Modeling attr
+skySphere p r = sphere p (negate r) 
+
+flexiHemisphere :: (Monoid attr) => Double -> Double -> Vector3D -> 
+                                    Point3D -> Vector3D -> Double -> Modeling attr
+flexiHemisphere inner_radius outer_radius v_ p v sphere_radius = model $
+    do openDisc origin_point_3d v_
+           (sine $ fromRotations $ inner_radius / 4)
+	   (sine $ fromRotations $ outer_radius / 4)
+       deform $ \(SurfaceVertex3D (Point3D x _ z) _) -> let y = sqrt $ max 0 $ 1 - x*x - z*z 
+                                        in SurfaceVertex3D (Point3D x y z) (Vector3D x y z)
+       affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' sphere_radius
+
+hemisphere :: (Monoid attr) => Double -> Double -> Point3D -> Vector3D -> Double -> Modeling attr
+hemisphere i o p v r = flexiHemisphere i o (Vector3D 0 1 0) p v r
+
+skyHemisphere :: (Monoid attr) => Double -> Double -> Point3D -> Vector3D -> Double -> Modeling attr
+skyHemisphere i o p v r = flexiHemisphere i o (Vector3D 0 (-1) 0) p v r
 
 torus :: (Monoid attr) => Double -> Double -> Modeling attr
 torus major minor = model $
@@ -334,19 +325,22 @@ openCone (a,a_radius) (b,b_radius) = model $
                  axis = vectorNormalize $ vectorToFrom b a
                  slope = (b_radius - a_radius) / distanceBetween a b
 
-openDisc :: (Monoid attr) => Double -> Double -> Modeling attr
-openDisc inner_radius outer_radius = model $ 
+openDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Double -> Modeling attr
+openDisc p up 0 outer_radius = closedDisc p up outer_radius
+openDisc p up inner_radius outer_radius = model $ 
     do generalSurface $ Right $
-        cylindricalCoordinates $ \(u,v) -> 
-             (Point3D (lerp v (inner_radius,outer_radius) * cosine u)
-                      0
-                      (lerp v (inner_radius,outer_radius) * sine u),
-              Vector3D 0 1 0)
+           cylindricalCoordinates $ \(u,v) -> 
+               (Point3D (lerp v (inner_radius,outer_radius) * cosine u)
+                        0
+                        (lerp v (inner_radius,outer_radius) * sine u),
+                Vector3D 0 1 0)
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
+       affine $ rotateToFrom up (Vector3D 0 1 0) . translateToFrom p origin_point_3d
 
 closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 closedDisc center up_vector radius = model $
-    do generalSurface $ Right $ planarCoordinates center up_vector $ ((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle
+    do generalSurface $ Right $ planarCoordinates center up_vector $ 
+           ((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle
 
 closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
 closedCone a b = model $

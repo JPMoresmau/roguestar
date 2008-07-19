@@ -2,7 +2,14 @@
 
 \begin{code}
 module RSAGL.CurveExtras
-    (circleXY,
+    (sphericalCoordinates,
+     cylindricalCoordinates,
+     toroidalCoordinates,
+     planarCoordinates,
+     transformUnitSquareToUnitCircle,
+     transformUnitCubeToUnitSphere,
+     clampV,
+     circleXY,
      regularPolygon,
      linearInterpolation,
      loopedLinearInterpolation,
@@ -18,6 +25,46 @@ import RSAGL.Auxiliary
 import RSAGL.AbstractVector
 import Data.Fixed
 import RSAGL.Affine
+\end{code}
+
+\subsection{Alternate Coordinate Systems for Models}
+
+\begin{code}
+sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
+sphericalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
+
+cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
+cylindricalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
+
+toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
+toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
+
+planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double)) -> Surface (Point3D,Vector3D)
+planarCoordinates center upish f = surface (curry $ g . f)
+    where (u',v') = orthos upish
+          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, upish)
+\end{code}
+
+\subsection{Transformations Between Unit Volumes}
+
+\begin{code}
+transformUnitSquareToUnitCircle :: (Double,Double) -> (Double,Double)
+transformUnitSquareToUnitCircle (u,v) = (x,z)
+    where (Point3D x _ z) = transformUnitCubeToUnitSphere (Point3D u 0.5 v)
+
+transformUnitCubeToUnitSphere :: Point3D -> Point3D
+transformUnitCubeToUnitSphere p =
+    let p_centered@(Point3D x y z) = scale' 2.0 $ translate (Vector3D (-0.5) (-0.5) (-0.5)) p
+        p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
+        k = recip $ distanceBetween origin_point_3d p_projected
+        in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
+\end{code}
+
+\subsection{Common Pre-Transformations}
+
+\begin{code}
+clampV :: Surface a -> Surface a
+clampV = pretransformSurface id (min 1 . max 0)
 \end{code}
 
 \subsection{Circles}

@@ -21,6 +21,7 @@ import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Angle
 import RSAGL.Homogenous
+import Data.Maybe
 \end{code}
 
 \begin{code}
@@ -59,7 +60,7 @@ translateToFrom a b = RSAGL.Affine.translate (vectorToFrom a b)
 
 rotateToFrom :: (AffineTransformable a) => Vector3D -> Vector3D -> a -> a
 rotateToFrom u v = RSAGL.Affine.rotate c a
-    where c = vectorNormalize $ vectorScale (-1) $ crossProduct u v
+    where c = vectorNormalize $ vectorScale (-1) $ fromMaybe (fst $ orthos u) $ aNonZeroVector $ crossProduct u v
           a = angleBetween u v
 
 instance AffineTransformable a => AffineTransformable (Maybe a) where

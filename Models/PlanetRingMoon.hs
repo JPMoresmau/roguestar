@@ -1,5 +1,5 @@
 module Models.PlanetRingMoon
-    (planet,ring,moon,ground,monolith,station,orb,glow_orb,orb_upper_leg,orb_lower_leg)
+    (planet,ring,moon,ground,monolith,station,orb,glow_orb,orb_upper_leg,orb_lower_leg,sky)
     where
 
 import RSAGL.Model
@@ -14,7 +14,7 @@ import RSAGL.CurveExtras
 import RSAGL.Curve
 
 ring :: Modeling ()
-ring = model $ do openDisc 0.75 1.0
+ring = model $ do openDisc origin_point_3d (Vector3D 0 1 0) 0.75 1.0
                   material $
 		      do transparent $ pure $ alpha 0.25 purple
                          specular 2 $ pure purple
@@ -56,8 +56,7 @@ monolith = model $
 
 ground :: Modeling ()
 ground = model $
-    do --closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
-       openDisc 0.0 75 -- deliberately make a large disc with a degenerate center
+    do closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
        regenerateNormals
        material $ pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
        affine $ translate (Vector3D 0 (-0.1) 0)
@@ -120,7 +119,7 @@ glow_orb = translate (Vector3D 0 1 0) $
        material $ emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scaleRGB 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
 
 orb_upper_leg :: Modeling ()
-orb_upper_leg =
+orb_upper_leg = model $
     do tube $ zipCurve (,) (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
        sphere (Point3D 0 0 1) 0.05
        material $
@@ -128,8 +127,15 @@ orb_upper_leg =
               specular 64 $ pure silver
 
 orb_lower_leg :: Modeling ()
-orb_lower_leg =
+orb_lower_leg = model $
     do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,0)
        material $ 
            do pigment $ pure gold
               specular 64 $ pure silver
+
+sky :: Modeling ()
+sky = model $
+    do skyHemisphere 0.6 1.0 (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
+       material $
+           do emissive $ scaleRGB 0.5 <$> (pattern (directional $ Vector3D 0 1 0) 
+		  [(0.0,pure white),(0.1,pure azure),(0.4,pure blackbody)])

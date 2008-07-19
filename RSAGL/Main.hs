@@ -45,7 +45,7 @@ moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
                       (arr $ const $ inverseSquareLaw 1.0 origin_point_3d)
-                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite,sceneObject im)
+                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite+2,sceneObject im)
                                          exportA -< origin_point_3d)
 
 walking_orb_animation :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
@@ -89,6 +89,8 @@ testScene =
        qo_orb_upper_leg <- newQO orb_upper_leg
        putStrLn "loading orb_lower_leg..."
        qo_orb_lower_leg <- newQO orb_lower_leg
+       putStrLn "loading sky..."
+       qo_sky <- newQO sky
        putStrLn "done."
        walking_orb_animation_arrow <- walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg
        ao_walking_orb <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),walking_orb_animation_arrow)])
@@ -100,14 +102,24 @@ testScene =
               rotation_orb <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 7)
               accumulateSceneM std_scene_layer_local $ sceneObject $ getQuality qo_ground test_quality
               accumulateSceneM std_scene_layer_local $ sceneObject $ getQuality qo_monolith test_quality
-              transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) . Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . rotation_station) $ accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_station test_quality
+              transformM (affineOf $ Affine.translate $ Vector3D 0 (-0.01) 0) $
+	          do accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getQuality qo_sky test_quality
+	             accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getQuality qo_ground test_quality
+	      transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
+	                             Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . 
+				     rotation_station) $ 
+	          accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_station test_quality
               transformM (affineOf $ rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
                   do runAnimationObject ao_walking_orb ()
               transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM (affineOf rotation_planet) $ accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_planet test_quality
-                     accumulateSceneM std_scene_layer_infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
-                     accumulateSceneM std_scene_layer_infinite $ lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
-                     accumulateSceneM std_scene_layer_infinite $ sceneObject $ getQuality qo_ring test_quality
+                  do transformM (affineOf rotation_planet) $ accumulateSceneM (std_scene_layer_infinite+2) $ 
+		         sceneObject $ getQuality qo_planet test_quality
+                     accumulateSceneM (std_scene_layer_infinite+2) $ 
+		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
+                     accumulateSceneM (std_scene_layer_infinite+2) $ 
+		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
+                     accumulateSceneM (std_scene_layer_infinite+2) $ 
+		         sceneObject $ getQuality qo_ring test_quality
                      runAnimationObject ao_moon_orbit $ getQuality qo_moon test_quality
               return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 1 2 (-8))
                                            (Point3D 0 2.5 2)
@@ -155,7 +167,7 @@ rsaglDisplayCallback counter aniM =
        clear [ColorBuffer]
        the_scene <- liftM snd $ runAniM aniM
        (Size w h) <- GLUT.get windowSize
-       sceneToOpenGL (fromIntegral w / fromIntegral h) (0.1,30) the_scene
+       sceneToOpenGL (fromIntegral w / fromIntegral h) (0.3,300) the_scene
        swapBuffers
        modifyIORef counter (+1)
        errs <- (get errors)
