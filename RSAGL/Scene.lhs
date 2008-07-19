@@ -28,7 +28,8 @@ module RSAGL.Scene
      std_scene_layer_hud,
      std_scene_layer_cockpit,
      std_scene_layer_local,
-     std_scene_layer_infinite)
+     std_scene_layer_infinite,
+     defaultLightSourceLayerTransform)
     where
 
 import Data.Ord
@@ -103,6 +104,10 @@ data LightSource =
                    lightsource_color :: Color.RGB,
                    lightsource_ambient :: Color.RGB }
     | NoLight
+
+isNoLight :: LightSource -> Bool
+isNoLight NoLight = True
+isNoLight _ = False
 
 infiniteLightSourceOf :: LightSource -> LightSource
 infiniteLightSourceOf NoLight = NoLight
@@ -218,8 +223,11 @@ data Scene = Scene {
     scene_elements :: Map.Map (SceneLayer,Bool) [SceneElement],
     scene_layerToCamera :: (SceneLayer -> Camera) }
 
-assembleScene :: (SceneLayer -> Camera) -> SceneAccumulator -> IO Scene
-assembleScene layerToCamera scene_accum = 
+assembleScene :: (SceneLayer -> Camera) -> 
+                 (SceneLayer -> LightSource -> SceneLayer -> LightSource)-> 
+                 SceneAccumulator -> 
+		 IO Scene
+assembleScene layerToCamera lightSourceLayerTransform scene_accum = 
     do elements <- liftM (Map.mapWithKey (\(_,opaque) -> if not opaque then sortModels else id) .
 		          foldr (\se -> Map.alter (Just . (se:) . fromMaybe []) 
 			         (scene_elem_layer se,scene_elem_opaque se)) Map.empty . concat) $
@@ -231,11 +239,10 @@ assembleScene layerToCamera scene_accum =
           splitOpaquesWrapped (WrappedAffine a m) =
                   let (opaques,transparents) = splitOpaques m
                       in (WrappedAffine a opaques,map (WrappedAffine a) transparents) 
-          toLightSource :: SceneLayer -> (SceneLayer,SceneObject) -> Maybe LightSource
-          toLightSource n_want (n_actual,LightSource ls) | n_want == n_actual = Just ls
-	  toLightSource n_want (n_actual,LightSource ls) | n_want < n_actual = Just $
-	      cameraOrientation (layerToCamera n_want) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera n_actual) ls
-	  toLightSource _ _ = Nothing
+          toLightSource :: SceneLayer -> (SceneLayer,SceneObject) -> LightSource
+	  toLightSource entering_layer (originating_layer,LightSource ls) = 
+	      lightSourceLayerTransform entering_layer ls originating_layer
+	  toLightSource _ _ = NoLight
 	  sortModels :: [SceneElement] -> [SceneElement]
 	  sortModels = map fst . sortBy (comparing $ \(se,bbox) -> negate $ 
 	                   minimalDistanceToBoundingBox (camera_position $ layerToCamera $ scene_elem_layer se) bbox) .
@@ -244,7 +251,7 @@ assembleScene layerToCamera scene_accum =
 	  toElement :: (SceneLayer,SceneObject) -> IO [SceneElement]
           toElement (n,Model f) = 
 	      do (opaque,transparents) <- liftM splitOpaquesWrapped $ f (layerToCamera n)
-	         let light_sources = mapMaybe (toLightSource n) (sceneaccum_objs scene_accum) 
+	         let light_sources = filter (not . isNoLight) $ map (toLightSource n) (sceneaccum_objs scene_accum) 
 		 let base_element = SceneElement {
 		     scene_elem_layer = n,
 		     scene_elem_opaque = True,
@@ -315,4 +322,14 @@ std_scene_layer_local :: SceneLayer
 std_scene_layer_local = 2
 std_scene_layer_infinite :: SceneLayer
 std_scene_layer_infinite = 3
+\end{code}
+
+\subsection{Standard Light Layer Transforms}
+
+\begin{code}
+defaultLightSourceLayerTransform :: (SceneLayer -> Camera) -> SceneLayer -> LightSource -> SceneLayer -> LightSource
+defaultLightSourceLayerTransform _ entering_layer ls originating_layer | entering_layer == originating_layer = ls
+defaultLightSourceLayerTransform layerToCamera entering_layer ls originating_layer | entering_layer < originating_layer =
+    cameraOrientation (layerToCamera entering_layer) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera originating_layer) ls
+defaultLightSourceLayerTransform _ _ _ _ = NoLight
 \end{code}
