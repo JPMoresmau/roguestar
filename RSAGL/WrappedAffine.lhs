@@ -20,7 +20,7 @@ wrapAffine :: a -> WrappedAffine a
 wrapAffine = WrappedAffine root_coordinate_system
 
 unwrapAffine :: (AffineTransformable a) => WrappedAffine a -> a
-unwrapAffine (WrappedAffine cs a) = migrate cs root_coordinate_system a
+unwrapAffine (WrappedAffine cs a) = migrateToFrom root_coordinate_system cs a
 
 instance AffineTransformable (WrappedAffine a) where
     transform t (WrappedAffine cs a) = WrappedAffine (transform t cs) a

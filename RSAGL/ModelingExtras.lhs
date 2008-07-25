@@ -43,6 +43,7 @@ import RSAGL.Interpolation
 import Data.Monoid
 import RSAGL.Auxiliary
 import RSAGL.Angle
+import RSAGL.Ray
 \end{code}
 
 \subsection{Colors}
@@ -125,7 +126,7 @@ directional vector (SurfaceVertex3D _ v) = dotProduct (vectorNormalize v) normal
     where normalized_vector = vectorNormalize vector
 
 gradient :: Point3D -> Vector3D -> Pattern
-gradient center vector (SurfaceVertex3D p _) = dotProduct vector (vectorToFrom p center) / vectorLengthSquared vector
+gradient center vector (SurfaceVertex3D p _) = distanceAlong (Ray3D center vector) p
 \end{code}
 
 \subsection{Materials}

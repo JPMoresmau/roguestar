@@ -5,7 +5,7 @@ module Models.PlanetRingMoon
 import RSAGL.Model
 import RSAGL.Vector
 import RSAGL.ModelingExtras
-import RSAGL.RayTrace
+import qualified RSAGL.RayTrace as RT
 import RSAGL.Affine
 import RSAGL.Auxiliary
 import System.Random
@@ -25,7 +25,7 @@ planet :: Modeling ()
 planet = model $ 
     do sphere (Point3D 0 0 0) 0.65
        deform $ constrain (\(SurfaceVertex3D (Point3D x y z) _) -> x > 0 && y > 0 && z > 0) $ 
-           shadowDeform (Vector3D (-1) (-1) (-1)) (map (plane (Point3D 0 0 0)) [Vector3D 1 0 0,Vector3D 0 1 0,Vector3D 0 0 1])
+           RT.shadowDeform (Vector3D (-1) (-1) (-1)) (map (RT.plane (Point3D 0 0 0)) [Vector3D 1 0 0,Vector3D 0 1 0,Vector3D 0 0 1])
        let land_vs_water land water = pattern (cloudy 26 0.4) [(0,water),(0.5,water),(0.51,land),(1,land)]
        let grass_and_mountains = pattern (cloudy 81 0.25) [(0.4,pattern (cloudy 99 0.1) [(0.0,pure brown),(1.0,pure slate_gray)]),(0.5,pure forest_green)]
        let land_and_water = land_vs_water grass_and_mountains (pure blue)
@@ -137,5 +137,5 @@ sky :: Modeling ()
 sky = model $
     do skyHemisphere 0.6 1.0 (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
        material $
-           do emissive $ scaleRGB 0.5 <$> (pattern (directional $ Vector3D 0 1 0) 
+           do emissive $ scaleRGB 0.5 <$> (pattern (gradient origin_point_3d $ Vector3D 0 1 0) 
 		  [(0.0,pure white),(0.1,pure azure),(0.4,pure blackbody)])

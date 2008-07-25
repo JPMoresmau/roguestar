@@ -1,4 +1,4 @@
-\section{Scenes and Animation}
+ cs\section{Scenes and Animation}
 
 A \texttt{Scene} is a complete description of an image to be rendered, consisting of a camera position, light sources, and models.
 
@@ -182,7 +182,7 @@ class (CoordinateSystemClass a) => ScenicAccumulator a where
 
 instance ScenicAccumulator SceneAccumulator where
     accumulateScene slayer scobj sceneaccum = sceneaccum { 
-        sceneaccum_objs = (slayer,migrate (sceneaccum_coordinate_system sceneaccum) root_coordinate_system scobj) : sceneaccum_objs sceneaccum }
+        sceneaccum_objs = (slayer,migrateToFrom (sceneaccum_coordinate_system sceneaccum) root_coordinate_system scobj) : sceneaccum_objs sceneaccum }
 
 instance (ScenicAccumulator sa) => ScenicAccumulator (a,sa) where
     accumulateScene slayer scobj (a,sceneaccum) = (a,accumulateScene slayer scobj sceneaccum)
@@ -247,7 +247,7 @@ assembleScene layerToCamera lightSourceLayerTransform scene_accum =
 	  sortModels = map fst . sortBy (comparing $ \(se,bbox) -> negate $ 
 	                   minimalDistanceToBoundingBox (camera_position $ layerToCamera $ scene_elem_layer se) bbox) .
                        map (\(se@(SceneElement { scene_elem_model = WrappedAffine cs m })) -> 
-		             (se,migrate cs root_coordinate_system $ boundingBox m))
+		             (se,migrateToFrom cs root_coordinate_system $ boundingBox m))
 	  toElement :: (SceneLayer,SceneObject) -> IO [SceneElement]
           toElement (n,Model f) = 
 	      do (opaque,transparents) <- liftM splitOpaquesWrapped $ f (layerToCamera n)
@@ -296,7 +296,7 @@ render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
 render1Element :: SceneElement -> IO ()
 render1Element (SceneElement { scene_elem_light_sources = lss, scene_elem_model = (WrappedAffine m imodel)}) =
     do setLightSources lss
-       transformation (migrate m root_coordinate_system) $ intermediateModelToOpenGL imodel
+       transformation (migrateToFrom m root_coordinate_system) $ intermediateModelToOpenGL imodel
 \end{code}
 
 \subsection{Standard Scene Layers}

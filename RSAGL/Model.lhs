@@ -289,9 +289,7 @@ skySphere p r = sphere p (negate r)
 flexiHemisphere :: (Monoid attr) => Double -> Double -> Vector3D -> 
                                     Point3D -> Vector3D -> Double -> Modeling attr
 flexiHemisphere inner_radius outer_radius v_ p v sphere_radius = model $
-    do openDisc origin_point_3d v_
-           (sine $ fromRotations $ inner_radius / 4)
-	   (sine $ fromRotations $ outer_radius / 4)
+    do openDisc origin_point_3d v_ inner_radius outer_radius
        deform $ \(SurfaceVertex3D (Point3D x _ z) _) -> let y = sqrt $ max 0 $ 1 - x*x - z*z 
                                         in SurfaceVertex3D (Point3D x y z) (Vector3D x y z)
        affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' sphere_radius

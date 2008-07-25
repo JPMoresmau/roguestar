@@ -16,7 +16,7 @@ module RSAGL.CoordinateSystems
      CoordinateSystemClass(..),
      NestedCoordinateSystemTransformer,
      root_coordinate_system,
-     migrate,
+     migrateToFrom,
      transformation,
      inverseTransformation,
      CSN,
@@ -52,7 +52,7 @@ import RSAGL.Vector
 
 A \texttt{CoordinateSystem} is the context by which coordinate system neutral data can be imported or exported.
 
-\texttt{migrate} is the function that exports data from one coordinate system into another.
+\texttt{migrateToFrom} is the function that exports data from one coordinate system into another.
 
 All \texttt{CoordinateSystems} are affine transformations of the \texttt{root\_coordinate\_system}.
 
@@ -62,8 +62,8 @@ data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
 instance AffineTransformable CoordinateSystem where
     transform m (CoordinateSystem cs) = CoordinateSystem $ matrixMultiply m cs
 
-migrate :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
-migrate (CoordinateSystem from) (CoordinateSystem to) = inverseTransform to . transform from
+migrateToFrom :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
+migrateToFrom (CoordinateSystem to) (CoordinateSystem from) = transform to . inverseTransform from
 
 class CoordinateSystemClass csc where
     getCoordinateSystem :: csc -> CoordinateSystem
