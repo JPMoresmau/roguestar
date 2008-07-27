@@ -101,7 +101,9 @@ runRoguestarAnimationObject lib driver_object print_text_object rso =
        putMVar (rso_arrow rso) new_rso_program
        when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput driver_object print_text_object
        setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
-       assembleScene result_camera $ animstate_scene_accumulator result_animstate
+       assembleScene (stdSceneLayers result_camera) 
+                     (defaultLightSourceLayerTransform $ stdSceneLayers result_camera) $ 
+		     animstate_scene_accumulator result_animstate
 
 ioA :: (j -> IO p) -> RSAnimAX any t i o j p
 ioA action = Arrow.lift $ ioA_ action
