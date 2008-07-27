@@ -11,6 +11,7 @@ module RSAGL.Scene
      Camera(..),
      infiniteCameraOf,
      LightSource(..),
+     skylight,
      infiniteLightSourceOf,
      SceneObject,
      SceneLayer,
@@ -104,6 +105,12 @@ data LightSource =
                    lightsource_color :: Color.RGB,
                    lightsource_ambient :: Color.RGB }
     | NoLight
+
+skylight :: Vector3D -> Color.RGB -> LightSource
+skylight v c = DirectionalLight {
+    lightsource_direction = v,
+    lightsource_color = scaleRGB 0.7208681020859709 c,
+    lightsource_ambient = scaleRGB 0.27913189791402915 c }
 
 isNoLight :: LightSource -> Bool
 isNoLight NoLight = True

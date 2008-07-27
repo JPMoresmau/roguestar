@@ -104,6 +104,7 @@ testScene =
               accumulateSceneM std_scene_layer_local $ sceneObject $ getQuality qo_monolith test_quality
               transformM (affineOf $ Affine.translate $ Vector3D 0 (-0.01) 0) $
 	          do accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getQuality qo_sky test_quality
+		     accumulateSceneM (std_scene_layer_infinite+1) $ lightSource $ skylight (Vector3D 0 1 0) (scaleRGB 0.25 azure)
 	             accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getQuality qo_ground test_quality
 	      transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
 	                             Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . 
