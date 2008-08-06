@@ -22,7 +22,7 @@ build-type:          Simple
 tested-with:         GHC==6.8.2
 
 exposed-modules:     Models.PlanetRingMoon,
-                     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.StatefulArrow,
+                     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArrow,
                      RSAGL.Material, RSAGL.Auxiliary, RSAGL.BoundingBox,
                      RSAGL.Vector, RSAGL.KinematicSensors, RSAGL.RSAGLColors,
                      RSAGL.Extrusion, RSAGL.Main, RSAGL.Color,

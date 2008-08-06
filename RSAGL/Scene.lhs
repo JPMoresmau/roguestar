@@ -10,9 +10,6 @@ module RSAGL.Scene
     (Scene,
      Camera(..),
      infiniteCameraOf,
-     LightSource(..),
-     skylight,
-     infiniteLightSourceOf,
      SceneObject,
      SceneLayer,
      ScenicAccumulator(..),
@@ -44,11 +41,11 @@ import Data.List
 import Control.Monad.State as State
 import Control.Arrow
 import Control.Arrow.Operations
-import RSAGL.Color as Color
 import Graphics.UI.GLUT as GLUT
 import Data.Maybe
 import RSAGL.WrappedAffine
 import RSAGL.Orthagonal
+import RSAGL.LightSource
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 \end{code}
@@ -91,72 +88,6 @@ cameraOrientation c = modelLookAt (camera_position c) (forward $ Left $ camera_l
 
 cameraLookAt :: (AffineTransformable a) => Camera -> a -> a
 cameraLookAt = inverseTransformation . cameraOrientation 
-\end{code}
-
-\subsection{Light Sources}
-
-\begin{code}
-data LightSource =
-      DirectionalLight { lightsource_direction :: Vector3D,
-                         lightsource_color :: Color.RGB,
-                         lightsource_ambient :: Color.RGB }
-    | PointLight { lightsource_position :: Point3D,
-                   lightsource_radius :: Distance,
-                   lightsource_color :: Color.RGB,
-                   lightsource_ambient :: Color.RGB }
-    | NoLight
-
-skylight :: Vector3D -> Color.RGB -> LightSource
-skylight v c = DirectionalLight {
-    lightsource_direction = v,
-    lightsource_color = scaleRGB 0.7208681020859709 c,
-    lightsource_ambient = scaleRGB 0.27913189791402915 c }
-
-isNoLight :: LightSource -> Bool
-isNoLight NoLight = True
-isNoLight _ = False
-
-infiniteLightSourceOf :: LightSource -> LightSource
-infiniteLightSourceOf NoLight = NoLight
-infiniteLightSourceOf (d@(DirectionalLight {})) = d
-infiniteLightSourceOf (p@PointLight {}) = DirectionalLight {
-    lightsource_direction = vectorToFrom origin_point_3d $ lightsource_position p,
-    lightsource_color = scaleRGB scale_factor $ lightsource_color p,
-    lightsource_ambient = scaleRGB scale_factor $ lightsource_ambient p }
-        where scale_factor = realToFrac $ (distance $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
-
-instance AffineTransformable LightSource where
-    transform _ NoLight = NoLight
-    transform m (dl@(DirectionalLight {})) = dl { lightsource_direction = transform m $ lightsource_direction dl }
-    transform m (pl@(PointLight {})) = pl {
-        lightsource_position = transform m $ lightsource_position pl,
-        lightsource_radius = transform m $ lightsource_radius pl }
-
-setLightSources :: [LightSource] -> IO ()
-setLightSources lss =
-    do max_lights <- GLUT.get maxLights
-       mapM_ setLightSource $ genericTake max_lights $ zip (map Light [0..]) (lss ++ repeat NoLight)
-
-setLightSource :: (Light,LightSource) -> IO ()
-setLightSource (l,NoLight) = light l $= Disabled
-setLightSource (l,dl@DirectionalLight { lightsource_color = Color.RGB cr cg cb,
-                                        lightsource_ambient = Color.RGB ar ag ab }) =
-    do let Vector3D vx vy vz = vectorNormalize $ lightsource_direction dl
-       light l $= Enabled
-       ambient l $= (Color4 ar ag ab 1.0 :: Color4 Float)
-       GLUT.specular l $= (Color4 cr cg cb 1.0 :: Color4 Float)
-       diffuse l $= (Color4 cr cg cb 1.0 :: Color4 Float)
-       position l $= (Vertex4 (realToFrac vx) (realToFrac vy) (realToFrac vz) 0 :: Vertex4 Float)
-       attenuation l $= (1,0,0)
-setLightSource (l,pl@(PointLight { lightsource_position = (Point3D px py pz),
-                                   lightsource_color = Color.RGB cr cg cb,
-                                   lightsource_ambient = Color.RGB ar ag ab })) =
-    do light l $= Enabled
-       ambient l $= (Color4 ar ag ab 1.0 :: Color4 Float)
-       GLUT.specular l $= (Color4 cr cg cb 1.0 :: Color4 Float)
-       diffuse l $= (Color4 cr cg cb 1.0 :: Color4 Float)
-       position l $= (Vertex4 (realToFrac px) (realToFrac py) (realToFrac pz) 1 :: Vertex4 Float)
-       attenuation l $= (0.01,0,recip $ realToFrac $ distanceSquared $ lightsource_radius pl)
 \end{code}
 
 \subsection{Scene Construction}
@@ -302,7 +233,7 @@ render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
 
 render1Element :: SceneElement -> IO ()
 render1Element (SceneElement { scene_elem_light_sources = lss, scene_elem_model = (WrappedAffine m imodel)}) =
-    do setLightSources lss
+    do setLightSourcesToOpenGL lss
        transformation (migrateToFrom m root_coordinate_system) $ intermediateModelToOpenGL imodel
 \end{code}
 

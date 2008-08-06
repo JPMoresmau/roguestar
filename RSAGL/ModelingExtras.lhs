@@ -5,9 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 module RSAGL.ModelingExtras
-    (gray,
-     gray256,
-     smoothbox,
+    (smoothbox,
      regularPrism,
      rotationGroup,
      glass,
@@ -44,6 +42,7 @@ import Data.Monoid
 import RSAGL.Auxiliary
 import RSAGL.Angle
 import RSAGL.Ray
+import RSAGL.RSAGLColors
 \end{code}
 
 \subsection{Colors}
@@ -51,14 +50,6 @@ import RSAGL.Ray
 \texttt{RSAGL.ModellingSupport} exports the contents of \texttt{rsagl-colors.txt}.  This file is translated to HTML and Haskell source by the script in \texttt{ProcessColors.hs}.  Color samples can be viewed by opening the file \texttt{rsagl-colors.html} in a web browser.
 
 With the exception of \texttt{blackbody}, all of the colors contain non-zero values for the red, green, and blue components, so that extremely bright lights will (realistically) wash those colors out to white.
-
-\begin{code}
-gray :: Float -> RGB
-gray x = rgb x x x
-
-gray256 :: (Integral i) => i -> RGB
-gray256 x = rgb256 x x x
-\end{code}
 
 \subsection{Models}
 

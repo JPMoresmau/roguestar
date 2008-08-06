@@ -24,6 +24,7 @@ module RSAGL.Angle
      toRotations,
      toRotations_,
      scaleAngle,
+     reverseAngle,
      zero_angle,
      angularIncrements,
      angleAdd,
@@ -144,6 +145,13 @@ toRotations_ (Radians x) = x / pi / 2
 \begin{code}
 scaleAngle :: Double -> Angle -> Angle
 scaleAngle x = Radians . (*x) . toRadians_
+
+reverseAngle :: Angle -> Angle
+reverseAngle x = fromRadians $ case () of
+                     () | r > 0 -> pi - r
+                     () | r < 0 -> -pi - r
+                     () | otherwise -> pi
+    where r = toRadians x
 
 angleAdd :: Angle -> Angle -> Angle
 angleAdd (Radians x) (Radians y) = Radians $ x + y

@@ -35,6 +35,7 @@ import Debug.Trace
 import RSAGL.ModelingExtras
 import RSAGL.WrappedAffine
 import RSAGL.InverseKinematics
+import RSAGL.LightSource
 
 test_quality :: Integer
 test_quality = 2^14
