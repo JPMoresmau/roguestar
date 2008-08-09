@@ -5,6 +5,7 @@ module Main (main)
 import DB
 import System.Environment
 import System.Random
+import System.IO
 import Data.List
 import Tests
 import HierarchicalDatabase
@@ -15,7 +16,7 @@ import Protocol
 import GridRayCaster
 
 roguestar_version_number :: String
-roguestar_version_number = "0.2.1"
+roguestar_version_number = "0.2.2"
 
 roguestar_program_name :: String
 roguestar_program_name = "roguestar-engine"

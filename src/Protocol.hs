@@ -26,17 +26,20 @@ import ToolData
 import Control.Monad.Error
 import Numeric
 import Turns
+import Data.IORef
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
 import DBPrivate (Reference(..))
 
 mainLoop :: DB_BaseType -> IO ()
-mainLoop db0 = do next_command <- getLine
-		  db1 <- ioDispatch (words $ map toLower next_command) db0
-		  putStrLn "over"
-		  hFlush stdout
-		  mainLoop db1
+mainLoop db0 = 
+    do db <- newIORef db0
+       forever $
+           do next_command <- getLine
+	      writeIORef db =<< ioDispatch (words $ map toLower next_command) =<< readIORef db
+	      putStrLn "over"
+	      hFlush stdout
 
 done :: DB String
 done = return "done"
