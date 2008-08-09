@@ -37,7 +37,7 @@ exposed-modules:     Models.PlanetRingMoon,
                      RSAGL.Curve, RSAGL.Angle, RSAGL.Optimization,
                      RSAGL.Tests, RSAGL.CoordinateSystems, RSAGL.Orthagonal,
                      RSAGL.AbstractVector, RSAGL.ThreadedArrow, RSAGL.Edge,
-                     RSAGL.Homogenous
+                     RSAGL.Homogenous, RSAGL.LightSource
 
 ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
