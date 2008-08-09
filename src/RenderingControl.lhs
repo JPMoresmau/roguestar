@@ -36,6 +36,7 @@ import qualified Data.Map as Map
 import Limbs
 import RSAGL.Joint
 import RSAGL.AbstractVector
+import RSAGL.LightSource
 \end{code}
 
 \begin{code}
