@@ -7,3 +7,6 @@
 [submodule "rsagl"]
 	path = rsagl
 	url = http://www.downstairspeople.org/git/rsagl.git
+[submodule "roguestar-html"]
+	path = roguestar-html
+	url = http://www.downstairspeople.org/git/roguestar-html.git
