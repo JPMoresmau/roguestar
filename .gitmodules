@@ -1,0 +1,9 @@
+[submodule "roguestar-engine"]
+	path = roguestar-engine
+	url = http://www.downstairspeople.org/git/roguestar-engine.git
+[submodule "roguestar-gl"]
+	path = roguestar-gl
+	url = http://www.downstairspeople.org/git/roguestar-gl.git
+[submodule "rsagl"]
+	path = rsagl
+	url = http://www.downstairspeople.org/git/rsagl.git
