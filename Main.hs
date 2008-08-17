@@ -4,19 +4,28 @@ import System.Process
 import System.Exit
 import Control.Concurrent
 import System.Environment
+import System.FilePath
 import System.IO
 import Control.Monad
+import Paths_roguestar_gl
 
 main :: IO ()
 main = 
-    do args <- getArgs
+    do (should_echo_protocol,args) <- 
+           do args <- getArgs
+	      return ("--echo-protocol" `elem` args,
+		      filter (/= "--echo-protocol") $ args)
        n <- getNumberOfCPUCores
+       bin_dir <- getBinDir
        let n_rts_string = if n == 1 then [] else ["-N" ++ show n]
        let gl_args = ["+RTS", "-G4"] ++ n_rts_string ++ ["-RTS"] ++ args
        let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ ["version","over","begin"]
-       (input,out,err,roguestar_engine) <- runInteractiveProcess "roguestar-engine" engine_args Nothing Nothing
-       roguestar_gl <- runProcess "roguestar-gl" gl_args Nothing Nothing (Just out) (Just input) Nothing
-       forkIO $ mapM_ putStrLn =<< liftM (map ("*** " ++) . lines) (hGetContents err)
+       (e_in,e_out,e_err,roguestar_engine) <- runInteractiveProcess (bin_dir `combine` "roguestar-engine") engine_args Nothing Nothing
+       (gl_in,gl_out,gl_err,roguestar_gl) <- runInteractiveProcess (bin_dir `combine` "roguestar-gl") gl_args Nothing Nothing
+       forkIO $ pump e_out  $ [("",gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",stdout)] else [])
+       forkIO $ pump gl_out $ [("",e_in)] ++ (if should_echo_protocol then [("gl <<< engine *** ",stdout)] else [])
+       forkIO $ pump e_err  $ [("roguestar-engine *** ",stderr)]
+       forkIO $ pump gl_err $ [("roguestar-gl     *** ",stderr)]
        forkIO $
            do roguestar_engine_exit <- waitForProcess roguestar_engine
               case roguestar_engine_exit of
@@ -26,7 +35,17 @@ main =
        roguestar_gl_exit <- waitForProcess roguestar_gl
        case roguestar_gl_exit of
            ExitFailure x -> putStrLn $ "roguestar-gl terminated unexpectedly (" ++ show x ++ ")"
-           _ -> return ()
+           _ -> return ()       
+
+pump :: Handle -> [(String,Handle)] -> IO ()
+pump from tos =
+    do mapM_ (flip hSetBuffering NoBuffering . snd) tos
+       hSetBuffering from NoBuffering
+       forever $
+           do l <- hGetLine from
+	      flip mapM_ tos $ \(name,to) -> 
+	          do hPutStrLn to $ name ++ l
+	             hFlush to
 
 getNumberOfCPUCores :: IO Int
 getNumberOfCPUCores =
