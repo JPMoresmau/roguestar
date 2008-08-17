@@ -58,6 +58,9 @@ dist :
             runghc Setup.hs configure --disable-optimization --package-db="${PWD}/dist-test/cabal-package-db" --prefix="${PWD}/dist-test" && \
 	    runghc Setup.hs build && runghc Setup.hs install)
 	(dist-test/bin/roguestar-engine version | grep ${VERSION})
+	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-engine && cabal check)
+	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-gl && cabal check)
+	(cd dist/roguestar${VERSION_SUFFIX}/rsagl && cabal check)
 	@echo "This distribution looks good.  Try dist-test/bin/roguestar."
 
 dist-snapshot :
