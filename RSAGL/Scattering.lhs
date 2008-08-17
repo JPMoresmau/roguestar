@@ -4,7 +4,18 @@ Scattering models the behavior or light interacting with dust and air molecules.
 
 \begin{code}
 module RSAGL.Scattering
-    ()
+    (Scattering(..),
+     absorbtionOverDistance,
+     emissionOverDistance,
+     traceScattering,
+     traceAbsorbtion,
+     dust,
+     fog,
+     rayleigh_sky,
+     rayleigh,
+     elasticBackScatter,
+     elasticForwardScatter,
+     elasticOmnidirectionalScatter)
     where
 
 import RSAGL.Vector
@@ -48,8 +59,8 @@ sampleScattering scatteringF lightingF source destination number_of_samples = zi
 	          in emissionOverDistance this_distance $ filterRGB (scattering_scatter s scattering_angle) light_color)
           sample_absorbtions = scanl1 filterRGB $ sampleAbsorbtion scatteringF source destination number_of_samples
 
-traceAbsorbtions :: (Point3D -> Scattering) -> Samples RGB
-traceAbsorbtions scatteringF source destination samples = 
+traceAbsorbtion :: (Point3D -> Scattering) -> Samples RGB
+traceAbsorbtion scatteringF source destination samples = 
     foldr filterRGB (gray 1) $ sampleAbsorbtion scatteringF source destination samples
 
 sampleAbsorbtion :: (Point3D -> Scattering) -> Samples [RGB]
@@ -80,8 +91,8 @@ dust d c = adjustToDistance d $ Scattering {
     scattering_absorb = gray 0.5,
     scattering_scatter = flip scaleRGB c . (*0.5) . (1-) . (*2) . realToFrac . toRotations }
 
-naiveFog :: Float -> RGB -> Scattering
-naiveFog d c = adjustToDistance d $ Scattering {
+fog :: Float -> RGB -> Scattering
+fog d c = adjustToDistance d $ Scattering {
     scattering_absorb = c,
     scattering_scatter = const c }
 

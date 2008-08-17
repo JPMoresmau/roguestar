@@ -10,6 +10,7 @@ module RSAGL.RayTrace
      plane3,
      UnitSphere(..), Sphere,
      sphere,
+     testRay1st,
      shadowDeform)
     where
 
