@@ -33,28 +33,28 @@ absorbtionOverDistance trace_distance absorb_rgb = mapRGB (** trace_distance) ab
 emissionOverDistance :: Float -> RGB -> RGB
 emissionOverDistance trace_distance emit_rgb = scaleRGB trace_distance emit_rgb
 
-traceScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> SamplesF -> Samples RGB
-traceScattering scatteringF lightingF samplesF source destination number_of_samples = 
-    foldr addRGB (gray 0) $ sampleScattering scatteringF lightingF samplesF source destination number_of_samples
+traceScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> Samples RGB
+traceScattering scatteringF lightingF source destination number_of_samples = 
+    foldr addRGB (gray 0) $ sampleScattering scatteringF lightingF source destination number_of_samples
 
-sampleScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> SamplesF -> Samples [RGB]
-sampleScattering scatteringF lightingF samplesF source destination number_of_samples = zipWith filterRGB sample_absorbtions sample_scatterings
+sampleScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> Samples [RGB]
+sampleScattering scatteringF lightingF source destination number_of_samples = zipWith filterRGB sample_absorbtions sample_scatterings
     where vector_to_viewer = vectorToFrom source destination
-          samples = samplesF source destination number_of_samples
+          samples = linearSamples source destination number_of_samples
           sample_scatterings = flip map samples (\(this_point,this_distance) -> 
 	      let s = scatteringF this_point
 	          (light_vector,light_color) = lightingF this_point
 		  scattering_angle = angleBetween vector_to_viewer light_vector
 	          in emissionOverDistance this_distance $ filterRGB (scattering_scatter s scattering_angle) light_color)
-          sample_absorbtions = scanl1 filterRGB $ sampleAbsorbtion scatteringF samplesF source destination number_of_samples
+          sample_absorbtions = scanl1 filterRGB $ sampleAbsorbtion scatteringF source destination number_of_samples
 
-traceAbsorbtions :: (Point3D -> Scattering) -> SamplesF -> Samples RGB
-traceAbsorbtions scatteringF samplesF source destination samples = 
-    foldr filterRGB (gray 1) $ sampleAbsorbtion scatteringF samplesF source destination samples
+traceAbsorbtions :: (Point3D -> Scattering) -> Samples RGB
+traceAbsorbtions scatteringF source destination samples = 
+    foldr filterRGB (gray 1) $ sampleAbsorbtion scatteringF source destination samples
 
-sampleAbsorbtion :: (Point3D -> Scattering) -> SamplesF -> Samples [RGB]
-sampleAbsorbtion scatteringF samplesF source destination samples = sample_absorbtions
-    where sample_points = samplesF source destination samples
+sampleAbsorbtion :: (Point3D -> Scattering) -> Samples [RGB]
+sampleAbsorbtion scatteringF source destination samples = sample_absorbtions
+    where sample_points = linearSamples source destination samples
 	  sample_absorbtions = map (\(p,d) -> absorbtionOverDistance d $ scattering_absorb $ scatteringF p) sample_points
 \end{code}
 
@@ -65,21 +65,11 @@ source point represents the viewer and absorbtion tends to cancel out light far 
 
 \begin{code}
 type Samples x = Point3D -> Point3D -> Integer -> x
-type SamplesF = Samples [(Point3D,Float)]
 
 linearSamples :: Point3D -> Point3D -> Integer -> [(Point3D,Float)]
 linearSamples source destination samples = zip sample_points $ repeat distance_per_sample
     where sample_points = map (flip lerp (source,destination)) $ zeroToOne samples
           distance_per_sample = realToFrac $ distanceBetween source destination / (fromInteger samples)
-
-biasedSamples :: Point3D -> Point3D -> Integer -> [(Point3D,Float)]
-biasedSamples source destination 1 = [(lerp 0.25 (source,destination),realToFrac $ distanceBetween source destination)]
-biasedSamples source destination number_of_samples = zip sample_points $ map realToFrac sample_distances
-    where samples = map (^2) $ zeroToOne number_of_samples
-          sample_points = map (flip lerp (source,destination)) samples
-          total_distance = distanceBetween source destination
-	  (_:fst_distance:outbound_distances) = map (* total_distance) samples
-	  sample_distances = (fst_distance/2):(fst_distance/2):(zipWith (-) (drop 1 outbound_distances) outbound_distances)
 \end{code}
 
 \subsection{Specific Scattering Functions}
