@@ -32,7 +32,7 @@ The goal of \texttt{optimizeSurface} is to allocate points so they are spread ro
 To measure the distance between points, we use an abstract function called the ''ruler``, which nominally measures pythagorean distance but may measure some kind of percieved distance.
 
 \begin{code}
-optimizeSurface :: (ConcavityDetection a) => (a -> a -> Double) -> Surface a -> Integer -> TesselatedSurface a
+optimizeSurface :: (a -> a -> Double) -> Surface a -> Integer -> TesselatedSurface a
 optimizeSurface ruler s max_vertices =
               if score ordinary >= score transposed
               then tesselateSurfaceConfiguration s ordinary
@@ -44,7 +44,7 @@ optimizeSurface ruler s max_vertices =
               let elems = map fromIntegral ielems
                   in (sum (map (abs . subtract (sum elems / fromIntegral (length elems))) elems) + 1) / sum elems
 
-tesselateSurfaceConfiguration :: (ConcavityDetection a) => Surface a -> SurfaceConfiguration -> TesselatedSurface a
+tesselateSurfaceConfiguration :: Surface a -> SurfaceConfiguration -> TesselatedSurface a
 tesselateSurfaceConfiguration s (SurfaceConfiguration elems) = 
         tesselateGrid $ map zto $ zipWith iterateCurve elems $
                                            halfIterateSurface (genericLength elems) s
@@ -60,7 +60,7 @@ estimateCurveLength ruler c = case sum $ map (uncurry ruler) $ doubles $ iterate
     x | isNaN x || isInfinite x -> error "estimateCurveLength: NaN"
     x -> x
 
-estimateSurfaceArea :: (ConcavityDetection a) => (a -> a -> Double) -> Surface a -> Double
+estimateSurfaceArea :: (a -> a -> Double) -> Surface a -> Double
 estimateSurfaceArea ruler s = snd $ head $ dropWhile (\(x,y) -> y > x*1.125) $ doubles surface_areas_at_increasing_levels_of_detail
     where surface_areas_at_increasing_levels_of_detail = map (\d -> estimateTesselatedSurfaceArea ruler $ tesselateSurface s (d,d)) $ iterate (*2) 4
 
@@ -68,9 +68,6 @@ estimateTesselatedSurfaceArea :: (a -> a -> Double) -> TesselatedSurface a -> Do
 estimateTesselatedSurfaceArea ruler pieces = sum $ map measurePiece pieces
    where measurePiece (TesselatedTriangleFan (v0:v1:v2:vs)) = heronsFormula ruler v0 v1 v2 +
                                                               measurePiece (TesselatedTriangleFan (v0:v2:vs))
-         measurePiece (TesselatedQuadStrip (v0:v1:v2:v3:vs)) = heronsFormula ruler v0 v1 v2 +
-                                                               heronsFormula ruler v2 v3 v1 +
-                                                               measurePiece (TesselatedQuadStrip (v2:v3:vs))
          measurePiece _ = 0.0
 
 heronsFormula :: (a -> a -> Double) -> a -> a -> a -> Double
@@ -89,7 +86,7 @@ Estimate the relative size of a collection of surfaces and allocate complexity t
 \texttt{allocatedComplexity} allocates vertices to surfaces, with half of all vertices being distributed equally among all surfaces and half of all vertices being distributed in proportion to their surface areas.  Surfaces (such as surfaces that have many layers) may be weighted to carry disproportionately more vertices.
 
 \begin{code}
-allocateComplexity :: (ConcavityDetection p) => (p -> p -> Double) -> [(Surface p,Double)] -> Integer -> [Integer]
+allocateComplexity :: (p -> p -> Double) -> [(Surface p,Double)] -> Integer -> [Integer]
 allocateComplexity ruler surfaces n = 
     let surface_areas = map (\s -> estimateSurfaceArea ruler (fst s) * snd s) surfaces
         half_alloc = n `div` 2

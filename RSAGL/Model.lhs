@@ -484,7 +484,7 @@ instance Bound3D IntermediateModeledSurface where
     boundingBox = boundingBox . intermediateModeledSurfaceToVertexCloud
 \end{code}
 
-\subsubsection{Rulers and Concavity Detection}
+\subsubsection{Rulers}
 
 \begin{code}
 sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
@@ -501,9 +501,6 @@ sv3d_normal_ruler (SurfaceVertex3D _ v1) (SurfaceVertex3D _ v2) =
 msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
 msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2 _) =
     sv3d_ruler p1 p2
-
-instance ConcavityDetection MultiMaterialSurfaceVertex3D where
-    toPoint3D (MultiMaterialSurfaceVertex3D (SurfaceVertex3D p _) _) = p
 \end{code}
 
 \subsubsection{Parallelism for IntermediateModels}
