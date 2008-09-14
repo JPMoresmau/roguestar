@@ -23,6 +23,8 @@ import Data.Maybe
 Implements linear interpolation.
 
 \begin{code}
+{-# INLINE lerp #-}
+
 lerp :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r) => r -> (p,p) -> p
 lerp u (a,b) = a `add` scalarMultiply (realToFrac u) (b `sub` a)
 \end{code}
@@ -35,19 +37,25 @@ The ``clamped'' versions of the lerp functions clamp the u-value to lie between 
 interpolations, the u-value may lie outside of its boundaries.
 
 \begin{code}
+{-# INLINE lerpClamped #-}
+
 lerpClamped :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r) => r -> (p,p) -> p
 lerpClamped u = lerpBetweenClamped (0,u,1)
 
+{-# INLINE lerpBetween #-}
 lerpBetween :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r) => (r,r,r) -> (p,p) -> p
 lerpBetween = lerpBetweenMutated id
 
+{-# INLINE lerpBetweenMutated #-}
 lerpBetweenMutated :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r) => (r -> r) -> (r,r,r) -> (p,p) -> p
 lerpBetweenMutated _ (l,_,r) | l == r = lerp 0.5
 lerpBetweenMutated mutator (l,u,r) = lerp $ mutator $ (u-l) / (r-l)
 
+{-# INLINE lerpBetweenClamped #-}
 lerpBetweenClamped :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r,Ord r) => (r,r,r) -> (p,p) -> p
 lerpBetweenClamped = lerpBetweenClampedMutated id
 
+{-# INLINE lerpBetweenClampedMutated #-}
 lerpBetweenClampedMutated :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r,Fractional r,Ord r) => (r -> r) -> (r,r,r) -> (p,p) -> p
 lerpBetweenClampedMutated mutator (l,u,r) = lerpBetweenMutated (lerp_mutator_clamp . mutator) (l,u,r)
 \end{code}
@@ -57,6 +65,8 @@ lerpBetweenClampedMutated mutator (l,u,r) = lerpBetweenMutated (lerp_mutator_cla
 \texttt{lerp\_mutator\_clamp} implements clamping between 0 and 1.
 
 \begin{code}
+{-# INLINE lerp_mutator_clamp #-}
+
 lerp_mutator_clamp :: (Real r) => r -> r
 lerp_mutator_clamp = min 1 . max 0
 \end{code}
@@ -64,6 +74,8 @@ lerp_mutator_clamp = min 1 . max 0
 \texttt{lerp\_mutator\_continuous\_1st} implements clamping between 0 and 1, but such that the 1st derivative of the result is continuous.
 
 \begin{code}
+{-# INLINE lerp_mutator_continuous_1st #-}
+
 lerp_mutator_continuous_1st :: (Real r,Fractional r) => r -> r
 lerp_mutator_continuous_1st x | x < 0 = 0
 lerp_mutator_continuous_1st x | x > 1 = 1
@@ -79,9 +91,12 @@ we might use the map [(0,red),(1,orange),(2,yellow),(3,green),(4,blue),(5,indigo
 lerpMap 3.5 would result in a blue-green color.
 
 \begin{code}
+{-# INLINE lerpMap #-}
+
 lerpMap :: (Real r,Fractional r,AbstractScale v,AbstractSubtract p v,AbstractAdd p v) => [(r,p)] -> r -> p
 lerpMap pts = lerpMapSorted $ Map.fromList pts
 
+{-# INLINE lerpMapSorted #-}
 lerpMapSorted :: (Real r,Fractional r,AbstractScale v,AbstractSubtract p v,AbstractAdd p v) => Map r p -> r -> p
 lerpMapSorted m _ | Map.null m = error "lerpMapSorted: empty map"
 lerpMapSorted m u = case () of
