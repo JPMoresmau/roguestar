@@ -24,7 +24,6 @@ module RSAGL.Matrix
 import Data.List
 import RSAGL.Angle
 import RSAGL.Vector
-import RSAGL.Auxiliary
 \end{code}
 
 The Matrix data structure stores copies of the matrix in both row-major and column-major form,
@@ -153,7 +152,7 @@ matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
 \begin{code}
 matrixMultiply :: Matrix -> Matrix -> Matrix
 matrixMultiply m n | cols m /= rows n = error "matrixMultiply: dimension mismatch"
-matrixMultiply m n = matrix $ matrixMultiplyImpl (+) 0 (*) m_data n_data
+matrixMultiply m n = matrix $ [[sum $ zipWith (*) m' n' | n' <- n_data] | m' <- m_data]
     where m_data = row_major m
 	  n_data = transpose $ row_major n
 

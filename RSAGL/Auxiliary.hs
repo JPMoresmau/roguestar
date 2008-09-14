@@ -4,7 +4,6 @@ module RSAGL.Auxiliary
      consecutives,
      loopedConsecutives,
      dropRandomElements,
-     matrixMultiplyImpl,
      loopList,
      shiftR,
      zeroToOne,
@@ -71,11 +70,6 @@ dropRandomElements percent rand_ints things =
 	in if (next_int `mod` 100 < percent)
 	   then ((head things) : rest)
 	   else rest
-
--- matrixMultiplyImpl implements matrix multiplication.
-
-matrixMultiplyImpl :: (b -> c -> c) -> c -> (a -> a -> b) -> [[a]] -> [[a]] -> [[c]]
-matrixMultiplyImpl addOp zero multiplyOp m n = [[foldr addOp zero $ zipWith multiplyOp m' n' | n' <- n] | m' <- m]
 
 -- loopList appends the first element of a list to the end of the list.  The result is a list of one greater length.
 
