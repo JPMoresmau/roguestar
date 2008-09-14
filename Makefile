@@ -1,6 +1,6 @@
-not-a-makefile-base-project:
+not-a-makefile-based-project:
 	@echo "This isn't a Makefile-based project!"
-	@echo "You probably want to: runhaskell Setup.hs configure/build/install"
+	@echo "You probably want to: runghc Setup.hs configure/build/install"
 
 all : doc tests
 
@@ -9,41 +9,35 @@ doc :
 
 tests: rsagl-tests rsagl-modelview
 
-rsagl-tests :
+rsagl-tests-prof :
 	ghc --version
 	-rm -f rsagl-tests.tix
-	ghc -fhpc -prof -auto-all -Wall -Werror -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests
+	ghc -fhpc -prof -auto-all -caf-all -O2 -Wall -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-prof
 
-optimized : rsagl-tests-optimized rsagl-modelview-optimized
-
-rsagl-tests-optimized :
+rsagl-tests :
 	ghc --version
-	ghc -threaded -Wall -fno-warn-type-defaults -O2 -fexcess-precision --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-optimized
+	ghc -threaded -Wall -fno-warn-type-defaults -O2 -fexcess-precision --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests
+
+rsagl-modelview-prof:
+	ghc --version
+	-rm -f rsagl-modelview.tix
+	ghc -fhpc -prof -auto-all -caf-all -lglut -O2 -Wall -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-prof
 
 rsagl-modelview:
 	ghc --version
-	-rm -f rsagl-modelview.tix
-	ghc -fhpc -prof -auto-all -lglut -Wall -Werror -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
-
-rsagl-modelview-optimized:
-	ghc --version
-	ghc -threaded -lglut -Wall -fno-warn-type-defaults -fexcess-precision -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-optimized
+	ghc -threaded -lglut -Wall -fno-warn-type-defaults -fexcess-precision -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
 
 colors:
 	ghc -lglut -O2 --make RSAGL/ProcessColors.hs -main-is RSAGL.ProcessColors.main -o rsagl-process-colors
 	./rsagl-process-colors
 
-darcstest :
-	${MAKE} clean
-	${MAKE} all
-	${MAKE} clean
-
-hpc-metrics: rsagl-tests rsagl-modelview
+hpc-metrics: rsagl-tests-prof rsagl-modelview-prof
 	-rm -f rsagl-tests.tix
 	-rm -f rsagl-modelview.tix
 	-rm -f rsagl-sum.tix
-	./rsagl-tests
-	hpc sum --union rsagl-tests.tix > rsagl-sum.tix
+	./rsagl-tests-prof
+	./rsagl-modelview-prof
+	hpc sum --union rsagl-tests.tix rsagl-modelview-prof > rsagl-sum.tix
 	hpc markup rsagl-sum.tix
 
 clean :
@@ -56,9 +50,9 @@ clean :
 	-rm -f RSAGL/*.o
 	-rm -f RSAGL/*.out
 	-rm -f rsagl-tests
-	-rm -f rsagl-tests-optimized
+	-rm -f rsagl-tests-prof
 	-rm -f rsagl-modelview
-	-rm -f rsagl-modelview-optimized
+	-rm -f rsagl-modelview-prof
 	-rm -f rsagl-process-colors
 	-rm -f rsagl.pdf
 	-rm -f ./rsagl-modelview.aux
@@ -72,4 +66,4 @@ clean :
 	-rm -f ./*.hs.html
 	-rm -f ./*.lhs.html
 
-.PHONY : clean doc tests all rsagl-modelview rsagl-modelview-optimized rsagl-tests rsagl-tests-optimized colors hpc-metrics
+.PHONY : clean doc tests all rsagl-modelview rsagl-modelview-prof rsagl-tests rsagl-tests-prof colors hpc-metrics
