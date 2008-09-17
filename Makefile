@@ -12,20 +12,20 @@ tests: rsagl-tests rsagl-modelview
 rsagl-tests-prof :
 	ghc --version
 	-rm -f rsagl-tests.tix
-	ghc -fhpc -prof -auto-all -caf-all -O2 -Wall -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-prof
+	ghc -fext-core -fhpc -prof -auto-all -caf-all -O2 -Wall -fno-warn-type-defaults --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests-prof ${GHC_OPTS}
 
 rsagl-tests :
 	ghc --version
-	ghc -threaded -Wall -fno-warn-type-defaults -O2 -fexcess-precision --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests
+	ghc -fext-core -threaded -Wall -fno-warn-type-defaults -O2 -fexcess-precision --make RSAGL/Tests.hs -main-is RSAGL.Tests.main -o rsagl-tests ${GHC_OPTS}
 
 rsagl-modelview-prof:
 	ghc --version
 	-rm -f rsagl-modelview.tix
-	ghc -fhpc -prof -auto-all -caf-all -lglut -O2 -Wall -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-prof
+	ghc -fext-core -fhpc -prof -auto-all -caf-all -lglut -O2 -Wall -fno-warn-type-defaults --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview-prof ${GHC_OPTS}
 
 rsagl-modelview:
 	ghc --version
-	ghc -threaded -lglut -Wall -fno-warn-type-defaults -fexcess-precision -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview
+	ghc -fext-core -threaded -lglut -Wall -fno-warn-type-defaults -fexcess-precision -O2 --make RSAGL/Main.hs -main-is RSAGL.Main.main -o rsagl-modelview ${GHC_OPTS}
 
 colors:
 	ghc -lglut -O2 --make RSAGL/ProcessColors.hs -main-is RSAGL.ProcessColors.main -o rsagl-process-colors
