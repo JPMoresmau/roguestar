@@ -11,6 +11,9 @@ module RSAGL.Angle
      fromDegrees,
      fromRadians,
      fromRotations,
+     fromTimeOfDayHMS,
+     fromArcMinutes,
+     fromArcSeconds,
      sine,
      arcSine,
      cosine,
@@ -101,6 +104,15 @@ fromDegrees = Radians . ((*) (pi/180))
 
 fromRotations :: Double -> Angle
 fromRotations = Radians . ((*) (2*pi))
+
+fromTimeOfDayHMS :: Double -> Double -> Double -> Angle
+fromTimeOfDayHMS h m s = fromRotations (((s/60+m)/60+h)/24)
+
+fromArcMinutes :: Double -> Angle
+fromArcMinutes = fromDegrees . (/60)
+
+fromArcSeconds :: Double -> Angle
+fromArcSeconds = fromArcMinutes . (/60)
 \end{code}
 
 \texttt{toDegrees} answers the angle in the range of -180 to 180, inclusive.
