@@ -17,6 +17,8 @@ module RSAGL.Angle
      arcCosine,
      tangent,
      arcTangent,
+     cartesianToPolar,
+     polarToCartesian,
      toRadians,
      toRadians_,
      toDegrees,
@@ -182,6 +184,12 @@ tangent (Radians x) = tan x
 
 arcTangent :: Double -> Angle
 arcTangent = fromRadians . atan
+
+cartesianToPolar :: (Double,Double) -> (Angle,Double)
+cartesianToPolar (u,v) = (fromRadians $ atan2 v u,sqrt $ u*u + v*v)
+
+polarToCartesian :: (Angle,Double) -> (Double,Double)
+polarToCartesian (a,d) = (cosine a*d,sine a*d)
 \end{code}
 
 \texttt{boundAngle} forces the angle into the range (-pi..pi).

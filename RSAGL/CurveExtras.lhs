@@ -5,7 +5,8 @@ module RSAGL.CurveExtras
     (sphericalCoordinates,
      cylindricalCoordinates,
      toroidalCoordinates,
-     planarCoordinates,
+     circularCoordinates,
+     polarCoordinates,
      transformUnitSquareToUnitCircle,
      transformUnitCubeToUnitSphere,
      clampV,
@@ -25,6 +26,7 @@ import RSAGL.Auxiliary
 import RSAGL.AbstractVector
 import Data.Fixed
 import RSAGL.Affine
+import Control.Arrow hiding (pure)
 \end{code}
 
 \subsection{Alternate Coordinate Systems for Models}
@@ -39,10 +41,11 @@ cylindricalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians
 toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
 
-planarCoordinates :: Point3D -> Vector3D -> ((Double,Double) -> (Double,Double)) -> Surface (Point3D,Vector3D)
-planarCoordinates center upish f = surface (curry $ g . f)
-    where (u',v') = orthos upish
-          g (u,v) = (translate (vectorScale u u' `vectorAdd` vectorScale v v') center, upish)
+circularCoordinates :: ((Double,Double) -> a) -> Surface a
+circularCoordinates f = surface $ curry $ (f . second negate . transformUnitSquareToUnitCircle)
+
+polarCoordinates :: ((Angle,Double) -> a) -> Surface a
+polarCoordinates f = circularCoordinates (f . cartesianToPolar)
 \end{code}
 
 \subsection{Transformations Between Unit Volumes}

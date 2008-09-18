@@ -46,13 +46,7 @@ module RSAGL.Model
      material,pigment,specular,emissive,transparent,
      MonadAffine(..),
      turbulence,
-     deform,
-     sphericalCoordinates,
-     cylindricalCoordinates,
-     toroidalCoordinates,
-     planarCoordinates,
-     transformUnitCubeToUnitSphere,
-     transformUnitSquareToUnitCircle)
+     deform)
     where
 
 import RSAGL.Curve
@@ -83,7 +77,6 @@ import Graphics.Rendering.OpenGL.GL.BasicTypes
 import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
 import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
 import Graphics.Rendering.OpenGL.GL.Polygons
-import Control.Arrow hiding (pure)
 \end{code}
 
 \subsection{Modeling Monad}
@@ -199,7 +192,9 @@ class MonadMaterial m where
     material :: MaterialM attr () -> m attr ()
 
 instance MonadMaterial ModelingM where
-    material (MaterialM actions) = withFilter (materialIsEmpty . ms_material) $ mapM_ appendQuasimaterial $ State.execState actions []
+    material (MaterialM actions) = 
+        do finishModeling
+	   withFilter (materialIsEmpty . ms_material) $ mapM_ appendQuasimaterial $ State.execState actions []
 
 instance MonadMaterial MaterialM where
     material (MaterialM actions) = State.modify (++ State.execState actions [])
@@ -278,27 +273,24 @@ sphere (Point3D x y z) radius = model $ do
                 point = Point3D (x + radius * cosinev * cosineu)
                                 (y + radius * sinev)
                                 (z + radius * cosinev * sineu)
-                vector = Vector3D (cosinev * cosineu)
-                                  (sinev)
-                                  (cosinev * sineu)
+                vector = Vector3D (signum radius * cosinev * cosineu)
+                                  (signum radius * sinev)
+                                  (signum radius * cosinev * sineu)
                 in (point,vector))
 
 skySphere :: (Monoid attr) => Point3D -> Double -> Modeling attr
-skySphere p r = sphere p (negate r) 
+skySphere p r = sphere p (negate r)
 
-flexiHemisphere :: (Monoid attr) => Double -> Double -> Vector3D -> 
-                                    Point3D -> Vector3D -> Double -> Modeling attr
-flexiHemisphere inner_radius outer_radius v_ p v sphere_radius = model $
-    do openDisc origin_point_3d v_ inner_radius outer_radius
-       deform $ \(SurfaceVertex3D (Point3D x _ z) _) -> let y = sqrt $ max 0 $ 1 - x*x - z*z 
-                                        in SurfaceVertex3D (Point3D x y z) (Vector3D x y z)
-       affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' sphere_radius
+hemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+hemisphere p v r = model $
+    do generalSurface $ Right $ polarCoordinates $ \(a,d) -> let x = cosine a*sqrt d
+                                                                 y = 1 - x*x - z*z
+								 z = sine a*sqrt d
+                                                                 in (Point3D x y z,Vector3D x y z)
+       affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' r
 
-hemisphere :: (Monoid attr) => Double -> Double -> Point3D -> Vector3D -> Double -> Modeling attr
-hemisphere i o p v r = flexiHemisphere i o (Vector3D 0 1 0) p v r
-
-skyHemisphere :: (Monoid attr) => Double -> Double -> Point3D -> Vector3D -> Double -> Modeling attr
-skyHemisphere i o p v r = flexiHemisphere i o (Vector3D 0 (-1) 0) p v r
+skyHemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+skyHemisphere p v r = hemisphere p (vectorScale (-1) v) (negate r)
 
 torus :: (Monoid attr) => Double -> Double -> Modeling attr
 torus major minor = model $
@@ -337,8 +329,8 @@ openDisc p up inner_radius outer_radius = model $
 
 closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 closedDisc center up_vector radius = model $
-    do generalSurface $ Right $ planarCoordinates center up_vector $ 
-           ((* radius) *** (* radius)) <<< transformUnitSquareToUnitCircle
+    do generalSurface $ Right $ circularCoordinates (\(x,z) -> (Point3D x 0 z,Vector3D 0 1 0))
+       affine $ translateToFrom center origin_point_3d . rotateToFrom up_vector (Vector3D 0 1 0) . scale' radius
 
 closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
 closedCone a b = model $
@@ -434,11 +426,8 @@ selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv
                                                  SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..(n-1)]
 
 layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
-layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (tesselationsLoop tesselation)
-        where tesselationsLoop [] = return()
-              tesselationsLoop (t:rest) = do tesselatedElementToOpenGL toOpenGL t
-                                             tesselationsLoop rest
-              vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
+layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (mapM_ (tesselatedElementToOpenGL toOpenGL) tesselation)
+        where vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
                                                   (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
                                                   (MaterialVertex3D color_material _)) =
                   do rgbaToOpenGL color_material
