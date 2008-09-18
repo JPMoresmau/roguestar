@@ -62,8 +62,18 @@ data CoordinateSystem = CoordinateSystem Matrix deriving (Show)
 instance AffineTransformable CoordinateSystem where
     transform m (CoordinateSystem cs) = CoordinateSystem $ matrixMultiply m cs
 
+{-# RULES
+"RSAGL:migrateToFrom/fromRoot"     forall x. migrateToFrom x root_coordinate_system = importFromRoot x
+"RSAGL:migrateToFrom/toRoot"       forall x. migrateToFrom root_coordinate_system x = exportToRoot x
+  #-}
 migrateToFrom :: (AffineTransformable a) => CoordinateSystem -> CoordinateSystem -> a -> a
-migrateToFrom (CoordinateSystem to) (CoordinateSystem from) = transform to . inverseTransform from
+migrateToFrom (CoordinateSystem to) (CoordinateSystem from) = transform (to `matrixMultiply` (matrixInverse from))
+
+importFromRoot :: (AffineTransformable a) => CoordinateSystem -> a -> a
+importFromRoot (CoordinateSystem to) = transform to
+
+exportToRoot :: (AffineTransformable a) => CoordinateSystem -> a -> a
+exportToRoot (CoordinateSystem from) = inverseTransform from
 
 class CoordinateSystemClass csc where
     getCoordinateSystem :: csc -> CoordinateSystem
