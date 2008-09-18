@@ -9,6 +9,12 @@ module RSAGL.Color
      rgba256,
      gray,
      gray256,
+     brightness,
+     meanBrightness,
+     zipRGB3,
+     maxRGB,
+     minRGB,
+     maximizeRGB,
      ColorClass(..),
      addRGB,
      mapRGB,
@@ -31,10 +37,10 @@ import RSAGL.AbstractVector
 \texttt{rgb256} works for colors specified in hexadecimal.  For example, X11 ForestGreen is \texttt{rgb256 0x22 0x8B 0x22}.
 
 \begin{code}
-data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !Float }
+data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !Double }
     deriving (Eq,Show)
 
-data RGBA = RGBA { rgba_a :: !Float, rgba_rgb :: !RGB }
+data RGBA = RGBA { rgba_a :: !Double, rgba_rgb :: !RGB }
     deriving (Eq,Show)
 
 instance NFData RGB where
@@ -42,14 +48,14 @@ instance NFData RGB where
 instance NFData RGBA where
 
 class (AbstractVector c) => ColorClass c where
-    rgb :: Float -> Float -> Float -> c
+    rgb :: Double -> Double -> Double -> c
     rgb256 :: (Integral i) => i -> i -> i -> c
-    alpha :: Float -> c -> RGBA
+    alpha :: Double -> c -> RGBA
     alpha256 :: (Integral i) => i -> c -> RGBA
     clampColor :: c -> c
-    zipRGB :: (Float -> Float -> Float) -> RGB -> c -> c
-    zipColor :: (Float -> Float -> Float) -> c -> c -> c
-    brightness :: c -> Float
+    zipRGB :: (Double -> Double -> Double) -> RGB -> c -> c
+    zipColor :: (Double -> Double -> Double) -> c -> c -> c
+    toPremultipliedRGB :: c -> RGB
     colorToOpenGL :: c -> IO ()
     toRGBA :: c -> RGBA
     fromRGB :: RGB -> c
@@ -62,7 +68,7 @@ instance ColorClass RGB where
     clampColor = mapRGB (min 1 . max 0)
     zipRGB = zipColor
     zipColor f (RGB r1 g1 b1) (RGB r2 g2 b2) = RGB (f r1 r2) (f g1 g2) (f b1 b2)
-    brightness (RGB r g b) = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    toPremultipliedRGB = id
     colorToOpenGL = rgbToOpenGL
     toRGBA = RGBA 1
     fromRGB = id
@@ -75,25 +81,46 @@ instance ColorClass RGBA where
     clampColor (RGBA a rgb_color) = RGBA (min 1 $ max 0 a) $ clampColor rgb_color
     zipRGB f x (RGBA a y) = RGBA a $ zipRGB f x y
     zipColor f (RGBA a1 c1) (RGBA a2 c2) = RGBA (f a1 a2) (zipColor f c1 c2)
-    brightness (RGBA a rgb_color) = brightness rgb_color * a
+    toPremultipliedRGB (RGBA a rgb_color) = scaleRGB a rgb_color
     colorToOpenGL = rgbaToOpenGL
     toRGBA = id
     fromRGB = alpha 1.0
 
-i2f256 :: (Integral i) => i -> Float
+i2f256 :: (Integral i) => i -> Double
 i2f256 = (/ 255) . fromIntegral
 
-rgba :: Float -> Float -> Float -> Float -> RGBA
+rgba :: Double -> Double -> Double -> Double -> RGBA
 rgba r g b a = alpha a $ (rgb r g b :: RGB)
 
 rgba256 :: (Integral i) => i -> i -> i -> i -> RGBA
 rgba256 r g b a = alpha256 a $ (rgb256 r g b :: RGB)
 
-gray :: Float -> RGB
+gray :: Double -> RGB
 gray x = rgb x x x
 
 gray256 :: (Integral i) => i -> RGB
 gray256 x = rgb256 x x x
+
+brightness :: (ColorClass c) => c -> Double
+brightness c = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    where RGB r g b = toPremultipliedRGB c
+
+meanBrightness :: (ColorClass c) => c -> Double
+meanBrightness c = (r + g + b) / 3
+    where RGB r g b = toPremultipliedRGB c
+
+zipRGB3 :: (Double -> Double -> Double -> Double) -> RGB -> RGB -> RGB -> RGB
+zipRGB3 f (RGB ar ag ab) (RGB br bg bb) (RGB cr cg cb) = RGB (f ar br cr) (f ag bg cg) (f ab bb cb)
+
+maxRGB :: RGB -> Double
+maxRGB (RGB r g b) = max r (max g b)
+
+minRGB :: RGB -> Double
+minRGB (RGB r g b) = min r (min g b)
+
+maximizeRGB :: RGB -> RGB
+maximizeRGB (RGB r g b) | r <= 0 && g <= 0 && b <= 0 = gray 0
+maximizeRGB c = mapRGB (/ maxRGB c) c
 
 addRGB :: RGB -> RGB -> RGB
 addRGB = addColor
@@ -104,7 +131,7 @@ addColor = zipColor (+)
 subColor :: (ColorClass c) => c -> c -> c
 subColor = zipColor (-)
 
-mapRGB :: (ColorClass c) => (Float -> Float) -> c -> c
+mapRGB :: (ColorClass c) => (Double -> Double) -> c -> c
 mapRGB f = zipRGB (const f) (fromRGB bad_rgb)
 
 bad_rgb :: RGB
@@ -113,21 +140,21 @@ bad_rgb = RGB (sqrt (-1)) (sqrt (-1)) (sqrt (-1))
 filterRGB :: (ColorClass c) => RGB -> c -> c
 filterRGB = zipRGB (*) . fromRGB 
 
-scaleRGB :: (ColorClass c) => Float -> c -> c
+scaleRGB :: (ColorClass c) => Double -> c -> c
 scaleRGB x = mapRGB (*x)
 
 invertRGB :: (ColorClass c) => c -> c
 invertRGB = mapRGB (1-)
 
-scaleRGBA :: Float -> RGBA -> RGBA
+scaleRGBA :: Double -> RGBA -> RGBA
 scaleRGBA x c = c { rgba_a = x * rgba_a c,
                     rgba_rgb = scaleRGB x (rgba_rgb c) }
 
 rgbToOpenGL :: RGB -> IO ()
-rgbToOpenGL (RGB r g b) = color $! Color4 r g b 1
+rgbToOpenGL (RGB r g b) = color $ Color4 (realToFrac r :: Float) (realToFrac g :: Float) (realToFrac b :: Float) 1
 
 rgbaToOpenGL :: RGBA -> IO ()
-rgbaToOpenGL (RGBA a (RGB r g b)) = color $! Color4 r g b a
+rgbaToOpenGL (RGBA a (RGB r g b)) = color $ Color4 (realToFrac r) (realToFrac g) (realToFrac b) a
 
 instance AbstractZero RGB where
     zero = rgb 0 0 0
@@ -139,7 +166,7 @@ instance AbstractSubtract RGB RGB where
     sub = subColor
 
 instance AbstractScale RGB where
-    scalarMultiply d = scaleRGB (realToFrac d)
+    scalarMultiply d = scaleRGB d
 
 instance AbstractVector RGB
 

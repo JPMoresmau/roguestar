@@ -160,9 +160,9 @@ materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io =
 materialLayerToOpenGLWrapper (CompoundLayer ms specular_rgb emissive_rgb shininess) io =
     do cm <- get colorMaterial
        lmlv <- get lightModelLocalViewer
-       materialSpecular FrontAndBack $= (\(RGB r g b) -> Color4 r g b 1) specular_rgb
+       materialSpecular FrontAndBack $= (\(RGB r g b) -> Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1) specular_rgb
        materialShininess FrontAndBack $= shininess
-       materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 r g b 1) emissive_rgb
+       materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1) emissive_rgb
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
        lightModelLocalViewer $= Enabled
        maybe (return ()) (rgbToOpenGL) $ fromPure ms
