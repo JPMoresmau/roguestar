@@ -42,6 +42,7 @@ hpc-metrics: rsagl-tests-prof rsagl-modelview-prof
 
 clean :
 	-rm -f RSAGL/*.dvi
+	-rm -f RSAGL/*.hcr
 	-rm -f RSAGL/*.aux
 	-rm -f RSAGL/*.log
 	-rm -f RSAGL/*.pdf
@@ -49,6 +50,9 @@ clean :
 	-rm -f RSAGL/*.hi
 	-rm -f RSAGL/*.o
 	-rm -f RSAGL/*.out
+	-rm -f Models/*.o
+	-rm -f Models/*.hi
+	-rm -f Models/*.hcr
 	-rm -f rsagl-tests
 	-rm -f rsagl-tests-prof
 	-rm -f rsagl-modelview
