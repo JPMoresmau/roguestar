@@ -20,6 +20,7 @@ module RSAGL.Color
      mapRGB,
      invertRGB,
      filterRGB,
+     filterRGBLinear,
      scaleRGB,
      rgbToOpenGL,
      rgbaToOpenGL)
@@ -28,6 +29,7 @@ module RSAGL.Color
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL.VertexSpec
 import RSAGL.AbstractVector
+import RSAGL.Interpolation
 \end{code}
 
 \texttt{addColor} paints a color on top of another color using the additive color system.  For example, \texttt{red `addColor` green == yellow}.
@@ -145,6 +147,14 @@ scaleRGB x = mapRGB (*x)
 
 invertRGB :: RGB -> RGB
 invertRGB = mapRGB (1-)
+\end{code}
+
+\texttt{filterRGBLinear} maps an RGB color between a black point and a white point.  The black point will map to RGB 0 0 0, while
+the white point will map to RGB 1 1 1.
+
+\begin{code}
+filterRGBLinear :: RGB -> RGB -> RGB -> RGB
+filterRGBLinear black_point white_point = zipRGB3 (\b w c -> lerpBetweenClamped (b,c,w) (0,1)) black_point white_point
 
 scaleRGBA :: Double -> RGBA -> RGBA
 scaleRGBA x c = c { rgba_a = x * rgba_a c,
