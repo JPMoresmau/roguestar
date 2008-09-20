@@ -24,6 +24,8 @@ module RSAGL.Matrix
 import Data.List
 import RSAGL.Angle
 import RSAGL.Vector
+import Data.Array.ST
+import Data.Array.Base
 \end{code}
 
 The Matrix data structure stores copies of the matrix in both row-major and column-major form,
@@ -37,24 +39,35 @@ In row-major form, the Haskell list representation of a matrix has the same orie
 as if written on paper.
 
 \begin{code}
-data Matrix = Matrix { rows, cols :: Int, 
-                       row_major :: [[Double]], 
+data Matrix = Matrix { matrix_rows, matrix_cols :: !Int, 
+                       matrix_data :: UArray Int Double, 
                        matrix_inverse :: Matrix,
                        matrix_determinant :: Double }
+
+{-# INLINE rows #-}
+rows :: Matrix -> Int
+rows = matrix_rows
+
+{-# INLINE cols #-}
+cols :: Matrix -> Int
+cols = matrix_cols
 
 instance Eq Matrix where
     x == y = rows x == rows y &&
              cols x == cols y &&
-             row_major x == row_major y
+             rowMajorForm x == rowMajorForm y
 
 instance Show Matrix where
-    show m = show $ row_major m
+    show m = show $ rowMajorForm m
+
+row_major :: Matrix -> [[Double]]
+row_major = rowMajorForm
 
 rowMajorForm :: Matrix -> [[Double]]
-rowMajorForm mat = row_major mat
+rowMajorForm mat = unfoldr (\xs -> if null xs then Nothing else Just $ splitAt (matrix_cols mat) xs) $ elems $ matrix_data mat
 
 colMajorForm :: Matrix -> [[Double]]
-colMajorForm = transpose . row_major
+colMajorForm = transpose . rowMajorForm
 \end{code}
 
 rowAt answers the nth row of a matrix.
@@ -78,16 +91,20 @@ monospaced font and haskell syntax, so that it looks like a matrix as it would b
 
 \begin{code}
 matrix :: [[Double]] -> Matrix
-matrix dats = if all (== row_length) row_lengths
-              then m
-              else error "row lengths do not match"
-    where m = Matrix { rows=length dats, --the number of rows is the length of each column
-                       cols=length $ head dats, --the number of columns is the length of each row
-                       row_major=dats,
+matrix [] = error "matrix: empty matrix"
+matrix [[]] = error "matrix: empty matrix"
+matrix dats | not (all (== length (head dats)) (map length dats)) = error "matrix: row lengths do not match"
+matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number_of_rows * number_of_cols - 1) $ concat dats)
+    where number_of_rows = length dats
+          number_of_cols = length $ head dats
+    
+uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
+uncheckedMatrix number_of_rows number_of_cols dats = m
+    where m = Matrix { matrix_rows=number_of_rows,
+                       matrix_cols=number_of_cols,
+                       matrix_data=dats,
                        matrix_inverse = (matrixInversePrim m) { matrix_inverse = m },
                        matrix_determinant = determinantPrim m }
-          row_lengths = map length dats
-          row_length = head row_lengths
 \end{code}
 
 identityMatrix constructs the n by n identity matrix

@@ -25,22 +25,21 @@ instance Homogenous Vector3D where
                                             [y],
                                             [z],
                                             [0.0]]
-    fromHomogenous m = vector3d $ genericFromHomogenous m 
+    fromHomogenous m = Vector3D (matrixAt m (0,0))
+                                (matrixAt m (1,0))
+				(matrixAt m (2,0))
 
 instance Homogenous Point3D where
     toHomogenous (Point3D x y z) = matrix [[x],
                                            [y],
                                            [z],
                                            [1.0]]
-    fromHomogenous m = point3d $ genericFromHomogenous m
+    fromHomogenous m = Point3D (matrixAt m (0,0))
+                               (matrixAt m (1,0))
+			       (matrixAt m (2,0))
 
-genericFromHomogenous :: Matrix -> XYZ
-genericFromHomogenous m = let x = (rowMajorForm m) !! 0 !! 0
-			      y = (rowMajorForm m) !! 1 !! 0
-			      z = (rowMajorForm m) !! 2 !! 0
-			      in (x,y,z)
-
+{-# INLINE transformHomogenous #-}
 transformHomogenous :: (Homogenous a, Homogenous b) => Matrix -> a -> b
-transformHomogenous transformation_matrix entity = 
-    fromHomogenous $ matrixMultiply transformation_matrix $ toHomogenous entity
+transformHomogenous transformation_matrix = 
+    fromHomogenous . matrixMultiply transformation_matrix . toHomogenous
 \end{code}
