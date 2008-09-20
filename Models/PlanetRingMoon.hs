@@ -1,5 +1,5 @@
 module Models.PlanetRingMoon
-    (planet,ring,moon,ground,monolith,station,orb,glow_orb,orb_upper_leg,orb_lower_leg,sky)
+    (planet,ring,moon,ground,monolith,station,orb,glow_orb,orb_upper_leg,orb_lower_leg,Models.PlanetRingMoon.sky)
     where
 
 import RSAGL.Model
@@ -12,6 +12,7 @@ import System.Random
 import RSAGL.Angle
 import RSAGL.CurveExtras
 import RSAGL.Curve
+import RSAGL.Extras.Sky as Sky
 
 ring :: Modeling ()
 ring = model $ do openDisc origin_point_3d (Vector3D 0 1 0) 0.75 1.0
@@ -56,7 +57,7 @@ monolith = model $
 
 ground :: Modeling ()
 ground = model $
-    do closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 75
+    do closedDisc (Point3D 0 (-0.1) 0) (Vector3D 0 1 0) 30
        regenerateNormals
        material $ pigment $ pattern (cloudy 27 1.0) [(0.0,pure brown),(1.0,pure forest_green)]
        affine $ translate (Vector3D 0 (-0.1) 0)
@@ -136,6 +137,6 @@ orb_lower_leg = model $
 sky :: Modeling ()
 sky = model $
     do skyHemisphere (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
-       material $
-           do emissive $ scaleRGB 0.5 <$> (pattern (gradient origin_point_3d $ Vector3D 0 1 0) 
-		  [(0.0,pure white),(0.1,pure azure),(0.4,pure blackbody)])
+       affine $ scale $ Vector3D 5 1 5
+       material $ atmosphereScatteringMaterial earth_atmosphere [(rotate (Vector3D 0 0 1) (fromTimeOfDayHMS 0 15 0) $ Vector3D 1 0 0,gray 1)] (dynamicSkyFilter 0.2 1.0)
+
