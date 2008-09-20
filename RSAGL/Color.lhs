@@ -131,19 +131,19 @@ addColor = zipColor (+)
 subColor :: (ColorClass c) => c -> c -> c
 subColor = zipColor (-)
 
-mapRGB :: (ColorClass c) => (Double -> Double) -> c -> c
-mapRGB f = zipRGB (const f) (fromRGB bad_rgb)
+{-# INLINE mapRGB #-}
+mapRGB :: (Double -> Double) -> RGB -> RGB
+mapRGB f (RGB r g b) = RGB (f r) (f g) (f b)
 
-bad_rgb :: RGB
-bad_rgb = RGB (sqrt (-1)) (sqrt (-1)) (sqrt (-1))
+{-# INLINE filterRGB #-}
+filterRGB :: RGB -> RGB -> RGB
+filterRGB = zipRGB (*)
 
-filterRGB :: (ColorClass c) => RGB -> c -> c
-filterRGB = zipRGB (*) . fromRGB 
-
-scaleRGB :: (ColorClass c) => Double -> c -> c
+{-# INLINE scaleRGB #-}
+scaleRGB :: Double -> RGB -> RGB
 scaleRGB x = mapRGB (*x)
 
-invertRGB :: (ColorClass c) => c -> c
+invertRGB :: RGB -> RGB
 invertRGB = mapRGB (1-)
 
 scaleRGBA :: Double -> RGBA -> RGBA
