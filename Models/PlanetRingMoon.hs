@@ -135,7 +135,7 @@ orb_lower_leg = model $
 
 sky :: Modeling ()
 sky = model $
-    do skyHemisphere 0.6 1.0 (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
+    do skyHemisphere (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
        material $
            do emissive $ scaleRGB 0.5 <$> (pattern (gradient origin_point_3d $ Vector3D 0 1 0) 
 		  [(0.0,pure white),(0.1,pure azure),(0.4,pure blackbody)])
