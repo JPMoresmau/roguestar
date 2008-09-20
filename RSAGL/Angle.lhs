@@ -161,11 +161,7 @@ scaleAngle :: Double -> Angle -> Angle
 scaleAngle x = Radians . (*x) . toRadians_
 
 reverseAngle :: Angle -> Angle
-reverseAngle x = fromRadians $ case () of
-                     () | r > 0 -> pi - r
-                     () | r < 0 -> -pi - r
-                     () | otherwise -> pi
-    where r = toRadians x
+reverseAngle (Radians x) = Radians $ pi - x
 
 angleAdd :: Angle -> Angle -> Angle
 angleAdd (Radians x) (Radians y) = Radians $ x + y
