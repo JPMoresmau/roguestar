@@ -19,14 +19,15 @@ import RSAGL.Affine
 A \texttt{Ray3D} has a endpoint and direction.
 
 \begin{code}
-data Ray3D = Ray3D Point3D Vector3D
+data Ray3D = Ray3D { ray_endpoint :: Point3D,
+                     ray_vector :: Vector3D }
     deriving (Read,Show)
 
 instance AffineTransformable Ray3D where
     transform m (Ray3D p v) = Ray3D (transform m p) (transform m v)
 
 projectRay :: Double -> Ray3D -> Point3D
-projectRay t (Ray3D p v) = translate (vectorScale t v) p
+projectRay t (Ray3D (Point3D x y z) (Vector3D u v w)) = Point3D (x+u*t) (y+v*t) (z+w*t)
 
 distanceAlong :: Ray3D -> Point3D -> Double
 distanceAlong (Ray3D p v) p' = dotProduct (vectorToFrom p' p) v / vectorLengthSquared v
