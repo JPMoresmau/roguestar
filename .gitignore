@@ -1,0 +1,12 @@
+*.o
+*.hcr
+*.hi
+*.prof
+*.swp
+*.swo
+rsagl-tests
+rsagl-modelview
+rsagl-tests-prof
+rsagl-modelview-prof
+dist/
+.vim.makehere.sh
