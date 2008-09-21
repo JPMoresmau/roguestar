@@ -279,6 +279,15 @@ testNewell =
        testClose "testNewell(y)" y (-0.57735) equalClose
        testClose "testNewell(z)" z 0.57735 equalClose
 
+testMatrixMultiply :: IO ()
+testMatrixMultiply =
+    do testClose "testMatrixMultiply-1" (matrix [[1,2,3]] `matrixMultiply` matrix [[7],[8],[9]])
+                                        (matrix [[50]])
+                                        matrixEqualClose
+       testClose "testMatrixMultiply-2" (matrix [[1],[2],[3]] `matrixMultiply` matrix [[7,8,9]])
+                                        (matrix [[7,8,9],[14,16,18],[21,24,27]])
+					matrixEqualClose
+
 type Double2 = (Double,Double)
 type Double22 = (Double2,Double2)
 type Double3 = (Double,Double,Double)
@@ -329,6 +338,30 @@ testJoint = testClose "testJoint"
     (joint_elbow $ joint (Vector3D 0 1 1) (Point3D 0 1 0) 3 (Point3D 0 0 1))
     (Point3D 0 1.43541 1.43541)
     xyzEqualClose
+
+quickCheckMatrixIdentity2 :: IO ()
+quickCheckMatrixIdentity2 =
+    do putStr "quickCheckMatrixIdentity2: "
+       quickCheck _qcmi
+           where _qcmi :: Double22 -> Bool
+	         _qcmi m = (identityMatrix 2 `matrixMultiply` mat) `matrixEqualClose` mat
+		     where mat = d2ToMatrix m
+
+quickCheckMatrixIdentity3 :: IO ()
+quickCheckMatrixIdentity3 =
+    do putStr "quickCheckMatrixIdentity3: "
+       quickCheck _qcmi
+           where _qcmi :: Double33 -> Bool
+	         _qcmi m = (identityMatrix 3 `matrixMultiply` mat) `matrixEqualClose` mat
+		     where mat = d3ToMatrix m
+
+quickCheckMatrixIdentity4 :: IO ()
+quickCheckMatrixIdentity4 =
+    do putStr "quickCheckMatrixIdentity4: "
+       quickCheck _qcmi
+           where _qcmi :: Double44 -> Bool
+	         _qcmi m = (identityMatrix 4 `matrixMultiply` mat) `matrixEqualClose` mat
+		     where mat = d4ToMatrix m
 
 quickCheckMatrixDeterminant2 :: IO ()
 quickCheckMatrixDeterminant2 =
@@ -544,6 +577,10 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testDeterminant2
           testDeterminant3
           testDeterminant4
+	  testMatrixMultiply
+	  quickCheckMatrixIdentity2
+	  quickCheckMatrixIdentity3
+	  quickCheckMatrixIdentity4
           quickCheckMatrixDeterminant2
           quickCheckMatrixDeterminant3
           quickCheckMatrixDeterminant4

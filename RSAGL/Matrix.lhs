@@ -81,7 +81,16 @@ matrixAt answers the (i'th,j'th) element of a matrix.
 
 \begin{code}
 matrixAt :: Matrix -> (Int,Int) -> Double
-matrixAt m (i,j) = ((rowMajorForm m) !! j) !! i
+matrixAt m (i,j) = case () of
+    () | i `seq` j `seq` False -> undefined
+    () | i >= rows m || j >= cols m -> error "matrixAt: out of bounds"
+    () | otherwise -> uncheckedMatrixAt m (i,j)
+
+{-# INLINE uncheckedMatrixAt #-}
+uncheckedMatrixAt :: Matrix -> (Int,Int) -> Double
+uncheckedMatrixAt m (i,j) = case () of
+    () | i `seq` j `seq` False -> undefined
+    () | otherwise -> matrix_data m `unsafeAt` ((i*cols m) + j)
 \end{code}
 
 \subsection{Constructing matrices}
@@ -169,9 +178,28 @@ matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
 \begin{code}
 matrixMultiply :: Matrix -> Matrix -> Matrix
 matrixMultiply m n | cols m /= rows n = error "matrixMultiply: dimension mismatch"
-matrixMultiply m n = matrix $ [[sum $ zipWith (*) m' n' | n' <- n_data] | m' <- m_data]
-    where m_data = row_major m
-	  n_data = transpose $ row_major n
+matrixMultiply m n = case () of
+        () | number_of_cols `seq` number_of_rows `seq` run_length `seq` False -> undefined
+	() | otherwise -> uncheckedMatrix number_of_rows number_of_cols new_data
+    where number_of_cols = cols n
+          number_of_rows = rows m
+	  run_length = cols m
+          loop a z f = case () of
+	      () | a `seq` z `seq` False -> undefined
+	      () | a < z -> do f a
+	                       loop (a+1) z f
+	      () | otherwise -> return ()
+	  multiplyCell i j r = case () of
+	      () | i `seq` j `seq` r `seq` False -> undefined
+	      () | r < run_length -> uncheckedMatrixAt m (i,r) * uncheckedMatrixAt n (r,j) + multiplyCell i j (r+1)
+	      () | otherwise -> 0
+          new_data = runSTUArray $
+              do a <- newArray_ (0,number_of_rows * number_of_cols - 1)
+		 loop 0 number_of_rows $ \this_row -> 
+		     let this_row_start = this_row*number_of_cols
+		         in seq this_row_start $ loop 0 number_of_cols $ \this_col -> 
+		                unsafeWrite a (this_row_start+this_col) (multiplyCell this_row this_col 0)
+		 return a
 
 matrixTranspose :: Matrix -> Matrix
 matrixTranspose = matrix . colMajorForm -- works because matrix expects row major form
@@ -228,6 +256,6 @@ matrixInversePrim m =
 
 determinantPrim :: Matrix -> Double
 determinantPrim m | rows m /= cols m = error "determinantPrim: not a square matrix"
-determinantPrim (Matrix { row_major=[[x]] }) = x
+determinantPrim m | rows m == 1 && cols m == 1 = matrixAt m (0,0)
 determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (x,0)) [0..(cols m - 1)]
 \end{code}
