@@ -1,6 +1,7 @@
 \section{RSAGL.Matrix}
 
 \begin{code}
+
 module RSAGL.Matrix
     (Matrix,
      matrix,
@@ -59,9 +60,6 @@ instance Eq Matrix where
 
 instance Show Matrix where
     show m = show $ rowMajorForm m
-
-row_major :: Matrix -> [[Double]]
-row_major = rowMajorForm
 
 rowMajorForm :: Matrix -> [[Double]]
 rowMajorForm mat = unfoldr (\xs -> if null xs then Nothing else Just $ splitAt (matrix_cols mat) xs) $ elems $ matrix_data mat
@@ -168,8 +166,8 @@ xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
 \begin{code}
 matrixAdd :: Matrix -> Matrix -> Matrix
 matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
-				      then map ((map (uncurry (+))).(uncurry zip)) $ zip (row_major m) (row_major n)
-				      else error "matrixAdd: dimension mismatch")
+				     then map ((map (uncurry (+))).(uncurry zip)) $ zip (rowMajorForm m) (rowMajorForm n)
+				     else error "matrixAdd: dimension mismatch")
 		    in matrix new_row_major
 \end{code}
 
@@ -221,10 +219,19 @@ reduceMatrix eliminates the row and column corresponding to a specific element o
 
 \begin{code}
 reduceMatrix :: Matrix -> (Int,Int) -> Matrix
-reduceMatrix m (i,j) =
-    let (above,below) = splitAt j $ rowMajorForm m
-        (left,right) = splitAt i $ transpose $ above ++ tail below
-        in matrix $ transpose $ left ++ tail right
+reduceMatrix m (i,j) = case () of
+    () | num_rows `seq` num_cols `seq` i `seq` j `seq` False -> undefined
+    () | i >= num_rows || j >= num_cols -> error "reduceMatrix: out of bounds"
+    () | otherwise -> uncheckedMatrix (rows m - 1) (cols m - 1) $ ixmap (0,rows m * cols m - rows m - cols m) (\x ->
+        let n = (x + j_push) `div` new_cols
+	    p = if x `div` new_cols >= i then num_cols else 0
+            in case () of
+	        () | x `seq` n `seq` p `seq` False -> undefined
+	        () | otherwise -> x + n + p) $ matrix_data m
+    where num_rows = rows m
+          num_cols = cols m
+	  new_cols = num_cols - 1
+	  j_push = num_cols - j - 1
 \end{code}
 
 The minor of an element of a matrix is the determinant of the matrix that is formed by removing
@@ -251,11 +258,19 @@ matrixInversePrim m | rows m /= cols m = error "matrixInversePrim: not a square 
 matrixInversePrim m | determinant m == 0 = error "matrixInversePrim: det m = 0"
 matrixInversePrim m = 
     let scale_factor = 1 / determinant m
-        in matrixTranspose $ matrix [[scale_factor * matrixCofactor m (i,j) | i <- [0..(cols m-1)]]
-                                                                            | j <- [0..(rows m-1)]]
+        in matrixTranspose $ matrix [[scale_factor * matrixCofactor m (i,j) | j <- [0..(cols m-1)]]
+                                                                            | i <- [0..(rows m-1)]]
 
 determinantPrim :: Matrix -> Double
 determinantPrim m | rows m /= cols m = error "determinantPrim: not a square matrix"
 determinantPrim m | rows m == 1 && cols m == 1 = matrixAt m (0,0)
-determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (x,0)) [0..(cols m - 1)]
+determinantPrim m | rows m == 2 && cols m == 2 = uncheckedMatrixAt m (0,0) * uncheckedMatrixAt m (1,1) -
+                                                 uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (0,1)
+determinantPrim m | rows m == 3 && cols m == 3 = uncheckedMatrixAt m (0,0) * uncheckedMatrixAt m (1,1) * uncheckedMatrixAt m (2,2) +
+                                                 uncheckedMatrixAt m (0,1) * uncheckedMatrixAt m (1,2) * uncheckedMatrixAt m (2,0) +
+						 uncheckedMatrixAt m (0,2) * uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (2,1) -
+						 uncheckedMatrixAt m (2,0) * uncheckedMatrixAt m (1,1) * uncheckedMatrixAt m (0,2) -
+						 uncheckedMatrixAt m (2,1) * uncheckedMatrixAt m (1,2) * uncheckedMatrixAt m (0,0) -
+						 uncheckedMatrixAt m (2,2) * uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (0,1)
+determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (0,x)) [0..(cols m - 1)]
 \end{code}
