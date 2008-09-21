@@ -90,7 +90,7 @@ castSkyRay test_sphere a f r = case map (sv3d_position . snd) $ sortBy (comparin
 
 atmosphereLayerAbsorbtion :: AtmosphereLayer -> Ray3D -> RGB
 atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 1) absorbF r
-    where absorbF p_near p_far = postFilter $ traceAbsorbtion (const $ scattering_model) p_near p_far 1
+    where absorbF p_near p_far = postFilter $ traceAbsorbtion (const $ scattering_model) linearSamples p_near p_far 1
           postFilter = case atmosphere_composition l of
 	                    Air -> maximizeRGB
 			    _ -> id
@@ -98,7 +98,7 @@ atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphe
 
 atmosphereLayerScattering :: AtmosphereLayer -> (Vector3D,RGB) -> Ray3D -> RGB
 atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 0) scatterF r
-    where scatterF p_near p_far = traceScattering (const scattering_model) (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) p_near p_far $
+    where scatterF p_near p_far = fst $ traceScattering (const scattering_model) (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) linearSamples p_near p_far $
               round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
           scattering_model = achromaticAbsorbtion $ atmosphereLayerToScatteringModel l
 	  lightingF p = realToFrac $ castSkyRay UnitSphere 1 
