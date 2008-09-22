@@ -3,6 +3,7 @@
 Scattering models the behavior or light interacting with dust and air molecules.
 
 \begin{code}
+{-# LANGUAGE FlexibleInstances #-}
 module RSAGL.Scattering
     (Scattering(..),
      absorbtionOverDistance,
@@ -13,6 +14,8 @@ module RSAGL.Scattering
      traceScattering,
      traceAbsorbtion,
      linearSamples,
+     AdaptiveSample,
+     adaptiveSamples,
      dust,
      fog,
      rayleigh_sky,
@@ -145,10 +148,50 @@ traceAbsorbtion scatteringF samplingF source destination number_of_samples =
 type Samples x = Integer -> x
 type SamplingAlgorithm a = (Double -> Point3D -> a) -> Point3D -> Point3D -> Samples [a]
 
+class AdaptiveSample a where
+    conspicuous :: a -> Double
+
+instance AdaptiveSample RGB where
+    conspicuous = recip . minRGB
+
+instance AdaptiveSample (RGB,RGB) where
+    conspicuous (scattering_color,absorbtion_color) = maxRGB scattering_color / minRGB absorbtion_color
+
+data Sample a = Sample {
+    sample_conspic :: Double,
+    sample_value :: a,
+    sample_source :: Point3D,
+    sample_midpoint :: Point3D,
+    sample_destination :: Point3D }
+
 linearSamples :: SamplingAlgorithm a
 linearSamples sampleF source destination number_of_samples = map (sampleF sample_distances) sample_points
     where sample_points = map (flip lerp (source,destination)) $ zeroToOne number_of_samples
           sample_distances = distanceBetween source destination / fromInteger number_of_samples
+
+-- | 'adaptiveSamples' tries to selectively subdivide samples that seem most \"conspicuous\" using a user-supplied
+-- \"conspicuous-ness\" function.  This should give a better result in less samples for highly detailed media models,
+-- but is likely to be slower that 'linearSamples' for the same number of samples.
+adaptiveSamples :: (AdaptiveSample a) => SamplingAlgorithm a
+adaptiveSamples sampleF source destination number_of_samples = map sample_value $ head $ 
+              dropWhile ((< fromInteger number_of_samples) . length) $ 
+	      iterate (\samples -> concatMap (resampleRecursive 0 $ medianSamples samples) samples) seed_samples
+    where seed_samples = [sampleBetween source destination]
+          sampleBetween a b = Sample { sample_conspic = conspicuous s,
+				       sample_value = s,
+				       sample_source = a,
+				       sample_midpoint = p,
+			 	       sample_destination = b }
+	      where p = lerp 0.5 (a,b)
+	            s = sampleF (distanceBetween a b) p
+	  medianSamples samples = head $ drop (length conspics `div` 2) conspics
+	      where conspics = sort $ map sample_conspic samples
+	  recursive_limit = max 1 $ floor $ log (realToFrac number_of_samples) / log 4
+	  resampleRecursive limit _ sample | limit > recursive_limit = [sample]
+	  resampleRecursive _ threshold sample | sample_conspic sample < threshold = [sample]
+          resampleRecursive limit threshold sample = first_samples ++ second_samples
+	      where first_samples = resampleRecursive (limit+1) threshold $ sampleBetween (sample_source sample) (sample_midpoint sample)
+	            second_samples = resampleRecursive (limit+1) threshold $ sampleBetween (sample_midpoint sample) (sample_destination sample)
 \end{code}
 
 \subsection{Specific Scattering Functions}

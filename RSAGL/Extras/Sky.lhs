@@ -98,8 +98,9 @@ atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphe
 
 atmosphereLayerScattering :: AtmosphereLayer -> (Vector3D,RGB) -> Ray3D -> RGB
 atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 0) scatterF r
-    where scatterF p_near p_far = fst $ traceScattering (const scattering_model) (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) linearSamples p_near p_far $
-              round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
+    where scatterF p_near p_far = fst $ traceScattering (const scattering_model) 
+              (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) adaptiveSamples p_near p_far $
+                  round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
           scattering_model = achromaticAbsorbtion $ atmosphereLayerToScatteringModel l
 	  lightingF p = realToFrac $ castSkyRay UnitSphere 1 
 	                                        (\p_near p_far -> max 0 $ sqrt (atmosphere_altitude l) - 1 + sqrt (4 - distanceBetween p_near p_far ** 2) / 2)
