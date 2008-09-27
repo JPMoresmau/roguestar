@@ -7,10 +7,7 @@ CONFIGURE_OPTS=--package-db="${PWD}/roguestar-local/cabal-package-db" --ghc-opti
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
 GIT_ORIGIN_SUFFIX=.git
 
-make :
-	(cd roguestar-engine && runghc Setup.hs build && runghc Setup.hs install)
-	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
-	(cd roguestar-gl && runghc Setup.hs build && runghc Setup.hs install)
+make : roguestar-gl roguestar-engine rsagl-doc
 
 setup :
 	-rm -rf roguestar-local
@@ -20,6 +17,22 @@ setup :
 	(cd rsagl && ./Setup.hs clean && ./Setup.hs configure ${CONFIGURE_OPTS})
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
 	(cd roguestar-gl && ./Setup.hs clean && ./Setup.hs configure ${CONFIGURE_OPTS})
+
+rsagl :
+	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
+
+roguestar-gl : rsagl
+	(cd roguestar-gl && runghc Setup.hs build && runghc Setup.hs install)
+
+roguestar-engine :
+	(cd roguestar-engine && runghc Setup.hs build && runghc Setup.hs install)
+
+rsagl-doc :
+	(cd rsagl && runghc Setup.hs haddock --internal)
+
+from-scratch :
+	${MAKE} setup
+	${MAKE}
 
 clean :
 	-rm -rf roguestar-local
@@ -69,4 +82,4 @@ dist-snapshot :
 dist-local :
 	${MAKE} dist-snapshot -e GIT_ORIGIN_PATH=. -e GIT_ORIGIN_SUFFIX=/.git
 
-.PHONY: default download make setup-clean dist dist-snapshot
+.PHONY: default download make setup-clean dist dist-snapshot roguestar-engine roguestar-gl rsagl from-scratch rsagl-doc
