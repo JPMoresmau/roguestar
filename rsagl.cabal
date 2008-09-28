@@ -21,8 +21,7 @@ build-depends:       base>3, old-time, random, array, arrows, containers, parall
 build-type:          Simple
 tested-with:         GHC==6.8.2
 
-exposed-modules:     Models.PlanetRingMoon,
-                     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArrow,
+exposed-modules:     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArrow,
                      RSAGL.Material, RSAGL.Auxiliary, RSAGL.BoundingBox,
                      RSAGL.Vector, RSAGL.KinematicSensors, RSAGL.RSAGLColors,
                      RSAGL.Extrusion, RSAGL.Main, RSAGL.Color,
@@ -37,7 +36,8 @@ exposed-modules:     Models.PlanetRingMoon,
                      RSAGL.Curve, RSAGL.Angle, RSAGL.Optimization,
                      RSAGL.Tests, RSAGL.CoordinateSystems, RSAGL.Orthagonal,
                      RSAGL.AbstractVector, RSAGL.ThreadedArrow, RSAGL.Edge,
-                     RSAGL.Homogenous, RSAGL.LightSource
+                     RSAGL.Homogenous, RSAGL.LightSource,
+		     RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics
 
 ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
