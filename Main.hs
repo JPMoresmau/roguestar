@@ -20,7 +20,11 @@ main =
        let n_rts_string = if n == 1 then [] else ["-N" ++ show n]
        let gl_args = ["+RTS", "-G4"] ++ n_rts_string ++ ["-RTS"] ++ args
        let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ ["version","over","begin"]
+       let roguestar_engine_bin = bin_dir `combine` "roguestar-engine"
+       let roguestar_gl_bin = bin_dir `combine` "roguestar-gl"
+       when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_engine_bin ++ " " ++ unwords engine_args
        (e_in,e_out,e_err,roguestar_engine) <- runInteractiveProcess (bin_dir `combine` "roguestar-engine") engine_args Nothing Nothing
+       when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_gl_bin ++ " " ++ unwords gl_args
        (gl_in,gl_out,gl_err,roguestar_gl) <- runInteractiveProcess (bin_dir `combine` "roguestar-gl") gl_args Nothing Nothing
        forkIO $ pump e_out  $ [("",gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",stdout)] else [])
        forkIO $ pump gl_out $ [("",e_in)] ++ (if should_echo_protocol then [("gl <<< engine *** ",stdout)] else [])

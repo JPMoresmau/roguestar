@@ -26,9 +26,12 @@ import Models.Caduceator
 import Models.Reptilian
 import Models.PhaseWeapons
 import Models.MachineParts
+import Models.Sky
 
 toModel :: LibraryModel -> Quality -> Modeling ()
 toModel (TerrainTile s) = terrainTile s
+toModel (SkySphere sky_info) = const $ makeSky sky_info
+toModel (SunDisc sun_info) = const $ makeSun sun_info
 toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
 toModel Encephalon = encephalon
@@ -85,9 +88,12 @@ lookupModel (Library bottleneck lib) lm q =
     do lib_map <- takeMVar lib
        m_qo <- return $ Map.lookup lm lib_map
        case m_qo of
-           Just qo -> do putMVar lib lib_map
-	                 getQuality qo q
-	   Nothing -> do qo <- newQuality bottleneck parIntermediateModel (\q' -> toIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
-                         putMVar lib $ insert lm qo lib_map
-			 getQuality qo q
+           Just qo ->
+	       do putMVar lib lib_map
+	          getQuality qo q
+	   Nothing ->
+	       do hPutStrLn stderr ("Introducing model: " ++ show lm)
+	          qo <- newQuality bottleneck parIntermediateModel (\q' -> toIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
+                  putMVar lib $ insert lm qo lib_map
+	          getQuality qo q
 \end{code}

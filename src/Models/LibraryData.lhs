@@ -5,8 +5,12 @@ module Models.LibraryData
     (LibraryModel(..))
     where
 
+import Models.Sky
+
 data LibraryModel = 
     TerrainTile String
+  | SkySphere SkyInfo
+  | SunDisc SunInfo
   | QuestionMark
   | NullModel
   | Encephalon
