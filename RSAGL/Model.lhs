@@ -23,6 +23,7 @@ module RSAGL.Model
      skySphere,
      hemisphere,
      skyHemisphere,
+     perspectiveSphere,
      torus,
      openCone,
      closedCone,
@@ -291,6 +292,21 @@ hemisphere p v r = model $
 
 skyHemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 skyHemisphere p v r = hemisphere p (vectorScale (-1) v) (negate r)
+
+-- |
+-- A 'perspectiveSphere' is rendered anticipating the point from which it is to be viewed.
+-- Only the part of the surface of the sphere that would be visible from a vantage point is
+-- rendered, and otherwise the sphere seems clipped.
+--
+-- This is the appropriate geometry to model the curvature of a planet from 200 kilometers altitude, for example.
+perspectiveSphere :: (Monoid attr) => Point3D -> Double -> Point3D -> Modeling attr
+perspectiveSphere center_point radius eye_point = model $
+    do let d = distanceBetween center_point eye_point
+       let  x = sqrt $ d**2 - radius**2
+       let h = radius*x/d
+       let d' = x*x/d
+       closedDisc (lerpBetween (0,d',d) (eye_point,center_point)) (vectorToFrom eye_point center_point) h
+       deform $ \(p :: Point3D) -> translate (vectorScaleTo radius $ vectorToFrom center_point p) center_point
 
 torus :: (Monoid attr) => Double -> Double -> Modeling attr
 torus major minor = model $
