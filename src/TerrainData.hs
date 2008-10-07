@@ -2,7 +2,7 @@
 module TerrainData
     (Biome(..),
      TerrainPatch(..),
-     TerrainMap,
+     TerrainGrid,
      TerrainGenerationData(..),
      TerrainPlacement,
      recreantFactories,
@@ -35,7 +35,7 @@ data Biome = RockBiome
 	     deriving (Read,Show,Eq,Ord,Enum,Bounded)
 
 -- |
--- All static terrain elements are members of TerrainMap
+-- All static terrain elements are members of TerrainGrid
 --
 -- The only difference between "Deasert" and "Sand" is that where
 -- "Deasert" and "Water" touch, the map generator will produce
@@ -71,7 +71,7 @@ data TerrainPlacement = TerrainPlacement {
     placement_seed :: Integer }
         deriving (Read,Show)
 
-placeTerrain :: TerrainPlacement -> TerrainMap -> TerrainMap
+placeTerrain :: TerrainPlacement -> TerrainGrid -> TerrainGrid
 placeTerrain terrain_placement =
     arbitraryReplaceGrid (placement_sources terrain_placement)
                          (placement_replacements terrain_placement)
@@ -144,7 +144,7 @@ terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b
 		       interps = List.map terrainInterpFn terrain_patch_pairs
 		       in fromList (zip terrain_patch_pairs interps)
 
-type TerrainMap = Grid TerrainPatch
+type TerrainGrid = Grid TerrainPatch
 
 -- |
 -- Generates a random terrain map.  The Biome indicates determines what TerrainPatches
@@ -152,7 +152,7 @@ type TerrainMap = Grid TerrainPatch
 -- generated terrain.  Finally, a random Integer stream is needed to provide the random data 
 -- to generate the terrain.
 --
-generateTerrain :: TerrainGenerationData -> [Integer] -> TerrainMap
+generateTerrain :: TerrainGenerationData -> [Integer] -> TerrainGrid
 generateTerrain tg rands = flip (foldr placeTerrain) (tg_placements tg) $
     generateGrid (terrainFrequencies (tg_biome tg))
 		 terrainInterpMap
@@ -183,10 +183,10 @@ exampleTerrainGenerator = TerrainGenerationData
 			    tg_biome = ForestBiome,
 			    tg_placements = [] }
 
-generateExampleTerrain :: Integer -> TerrainMap
+generateExampleTerrain :: Integer -> TerrainGrid
 generateExampleTerrain seed = generateTerrain exampleTerrainGenerator (randomIntegerStream seed)
 
-prettyPrintTerrain :: ((Integer,Integer),(Integer,Integer)) -> TerrainMap -> [String]
+prettyPrintTerrain :: ((Integer,Integer),(Integer,Integer)) -> TerrainGrid -> [String]
 prettyPrintTerrain ((left_bound,right_bound),(top_bound,bottom_bound)) terrain_map =
     [[terrainPatchToASCII $ gridAt terrain_map (x,y) 
       | x <- [left_bound..right_bound]]

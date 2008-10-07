@@ -101,7 +101,7 @@ dbGetHideCheck _ = return 1
 -- visibleTerrain (creature's location) (spot check) (the terrain map) gives
 -- a list of visible terrain patches from that location with that spot check.
 --
-visibleTerrain :: Position -> Integer -> TerrainMap -> [(TerrainPatch,Position)]
+visibleTerrain :: Position -> Integer -> TerrainGrid -> [(TerrainPatch,Position)]
 visibleTerrain (Position (creature_at@(creature_x,creature_y))) spot_check terrain =
     let max_range = maximumRangeForSpotCheck spot_check
 	in map (\(x,y) -> (gridAt terrain (x,y),Position (x,y))) $

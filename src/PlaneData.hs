@@ -6,5 +6,6 @@ module PlaneData
 import TerrainData
 
 data Plane = Plane
-    { plane_terrain :: TerrainMap }
+    { plane_biome :: Biome,
+      plane_terrain :: TerrainGrid }
     deriving (Read,Show)

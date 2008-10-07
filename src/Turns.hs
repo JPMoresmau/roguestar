@@ -71,7 +71,7 @@ dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 
     atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
         do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects 
-           my_position <- lift P.myPosition
+           (_,my_position) <- lift P.whereAmI
 	   let face_to_player = faceAt my_position (location player)
 	   return $ case distanceBetweenChessboard my_position (location player) of
 	       1 -> Attack $ face_to_player

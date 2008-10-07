@@ -18,6 +18,7 @@ import System.IO
 import BeginGame
 import Data.Maybe
 import Plane
+import PlaneData
 import Tool
 import FactionData
 import PlaneVisibility
@@ -271,6 +272,13 @@ dbDispatchQuery ["wielded-objects","0"] =
        return $ "begin-table wielded-objects 0 uid creature\n" ++
                 unlines (catMaybes $ zipWith wieldedPairToTable creature_refs wielded_tool_refs) ++
 		"end-table"
+
+dbDispatchQuery ["biome"] =
+    do m_plane_ref <- dbGetCurrentPlane
+       biome_name <- case m_plane_ref of
+           Nothing -> return "nothing"
+	   Just plane_ref -> liftM (show . plane_biome) $ dbGetPlane plane_ref
+       return $ "answer: biome " ++ biome_name
 
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
 

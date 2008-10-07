@@ -1,10 +1,14 @@
-
+{-# LANGUAGE PatternSignatures, FlexibleContexts #-}
 module Plane
     (dbNewPlane,
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
      pickRandomClearSite,
-     getPlanarLocation)
+     getPlanarLocation,
+     terrainAt,
+     whatIsOccupying,
+     isTerrainPassable,
+     getBiome)
     where
 
 import Grids
@@ -21,7 +25,8 @@ import Position
 dbNewPlane :: TerrainGenerationData -> DB PlaneRef
 dbNewPlane tg_data = 
     do rns <- dbNextRandomIntegerStream
-       dbAddPlane (Plane { plane_terrain = generateTerrain tg_data rns }) ()
+       dbAddPlane (Plane { plane_biome = tg_biome tg_data,
+                           plane_terrain = generateTerrain tg_data rns }) ()
 
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
@@ -32,7 +37,8 @@ getPlanarLocation ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
 
 -- |
--- Distance between two entities.
+-- Distance between two entities.  If the entities are not on the same plane, or for some other reason it doesn't make
+-- sense to ask their distance, the Nothing.
 --
 dbDistanceBetweenSquared :: (DBReadable db,ReferenceType a,ReferenceType b) => Reference a -> Reference b -> db (Maybe Integer)
 dbDistanceBetweenSquared a_ref b_ref =
@@ -95,3 +101,25 @@ pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,
 				  plane_ref) 
              return $
              find (\p -> terrainIsClear p && clutterIsClear p) xys
+
+terrainAt :: (DBReadable db) => PlaneRef -> Position -> db TerrainPatch
+terrainAt plane_ref (Position (x,y)) =
+    do terrain <- liftM plane_terrain $ dbGetPlane plane_ref
+       return $ gridAt terrain (x,y)
+
+-- | Lists all of the entities that are on a specific spot, not including nested entities.
+-- Typically this is zero or one creatures, and zero or more tools.
+whatIsOccupying :: (DBReadable db,GenericReference a S) => PlaneRef -> Position -> db [a]
+whatIsOccupying plane_ref position =
+    liftM (mapMaybe fromLocation . filter ((== position) . location) . map (asLocationTyped _nullary _position)) $ dbGetContents plane_ref
+
+-- | Answers True iff a creature may walk or swim or drop objects at the position.  
+-- Lava is considered passable, but trees are not.
+isTerrainPassable :: (DBReadable db) => PlaneRef -> CreatureRef -> Position -> db Bool
+isTerrainPassable plane_ref creature_ref position = 
+    do (critters :: [CreatureRef]) <- liftM (filter (/= creature_ref)) $ whatIsOccupying plane_ref position
+       terrain <- terrainAt plane_ref position
+       return $ not (terrain `elem` [RockFace,Forest,DeepForest]) && null critters
+
+getBiome :: (DBReadable db) => PlaneRef -> db Biome
+getBiome = liftM plane_biome . dbGetPlane

@@ -28,7 +28,7 @@ main-is:             Main.hs
 hs-source-dirs:      src
 other-modules:       VisibilityData, Stats, FactionData, Behavior, Alignment,
                      PlaneData, Grids, Perception, SegHopList, PlaneVisibility,
-                     Terrain, SegmentList, Turns, Plane, CreatureData,
+                     SegmentList, Turns, Plane, CreatureData,
                      AttributeData, StatsData, Protocol, Character, Tool,
                      ListUtils, Substances, HierarchicalDatabase, Travel, ToolData,
                      CharacterData, Creature, Facing, DBPrivate, Dice,

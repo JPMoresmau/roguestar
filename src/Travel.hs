@@ -4,10 +4,9 @@ module Travel
     where
 
 import Control.Monad.Maybe
-import Terrain
 import Facing
 import DB
-import Terrain
+import Plane
 import Data.Maybe
 import Control.Monad
 import Control.Monad.Trans
