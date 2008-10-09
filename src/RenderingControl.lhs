@@ -38,6 +38,7 @@ import Limbs
 import RSAGL.Joint
 import RSAGL.AbstractVector
 import RSAGL.LightSource
+import Sky
 \end{code}
 
 \begin{code}
@@ -165,6 +166,7 @@ planarGameplayDispatch = proc () ->
     do mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
        frp1Context eventMessager -< ()
+       sky <<< getSkyInfo -< ()
        frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
            frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 

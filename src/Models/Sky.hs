@@ -38,8 +38,8 @@ data SunInfo = SunInfo {
 default_sky :: SkyInfo
 default_sky = SkyInfo {
     sky_info_biome = "oceanbiome",
-    sky_info_degrees_after_midnight = 180,
-    sky_info_degrees_latitude = 70,
+    sky_info_degrees_after_midnight = 0,
+    sky_info_degrees_latitude = 91,
     sky_info_degrees_axial_tilt = 0,
     sky_info_degrees_orbital = 90,
     sky_info_solar_kelvins = 5800 }
@@ -61,7 +61,7 @@ biomeAtmosphere "tundrabiome" = (-75,earth_atmosphere)
 biomeAtmosphere "desertbiome" = (100,mars_atmosphere)
 biomeAtmosphere "oceanbiome" = (5,earth_atmosphere)
 biomeAtmosphere "mountainbiome" = (-15,earth_atmosphere)
-biomeAtmosphere "swampBiome" = (35,earth_atmosphere)
+biomeAtmosphere "swampbiome" = (35,earth_atmosphere)
 biomeAtmosphere _ = (0,[])
 
 -- | 'sunVectorOf' indicates vector pointing at the sun.
