@@ -23,7 +23,8 @@ module Animation
      libraryA,
      libraryPointAtCamera,
      blockContinue,
-     requestPrintTextMode)
+     requestPrintTextMode,
+     readGlobal)
     where
 
 import RSAGL.FRP
@@ -53,9 +54,12 @@ import Data.List
 import Data.Ord
 import Strings
 import Actions
+import Globals
+import Data.IORef
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator,
+    animstate_globals :: IORef Globals,
     animstate_driver_object :: DriverObject,
     animstate_print_text_object :: PrintTextObject,
     animstate_library :: Library,
@@ -86,20 +90,21 @@ newRoguestarAnimationObject :: RSAnimA1 () Camera () Camera -> IO RoguestarAnima
 newRoguestarAnimationObject rs_anim = 
     liftM RoguestarAnimationObject $ newMVar $ newFRP1Program rs_anim
 
-runRoguestarAnimationObject :: Library -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO Scene
-runRoguestarAnimationObject lib driver_object print_text_object rso =
+runRoguestarAnimationObject :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO Scene
+runRoguestarAnimationObject lib globals_ref driver_object print_text_object rso =
     do old_rso_program <- takeMVar $ rso_arrow rso
        t <- getTime
        ((result_camera,new_rso_program),result_animstate) <- runIOGuard $ (runKleisli $ StateArrow.runState $ updateFRPProgram old_rso_program) (((),t),
            AnimationState {
-               animstate_scene_accumulator = null_scene_accumulator,
+               animstate_globals = globals_ref,
+	       animstate_scene_accumulator = null_scene_accumulator,
 	       animstate_driver_object = driver_object,
 	       animstate_print_text_object = print_text_object,
 	       animstate_library = lib,
 	       animstate_block_continue = False,
 	       animstate_print_text_mode = Limited })
        putMVar (rso_arrow rso) new_rso_program
-       when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput driver_object print_text_object
+       when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput globals_ref driver_object print_text_object
        setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
        assembleScene (stdSceneLayers result_camera) 
                      (defaultLightSourceLayerTransform $ stdSceneLayers result_camera) $ 
@@ -147,7 +152,8 @@ debugOnce = onceA debugA_
 actionNameToKeysA :: String -> RSAnimAX any t i o () [String]
 actionNameToKeysA action_name = Arrow.lift $ proc () ->
     do animstate <- fetch -< ()
-       let action_input = ActionInput (animstate_driver_object animstate)
+       let action_input = ActionInput (animstate_globals animstate)
+                                      (animstate_driver_object animstate)
                                       (animstate_print_text_object animstate)
        app -< (Arrow.lift $ Kleisli $ const $ IOGuard $ actionNameToKeys action_input common_keymap action_name,())
 
@@ -198,4 +204,9 @@ requestPrintTextMode = Arrow.lift $ proc s ->
 	   (_,Disabled) -> Disabled
 	   (Limited,Unlimited) -> Unlimited
            (m,_) -> m }
+
+readGlobal :: (Globals -> g) -> RSAnimAX any t i o () g
+readGlobal f = proc () ->
+    do globals_ref <- arr animstate_globals <<< fetch -< ()
+       ioA (\globals_ref_ -> liftM f $ readIORef globals_ref_) -< globals_ref
 \end{code}

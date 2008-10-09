@@ -19,12 +19,22 @@ import PrintText
 import Tables
 import Data.Maybe
 import System.IO
+import Globals
+import Data.IORef
 
+-- |
+-- Input to an action.
+--
 data ActionInput = ActionInput {
+    action_globals :: IORef Globals,
     action_driver_object :: DriverObject,
     action_print_text_object :: PrintTextObject }
 
 type Action = ActionInput -> ErrorT String IO (IO ())
+
+{----------------------------------------------------------
+    Supports functions for Actions
+ ----------------------------------------------------------}
 
 actionValid :: ActionInput -> Action -> IO Bool
 actionValid action_input action = 
@@ -43,10 +53,6 @@ executeContinueAction :: ActionInput -> IO ()
 executeContinueAction action_input =
     do either (const $ return()) id =<< (runErrorT $ (snd continue_action) action_input)
        return ()
-
-quit_action :: (String,Action)
-quit_action = ("quit",
-               \_ -> return $ exitWith ExitSuccess)
 
 -- |
 -- Constructs an action such that the action is valid only if it is listed in
@@ -117,6 +123,21 @@ stateLinkedAction allowed_state action_name =
      stateGuard allowed_state $ \action_input ->
          return $ driverAction (action_driver_object action_input) [action_name])
 
+-- |
+-- An action that can always run, like "quit".
+--
+alwaysAction :: String -> (ActionInput -> IO ()) -> (String,Action)
+alwaysAction action_name actionIO =
+    (action_name,
+     \action_input -> return $ actionIO action_input)
+
+{----------------------------------------------------------
+    Specific Actions
+ ----------------------------------------------------------}
+
+quit_action :: (String,Action)
+quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
+
 continue_action :: (String,Action)
 continue_action = ("continue",\action_input ->
     do guard =<< (liftM (== Just "yes") $ lift $ driverGetAnswer (action_driver_object action_input) "snapshot")
@@ -153,6 +174,33 @@ selectRaceAction s =
 selectBaseClassAction :: String -> (String,Action)
 selectBaseClassAction s = 
     (s,selectTableAction ("base-classes","0","class") "class-selection" "select-class" s)
+
+zoomSize :: Double -> Double
+zoomSize x | x < 3 = 0.2
+zoomSize x | x < 10 = 1.0
+zoomSize _ | otherwise = 5.0
+
+zoomIn :: Double -> Double
+zoomIn x = x - (zoomSize $ x - zoomSize x)
+
+zoomOut :: Double -> Double
+zoomOut x = x + (zoomSize x)
+
+zoom_in_action :: (String,Action)
+zoom_in_action = alwaysAction "zoom-in" $ \action_input ->
+    do modifyIORef (action_globals action_input) $ \g ->
+           g { global_planar_camera_distance = max 1.0 $ zoomIn $ global_planar_camera_distance g }
+       return ()
+
+zoom_out_action :: (String,Action)
+zoom_out_action = alwaysAction "zoom-out" $ \action_input ->
+    do modifyIORef (action_globals action_input) $ \g ->
+           g { global_planar_camera_distance = min 25.0 $ zoomOut $ global_planar_camera_distance g }
+       return ()
+
+{----------------------------------------------------------
+    Lists of Known Actions
+ ----------------------------------------------------------}
 
 select_race_action_names :: [String]
 select_race_action_names = [--"anachronid",
@@ -200,7 +248,8 @@ fire_actions :: [(String,Action)]
 fire_actions = map fireAction eight_directions
 
 all_actions :: [(String,Action)]
-all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action] ++
+all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action,
+               zoom_in_action,zoom_out_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
 	      move_actions ++

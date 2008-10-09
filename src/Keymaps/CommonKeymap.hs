@@ -119,4 +119,8 @@ common_keymap = [
  (":fire-ne","fire-ne"),
  (":fire-sw","fire-sw"),
  (":fire-se","fire-sw"),
- (":continue","continue")]
+ (":continue","continue"),
+ ("]","zoom-in"),
+ (":zoom-in","zoom-in"),
+ ("[","zoom-out"),
+ (":zoom-out","zoom-out")]

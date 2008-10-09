@@ -24,6 +24,8 @@ import RSAGL.Scene
 import Models.Library
 import System.Timeout
 import System.Exit
+import Data.IORef
+import Globals
 
 roguestar_client_version :: String
 roguestar_client_version = "0.3"
@@ -52,6 +54,7 @@ main =
     do (_, command_line) <- getArgsAndInitialize
        let command_line_options = parseCommandLine command_line
        let keymap = findKeymapOrDefault $ keymap_name command_line_options
+       globals_ref <- newIORef default_globals
        driver_object <- newDriverObject
        print_text_object <- newPrintTextObject
        animation_object <- newRoguestarAnimationObject mainAnimationLoop
@@ -60,9 +63,9 @@ main =
        initialDisplayMode $= display_mode
        window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
        reshapeCallback $= Just roguestarReshapeCallback
-       displayCallback $= roguestarDisplayCallback lib driver_object print_text_object animation_object
+       displayCallback $= roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object
        keyboardMouseCallback $= (Just $ keyCallback print_text_object)
-       addTimerCallback timer_callback_millis (roguestarTimerCallback driver_object print_text_object keymap window)
+       addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref driver_object print_text_object keymap window)
        mainLoop
 
 roguestarReshapeCallback :: Size -> IO ()
@@ -71,12 +74,12 @@ roguestarReshapeCallback (Size width height) =
        loadIdentity
        viewport $= (Position 0 0,Size width height)
 
-roguestarDisplayCallback :: Library -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
-roguestarDisplayCallback lib driver_object print_text_object animation_object =
+roguestarDisplayCallback :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
+roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object =
   do result <- timeout 20000000 $
          do color (Color4 0 0 0 0 :: Color4 Float)
             clear [ColorBuffer]
-            scene <- runRoguestarAnimationObject lib driver_object print_text_object animation_object 
+            scene <- runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
             (Size width height) <- get windowSize
             sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) scene
             renderText print_text_object 
@@ -86,21 +89,21 @@ roguestarDisplayCallback lib driver_object print_text_object animation_object =
 	         exitWith $ ExitFailure 1
 	 else return ()
 
-roguestarTimerCallback :: DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
-roguestarTimerCallback driver_object print_text_object keymap window =
+roguestarTimerCallback :: IORef Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
+roguestarTimerCallback globals_ref driver_object print_text_object keymap window =
     do result <- timeout 20000000 $
-        do addTimerCallback timer_callback_millis $ roguestarTimerCallback driver_object print_text_object keymap window
+        do addTimerCallback timer_callback_millis $ roguestarTimerCallback globals_ref driver_object print_text_object keymap window
            driverRead driver_object
            postRedisplay $ Just window
-           maybeExecuteKeymappedAction driver_object print_text_object keymap
+           maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap
        if isNothing result
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled timer callback (timed out after 20 seconds)"
 	           exitWith $ ExitFailure 1
            else return ()
 
-maybeExecuteKeymappedAction :: DriverObject -> PrintTextObject -> Keymap -> IO ()
-maybeExecuteKeymappedAction driver_object print_text_object keymap =
-    do let action_input = ActionInput driver_object print_text_object
+maybeExecuteKeymappedAction :: IORef Globals -> DriverObject -> PrintTextObject -> Keymap -> IO ()
+maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap =
+    do let action_input = ActionInput globals_ref driver_object print_text_object
        buffer_contents <- getInputBuffer print_text_object
        actions <- keysToActionNames action_input keymap buffer_contents
        worked <- takeUserInputAction action_input actions

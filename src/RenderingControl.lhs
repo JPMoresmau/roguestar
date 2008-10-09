@@ -7,6 +7,7 @@ module RenderingControl
     (mainAnimationLoop)
     where
 
+import Globals
 import Data.List
 import RSAGL.FRP
 import RSAGL.Edge
@@ -55,7 +56,7 @@ basic_camera = PerspectiveCamera {
     camera_position = Point3D 0 0 0,
     camera_lookat = Point3D 0 0 1,
     camera_up = Vector3D 0 1 0,
-    camera_fov = fromDegrees 60 }
+    camera_fov = fromDegrees 45 }
 \end{code}
 
 \subsection{The Main Dispatch}
@@ -172,16 +173,17 @@ planarGameplayDispatch = proc () ->
            ToolThreadInput {
 	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
        lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
-           arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (negate $ realToFrac y))) <<< centerCoordinates -< ()
+           arr (fmap (\(x,y) -> Point3D (realToFrac x) 0.25 (negate $ realToFrac y))) <<< centerCoordinates -< ()
        accumulateSceneA -< (std_scene_layer_infinite,lightSource $ DirectionalLight (Vector3D 0.15 1 (-0.3)) (scaleRGB 0.4 $ rgb 1.0 0.9 0.75) (scaleRGB 0.2 $ rgb 0.75 0.9 1.0))
-       returnA -< maybe basic_camera cameraLookAtToCamera lookat
+       camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
+       returnA -< maybe basic_camera (planarCamera camera_distance) lookat
 
-cameraLookAtToCamera :: Point3D -> Camera
-cameraLookAtToCamera look_at = PerspectiveCamera {
-    camera_position = translate (Vector3D 0 3 3) look_at,
-    camera_lookat = look_at,
+planarCamera :: Double -> Point3D -> Camera
+planarCamera camera_distance look_at = PerspectiveCamera {
+    camera_position = translate (vectorScaleTo camera_distance $ Vector3D 0 (3*(camera_distance/3)**2) camera_distance) look_at,
+    camera_lookat = translate (Vector3D 0 (1/camera_distance) 0) look_at,
     camera_up = Vector3D 0 1 0,
-    camera_fov = fromDegrees 60 }
+    camera_fov = fromDegrees $ 40 + 30 / camera_distance }
 
 centerCoordinates :: RSAnimAX any t i o () (Maybe (Integer,Integer))
 centerCoordinates = proc () ->
