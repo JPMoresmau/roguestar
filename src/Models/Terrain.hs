@@ -1,6 +1,3 @@
-\section{Terrain Tiles}
-
-\begin{code}
 module Models.Terrain
     (known_terrain_types,
      terrainTile)
@@ -16,6 +13,9 @@ import RSAGL.Interpolation
 import RSAGL.Affine
 import RSAGL.Angle
 
+-- |
+-- A list of all terrain type names known to roguestar-gl.
+-- But at any given moment the engine might have been extended to include other types.
 known_terrain_types :: [String]
 known_terrain_types =
     ["water",
@@ -23,6 +23,7 @@ known_terrain_types =
      "sand",
      "desert",
      "grass",
+     "dirt",
      "forest",
      "deepforest",
      "ice",
@@ -33,13 +34,36 @@ known_terrain_types =
      "rockface",
      "recreantfactory"]
 
+-- |
+-- A simple 1-by-1 square patch, centered at the origin, and raised on a slope toward it's center.
+-- The first parameter indicates the patch's actual height, while the second represent's the patch's
+-- apparent height based on it's normal vectors.
+-- The sloping effect makes it clear where one tile ends and another begins, which is practical for game play.
+-- The two heights are different as it is not desireable that creature's legs should dissappear inside the landscape,
+-- but at shallow angles of attack this makes the terrain tile look fake.  REVISIT
+--
+-- This is just the shape, without any material.
+--
 terrainTileShape :: Double -> Double -> Modeling ()
-terrainTileShape squash height = model $
+terrainTileShape physical_height aesthetic_height = model $
     do regularPrism (origin_point_3d,sqrt 0.5) (Point3D 0 1 0,0.0) 4
        deform $ \(Point3D x y z) -> Point3D x (sqrt $ max 0 y) z
-       affine $ scale (Vector3D 1 height 1) . rotate (Vector3D 0 1 0) (fromDegrees 45)
-       deform $ \(SurfaceVertex3D p v) -> SurfaceVertex3D (scale (Vector3D 1 squash 1) p) v
+       affine $ scale (Vector3D 1 aesthetic_height 1) . rotate (Vector3D 0 1 0) (fromDegrees 45)
+       deform $ \(SurfaceVertex3D p v) -> SurfaceVertex3D (scale (Vector3D 1 (physical_height/aesthetic_height) 1) p) v
 
+-- |
+-- Creates a terrain tile based on 'terrainTileShape' with appropriate characteristics and material for its type,
+-- but without any special casing for unsual terrains like forest.
+--
+basicTerrainTile :: String -> Modeling ()
+basicTerrainTile s = model $
+    do terrainTileShape 0.01 (terrainHeight s)
+       material $ terrainTexture s
+
+-- |
+-- Creates a terrain tile based on 'terrailTileShape'
+-- Provides special casing for forest, rockface, liquids, etc.
+--
 terrainTile :: String -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
 terrainTile "forest" q =
@@ -51,18 +75,19 @@ terrainTile "deepforest" q =
        translate (Vector3D (-0.5) 0 0.5) $ leafy_tree q
        translate (Vector3D 0 0 (-0.5)) $ leafy_tree q
 terrainTile "rockface" _ = model $
-    do terrainTileShape 1.0 (terrainHeight "rockface")
+    do terrainTileShape (terrainHeight "rockface") (terrainHeight "rockface")
        material $ terrainTexture "rockface"
 terrainTile s _ = basicTerrainTile s
 
-basicTerrainTile :: String -> Modeling ()
-basicTerrainTile s = model $
-    do terrainTileShape 0.01 (terrainHeight s)
-       material $ terrainTexture s
-
+-- |
+-- Answers the height of a type of terrain.
+-- Note that, with some exceptions, all terrain is the same height, but some terrain is given
+-- sharper contrast in its normal vectors than others (see 'terrainTileShape').
+-- Unrecognized terrain types will appear very tall, so they can be easily noticed and corrected.
+--
 terrainHeight :: String -> Double
-terrainHeight "water" = 0.025
-terrainHeight "deepwater" = 0.025
+terrainHeight "water" = 0.01
+terrainHeight "deepwater" = 0.005
 terrainHeight "sand" = 0.1
 terrainHeight "desert" = 0.1
 terrainHeight "grass" = 0.13
@@ -74,9 +99,13 @@ terrainHeight "lava" = 0.06
 terrainHeight "glass" = 0.04
 terrainHeight "rockyground" = 0.18
 terrainHeight "rubble" = 0.2
-terrainHeight "rockface" = 0.5
-terrainHeight _ = 2.0
+terrainHeight "rockface" = 1.0
+terrainHeight _ = 5.0
 
+-- |
+-- Answers the material of a type of terrain.
+-- Unrecognized terrain types will appear bright magenta, so they can be easily noticed and corrected.
+--
 terrainTexture :: String -> MaterialM () ()
 terrainTexture "water" =
     do pigment $ pure blue
@@ -105,4 +134,3 @@ terrainTexture "rockface" = pigment $ pure slate_gray
 terrainTexture _ =
     do pigment $ pure blackbody
        emissive $ pure magenta
-\end{code}
