@@ -53,15 +53,37 @@ sunInfoOf sky_info = SunInfo {
     sun_info_size_adjustment = abs (sky_info_degrees_latitude sky_info) + (fst $ biomeAtmosphere $ sky_info_biome sky_info),
     sun_info_kelvins = sky_info_solar_kelvins sky_info }
 
+medium_atmosphere :: Atmosphere
+medium_atmosphere = [
+    AtmosphereLayer Air   0.75 9.0e-4,
+    AtmosphereLayer Vapor 0.25 2.5e-4,
+    AtmosphereLayer (Dust $ gray 0.5) 0.01 1.0e-4 ]
+
+thin_atmosphere :: Atmosphere
+thin_atmosphere = [
+    AtmosphereLayer Air 0.75 1.0e-4,
+    AtmosphereLayer Vapor 0.25 0.5e-4 ]
+
+thick_atmosphere :: Atmosphere
+thick_atmosphere = [
+    AtmosphereLayer Air 1.5 9.0e-3,
+    AtmosphereLayer Vapor 0.5 2.5e-4,
+    AtmosphereLayer (Dust $ gray 0.5) 0.02 1.0e-4 ]
+
+arid_atmosphere :: Atmosphere
+arid_atmosphere = [
+    AtmosphereLayer Air 0.25 2.5e-3,
+    AtmosphereLayer (Dust $ rgb 0.5 0.25 0.05) 0.5 1.0e-3 ]
+
 biomeAtmosphere :: String -> (Integer,Atmosphere)
-biomeAtmosphere "rockbiome" = (0,mars_atmosphere)
-biomeAtmosphere "icyrockbiome" = (-100,earth_atmosphere)
-biomeAtmosphere "grasslandbiome" = (20,earth_atmosphere)
-biomeAtmosphere "tundrabiome" = (-75,earth_atmosphere)
-biomeAtmosphere "desertbiome" = (100,mars_atmosphere)
-biomeAtmosphere "oceanbiome" = (5,earth_atmosphere)
-biomeAtmosphere "mountainbiome" = (-15,earth_atmosphere)
-biomeAtmosphere "swampbiome" = (35,earth_atmosphere)
+biomeAtmosphere "rockbiome" = (0,arid_atmosphere)
+biomeAtmosphere "icyrockbiome" = (-100,thin_atmosphere)
+biomeAtmosphere "grasslandbiome" = (20,medium_atmosphere)
+biomeAtmosphere "tundrabiome" = (-75,thin_atmosphere)
+biomeAtmosphere "desertbiome" = (100,arid_atmosphere)
+biomeAtmosphere "oceanbiome" = (5,medium_atmosphere)
+biomeAtmosphere "mountainbiome" = (-15,thin_atmosphere)
+biomeAtmosphere "swampbiome" = (35,thick_atmosphere)
 biomeAtmosphere _ = (0,[])
 
 -- | 'sunVectorOf' indicates vector pointing at the sun.
