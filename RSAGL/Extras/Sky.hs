@@ -161,10 +161,11 @@ atmosphereScatteringMaterial [] _ _ = return ()
 atmosphereScatteringMaterial _ suns _ | all ((== 0) . maxRGB . snd) suns = return ()
 atmosphereScatteringMaterial atm suns sky_filter = material $ 
     do filtering $ ApplicativeWrapper $ Left $
-           \(SurfaceVertex3D p _) -> atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
+           \(SurfaceVertex3D p _) -> absorbFilter $ atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
        case m_skyFilterF of
            Just skyFilterF -> emissive $ ApplicativeWrapper $ Left $ 
 	       \(SurfaceVertex3D p _) -> skyFilterF $ scatteringF (vectorToFrom p origin_point_3d)
 	   Nothing -> return ()
     where scatteringF = atmosphereScattering atm suns (Point3D 0 1 0)
           m_skyFilterF = sky_filter scatteringF
+	  absorbFilter c = scaleRGB (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
