@@ -106,8 +106,8 @@ atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin
 	                                        (\p_near p_far -> max 0 $ sqrt (atmosphere_altitude l) - 1 + sqrt (4 - distanceBetween p_near p_far ** 2) / 2)
 				                (Ray3D p sun_vector)
 
-atmosphereAbsorbtion :: Atmosphere -> Ray3D -> RGB
-atmosphereAbsorbtion atm r = foldr filterRGB (gray 1) $ map ($ r) absorbFs
+atmosphereAbsorbtion :: Atmosphere -> Point3D -> Vector3D -> RGB
+atmosphereAbsorbtion atm p v = foldr filterRGB (gray 1) $ map ($ Ray3D p v) absorbFs
     where absorbFs = map atmosphereLayerAbsorbtion atm
 
 atmosphereScattering :: Atmosphere -> [(Vector3D,RGB)] -> Point3D -> Vector3D -> RGB
@@ -118,16 +118,21 @@ atmosphereScattering atm_ suns p v_ = foldr addRGB (gray 0) $ map ($ v_) scatter
 		 let sunAbsorbF = atmosphereAbsorbtion sun_absorbtion_layers
 		 let postAbsorbF = atmosphereAbsorbtion post_absorbtion_layers
 		 this_sun <- suns
-                 return $ \v -> filterRGB (postAbsorbF $ Ray3D p v) $ 
+                 return $ \v -> filterRGB (postAbsorbF p v) $ 
 		                    atmosphereLayerScattering this_layer 
 		                        (fst this_sun,
-				         filterRGB (sunAbsorbF $ Ray3D p $ fst this_sun) $ snd this_sun) $ Ray3D p v
+				         filterRGB (sunAbsorbF p $ fst this_sun) $ snd this_sun) $ Ray3D p v
 
 atmosphereScatteringMaterial :: Atmosphere -> [(Vector3D,RGB)] -> SkyFilter -> MaterialM attr ()
 atmosphereScatteringMaterial [] _ _ = return ()
 atmosphereScatteringMaterial _ suns _ | all ((== 0) . maxRGB . snd) suns = return ()
-atmosphereScatteringMaterial atm suns sky_filter = when (isJust m_skyFilterF) $ material $ emissive $ 
-               ApplicativeWrapper $ Left $ \(SurfaceVertex3D p _) -> (fromJust m_skyFilterF) $ scatteringF (vectorToFrom p origin_point_3d)
+atmosphereScatteringMaterial atm suns sky_filter = material $ 
+    do filtering $ ApplicativeWrapper $ Left $
+           \(SurfaceVertex3D p _) -> atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
+       case m_skyFilterF of
+           Just skyFilterF -> emissive $ ApplicativeWrapper $ Left $ 
+	       \(SurfaceVertex3D p _) -> skyFilterF $ scatteringF (vectorToFrom p origin_point_3d)
+	   Nothing -> return ()
     where scatteringF = atmosphereScattering atm suns (Point3D 0 1 0)
           m_skyFilterF = sky_filter scatteringF
 \end{code}
