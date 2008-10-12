@@ -17,6 +17,7 @@ import RSAGL.Model
 import RSAGL.Color
 import RSAGL.Interpolation
 import Control.Applicative
+import RSAGL.RSAGLColors
 
 data SkyInfo = SkyInfo {
     sky_info_biome :: String,
@@ -61,19 +62,19 @@ medium_atmosphere = [
 
 thin_atmosphere :: Atmosphere
 thin_atmosphere = [
-    AtmosphereLayer Air 0.75 1.0e-4,
-    AtmosphereLayer Vapor 0.25 0.5e-4 ]
+    AtmosphereLayer Air 0.075 9.0e-5,
+    AtmosphereLayer Vapor 0.025 2.5e-5 ]
 
 thick_atmosphere :: Atmosphere
 thick_atmosphere = [
-    AtmosphereLayer Air 1.5 9.0e-3,
-    AtmosphereLayer Vapor 0.5 2.5e-4,
+    AtmosphereLayer Air 1.5 9.0e-4,
+    AtmosphereLayer Vapor 1.0 2.5e-4,
     AtmosphereLayer (Dust $ gray 0.5) 0.02 1.0e-4 ]
 
 arid_atmosphere :: Atmosphere
 arid_atmosphere = [
-    AtmosphereLayer Air 0.25 2.5e-3,
-    AtmosphereLayer (Dust $ rgb 0.5 0.25 0.05) 0.5 1.0e-3 ]
+    AtmosphereLayer Air 0.05 2.5e-3,
+    AtmosphereLayer (Dust $ rust) 0.1 1.0e-3 ]
 
 biomeAtmosphere :: String -> (Integer,Atmosphere)
 biomeAtmosphere "rockbiome" = (0,arid_atmosphere)
