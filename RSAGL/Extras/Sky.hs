@@ -1,9 +1,5 @@
-\section{Sky}
-
-Generates a realistic sky.
-
-\begin{code}
 {-# LANGUAGE PatternGuards #-}
+-- | Generate a realistic sky.
 module RSAGL.Extras.Sky
     (Atmosphere,
      SkyFilter,
@@ -12,7 +8,6 @@ module RSAGL.Extras.Sky
      rawSkyFilter,
      dynamicSkyFilter,
      earth_atmosphere,
-     mars_atmosphere,
      atmosphereAbsorbtion,
      atmosphereScattering,
      atmosphereScatteringMaterial)
@@ -33,32 +28,55 @@ import qualified RSAGL.Model as Model
 import Control.Monad
 import System.Random
 import RSAGL.Model hiding (sphere)
-\end{code}
 
-\begin{code}
+-- | An atmosphere that is fairly typical of the earth.
 earth_atmosphere :: Atmosphere
 earth_atmosphere = [
     AtmosphereLayer Air                      0.750  9.0e-4,
     AtmosphereLayer Vapor                    0.250  2.5e-4,
     AtmosphereLayer (Dust $ rgb 0.5 0.5 0.5) 0.001  2.0e-4]
 
-mars_atmosphere :: Atmosphere
-mars_atmosphere = [
-    AtmosphereLayer Air                       0.05 2.5e-3,
-    AtmosphereLayer (Dust $ rgb 0.8 0.25 0.1) 0.35 1.5e-3 ]
-
+-- | An adaptive color filter, used to set adaptive white and black points.
+-- Returns 'Nothing' if the result is a constant black.
 type SkyFilter = (Vector3D -> RGB) -> Maybe (RGB -> RGB)
+
+-- | An atmosphere, consisting of zero or more layers of different composition.
 type Atmosphere = [AtmosphereLayer]
 
-data AtmosphereComposition = Air | Vapor | Dust RGB | Fog RGB
+-- | A specific scattering model for an 'AtmosphereLayer'
+data AtmosphereComposition = 
+    -- | Uses Rayleigh scattering, as though an oxygen-nitrogen atmosphere.
+    Air
+    -- | Uses Mie scattering (approximate) to give an effect similar to what we would expect
+    -- from some kind of suspended water vapor.
+  | Vapor 
+    -- | Macroscopic colored dust spheres.
+  | Dust RGB 
+    -- | Unrealistic colored fog, might be appropriate for some kind of poison gas atmosphere.
+  | Fog RGB
+
+-- | A single layer of atmosphere.
 data AtmosphereLayer = AtmosphereLayer { 
+    -- | Represents what substance this layer of atmosphere is made of.
     atmosphere_composition :: AtmosphereComposition,
+    -- | Represents the optical thickness of this layer looking straight up.  That is,
+    -- if you reduce the altitude but hold the thickness constant, the layer will be
+    -- essentially unchanged in the vertical direction.  A typical value is 1.0.
     atmosphere_thickness :: Double,
+    -- | The altitude to the edge of this atmosphere layer, where 1.0 is the diameter of the planet.  
+    -- Lowering the altitude actually increases the density, and vice-versa, so double or halve the thickness
+    -- and altitude at the same time.  A typical value is 1e-4.
     atmosphere_altitude :: Double }
 
+-- | A 'SkyFilter' that just passes through the raw RGB values, essentially, 'Prelude.id'.
 rawSkyFilter :: SkyFilter
 rawSkyFilter = const $ Just id
 
+-- | A 'SkyFilter' that takes a maximum black point and a minimum white point, and applies
+-- these to black and white points determined by probabalistic means, and then generates a
+-- linear filter based on those points.  For well chosen parameters this will hopefully 
+-- produce an appealing sky at any time of day or twilight.
+--
 dynamicSkyFilter :: Double -> Double -> SkyFilter
 dynamicSkyFilter max_black min_white origF = case () of
                                 () | min_color > 0 -> Just $ filterRGBLinear (gray min_color) (gray max_color)
@@ -69,6 +87,7 @@ dynamicSkyFilter max_black min_white origF = case () of
           cs = take 200 $ map origF $ filter ((\x -> x > 0 && x <= 1) . vectorLength) $ zipWith3 Vector3D
 		   (randomCoordinates 1305) (randomCoordinates 2543) (randomCoordinates 6037)
 
+-- | Generate a low level 'Scattering' model directly from an 'AtmosphereLayer'.
 atmosphereLayerToScatteringModel :: AtmosphereLayer -> Scattering
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Air }) = 
      rayleigh (atmosphere_altitude l / atmosphere_thickness l) rayleigh_sky
@@ -80,6 +99,13 @@ atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = D
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Fog c }) = 
     fog (realToFrac $ atmosphere_altitude l / atmosphere_thickness l) c
 
+-- | Cast a ray that can intersect a geometry at exactly two or zero points, given a default value
+-- for the zero-intersection case and a function to determine a value for the
+-- two-intersection case.  In a one-intersection case, it is assumed that the ray terminates in the
+-- interior of the geometry, and the endpoint of the ray is used as a point of intersection.
+--
+-- TODO: should this or a generalization of this be moved to RSAGL.RayTrace?
+--
 {-# INLINE castSkyRay #-}
 castSkyRay :: (Geometry g) => g -> a -> (Point3D -> Point3D -> a) -> Ray3D -> a
 castSkyRay test_sphere a f r = case map (sv3d_position . snd) $ sortBy (comparing fst) $ filter ((> 0) . fst) $ testRay r test_sphere of
@@ -88,6 +114,7 @@ castSkyRay test_sphere a f r = case map (sv3d_position . snd) $ sortBy (comparin
 			                [p_near,p_far] -> f p_near p_far
 			                _ -> error "castSkyRay: unexpected case"
 
+-- | Calculate the amount of absorbtion along a specific ray inside a single 'AtmosphereLayer'.
 atmosphereLayerAbsorbtion :: AtmosphereLayer -> Ray3D -> RGB
 atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 1) absorbF r
     where absorbF p_near p_far = postFilter $ traceAbsorbtion (const $ scattering_model) linearSamples p_near p_far 1
@@ -96,6 +123,7 @@ atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphe
 			    _ -> id
           scattering_model = atmosphereLayerToScatteringModel l
 
+-- | Calculate the amount of scattering along a specific ray inside a single 'AtmosphereLayer' given the position and color of a single sun.
 atmosphereLayerScattering :: AtmosphereLayer -> (Vector3D,RGB) -> Ray3D -> RGB
 atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 0) scatterF r
     where scatterF p_near p_far = fst $ traceScattering (const scattering_model) 
@@ -106,10 +134,12 @@ atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin
 	                                        (\p_near p_far -> max 0 $ sqrt (atmosphere_altitude l) - 1 + sqrt (4 - distanceBetween p_near p_far ** 2) / 2)
 				                (Ray3D p sun_vector)
 
+-- | Aggrigated absorbtion from multiple 'AtmosphereLayers'.
 atmosphereAbsorbtion :: Atmosphere -> Point3D -> Vector3D -> RGB
 atmosphereAbsorbtion atm p v = foldr filterRGB (gray 1) $ map ($ Ray3D p v) absorbFs
     where absorbFs = map atmosphereLayerAbsorbtion atm
 
+-- | Aggrigated scattering from multiple 'AtmosphereLayers' and multiple suns.
 atmosphereScattering :: Atmosphere -> [(Vector3D,RGB)] -> Point3D -> Vector3D -> RGB
 atmosphereScattering atm_ suns p v_ = foldr addRGB (gray 0) $ map ($ v_) scatterFs
      where atm = reverse $ sortBy (comparing atmosphere_altitude) atm_
@@ -123,6 +153,9 @@ atmosphereScattering atm_ suns p v_ = foldr addRGB (gray 0) $ map ($ v_) scatter
 		                        (fst this_sun,
 				         filterRGB (sunAbsorbF p $ fst this_sun) $ snd this_sun) $ Ray3D p v
 
+-- | Generate a material for a sky sphere.  This material includes both scattering and absorbtion information.
+-- The material assumes the origin as the eye point, tracing to the geometric point at each vertex.  Therefore,
+-- this material need not be applied to an exact sphere.
 atmosphereScatteringMaterial :: Atmosphere -> [(Vector3D,RGB)] -> SkyFilter -> MaterialM attr ()
 atmosphereScatteringMaterial [] _ _ = return ()
 atmosphereScatteringMaterial _ suns _ | all ((== 0) . maxRGB . snd) suns = return ()
@@ -135,4 +168,3 @@ atmosphereScatteringMaterial atm suns sky_filter = material $
 	   Nothing -> return ()
     where scatteringF = atmosphereScattering atm suns (Point3D 0 1 0)
           m_skyFilterF = sky_filter scatteringF
-\end{code}
