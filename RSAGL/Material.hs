@@ -9,7 +9,7 @@ module RSAGL.Material
      MaterialLayer,MaterialSurface,Material,materialIsEmpty,
      toLayers,materialLayerSurface,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
      isOpaqueLayer,
-     diffuseLayer,RSAGL.Material.specularLayer,transparentLayer,emissiveLayer)
+     diffuseLayer,RSAGL.Material.specularLayer,transparentLayer,emissiveLayer,filteringLayer)
     where
 
 import Data.Maybe
@@ -45,6 +45,8 @@ data MaterialLayer =
   | SpecularLayer (MaterialSurface RGB) GLfloat
     -- | A compound layer of diffuse, pure specular, and pure emissive layers.  This is a common use case, and therefore optimized into one layer.
   | CompoundLayer (MaterialSurface RGB) RGB RGB GLfloat
+    -- | A layer that filters (multiplies) light from behind, but doesn't reflect or glow at all.
+  | FilterLayer (MaterialSurface RGB)
 
 instance NFData MaterialLayer where
     rnf (DiffuseLayer msrgb) = rnf msrgb
@@ -52,6 +54,7 @@ instance NFData MaterialLayer where
     rnf (EmissiveLayer msrgb) = rnf msrgb
     rnf (SpecularLayer msrgb shininess) = rnf (msrgb,shininess)
     rnf (CompoundLayer msrgb spec emis shininess) = rnf (msrgb,spec,emis,shininess)
+    rnf (FilterLayer msrgb) = rnf msrgb
 
 -- | A stack of 'MaterialLayer's.  'Material' is smart about compressing multiple layers into the least of number of equivalent layers.
 data Material = Material [MaterialLayer]
@@ -89,6 +92,9 @@ combine2Layers (CompoundLayer msrgb specular_rgb emissive_rgb1 shininess) (Emiss
 -- compound + pure specular
 combine2Layers (CompoundLayer msrgb (RGB 0 0 0) emissive_rgb 0) (SpecularLayer specular_rgb shininess) | isPure specular_rgb =
     Just $ CompoundLayer msrgb (fromJust $ fromPure $ specular_rgb) emissive_rgb shininess
+-- filter + filter
+combine2Layers (FilterLayer x) (FilterLayer y) =
+    Just $ FilterLayer $ filterRGB <$> x <*> y
 combine2Layers _ _ = Nothing
 
 instance Monoid Material where
@@ -116,6 +122,8 @@ materialLayerComplexity (EmissiveLayer {}) = 2
 materialLayerComplexity (SpecularLayer ms _) | isPure ms = 3
 materialLayerComplexity (SpecularLayer {}) = 4
 materialLayerComplexity (CompoundLayer {}) = 3
+materialLayerComplexity (FilterLayer ms) | isPure ms = 0
+materialLayerComplexity (FilterLayer {}) = 2
 
 -- | Answers a complexity heuristic for a 'Material'.  Result is a small integer greater than or equal to zero.
 materialComplexity :: Material -> Integer
@@ -132,8 +140,14 @@ isOpaqueLayer _ = False
 -- and can therefore be eleminated from a model.
 --
 isEmissiveRelevant :: RGB -> Bool
-isEmissiveRelevant (RGB 0 0 0) = False
+isEmissiveRelevant (RGB r g b) | r <= 0 && g <= 0 && b <= 0 = False
 isEmissiveRelevant _ = True
+
+-- | True is the color is not white.  White filter materials don't filter any light, and can therefore be
+-- eleminated from a model.
+isFilterRelevant :: RGB -> Bool
+isFilterRelevant (RGB r g b) | r >= 1 && g >= 1 && b >= 1 = False
+isFilterRelevant _ = True
 
 -- | True if the color is not perfectly transparent.  Perfectly transparent materials are invisible, and can therefore
 -- be eleminated from a model.
@@ -148,6 +162,7 @@ materialLayerSurface (TransparentLayer msrgba) = msrgba
 materialLayerSurface (EmissiveLayer msrgb) = fmap toRGBA msrgb
 materialLayerSurface (SpecularLayer msrgb _) = fmap toRGBA msrgb
 materialLayerSurface (CompoundLayer msrgb _ _ _) = fmap toRGBA msrgb
+materialLayerSurface (FilterLayer msrgb) = fmap toRGBA msrgb
 
 -- | Get a relevance layer for a surface.  Purely irrelevant materials can be removed without changing the
 -- appearance of a model.  Irrelevant triangles can also be selectively culled from a model.
@@ -157,6 +172,7 @@ materialLayerRelevant (TransparentLayer msrgba) = fmap isTransparentRelevant msr
 materialLayerRelevant (EmissiveLayer msrgb) = fmap isEmissiveRelevant msrgb
 materialLayerRelevant (SpecularLayer msrgb _) = fmap isEmissiveRelevant msrgb
 materialLayerRelevant (CompoundLayer {}) = pure True
+materialLayerRelevant (FilterLayer msrgb) = fmap isFilterRelevant msrgb
 
 -- | Run an IO action wrapped in OpenGL state appropriate for the layer in question.
 materialLayerToOpenGLWrapper :: MaterialLayer -> IO () -> IO ()
@@ -206,6 +222,12 @@ materialLayerToOpenGLWrapper (CompoundLayer ms specular_rgb emissive_rgb shinine
        io
        colorMaterial $= cm
        lightModelLocalViewer $= lmlv
+materialLayerToOpenGLWrapper (FilterLayer ms) io =
+    do l <- get lighting
+       lighting $= Disabled
+       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       filterBlendWrapper io
+       lighting $= l
 
 -- | Run an IO action with OpenGL blending state.  Used for transparent surfaces.
 alphaBlendWrapper :: IO () -> IO ()
@@ -229,6 +251,17 @@ additiveBlendWrapper io =
        blendFunc $= bf
        blend $= b
 
+-- | Rune an IO action with multiplicative blending OpenGL state.  Used for filter surfaces.
+filterBlendWrapper :: IO () -> IO ()
+filterBlendWrapper io =
+    do bf <- get blendFunc
+       b <- get blend
+       blendFunc $= (DstColor,Zero)
+       blend $= Enabled
+       io
+       blendFunc $= bf
+       blend $= b
+
 -- | A simple colored material.
 diffuseLayer :: MaterialSurface RGB -> Material
 diffuseLayer msrgb = Material [DiffuseLayer msrgb]
@@ -247,3 +280,7 @@ transparentLayer msrgba = Material [TransparentLayer msrgba]
 -- | A material that seems to glow.
 emissiveLayer :: MaterialSurface RGB -> Material
 emissiveLayer msrgb = Material [EmissiveLayer msrgb]
+
+-- | A material that doesn't reflect or emit life, but simply performs a multiplicative filter on whatever is behind it.
+filteringLayer :: MaterialSurface RGB -> Material
+filteringLayer msrgb = Material [FilterLayer msrgb]

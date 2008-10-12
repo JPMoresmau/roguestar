@@ -44,7 +44,7 @@ module RSAGL.Model
      withAttribute,
      model,
      RGBFunction,RGBAFunction,
-     material,pigment,specular,emissive,transparent,
+     material,pigment,specular,emissive,transparent,filtering,
      MonadAffine(..),
      turbulence,
      deform)
@@ -221,6 +221,9 @@ emissive rgbf = State.modify (++ [Quasimaterial rgbf emissiveLayer])
 
 transparent :: RGBAFunction -> MaterialM attr ()
 transparent rgbaf = State.modify (++ [Quasimaterial rgbaf transparentLayer])
+
+filtering :: RGBFunction -> MaterialM attr ()
+filtering rgbf = State.modify (++ [Quasimaterial rgbf filteringLayer])
 \end{code}
 
 \subsection{Transformations of Surfaces and Materials}
