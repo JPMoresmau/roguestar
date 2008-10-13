@@ -14,10 +14,9 @@ import RSAGL.Extras.Sky
 import RSAGL.Angle
 import RSAGL.Extras.ColorPhysics
 import RSAGL.Model
-import RSAGL.Color
 import RSAGL.Interpolation
-import Control.Applicative
-import RSAGL.RSAGLColors
+import RSAGL.ModelingExtras
+import RSAGL.Noise
 
 data SkyInfo = SkyInfo {
     sky_info_biome :: String,
@@ -107,11 +106,13 @@ sunSize sun_info = 0.05 * (5800 / (realToFrac $ sun_info_kelvins sun_info)) * 1.
 -- | 'makeSky' generates a sky sphere.
 makeSky :: SkyInfo -> Modeling ()
 makeSky sky_info = model $
-    do let v = sunVector sky_info
-       skyHemisphere origin_point_3d (Vector3D 0 1 0) 9.0
-       material $ atmosphereScatteringMaterial (snd $ biomeAtmosphere $ sky_info_biome sky_info)
-                                               [(v,maximizeRGB $ blackBodyRGB $ realToFrac $ sky_info_solar_kelvins sky_info)] 
-					       (dynamicSkyFilter 0.05 0.5)
+    do hilly_silhouette 
+       model $
+           do let v = sunVector sky_info
+              skyHemisphere origin_point_3d (Vector3D 0 1 0) 9.0
+              material $ atmosphereScatteringMaterial (snd $ biomeAtmosphere $ sky_info_biome sky_info)
+                                                      [(v,maximizeRGB $ blackBodyRGB $ realToFrac $ sky_info_solar_kelvins sky_info)] 
+					              (dynamicSkyFilter 0.05 0.5)
 
 -- 'makeSun' generates a perspectiveSphere of the sun.
 makeSun :: SunInfo -> Modeling ()
@@ -120,3 +121,10 @@ makeSun sun_info = model $
        material $ 
            do pigment $ pure $ gray 0
 	      emissive $ pure $ sunColor sun_info
+
+hilly_silhouette :: Modeling ()
+hilly_silhouette = model $
+    do heightDisc (0,0) 8 (\(x,z) -> perlinNoise (Point3D x 0 z) - 6.9 + distanceBetween origin_point_3d (Point3D x 0 z))
+       material $ pigment $ pure blackbody
+       disregardSurfaceNormals
+
