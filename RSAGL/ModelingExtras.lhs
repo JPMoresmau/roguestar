@@ -7,6 +7,8 @@
 module RSAGL.ModelingExtras
     (smoothbox,
      regularPrism,
+     heightField,
+     heightDisc,
      rotationGroup,
      glass,
      plastic,
@@ -19,6 +21,8 @@ module RSAGL.ModelingExtras
      gradient,
      bumps,
      waves,
+     heightMap,
+     disregardSurfaceNormals,
      ColorFunction,
      Pattern,
      module RSAGL.RSAGLColors,
@@ -75,6 +79,23 @@ regularPrism (a,ra) (b,rb) n =
         b1 = Point3D 0 (distanceBetween a b) rb
         b2 = rotateY (fromRotations $ recip $ fromInteger n) b1
         quad = quadralateral a1 a2 b2 b1
+\end{code}
+
+\begin{code}
+-- | A rectangular height field rising off of the x-z plane.
+heightField :: (Monoid attr) => (Double,Double) -> (Double,Double) -> ((Double,Double) -> Double) -> Modeling attr
+heightField (x1,z1) (x2,z2) f = model $
+    do quadralateral (Point3D x1 0 z1) (Point3D x2 0 z1) (Point3D x2 0 z2) (Point3D x1 0 z2)
+       heightMap f
+       
+\end{code}
+
+\begin{code}
+-- | A circular height field rising off of the x-z plane.
+heightDisc :: (Monoid attr) => (Double,Double) -> Double -> ((Double,Double) -> Double) -> Modeling attr
+heightDisc (x,y) r f = model $
+    do closedDisc (Point3D x 0 y) (Vector3D 0 1 0) r
+       heightMap f
 \end{code}
 
 \texttt{rotationGroup} rotates a model repeatedly.
@@ -147,9 +168,19 @@ metallic rgbf =
 
 \begin{code}
 bumps :: Pattern -> Modeling attr
-bumps f = deform $ (\(sv3d@(SurfaceVertex3D p v)) -> translate (vectorScale (f sv3d) v) p)
+bumps f = deform $ \(sv3d@(SurfaceVertex3D p v)) -> translate (vectorScale (f sv3d) v) p
 
 waves :: Double -> Double -> Pattern
 waves wave_length amplitude (SurfaceVertex3D (Point3D x y z) _) = (wave_f x + wave_f y + wave_f z) * amplitude / 3
     where wave_f u = sin (u / wave_length * 2*pi)
+
+-- | Raises or lowers each point in a model along the y-axis according to its (x,z) coordinate.
+-- Typically this is used to construct height fields.
+--
+heightMap :: ((Double,Double) -> Double) -> Modeling attr
+heightMap f = deform $ \(Point3D x y z) -> Point3D x (y + f (x,z)) z
+
+-- | For models where we are certain surface normals don't matter, then don't calculate them.
+disregardSurfaceNormals :: Modeling attr
+disregardSurfaceNormals = deform $ \(SurfaceVertex3D p _) -> SurfaceVertex3D p (Vector3D 0 1 0)
 \end{code}
