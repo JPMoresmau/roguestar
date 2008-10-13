@@ -127,6 +127,7 @@ materialLayerComplexity (FilterLayer {}) = 2
 
 -- | Answers a complexity heuristic for a 'Material'.  Result is a small integer greater than or equal to zero.
 materialComplexity :: Material -> Integer
+materialComplexity (Material []) = 0
 materialComplexity (Material layers) = maximum $ map materialLayerComplexity layers
 
 -- | True if the 'MaterialLayer' is completely opaque.  A layer under an opaque layer is not visible.
