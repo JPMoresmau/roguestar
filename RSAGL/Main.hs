@@ -167,7 +167,7 @@ rsaglDisplayCallback counter aniM =
     do loadIdentity
        color (Color4 0.0 0.0 0.0 0.0 :: Color4 Double)
        clear [ColorBuffer]
-       the_scene <- liftM snd $ runAniM aniM
+       the_scene <- liftM snd $ runAniM (liftM (second stdSceneLayerInfo) aniM)
        (Size w h) <- GLUT.get windowSize
        sceneToOpenGL (fromIntegral w / fromIntegral h) (0.3,300) the_scene
        swapBuffers

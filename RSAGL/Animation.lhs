@@ -45,11 +45,11 @@ type AniM a = StateT TimePlusSceneAccumulator IO a
 frameTime :: AniM Time
 frameTime = gets (\(TimePlusSceneAccumulator (t,_)) -> t)
 
-runAniM :: AniM (a,Camera) -> IO (a,Scene)
+runAniM :: AniM (a,SceneLayerInfo) -> IO (a,Scene)
 runAniM anim = 
     do t <- getTime
-       ((a,c),TimePlusSceneAccumulator (_,sa)) <- runStateT anim $ TimePlusSceneAccumulator (t,null_scene_accumulator)
-       result_scene <- assembleScene (stdSceneLayers c) (defaultLightSourceLayerTransform $ stdSceneLayers c) sa
+       ((a,sli),TimePlusSceneAccumulator (_,sa)) <- runStateT anim $ TimePlusSceneAccumulator (t,null_scene_accumulator)
+       result_scene <- assembleScene sli sa
        return (a,result_scene)
 
 rotationM :: Vector3D -> Rate Angle -> AniM AffineTransformation

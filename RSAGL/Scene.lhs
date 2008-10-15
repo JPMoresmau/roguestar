@@ -10,6 +10,7 @@ module RSAGL.Scene
     (Scene,
      Camera(..),
      infiniteCameraOf,
+     SceneLayerInfo(..),
      SceneObject,
      SceneLayer,
      ScenicAccumulator(..),
@@ -22,12 +23,13 @@ module RSAGL.Scene
      accumulateSceneA,
      assembleScene,
      sceneToOpenGL,
+     stdSceneLayerInfo,
      stdSceneLayers,
      std_scene_layer_hud,
      std_scene_layer_cockpit,
      std_scene_layer_local,
      std_scene_layer_infinite,
-     defaultLightSourceLayerTransform)
+     stdLightSourceLayerTransform)
     where
 
 import Data.Ord
@@ -161,11 +163,12 @@ data Scene = Scene {
     scene_elements :: Map.Map (SceneLayer,Bool) [SceneElement],
     scene_layerToCamera :: (SceneLayer -> Camera) }
 
-assembleScene :: (SceneLayer -> Camera) -> 
-                 (SceneLayer -> LightSource -> SceneLayer -> LightSource)-> 
-                 SceneAccumulator -> 
-		 IO Scene
-assembleScene layerToCamera lightSourceLayerTransform scene_accum = 
+data SceneLayerInfo = SceneLayerInfo {
+    scene_layer_camera :: SceneLayer -> Camera,
+    scene_layer_light_source_layer_transform :: SceneLayer -> LightSource -> SceneLayer -> LightSource }
+
+assembleScene :: SceneLayerInfo -> SceneAccumulator -> IO Scene
+assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_accum = 
     do elements <- liftM (Map.mapWithKey (\(_,opaque) -> if not opaque then sortModels else id) .
 		          foldr (\se -> Map.alter (Just . (se:) . fromMaybe []) 
 			         (scene_elem_layer se,scene_elem_opaque se)) Map.empty . concat) $
@@ -242,6 +245,9 @@ render1Element (SceneElement { scene_elem_light_sources = lss, scene_elem_model 
 This is an example of how to implement scene layers that should be adequate to most purposes.
 
 \begin{code}
+stdSceneLayerInfo :: Camera -> SceneLayerInfo
+stdSceneLayerInfo c = SceneLayerInfo (stdSceneLayers c) (stdLightSourceLayerTransform (stdSceneLayers c))
+
 stdSceneLayers :: Camera -> SceneLayer -> Camera
 stdSceneLayers c sl | sl <= std_scene_layer_hud = c
 stdSceneLayers c sl | sl == std_scene_layer_cockpit = c {
@@ -265,9 +271,9 @@ std_scene_layer_infinite = 3
 \subsection{Standard Light Layer Transforms}
 
 \begin{code}
-defaultLightSourceLayerTransform :: (SceneLayer -> Camera) -> SceneLayer -> LightSource -> SceneLayer -> LightSource
-defaultLightSourceLayerTransform _ entering_layer ls originating_layer | entering_layer == originating_layer = ls
-defaultLightSourceLayerTransform layerToCamera entering_layer ls originating_layer | entering_layer < originating_layer =
+stdLightSourceLayerTransform :: (SceneLayer -> Camera) -> SceneLayer -> LightSource -> SceneLayer -> LightSource
+stdLightSourceLayerTransform _ entering_layer ls originating_layer | entering_layer == originating_layer = ls
+stdLightSourceLayerTransform layerToCamera entering_layer ls originating_layer | entering_layer < originating_layer =
     cameraOrientation (layerToCamera entering_layer) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera originating_layer) ls
-defaultLightSourceLayerTransform _ _ _ _ = NoLight
+stdLightSourceLayerTransform _ _ _ _ = NoLight
 \end{code}
