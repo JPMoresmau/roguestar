@@ -43,10 +43,10 @@ infiniteLightSourceOf :: LightSource -> LightSource
 infiniteLightSourceOf NoLight = NoLight
 infiniteLightSourceOf (d@(DirectionalLight {})) = d
 infiniteLightSourceOf (p@PointLight {}) = DirectionalLight {
-    lightsource_direction = vectorToFrom origin_point_3d $ lightsource_position p,
+    lightsource_direction = vectorToFrom (lightsource_position p) origin_point_3d,
     lightsource_color = scaleRGB scale_factor $ lightsource_color p,
     lightsource_ambient = scaleRGB scale_factor $ lightsource_ambient p }
-        where scale_factor = realToFrac $ (distance $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
+        where scale_factor = realToFrac $ (distanceSquared $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
 
 instance AffineTransformable LightSource where
     transform _ NoLight = NoLight
