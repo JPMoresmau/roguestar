@@ -4,7 +4,7 @@ A \texttt{Scene} is a complete description of an image to be rendered, consistin
 
 \begin{code}
 
-{-# OPTIONS_GHC -farrows #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, FunctionalDependencies #-}
 
 module RSAGL.Scene
     (Scene,
@@ -99,50 +99,47 @@ A \texttt{Scene} supports local and infinite scene layers.  The camera moves thr
 Celestial objects such as the moon and sun, as well as the sky sphere, belong in the infinite subscene.  Distant clouds or mountains may also belong in the infinite layer.
 
 \begin{code}
-data SceneObject = 
+data SceneObject m = 
     LightSource LightSource
-  | Model (Camera -> IO (WrappedAffine IntermediateModel))
+  | Model (Camera -> m (WrappedAffine IntermediateModel))
 
-instance AffineTransformable SceneObject where
+instance (Monad m) => AffineTransformable (SceneObject m) where
     transform m (LightSource ls) = LightSource $ transform m ls
     transform m (Model imodel) = Model $ \c -> liftM (transform m) (imodel c)
 
 type SceneLayer = Integer
 
-data SceneAccumulator = SceneAccumulator {
-    sceneaccum_objs :: [(SceneLayer,SceneObject)],
+data SceneAccumulator m = SceneAccumulator {
+    sceneaccum_objs :: [(SceneLayer,SceneObject m)],
     sceneaccum_coordinate_system :: CoordinateSystem }
 
-instance CoordinateSystemClass SceneAccumulator where
+instance CoordinateSystemClass (SceneAccumulator m) where
     getCoordinateSystem = sceneaccum_coordinate_system
     storeCoordinateSystem cs sceneaccum = sceneaccum { sceneaccum_coordinate_system = cs }
 
-class (CoordinateSystemClass a) => ScenicAccumulator a where
-    accumulateScene :: SceneLayer -> SceneObject -> a -> a
+class (CoordinateSystemClass a,Monad m) => ScenicAccumulator a m | a -> m where -- REVISIT: fundeps just for this, really?
+    accumulateScene :: SceneLayer -> SceneObject m -> a -> a
 
-instance ScenicAccumulator SceneAccumulator where
+instance (Monad m) => ScenicAccumulator (SceneAccumulator m) m where
     accumulateScene slayer scobj sceneaccum = sceneaccum { 
         sceneaccum_objs = (slayer,migrateToFrom (sceneaccum_coordinate_system sceneaccum) root_coordinate_system scobj) : sceneaccum_objs sceneaccum }
 
-instance (ScenicAccumulator sa) => ScenicAccumulator (a,sa) where
-    accumulateScene slayer scobj (a,sceneaccum) = (a,accumulateScene slayer scobj sceneaccum)
-
-null_scene_accumulator :: SceneAccumulator
+null_scene_accumulator :: SceneAccumulator m
 null_scene_accumulator = SceneAccumulator [] root_coordinate_system
 
-sceneObject :: IO IntermediateModel -> SceneObject
+sceneObject :: (Monad m) => m IntermediateModel -> SceneObject m
 sceneObject = cameraRelativeSceneObject . const . liftM wrapAffine
 
-cameraRelativeSceneObject :: (Camera -> IO (WrappedAffine IntermediateModel)) -> SceneObject
+cameraRelativeSceneObject :: (Monad m) => (Camera -> m (WrappedAffine IntermediateModel)) -> SceneObject m
 cameraRelativeSceneObject = Model
 
-lightSource :: LightSource -> SceneObject
+lightSource :: LightSource -> SceneObject m
 lightSource = LightSource
 
-accumulateSceneM :: (ScenicAccumulator sa,Monad m,MonadState sa m) => SceneLayer -> SceneObject -> m ()
+accumulateSceneM :: (ScenicAccumulator sa a,Monad m,MonadState sa m) => SceneLayer -> SceneObject a -> m ()
 accumulateSceneM slayer scobj = modify (accumulateScene slayer scobj)
 
-accumulateSceneA :: (ScenicAccumulator sa,Arrow arr,ArrowState sa arr) => arr (SceneLayer,SceneObject) ()
+accumulateSceneA :: (ScenicAccumulator sa m,Arrow arr,ArrowState sa arr) => arr (SceneLayer,SceneObject m) ()
 accumulateSceneA = proc (slayer,scobj) ->
     do sceneaccum <- fetch -< ()
        store -< accumulateScene slayer scobj sceneaccum
@@ -167,7 +164,7 @@ data SceneLayerInfo = SceneLayerInfo {
     scene_layer_camera :: SceneLayer -> Camera,
     scene_layer_light_source_layer_transform :: SceneLayer -> LightSource -> SceneLayer -> LightSource }
 
-assembleScene :: SceneLayerInfo -> SceneAccumulator -> IO Scene
+assembleScene :: (Monad m) => SceneLayerInfo -> SceneAccumulator m -> m Scene
 assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_accum = 
     do elements <- liftM (Map.mapWithKey (\(_,opaque) -> if not opaque then sortModels else id) .
 		          foldr (\se -> Map.alter (Just . (se:) . fromMaybe []) 
@@ -180,7 +177,7 @@ assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_acc
           splitOpaquesWrapped (WrappedAffine a m) =
                   let (opaques,transparents) = splitOpaques m
                       in (WrappedAffine a opaques,map (WrappedAffine a) transparents) 
-          toLightSource :: SceneLayer -> (SceneLayer,SceneObject) -> LightSource
+          toLightSource :: SceneLayer -> (SceneLayer,SceneObject m) -> LightSource
 	  toLightSource entering_layer (originating_layer,LightSource ls) = 
 	      lightSourceLayerTransform entering_layer ls originating_layer
 	  toLightSource _ _ = NoLight
@@ -189,7 +186,7 @@ assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_acc
 	                   minimalDistanceToBoundingBox (camera_position $ layerToCamera $ scene_elem_layer se) bbox) .
                        map (\(se@(SceneElement { scene_elem_model = WrappedAffine cs m })) -> 
 		             (se,migrateToFrom cs root_coordinate_system $ boundingBox m))
-	  toElement :: (SceneLayer,SceneObject) -> IO [SceneElement]
+	  toElement :: (Monad m) => (SceneLayer,SceneObject m) -> m [SceneElement]
           toElement (n,Model f) = 
 	      do (opaque,transparents) <- liftM splitOpaquesWrapped $ f (layerToCamera n)
 	         let light_sources = filter (not . isNoLight) $ map (toLightSource n) (sceneaccum_objs scene_accum) 

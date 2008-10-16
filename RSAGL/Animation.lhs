@@ -37,10 +37,13 @@ import Control.Arrow.Transformer.State as StateArrow
 The AniM monad is a simple state layer over the IO monad that supports scene accumulation and getting the frame time (the time at the beginning of the frame, as opposed to real time that would change as the animation progresses).
 
 \begin{code}
-newtype TimePlusSceneAccumulator = TimePlusSceneAccumulator (Time,SceneAccumulator)
-    deriving (CoordinateSystemClass, ScenicAccumulator)
+newtype TimePlusSceneAccumulator m = TimePlusSceneAccumulator (Time,SceneAccumulator m)
+    deriving (CoordinateSystemClass)
 
-type AniM a = StateT TimePlusSceneAccumulator IO a
+instance (Monad m) => ScenicAccumulator (TimePlusSceneAccumulator m) m where
+    accumulateScene slayer scobj (TimePlusSceneAccumulator (t,sceneaccum)) = TimePlusSceneAccumulator (t,accumulateScene slayer scobj sceneaccum)
+
+type AniM a = StateT (TimePlusSceneAccumulator IO) IO a
 
 frameTime :: AniM Time
 frameTime = gets (\(TimePlusSceneAccumulator (t,_)) -> t)
@@ -69,8 +72,8 @@ rotateM v a = animateM (rotationM v a)
 \subsection{The AniA Arrow}
 
 \begin{code}
-type AniA t i o j p = FRPX Threaded t i o (StateArrow SceneAccumulator (->)) j p
-type AniA1 i o j p = FRP1 i o (StateArrow SceneAccumulator (->)) j p
+type AniA t i o j p = FRPX Threaded t i o (StateArrow (SceneAccumulator IO) (->)) j p
+type AniA1 i o j p = FRP1 i o (StateArrow (SceneAccumulator IO) (->)) j p
 \end{code}
 
 \subsection{Animation Objects}
@@ -80,7 +83,7 @@ This is one possible implementation of an animation object.
 \begin{code}
 data AnimationObject i o =
     AniMObject (i -> AniM o)
-  | AniAObject (MVar (FRPProgram (StateArrow SceneAccumulator (->)) i o))
+  | AniAObject (MVar (FRPProgram (StateArrow (SceneAccumulator IO) (->)) i o))
 
 newAnimationObjectM :: (i -> AniM o) -> AnimationObject i o
 newAnimationObjectM = AniMObject

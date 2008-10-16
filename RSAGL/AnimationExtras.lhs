@@ -54,7 +54,7 @@ rotateA v a = animateA (rotationA v a)
 \texttt{pointAtCameraA} always points at the camera, using a single rotation.
 
 \begin{code}
-pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumulator s) => a (SceneLayer,IO IntermediateModel) ()
+pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumulator s m) => a (SceneLayer,m IntermediateModel) ()
 pointAtCameraA = proc (slayer,imodel) ->
     do cs <- arr getCoordinateSystem <<< fetch -< ()
        accumulateSceneA -< (slayer,cameraRelativeSceneObject $ \c -> 

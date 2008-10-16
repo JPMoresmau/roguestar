@@ -116,9 +116,9 @@ testScene =
               transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
                   do transformM (affineOf rotation_planet) $ accumulateSceneM (std_scene_layer_infinite+2) $ 
 		         sceneObject $ getQuality qo_planet test_quality
-                     accumulateSceneM (std_scene_layer_infinite+2) $ 
+                     accumulateSceneM (std_scene_layer_infinite+2) $
 		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
-                     accumulateSceneM (std_scene_layer_infinite+2) $ 
+                     accumulateSceneM (std_scene_layer_infinite+2) $
 		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $ 
 		         sceneObject $ getQuality qo_ring test_quality
