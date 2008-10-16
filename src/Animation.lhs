@@ -1,7 +1,7 @@
 \section{The Roguestar Animation Arrow}
 
 \begin{code}
-{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses #-}
 
 module Animation
     (RSAnimA,
@@ -29,7 +29,7 @@ module Animation
 
 import RSAGL.FRP
 import RSAGL.CoordinateSystems
-import RSAGL.Scene
+import RSAGL.Scene hiding (std_scene_layer_hud,std_scene_layer_cockpit,std_scene_layer_local,std_scene_layer_infinite)
 import RSAGL.AnimationExtras
 import Control.Monad.State
 import Control.Arrow
@@ -58,7 +58,7 @@ import Globals
 import Data.IORef
 
 data AnimationState = AnimationState {
-    animstate_scene_accumulator :: SceneAccumulator,
+    animstate_scene_accumulator :: SceneAccumulator IO,
     animstate_globals :: IORef Globals,
     animstate_driver_object :: DriverObject,
     animstate_print_text_object :: PrintTextObject,
@@ -71,7 +71,7 @@ instance CoordinateSystemClass AnimationState where
     storeCoordinateSystem cs as = as { 
         animstate_scene_accumulator = storeCoordinateSystem cs $ animstate_scene_accumulator as }
 
-instance ScenicAccumulator AnimationState where
+instance ScenicAccumulator AnimationState IO where
     accumulateScene sl so as = as { 
         animstate_scene_accumulator = accumulateScene sl so $ animstate_scene_accumulator as }
 
@@ -106,8 +106,7 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object rso 
        putMVar (rso_arrow rso) new_rso_program
        when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput globals_ref driver_object print_text_object
        setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
-       assembleScene (stdSceneLayers result_camera) 
-                     (defaultLightSourceLayerTransform $ stdSceneLayers result_camera) $ 
+       assembleScene (SceneLayerInfo (stdSceneLayers result_camera) (stdLightSourceLayerTransform $ stdSceneLayers result_camera)) $ 
 		     animstate_scene_accumulator result_animstate
 
 ioA :: (j -> IO p) -> RSAnimAX any t i o j p
