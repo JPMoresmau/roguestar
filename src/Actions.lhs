@@ -86,9 +86,9 @@ executeContinueAction action_input =
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
     \action_input ->
-        do state <- maybe (fail "") return =<< (lift $ driverGetAnswer (action_driver_object action_input) "state")
+        do state <- maybe (fail "") return =<< (lift $ getAnswer (action_driver_object action_input) "state")
            guard $ state == allowed_state
-           table <- maybe (fail "") return =<< (lift $ driverGetTable (action_driver_object action_input) the_table_name the_table_id)
+           table <- maybe (fail "") return =<< (lift $ getTable (action_driver_object action_input) the_table_name the_table_id)
            guard $ [action_param] `elem` tableSelect table [the_table_header]
            return $ driverAction (action_driver_object action_input) [action_name, action_param]
 
@@ -111,7 +111,7 @@ parameterizedAction allowed_state action_name parameter =
 --
 stateGuard :: String -> Action -> Action
 stateGuard allowed_state actionM action_input =
-    do guard =<< (liftM (== Just allowed_state) $ lift $ driverGetAnswer (action_driver_object action_input) "state")
+    do guard =<< (liftM (== Just allowed_state) $ lift $ getAnswer (action_driver_object action_input) "state")
        actionM action_input
 
 -- |
@@ -140,7 +140,7 @@ quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
 
 continue_action :: (String,Action)
 continue_action = ("continue",\action_input ->
-    do guard =<< (liftM (== Just "yes") $ lift $ driverGetAnswer (action_driver_object action_input) "snapshot")
+    do guard =<< (liftM (== Just "yes") $ lift $ getAnswer (action_driver_object action_input) "snapshot")
        return $ driverAction (action_driver_object action_input) ["continue"])
 
 moveAction :: String -> (String,Action)

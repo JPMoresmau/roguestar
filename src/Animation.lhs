@@ -118,13 +118,13 @@ ioA_ action = proc j -> Arrow.lift $ Kleisli (\x -> IOGuard $ action x) -< j
 driverGetAnswerA :: RSAnimAX any t i o String (Maybe String)
 driverGetAnswerA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
-       ioA (\(driver_object_,query_) -> driverGetAnswer driver_object_ query_) -< (driver_object,query)
+       ioA (\(driver_object_,query_) -> getAnswer driver_object_ query_) -< (driver_object,query)
 
 driverGetTableA :: RSAnimAX any t i o (String,String) (Maybe RoguestarTable)
 driverGetTableA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioA (\(driver_object_,(the_table_name,the_table_id)) -> 
-           driverGetTable driver_object_ the_table_name the_table_id) -< (driver_object,query)
+           getTable driver_object_ the_table_name the_table_id) -< (driver_object,query)
 
 printTextA :: RSAnimAX any t i o (Maybe (TextType,String)) ()
 printTextA = Arrow.lift printTextA_

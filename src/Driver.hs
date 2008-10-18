@@ -1,27 +1,59 @@
 -- | Interacts with Protocol module of roguestar-engine.
 module Driver
     (DriverObject,
+     DriverClass(..),
+     MonadRoguestarEngineReader(..),
+     withDriver,
      driverNoop,
      newDriverObject,
      driverRead,
-     driverGetAnswer,
-     driverGetTable,
      driverAction)
     where
 
 import Data.Maybe
-import Control.Monad
 import Data.IORef
 import Data.List
 import System.IO
 import Tables
 import RSAGL.Time
+import Control.Monad.Reader
 
 -- | Contains all of the information that is known about roguestar-engine at a specific moment in time.
 --
 data RoguestarEngineState = RoguestarEngineState { 
     restate_tables :: [RoguestarTable],
     restate_answers :: [(String,String)] }
+
+-- | A 'Reader' monad class specifically for reading driver state.
+class (Monad m) => MonadRoguestarEngineReader m where
+    askAnswer :: String -> m (Maybe String)
+    askTable :: String -> String -> m (Maybe RoguestarTable)
+
+-- | A class for DriverObjects.
+class DriverClass a where
+    -- | Retrieves an answer from the engine.  An answer is a single string.
+    getAnswer :: a -> String -> IO (Maybe String)
+    -- | Retrieves a table from the engine.  These tables make up a kind of simple relational database.
+    getTable :: a -> String -> String -> IO (Maybe RoguestarTable)
+
+instance DriverClass DriverObject where
+    getAnswer driver_object query =
+        do driverQuery driver_object [query]
+           driverGet driver_object (lookup query . restate_answers . driver_engine_state)
+    getTable driver_object the_table_name the_table_id =
+        do driverQuery driver_object [the_table_name,the_table_id]
+           driverGet driver_object (find (\x -> table_name x == the_table_name && table_id x == the_table_id) . restate_tables . driver_engine_state)
+
+instance (MonadIO m,DriverClass d) => MonadRoguestarEngineReader (ReaderT d m) where
+    askAnswer query =
+        do driver_object <- ask
+	   liftIO $ getAnswer driver_object query
+    askTable the_table_name the_table_id =
+        do driver_object <- ask
+	   liftIO $ getTable driver_object the_table_name the_table_id
+
+withDriver :: (MonadIO m) => DriverObject -> (ReaderT DriverObject m a) -> m a
+withDriver driver_object actionM = runReaderT actionM driver_object
 
 -- | Contains detailed information about character-by-character interaction with the engine.
 data DriverData = DriverData {
@@ -70,18 +102,6 @@ modifyEngineState driver_object f = modifyDriver driver_object $ \driver -> driv
 -- | Transmit a no-op to "roguestar-engine".
 driverNoop :: DriverObject -> IO ()
 driverNoop driver_object = driverWrite driver_object "noop\n"
-
--- | Retrieves an answer from the engine.  An answer is a single string.
-driverGetAnswer :: DriverObject -> String -> IO (Maybe String)
-driverGetAnswer driver_object query =
-    do driverQuery driver_object [query]
-       driverGet driver_object (lookup query . restate_answers . driver_engine_state)
-
--- | Retrieves a table from the engine.  These tables make up a kind of simple relational database.
-driverGetTable :: DriverObject -> String -> String -> IO (Maybe RoguestarTable)
-driverGetTable driver_object the_table_name the_table_id =
-    do driverQuery driver_object [the_table_name,the_table_id]
-       driverGet driver_object (find (\x -> table_name x == the_table_name && table_id x == the_table_id) . restate_tables . driver_engine_state)
 
 -- | Transmits a read-only query against the state of the engine.
 driverQuery :: DriverObject -> [String] -> IO ()
