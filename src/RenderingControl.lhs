@@ -174,11 +174,17 @@ planarGameplayDispatch = proc () ->
        frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
 	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
-       lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
+       m_lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0.25 (negate $ realToFrac y))) <<< centerCoordinates -< ()
-       accumulateSceneA -< (std_scene_layer_infinite,lightSource $ DirectionalLight (Vector3D 0.15 1 (-0.3)) (scaleRGB 0.4 $ rgb 1.0 0.9 0.75) (scaleRGB 0.2 $ rgb 0.75 0.9 1.0))
        camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
-       returnA -< maybe basic_camera (planarCamera camera_distance) lookat
+       let (planar_camera,lookat) = maybe (basic_camera,origin_point_3d) (\x -> (planarCamera camera_distance x,x)) m_lookat
+       accumulateSceneA -< (std_scene_layer_local,
+           lightSource $ PointLight {
+                  lightsource_position = camera_position planar_camera,
+	          lightsource_radius = measure (camera_position planar_camera) lookat,
+		  lightsource_color = gray 0.23,
+		  lightsource_ambient = gray 0.10 })
+       returnA -< planar_camera
 
 planarCamera :: Double -> Point3D -> Camera
 planarCamera camera_distance look_at = PerspectiveCamera {
