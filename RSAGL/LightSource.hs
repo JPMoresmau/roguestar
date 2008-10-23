@@ -1,6 +1,11 @@
 module RSAGL.LightSource
     (LightSource(..),
      skylight,
+     MapLightSource,
+     mapLight,
+     mapAmbient,
+     mapBoth,
+     mapLightSource,
      isNoLight,
      infiniteLightSourceOf,
      setLightSourcesToOpenGL,
@@ -13,6 +18,7 @@ import RSAGL.Affine
 import RSAGL.CoordinateSystems
 import Graphics.UI.GLUT as GLUT
 import Data.List as List
+import Data.Monoid
 
 -- | A light source.  In addition to position information, each type of 
 -- light source (except 'NoLight') has a "color" term, indicating the color of direct lighting,
@@ -43,6 +49,40 @@ skylight v c = DirectionalLight {
 isNoLight :: LightSource -> Bool
 isNoLight NoLight = True
 isNoLight _ = False
+
+-- | Encodes a transformation of a light source, including the light color and ambient color terms, and any affine transformation.
+-- The 'Monoid' instance supports 'MapLightSource' as a specialized endomorphism (see 'Endo').
+data MapLightSource = MapLightSource { map_light, map_ambient :: (RGB -> RGB), map_affine :: AffineTransformation }
+
+instance Monoid MapLightSource where
+    mempty = MapLightSource { map_light = id, map_ambient = id, map_affine = id }
+    mappend x y = MapLightSource {
+        map_light = map_light x . map_light y,
+	map_ambient = map_ambient x . map_ambient y,
+	map_affine = map_affine x . map_affine y }
+
+instance AffineTransformable MapLightSource where
+    transform m f = f { map_affine = transform m . map_affine f }
+
+-- | Transformation of the direct illumination color of a light source.
+mapLight :: (RGB -> RGB) -> MapLightSource
+mapLight f = mempty { map_light = f }
+
+-- | Transformation of the ambient color of a light source.
+mapAmbient :: (RGB -> RGB) -> MapLightSource
+mapAmbient f = mempty { map_ambient = f }
+
+-- | Transformation of both the direct illumination and the ambient color terms of a light source.
+mapBoth :: (RGB -> RGB) -> MapLightSource
+mapBoth f = mapLight f `mappend` mapAmbient f
+
+-- | Apply a 'MapLightSource' to a 'LightSource'.
+mapLightSource :: MapLightSource  -> LightSource -> LightSource
+mapLightSource f (DirectionalLight source_direction source_color source_ambient) = 
+    transformation (map_affine f) $ DirectionalLight source_direction (map_light f source_color) (map_ambient f source_ambient)
+mapLightSource f (PointLight source_position source_radius source_color source_ambient) = 
+    transformation (map_affine f) $ PointLight source_position source_radius (map_light f source_color) (map_ambient f source_ambient)
+mapLightSource _ NoLight = NoLight
 
 -- | Converts a 'PointLight' to a 'DirectionalLight', assuming that the camera is at the origin.
 infiniteLightSourceOf :: LightSource -> LightSource
