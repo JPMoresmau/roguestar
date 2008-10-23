@@ -29,7 +29,8 @@ module RSAGL.Scene
      std_scene_layer_cockpit,
      std_scene_layer_local,
      std_scene_layer_infinite,
-     stdLightSourceLayerTransform)
+     LightSourceLayerTransform(..),
+     cameraLightSourceLayerTransform)
     where
 
 import Data.Ord
@@ -50,6 +51,7 @@ import RSAGL.Orthagonal
 import RSAGL.LightSource
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Monoid
 \end{code}
 
 \subsection{Cameras}
@@ -162,10 +164,10 @@ data Scene = Scene {
 
 data SceneLayerInfo = SceneLayerInfo {
     scene_layer_camera :: SceneLayer -> Camera,
-    scene_layer_light_source_layer_transform :: SceneLayer -> LightSource -> SceneLayer -> LightSource }
+    scene_layer_light_source_layer_transform :: LightSourceLayerTransform }
 
 assembleScene :: (Monad m) => SceneLayerInfo -> SceneAccumulator m -> m Scene
-assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_accum = 
+assembleScene (SceneLayerInfo layerToCamera light_source_layer_transform) scene_accum = 
     do elements <- liftM (Map.mapWithKey (\(_,opaque) -> if not opaque then sortModels else id) .
 		          foldr (\se -> Map.alter (Just . (se:) . fromMaybe []) 
 			         (scene_elem_layer se,scene_elem_opaque se)) Map.empty . concat) $
@@ -179,7 +181,7 @@ assembleScene (SceneLayerInfo layerToCamera lightSourceLayerTransform) scene_acc
                       in (WrappedAffine a opaques,map (WrappedAffine a) transparents) 
           toLightSource :: SceneLayer -> (SceneLayer,SceneObject m) -> LightSource
 	  toLightSource entering_layer (originating_layer,LightSource ls) = 
-	      lightSourceLayerTransform entering_layer ls originating_layer
+	      lightSourceLayerTransform light_source_layer_transform entering_layer originating_layer ls
 	  toLightSource _ _ = NoLight
 	  sortModels :: [SceneElement] -> [SceneElement]
 	  sortModels = map fst . sortBy (comparing $ \(se,bbox) -> negate $ 
@@ -243,7 +245,7 @@ This is an example of how to implement scene layers that should be adequate to m
 
 \begin{code}
 stdSceneLayerInfo :: Camera -> SceneLayerInfo
-stdSceneLayerInfo c = SceneLayerInfo (stdSceneLayers c) (stdLightSourceLayerTransform (stdSceneLayers c))
+stdSceneLayerInfo c = SceneLayerInfo (stdSceneLayers c) (cameraLightSourceLayerTransform (stdSceneLayers c))
 
 stdSceneLayers :: Camera -> SceneLayer -> Camera
 stdSceneLayers c sl | sl <= std_scene_layer_hud = c
@@ -268,9 +270,18 @@ std_scene_layer_infinite = 3
 \subsection{Standard Light Layer Transforms}
 
 \begin{code}
-stdLightSourceLayerTransform :: (SceneLayer -> Camera) -> SceneLayer -> LightSource -> SceneLayer -> LightSource
-stdLightSourceLayerTransform _ entering_layer ls originating_layer | entering_layer == originating_layer = ls
-stdLightSourceLayerTransform layerToCamera entering_layer ls originating_layer | entering_layer < originating_layer =
-    cameraOrientation (layerToCamera entering_layer) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera originating_layer) ls
-stdLightSourceLayerTransform _ _ _ _ = NoLight
+newtype LightSourceLayerTransform = LightSourceLayerTransform { lightSourceLayerTransform :: SceneLayer -> SceneLayer -> LightSource -> LightSource }
+
+instance Monoid LightSourceLayerTransform where
+    mempty = LightSourceLayerTransform $ const $ const id
+    mappend (LightSourceLayerTransform f) (LightSourceLayerTransform g) = LightSourceLayerTransform $ \a b -> f a b . g a b
+
+-- | Performs the minimal light source layer transform needed to maintain correct light sources under camera transformations.
+cameraLightSourceLayerTransform :: (SceneLayer -> Camera) -> LightSourceLayerTransform
+cameraLightSourceLayerTransform layerToCamera = LightSourceLayerTransform f
+    where f :: SceneLayer -> SceneLayer -> LightSource -> LightSource
+          f  entering_layer originating_layer ls | entering_layer == originating_layer = ls
+          f entering_layer originating_layer ls | entering_layer < originating_layer =
+              cameraOrientation (layerToCamera entering_layer) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera originating_layer) ls
+          f _ _ _ = NoLight
 \end{code}
