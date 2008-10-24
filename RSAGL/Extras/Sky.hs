@@ -10,6 +10,7 @@ module RSAGL.Extras.Sky
      earth_atmosphere,
      atmosphereAbsorbtion,
      atmosphereScattering,
+     absorbtionFilter,
      atmosphereScatteringMaterial)
     where
 
@@ -153,19 +154,25 @@ atmosphereScattering atm_ suns p v_ = foldr addRGB (gray 0) $ map ($ v_) scatter
 		                        (fst this_sun,
 				         filterRGB (sunAbsorbF p $ fst this_sun) $ snd this_sun) $ Ray3D p v
 
+-- | Takes a filter color and modifies it on a logarithmic scale.  Helps when dealing with very dense color filters.
+-- In particular, atmosphereScatteringMaterial uses this.
+--
+absorbtionFilter :: RGB -> RGB
+absorbtionFilter c = scaleRGB (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
+
 -- | Generate a material for a sky sphere.  This material includes both scattering and absorbtion information.
 -- The material assumes the origin as the eye point, tracing to the geometric point at each vertex.  Therefore,
 -- this material need not be applied to an exact sphere.
+--
 atmosphereScatteringMaterial :: Atmosphere -> [(Vector3D,RGB)] -> SkyFilter -> MaterialM attr ()
 atmosphereScatteringMaterial [] _ _ = return ()
 atmosphereScatteringMaterial _ suns _ | all ((== 0) . maxRGB . snd) suns = return ()
 atmosphereScatteringMaterial atm suns sky_filter = material $ 
     do filtering $ ApplicativeWrapper $ Left $
-           \(SurfaceVertex3D p _) -> absorbFilter $ atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
+           \(SurfaceVertex3D p _) -> absorbtionFilter $ atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
        case m_skyFilterF of
            Just skyFilterF -> emissive $ ApplicativeWrapper $ Left $ 
 	       \(SurfaceVertex3D p _) -> skyFilterF $ scatteringF (vectorToFrom p origin_point_3d)
 	   Nothing -> return ()
     where scatteringF = atmosphereScattering atm suns (Point3D 0 1 0)
           m_skyFilterF = sky_filter scatteringF
-	  absorbFilter c = scaleRGB (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
