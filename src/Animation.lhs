@@ -84,9 +84,9 @@ type RSAnimA1 i o j p = RSAnimAX () () i o j p
 type RSAnimA_ j p = StateArrow AnimationState (Kleisli IOGuard) j p
 
 newtype RoguestarAnimationObject = RoguestarAnimationObject {
-    rso_arrow :: MVar (FRPProgram (StateArrow AnimationState (Kleisli IOGuard)) () Camera) }
+    rso_arrow :: MVar (FRPProgram (StateArrow AnimationState (Kleisli IOGuard)) () SceneLayerInfo) }
 
-newRoguestarAnimationObject :: RSAnimA1 () Camera () Camera -> IO RoguestarAnimationObject
+newRoguestarAnimationObject :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo -> IO RoguestarAnimationObject
 newRoguestarAnimationObject rs_anim = 
     liftM RoguestarAnimationObject $ newMVar $ newFRP1Program rs_anim
 
@@ -94,7 +94,7 @@ runRoguestarAnimationObject :: Library -> IORef Globals -> DriverObject -> Print
 runRoguestarAnimationObject lib globals_ref driver_object print_text_object rso =
     do old_rso_program <- takeMVar $ rso_arrow rso
        t <- getTime
-       ((result_camera,new_rso_program),result_animstate) <- runIOGuard $ (runKleisli $ StateArrow.runState $ updateFRPProgram old_rso_program) (((),t),
+       ((result_scene_layer_info,new_rso_program),result_animstate) <- runIOGuard $ (runKleisli $ StateArrow.runState $ updateFRPProgram old_rso_program) (((),t),
            AnimationState {
                animstate_globals = globals_ref,
 	       animstate_scene_accumulator = null_scene_accumulator,
@@ -106,8 +106,7 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object rso 
        putMVar (rso_arrow rso) new_rso_program
        when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput globals_ref driver_object print_text_object
        setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
-       assembleScene (SceneLayerInfo (stdSceneLayers result_camera) (stdLightSourceLayerTransform $ stdSceneLayers result_camera)) $ 
-		     animstate_scene_accumulator result_animstate
+       assembleScene result_scene_layer_info $ animstate_scene_accumulator result_animstate
 
 ioA :: (j -> IO p) -> RSAnimAX any t i o j p
 ioA action = Arrow.lift $ ioA_ action

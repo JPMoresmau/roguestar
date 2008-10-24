@@ -11,7 +11,6 @@ import Globals
 import Data.List
 import RSAGL.FRP
 import RSAGL.Edge
-import RSAGL.Scene
 import RSAGL.Vector
 import Animation
 import RSAGL.Angle
@@ -39,15 +38,17 @@ import RSAGL.Joint
 import RSAGL.AbstractVector
 import RSAGL.LightSource
 import Sky
+import Scene
+import Data.Monoid
 \end{code}
 
 \begin{code}
-mainAnimationLoop :: RSAnimA1 () Camera () Camera
+mainAnimationLoop :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 mainAnimationLoop = proc () ->
     do m_state <- driverGetAnswerA -< "state"
        switchContinue -< (fmap (const $ mainWelcome >>> mainDispatch) m_state,())
        printTextOnce -< Just (UnexpectedEvent,"Waiting for engine...")
-       returnA -< basic_camera
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
   where mainWelcome = proc () ->
             do printTextOnce -< Just (Event,"Welcome to Roguestar-GL.")
 	       returnA -< ()
@@ -70,7 +71,7 @@ states dispatch to \texttt{menuDispatch} which manages the menu gui.
 Whenever the state changes, the header switches to \texttt{mainDispatch}.
 
 \begin{code}
-mainStateHeader :: (String -> Bool) -> RSAnimA1 () Camera () ()
+mainStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo menu_state | menu_state `elem` menu_states = menuManager
         switchTo planar_state | planar_state `elem` planar_states = planarGameplayDispatch
@@ -83,8 +84,8 @@ genericStateHeader switchTo f = proc i ->
        switchContinue -< (if fmap f m_state == Just True then Nothing else fmap switchTo m_state,i)
        returnA -< ()
 
-mainDispatch :: RSAnimA1 () Camera () Camera
-mainDispatch = mainStateHeader (const False) >>> arr (const basic_camera)
+mainDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+mainDispatch = mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 \end{code}
 
 \subsection{The Menu Dispatch}
@@ -93,30 +94,30 @@ mainDispatch = mainStateHeader (const False) >>> arr (const basic_camera)
 menu_states :: [String]
 menu_states = ["race-selection",
                "class-selection"]
-menuManager :: RSAnimA1 () Camera () Camera
+menuManager :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
        frp1Context menuDispatch -< ()
 
-menuStateHeader :: (String -> Bool) -> RSAnimA1 () Camera () Camera
-menuStateHeader f = genericStateHeader switchTo f >>> arr (const basic_camera)
+menuStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
   where switchTo "race-selection" = menuRaceSelection
         switchTo "class-selection" = menuClassSelection
         switchTo unknown_state = error $ "menuStateHeader: unrecognized state: " ++ unknown_state
 
-menuDispatch :: RSAnimA1 () Camera () Camera
-menuDispatch = menuStateHeader (const False) >>> arr (const basic_camera)
+menuDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuDispatch = menuStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 
-menuRaceSelection :: RSAnimA1 () Camera () Camera
+menuRaceSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuRaceSelection = proc s -> 
     do menuStateHeader (== "race-selection") -< s
        requestPrintTextMode -< Unlimited
        clearPrintTextA -< ()
        printMenuA select_race_action_names -< ()
        printTextA -< Just (Query,"Select a Race:")
-       returnA -< basic_camera
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
 
-menuClassSelection :: RSAnimA1 () Camera () Camera
+menuClassSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuClassSelection = proc () -> 
     do menuStateHeader (== "class-selection") -< ()
        changed <- edgep <<< sticky isJust Nothing <<<arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
@@ -127,7 +128,7 @@ menuClassSelection = proc () ->
        printMenuA select_base_class_action_names -< ()
        printMenuItemA "reroll" -< ()
        printTextA -< Just (Query,"Select a Class:")
-       returnA -< basic_camera
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
 
 printCharacterStats :: Integer -> RSAnimAX any t i o () ()
 printCharacterStats unique_id = proc () ->
@@ -149,10 +150,10 @@ print1CharacterStat = proc (m_player_stats,stat_str) ->
 \subsection{The Game Over State}
 
 \begin{code}
-gameOver :: RSAnimA1 () Camera () Camera
+gameOver :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 gameOver = proc () ->
     do printTextOnce -< Just (Event,"You have been killed.")
-       returnA -< basic_camera
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
 \end{code}
 
 \subsection{The Planar Gameplay Dispatch}
@@ -161,12 +162,13 @@ gameOver = proc () ->
 planar_states :: [String]
 planar_states = ["player-turn","pickup","drop","wield","attack","miss","killed"]
 
-planarGameplayDispatch :: RSAnimA1 () Camera () Camera
+planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
     do mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
        frp1Context eventMessager -< ()
-       sky <<< getSkyInfo -< ()
+       sky_info <- getSkyInfo -< ()
+       sky -< sky_info
        frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
            frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 
@@ -178,13 +180,13 @@ planarGameplayDispatch = proc () ->
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0.25 (negate $ realToFrac y))) <<< centerCoordinates -< ()
        camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
        let (planar_camera,lookat) = maybe (basic_camera,origin_point_3d) (\x -> (planarCamera camera_distance x,x)) m_lookat
-       accumulateSceneA -< (std_scene_layer_local,
+       accumulateSceneA -< (scene_layer_local,
            lightSource $ PointLight {
                   lightsource_position = camera_position planar_camera,
 	          lightsource_radius = measure (camera_position planar_camera) lookat,
 		  lightsource_color = gray 0.23,
 		  lightsource_ambient = gray 0.10 })
-       returnA -< planar_camera
+       returnA -< roguestarSceneLayerInfo (skyAbsorbtionFilter sky_info) planar_camera
 
 planarCamera :: Double -> Point3D -> Camera
 planarCamera camera_distance look_at = PerspectiveCamera {
@@ -226,7 +228,7 @@ renderTerrainTile (ProtocolTypes.TerrainTile terrain_type (x,y)) = proc t ->
     do let awayness = max 0 $ min 0.99 $ (toSeconds t)^2
        terrain_elements <- terrainElements -< ()
        transformA libraryA -< (Affine $ translate (Vector3D (realToFrac x) 0 (negate $ realToFrac y)) . scale' (1 - awayness),
-                               (std_scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
+                               (scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
        returnA -< isJust $ find (\a -> tt_xy a == (x,y)) terrain_elements
 
 terrainElements :: RSAnimA t i o () [ProtocolTypes.TerrainTile]
@@ -283,7 +285,7 @@ genericCreatureAvatar creatureA = proc () ->
 
 encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 encephalonAvatar = genericCreatureAvatar $ proc () ->
-    do libraryA -< (std_scene_layer_local,Encephalon)
+    do libraryA -< (scene_layer_local,Encephalon)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<< 
            bothArms MachineArmUpper MachineArmLower (Vector3D 0.66 0.66 0) (Point3D 0.145 0.145 0) 0.33 (Point3D 0.35 0.066 0.133) -< ()
        returnA -< CreatureThreadOutput {
@@ -291,7 +293,7 @@ encephalonAvatar = genericCreatureAvatar $ proc () ->
 
 recreantAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
-    do libraryA -< (std_scene_layer_local,Recreant)
+    do libraryA -< (scene_layer_local,Recreant)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms MachineArmUpper MachineArmLower (Vector3D 0 (-1.0) 0) (Point3D 0.3 0.075 0) 0.5 (Point3D 0.5 0.075 0.2) -< ()
        returnA -< CreatureThreadOutput {
@@ -299,7 +301,7 @@ recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
 
 androsynthAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 androsynthAvatar = genericCreatureAvatar $ proc () ->
-    do libraryA -< (std_scene_layer_local,Androsynth)
+    do libraryA -< (scene_layer_local,Androsynth)
        bothLegs ThinLimb ThinLimb (Vector3D 0 0 1) (Point3D (0.07) 0.5 (-0.08)) 0.7 (Point3D 0.07 0 0.0) -< ()
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms ThinLimb ThinLimb (Vector3D (1.0) (-1.0) (-1.0)) (Point3D 0.05 0.65 0.0) 0.45 (Point3D 0.15 0.34 0.1) -< ()
@@ -319,7 +321,7 @@ glower p_init v_init = proc () ->
 						 \_ _ _ -> perSecond $ perSecond v_init,
 						 \_ p _ -> perSecond $ perSecond $ vectorNormalize $
 						               vectorToFrom origin_point_3d p `crossProduct` v_init]) 
-	         (proc (_,()) -> libraryPointAtCamera -< (std_scene_layer_local,AscendantGlow))) -< 
+	         (proc (_,()) -> libraryPointAtCamera -< (scene_layer_local,AscendantGlow))) -< 
 	             (translateToFrom local_origin origin_point_3d $ root_coordinate_system,())
 
 ascendantAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
@@ -329,7 +331,7 @@ ascendantAvatar = genericCreatureAvatar $ proc () ->
        glower (Point3D 0 0.5 (-0.35)) (Vector3D 0 0 1) -< ()
        glower (Point3D 0.35 0.5 0) (Vector3D (-1) 0 0) -< ()
        glower (Point3D (-0.35) 0.5 0) (Vector3D 1 0 0) -< ()
-       accumulateSceneA -< (std_scene_layer_local,
+       accumulateSceneA -< (scene_layer_local,
                             lightSource $ PointLight (Point3D 0 0.5 0)
                                                      (measure (Point3D 0 0.5 0) (Point3D 0 0 0))
 						     azure
@@ -341,7 +343,7 @@ ascendantAvatar = genericCreatureAvatar $ proc () ->
 
 caduceatorAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 caduceatorAvatar = genericCreatureAvatar $ proc () ->
-    do libraryA -< (std_scene_layer_local,Caduceator)
+    do libraryA -< (scene_layer_local,Caduceator)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms CaduceatorArmUpper CaduceatorArmLower (Vector3D 1.0 (-1.0) 1.0) (Point3D 0.1 0.15 0.257) 0.34 (Point3D 0.02 0.17 0.4) -< ()
        returnA -< CreatureThreadOutput {
@@ -349,7 +351,7 @@ caduceatorAvatar = genericCreatureAvatar $ proc () ->
 
 reptilianAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 reptilianAvatar = genericCreatureAvatar $ proc () ->
-    do libraryA -< (std_scene_layer_local,Reptilian)
+    do libraryA -< (scene_layer_local,Reptilian)
        bothLegs ReptilianLegUpper ReptilianLegLower (Vector3D 0 0 1) (Point3D (0.05) 0.25 (-0.1)) 0.29 (Point3D 0.07 0 0.0) -< ()
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms ReptilianArmUpper ReptilianArmLower (Vector3D 1.0 0.0 1.0) (Point3D (0.05) 0.35 (-0.1)) 0.25 (Point3D 0.07 0.25 0.12) -< ()
@@ -369,8 +371,8 @@ phasePistolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput 
 phasePistolAvatar = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation -< tti
-       transformA libraryA -< maybe (root_coordinate_system,(std_scene_layer_local,NullModel))
-                                    (\o -> (o,(std_scene_layer_local,PhasePistol))) 
+       transformA libraryA -< maybe (root_coordinate_system,(scene_layer_local,NullModel))
+                                    (\o -> (o,(scene_layer_local,PhasePistol))) 
 				    m_orientation
 
 floatBobbing :: Double -> Double -> RSAnimAX any t i o j p -> RSAnimAX any t i o j p
@@ -393,7 +395,7 @@ questionMarkAvatar = proc _ ->
        m_position <- objectIdealPosition -< ()
        let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)
        let m_transform = fmap (translate (Vector3D 0 (0.7 + float_y/10) 0)) m_position 
-       transformA libraryA -< maybe (Affine id,(std_scene_layer_local,NullModel)) (\p -> (Affine $ translateToFrom p origin_point_3d,(std_scene_layer_local,QuestionMark))) m_transform
+       transformA libraryA -< maybe (Affine id,(scene_layer_local,NullModel)) (\p -> (Affine $ translateToFrom p origin_point_3d,(scene_layer_local,QuestionMark))) m_transform
        m_wield_point <- whenJust exportCoordinateSystem -< fmap (\p -> translate (vectorToFrom p origin_point_3d `add` Vector3D 0.4 0 0)) m_transform 
        returnA -< 
            do wield_point <- m_wield_point
