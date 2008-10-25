@@ -8,7 +8,8 @@ module Models.Sky
      sunVector,
      sunColor,
      LightingConfiguration(..),
-     lightingConfiguration)
+     lightingConfiguration,
+     ambientSkyRadiation)
     where
 
 import RSAGL.Vector
@@ -21,6 +22,7 @@ import RSAGL.Interpolation
 import RSAGL.ModelingExtras
 import RSAGL.Noise
 import RSAGL.LightSource
+import RSAGL.AbstractVector
 import Scene
 import Data.Monoid
 
@@ -159,7 +161,17 @@ lightingConfiguration sky_info = result
                        lighting_sunlight = sunlightFadeFactor (fromDegrees 0) (sunVector sky_info),
 		       lighting_skylight = sunlightFadeFactor (fromDegrees 10) (sunVector sky_info),
 		       lighting_nightlight = max 0 $ 1.0 - lighting_sunlight result - lighting_skylight result,
-		       lighting_artificial = max 0 $ 1.0 - lighting_sunlight result }
+		       lighting_artificial = min 1 $ max 0 $ 1.0 - lighting_sunlight result - (lighting_nightlight result/4) + (1000 / realToFrac (sky_info_solar_kelvins sky_info))^3 }
+
+-- | Get the color of the ambient sky radiation by sampling a very small number vectors into the sky.
+ambientSkyRadiation :: SkyInfo -> RGB
+ambientSkyRadiation sky_info = abstractAverage $ map (atmosphereScattering atmosphere [sun_info] (Point3D 0 1 0)) test_vectors
+    where atmosphere = snd $ biomeAtmosphere $ sky_info_biome sky_info
+          sun_info = (sunVector sky_info,sunColor $ sunInfoOf sky_info)
+	  test_vectors = map vectorNormalize $ 
+	      do x <- [1,0,-1]
+	         y <- [1,0,-1]
+		 return $ Vector3D x 1 y
 
 -- 'makeSun' generates a perspectiveSphere of the sun.
 makeSun :: SunInfo -> Modeling ()
