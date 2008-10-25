@@ -180,8 +180,9 @@ planarGameplayDispatch = proc () ->
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0.25 (negate $ realToFrac y))) <<< centerCoordinates -< ()
        camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
        let (planar_camera,lookat) = maybe (basic_camera,origin_point_3d) (\x -> (planarCamera camera_distance x,x)) m_lookat
+       artificial <- arr lighting_artificial <<< lightingConfiguration -< sky_info
        accumulateSceneA -< (scene_layer_local,
-           lightSource $ PointLight {
+           lightSource $ mapLightSource (mapBoth $ scaleRGB artificial) $ PointLight {
                   lightsource_position = camera_position planar_camera,
 	          lightsource_radius = measure (camera_position planar_camera) lookat,
 		  lightsource_color = gray 0.23,

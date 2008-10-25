@@ -6,7 +6,9 @@ module Models.Sky
      makeSun,
      skyAbsorbtionFilter,
      sunVector,
-     sunColor)
+     sunColor,
+     LightingConfiguration(..),
+     lightingConfiguration)
     where
 
 import RSAGL.Vector
@@ -125,19 +127,39 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
     case () of
         () | entering_layer == scene_layer_sky_sphere || isNoLight ls -> NoLight
 	() | originating_layer <= scene_layer_sky_sphere || entering_layer > scene_layer_sky_sphere || originating_layer <= entering_layer -> ls
-	() | originating_layer == scene_layer_distant && entering_layer == scene_layer_orbit -> mapLightSource (mapBoth $ scaleRGB $ sunlightFadeFactor (fromDegrees 60) v) ls
-	() | entering_layer == scene_layer_far_sky -> sunFade (fromDegrees 7) v ls
+	() | originating_layer == scene_layer_distant && entering_layer == scene_layer_orbit -> mapLightSource (mapBoth $ scaleRGB $ sunlightFadeFactor (fromDegrees 30) v) ls
+	() | entering_layer == scene_layer_far_sky -> sunFade (fromDegrees 10) v ls
 	() | entering_layer == scene_layer_clouds -> sunFade (fromDegrees 5) v ls
-	() | entering_layer == scene_layer_near_sky -> sunFade (fromDegrees 3) v ls
-	() | otherwise -> sunFade (fromDegrees 1) v ls
+	() | entering_layer == scene_layer_near_sky -> sunFade (fromDegrees 2) v ls
+	() | otherwise -> sunFade (fromDegrees 0) v ls
   where absorbtion v = filterRGB $ (absorbtionFilter . absorbtionFilter) $ atmosphereAbsorbtion (snd $ biomeAtmosphere $ sky_info_biome sky_info) (Point3D 0 1 0) v
 	direction (PointLight { lightsource_position = p }) = vectorToFrom p origin_point_3d
 	direction (DirectionalLight { lightsource_direction = d }) = d
 	direction NoLight = Vector3D 0 1 0
 	sunFade tolerance v = mapLightSource (mapBoth (absorbtion v) `mappend` mapBoth (scaleRGB $ sunlightFadeFactor tolerance v))
 
+-- | The amount of fade of the sun based on falling below the horizon.
 sunlightFadeFactor :: Angle -> Vector3D -> Double
-sunlightFadeFactor tolerance v = max 0 $ lerpBetweenClamped (90,toDegrees $ angleBetween v (Vector3D 0 1 0),90+toDegrees tolerance) (1.0,0.0)
+sunlightFadeFactor tolerance v = max 0 $ lerpBetweenClamped (85,toDegrees $ angleBetween v (Vector3D 0 1 0),95+toDegrees tolerance) (1.0,0.0)
+
+-- | Information about the lighting environment.  All values are between 0 and 1, indicating a relative scale compared to the normal, full brightness.
+data LightingConfiguration = LightingConfiguration {
+    -- | Apparent brightness of the sun.  This will fade to zero along the horizon and equal zero at night.
+    lighting_sunlight, 
+    -- | Apparent brightness of ambient sky radiation.  This will fade to black more slowly than 'lighting_sunlight', lingering after the sun has set.
+    lighting_skylight, 
+    -- | Apparent brightness of the nightlight.  This is a blue light with heavy ambient component that simulates human night vision.
+    lighting_nightlight, 
+    -- | Brightness of artificial lights.  Typically all artificial lights intended for nighttime illumination should be scaled based on this value.
+    lighting_artificial :: Double }
+
+lightingConfiguration :: SkyInfo -> LightingConfiguration
+lightingConfiguration sky_info = result
+    where result = LightingConfiguration {
+                       lighting_sunlight = sunlightFadeFactor (fromDegrees 0) (sunVector sky_info),
+		       lighting_skylight = sunlightFadeFactor (fromDegrees 10) (sunVector sky_info),
+		       lighting_nightlight = max 0 $ 1.0 - lighting_sunlight result - lighting_skylight result,
+		       lighting_artificial = max 0 $ 1.0 - lighting_sunlight result }
 
 -- 'makeSun' generates a perspectiveSphere of the sun.
 makeSun :: SunInfo -> Modeling ()

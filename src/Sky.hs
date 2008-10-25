@@ -6,7 +6,9 @@ module Sky
      Models.Sky.default_sky,
      Models.Sky.default_sun,
      skyAbsorbtionFilter,
-     SkyInfo)
+     SkyInfo,
+     Models.Sky.LightingConfiguration(..),
+     Sky.lightingConfiguration)
     where
 
 import Models.Sky
@@ -21,6 +23,9 @@ import Data.Maybe
 import Control.Arrow
 import RSAGL.LightSource
 import RSAGL.RSAGLColors
+import RSAGL.InverseKinematics
+import RSAGL.Time
+import RSAGL.Color
 
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
 getSkyInfo = proc () ->
@@ -31,6 +36,11 @@ sky :: RSAnimAX k t i o SkyInfo ()
 sky = proc sky_info ->
     do libraryA -< (scene_layer_sky_sphere,SkySphere sky_info)
        transformA sun -< (affineOf $ rotateToFrom (sunVector sky_info) (Vector3D 0 (-1) 0),sky_info)
+       nightlight <- arr lighting_nightlight <<< Sky.lightingConfiguration -< sky_info
+       accumulateSceneA -< (scene_layer_local,lightSource $ mapLightSource (mapBoth $ scaleRGB nightlight) $ DirectionalLight {
+           lightsource_direction = Vector3D 0 1 0,
+	   lightsource_color = rgb 0.1 0.1 0.2,
+	   lightsource_ambient = rgb 0.0 0.0 0.3 })
 
 sun :: RSAnimAX k t i o SkyInfo ()
 sun = proc sky_info ->
@@ -41,3 +51,10 @@ sun = proc sky_info ->
 	   lightsource_color = sunColor $ sunInfoOf sky_info,
 	   lightsource_ambient = blackbody})
 
+lightingConfiguration :: RSAnimAX k t i o SkyInfo LightingConfiguration
+lightingConfiguration = proc sky_info ->
+    do nightlight <- approachA 1.0 (perSecond 1.0) -< lighting_nightlight $ Models.Sky.lightingConfiguration sky_info
+       artificial <- approachA 1.0 (perSecond 1.0) -< lighting_artificial $ Models.Sky.lightingConfiguration sky_info
+       returnA -< (Models.Sky.lightingConfiguration sky_info) {
+           lighting_nightlight = nightlight,
+	   lighting_artificial = artificial }
