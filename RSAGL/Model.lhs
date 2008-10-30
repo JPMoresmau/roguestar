@@ -287,9 +287,10 @@ skySphere p r = sphere p (negate r)
 
 hemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 hemisphere p v r = model $
-    do generalSurface $ Right $ polarCoordinates $ \(a,d) -> let x = cosine a*sqrt d
-                                                                 y = 1 - x*x - z*z
-								 z = sine a*sqrt d
+    do generalSurface $ Right $ polarCoordinates $ \(a,d) -> let d_ = sqrt d
+                                                                 x = cosine a*d_
+                                                                 y = sqrt $ max 0 $ 1 - x*x - z*z
+								 z = sine a*d_
                                                                  in (Point3D x y z,Vector3D x y z)
        affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' r
 
