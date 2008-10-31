@@ -353,8 +353,8 @@ openDisc p up inner_radius outer_radius = model $
                         (lerp v (inner_radius,outer_radius) * sine u),
                 Vector3D 0 1 0)
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
-       affine $ rotateToFrom up (Vector3D 0 1 0) . translateToFrom p origin_point_3d
-
+       affine $ translateToFrom p origin_point_3d . rotateToFrom up (Vector3D 0 1 0)
+ 
 closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
 closedDisc center up_vector radius = model $
     do generalSurface $ Right $ circularCoordinates (\(x,z) -> (Point3D x 0 z,Vector3D 0 1 0))
