@@ -39,6 +39,7 @@ module RSAGL.Model
      fixed,
      tesselationHintComplexity,
      twoSided,
+     reverseOrientation,
      regenerateNormals,
      attribute,
      withAttribute,
@@ -140,6 +141,13 @@ generalSurface (Left points) = appendSurface $ surfaceNormals3D points
 
 twoSided :: (Monoid attr) => Bool -> Modeling attr
 twoSided two_sided = State.modify (map $ \m -> m { ms_two_sided = two_sided })
+
+-- | Swap inside and outside surfaces and reverse normal vectors.  This shouldn't effect 'twoSided' surfaces in any visible way.
+reverseOrientation :: (Monoid attr) => Modeling attr -> Modeling attr
+reverseOrientation modelingA = model $
+    do modelingA
+       State.modify $ map $ \m -> m { ms_surface = transposeSurface $ ms_surface m }
+       deform $ \(SurfaceVertex3D p v) -> SurfaceVertex3D p $ vectorScale (-1) v
 \end{code}
 
 \subsection{Tesselation Hints}
