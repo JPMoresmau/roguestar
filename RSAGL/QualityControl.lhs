@@ -37,10 +37,10 @@ completeQuality :: (Ord q) => QualityCache q a -> q -> IO ()
 completeQuality (qo@(QualityCache bottleneck strategy f quality_mvar map_mvar)) want_q =
     do qualities <- takeMVar quality_mvar  -- block on the quality_mvar
        case qualities of
-           (q:qs) | q < want_q -> do new_elem <- constrict bottleneck $ return $| strategy $ f q
-                                     modifyMVar_ map_mvar (return . Map.insert q new_elem)
-                                     putMVar quality_mvar qs
-                                     completeQuality qo want_q
+           (q:qs) | q <= want_q -> do new_elem <- constrict bottleneck $ return $| strategy $ f q
+                                      modifyMVar_ map_mvar (return . Map.insert q new_elem)
+                                      putMVar quality_mvar qs
+                                      completeQuality qo want_q
            _ -> do putMVar quality_mvar qualities
 
 getQuality :: (Ord q) => QualityCache q a -> q -> IO a
