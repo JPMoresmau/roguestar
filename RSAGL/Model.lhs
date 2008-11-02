@@ -343,8 +343,8 @@ openCone (a,a_radius) (b,b_radius) = model $
                  axis = vectorNormalize $ vectorToFrom b a
                  slope = (b_radius - a_radius) / distanceBetween a b
 
+-- | A flat disc with a hole in the middle, defined in terms of it's center, normal vector, inner (hole) radius and outer radius.
 openDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Double -> Modeling attr
-openDisc p up 0 outer_radius = closedDisc p up outer_radius
 openDisc p up inner_radius outer_radius = model $ 
     do generalSurface $ Right $
            cylindricalCoordinates $ \(u,v) -> 
@@ -363,8 +363,8 @@ closedDisc center up_vector radius = model $
 closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
 closedCone a b = model $
     do openCone a b
-       closedDisc (fst a) (vectorToFrom (fst a) (fst b)) (snd a * (1 + recip (2^8)))
-       closedDisc (fst b) (vectorToFrom (fst b) (fst a)) (snd b * (1 + recip (2^8)))
+       openDisc (fst a) (vectorToFrom (fst a) (fst b)) 0 (snd a * (1 + recip (2^8)))
+       openDisc (fst b) (vectorToFrom (fst b) (fst a)) 0 (snd b * (1 + recip (2^8)))
 
 quadralateral :: (Monoid attr) => Point3D -> Point3D -> Point3D -> Point3D -> Modeling attr
 quadralateral a b c d = model $ 
