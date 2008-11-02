@@ -15,6 +15,7 @@ import RSAGL.Vector
 import RSAGL.Matrix
 import RSAGL.Affine
 import RSAGL.Auxiliary
+import RSAGL.CoordinateSystems
 
 type Deformation = Either (SurfaceVertex3D -> Point3D) (SurfaceVertex3D -> SurfaceVertex3D)
 
@@ -38,5 +39,11 @@ instance DeformationClass (SurfaceVertex3D -> Point3D) where
 
 instance DeformationClass (SurfaceVertex3D -> SurfaceVertex3D) where
     deformation f = Right f
+
+instance DeformationClass (Point3D -> Affine) where
+    deformation f = Left (\(SurfaceVertex3D p _) -> affine_transformation (f p) p)
+
+instance DeformationClass (SurfaceVertex3D -> Affine) where
+    deformation f = Left (\s -> affine_transformation (f s) $ sv3d_position s)    
 \end{code}
 
