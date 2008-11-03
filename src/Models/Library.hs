@@ -24,6 +24,8 @@ import Models.Reptilian
 import Models.PhaseWeapons
 import Models.MachineParts
 import Models.Sky
+import Models.CyborgType4
+import Control.Exception
 
 -- |
 -- Get the modeling data for a named library model.
@@ -52,6 +54,19 @@ toModel ReptilianLegUpper = reptilian_leg_upper
 toModel ReptilianArmLower = reptilian_arm_lower
 toModel ReptilianArmUpper = reptilian_arm_upper
 toModel ThinLimb = thin_limb
+toModel CyborgType4Dome = cyborg_type_4_dome
+toModel CyborgType4Base = cyborg_type_4_base
+toModel CyborgType4HyperspaceDisc = cyborg_type_4_hyperspace_disc
+toModel CyborgType4HyperspaceRotor = cyborg_type_4_hyperspace_rotor
+toModel CyborgType4HyperspaceStabilizer = cyborg_type_4_hyperspace_stabilizer
+
+-- |
+-- Sometimes we want to constrain the quality of some models.
+--
+forceQuality :: LibraryModel -> Quality -> Quality
+forceQuality CyborgType4HyperspaceRotor = const Bad                               -- ambient box, LOD doesn't affect appearance
+forceQuality (TerrainTile s) | not (s `elem` ["forest","deepforest"]) = min Poor  -- terrain just isn't that interesting
+forceQuality _ = id
 
 -- |
 -- All known library models.  Some models can't be known at compile time, and these aren't listed here.
@@ -76,7 +91,12 @@ all_library_models =
      ReptilianLegUpper,
      ReptilianArmLower,
      ReptilianArmUpper,
-     ThinLimb]
+     ThinLimb,
+     CyborgType4Dome,
+     CyborgType4Base,
+     CyborgType4HyperspaceDisc,
+     CyborgType4HyperspaceRotor,
+     CyborgType4HyperspaceStabilizer]
 
 -- |
 -- A library of named models.  Models are generated on demand, but models
@@ -92,8 +112,8 @@ data Library = Library
 newLibrary :: IO Library
 newLibrary = 
     do lib <- liftM2 Library newBottleneck (newMVar Map.empty)
-       mapM_ (\x -> do hPutStrLn stderr ("Preloading model: " ++ show x)
-                       lookupModel lib x Poor) all_library_models
+       mapM_ (\x -> do hPutStrLn stderr ("newLibrary: preloading model: " ++ show x)
+                       lookupModel lib x Bad) all_library_models
        return lib
 
 -- |
@@ -104,15 +124,13 @@ newLibrary =
 -- If the model is not available at any level of quality, this may block until the model is completed.
 --
 lookupModel :: Library -> LibraryModel -> Quality -> IO IntermediateModel
-lookupModel (Library bottleneck lib) lm q =
-    do lib_map <- takeMVar lib
-       m_qo <- return $ Map.lookup lm lib_map
+lookupModel (Library bottleneck lib) lm q_ = bracket (takeMVar lib) (\lib_map -> tryPutMVar lib lib_map) $ \lib_map ->
+    do let q = forceQuality lm q_
+       let m_qo = Map.lookup lm lib_map
        case m_qo of
-           Just qo ->
-	       do putMVar lib lib_map
-	          getQuality qo q
+           Just qo -> getQuality qo q
 	   Nothing ->
-	       do hPutStrLn stderr ("Introducing model: " ++ show lm)
-	          qo <- newQuality bottleneck parIntermediateModel (\q' -> toIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
+	       do hPutStrLn stderr ("lookupModel: introducing model: " ++ show lm)
+                  qo <- newQuality bottleneck parIntermediateModel (\q' -> toIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
                   putMVar lib $ insert lm qo lib_map
 	          getQuality qo q

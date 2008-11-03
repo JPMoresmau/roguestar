@@ -5,6 +5,8 @@ module Models.Materials
      concordance_metal,
      concordance_dark_glass,
      concordance_bright_glass,
+     cyborg_metal,
+     cyborg_glow,
      -- | Material by Species
      caduceator_skin,
      encephalon_skin,
@@ -25,25 +27,35 @@ import RSAGL.ModelingExtras
 alliance_metal :: Modeling ()
 alliance_metal = material $
     do pigment $ pure $ scaleRGB 0.6 gold
-       specular 75 $ pure $ scaleRGB 1.0 gold
+       specular 7 $ pure $ scaleRGB 1.0 gold
 
 -- Concordance Materials
 
 concordance_metal :: Modeling ()
 concordance_metal = material $
     do pigment $ pure slate_gray
-       specular 45 $ pure lilac
+       specular 4 $ pure lilac
 
 concordance_dark_glass :: Modeling ()
 concordance_dark_glass = material $
     do pigment $ pure black
-       specular 85 $ pure eggplant
+       specular 8 $ pure eggplant
 
 concordance_bright_glass :: Modeling ()
 concordance_bright_glass = material $
     do pigment $ pure black
        emissive $ pure puce
-       specular 85 $ pure eggplant
+       specular 8 $ pure eggplant
+
+-- Cyborg Materials
+
+cyborg_metal :: MaterialM attr ()
+cyborg_metal = metallic $ pure wheat
+
+cyborg_glow :: MaterialM attr ()
+cyborg_glow = 
+    do pigment $ pure blackbody
+       emissive $ pure $ scaleRGB 1.0 green
 
 {-------------------------------------------------------
  - Materials by Species

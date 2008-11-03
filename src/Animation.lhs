@@ -183,12 +183,12 @@ onceA actionA = frp1Context onceA_
 libraryA :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
-       accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Good)
+       accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Poor)
 
 libraryPointAtCamera :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryPointAtCamera = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
-       pointAtCameraA -< (layer,lookupModel lib lm Good)
+       pointAtCameraA -< (layer,lookupModel lib lm Poor)
 
 blockContinue :: RSAnimAX any t i o Bool ()
 blockContinue = Arrow.lift $ proc b ->

@@ -40,6 +40,7 @@ import RSAGL.LightSource
 import Sky
 import Scene
 import Data.Monoid
+import Starships
 \end{code}
 
 \begin{code}
@@ -164,18 +165,25 @@ planar_states = ["player-turn","pickup","drop","wield","attack","miss","killed"]
 
 planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
-    do mainStateHeader (`elem` planar_states) -< () 
+    do -- setup/get infos
+       mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
        frp1Context eventMessager -< ()
-       sky_info <- getSkyInfo -< ()
-       sky -< sky_info
+       -- terrain threads
        frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
+       -- creature threads
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
            frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 
 	       [(Nothing,visibleObjectThreadLauncher creatureAvatar)] -< ()
+       -- tool threads
        frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
-	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos } 
+	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos }
+       -- cyborg planet killer, just there for no reason
+       transformA cyborgType4 -< (Affine $ translate (Vector3D 3 3 (-10)) . scale' 0.1,StarshipInput)
+       -- camera/lighting stuff, including sky sphere 
+       sky_info <- getSkyInfo -< ()
+       sky -< sky_info
        m_lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<
            arr (fmap (\(x,y) -> Point3D (realToFrac x) 0.25 (negate $ realToFrac y))) <<< centerCoordinates -< ()
        camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
