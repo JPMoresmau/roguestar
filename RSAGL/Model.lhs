@@ -316,9 +316,9 @@ perspectiveSphere center_point radius eye_point = model $
     do let d = distanceBetween center_point eye_point
        let  x = sqrt $ d**2 - radius**2
        let h = radius*x/d
-       let d' = x*x/d
-       closedDisc (lerpBetween (0,d',d) (eye_point,center_point)) (vectorToFrom eye_point center_point) h
-       deform $ \(p :: Point3D) -> translate (vectorScaleTo radius $ vectorToFrom center_point p) center_point
+       let d' = sqrt $ x**2 - h**2
+       openCone (lerpBetween (0,d',d) (eye_point,center_point),h) (lerpBetween (0,d-radius,d) (eye_point,center_point),0)
+       deform $ \(p :: Point3D) -> translate (vectorScaleTo radius $ vectorToFrom p center_point) center_point
 
 torus :: (Monoid attr) => Double -> Double -> Modeling attr
 torus major minor = model $
