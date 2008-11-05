@@ -29,10 +29,18 @@ import RSAGL.Color
 import RSAGL.FRP
 import RSAGL.Angle
 
+-- | Get the current SkyInfo data for the current planet.
+-- REVISIT: this randomly generates solar information, eventually it needs to be generated in the engine
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
 getSkyInfo = proc () ->
-    do m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
-       returnA -< default_sky { sky_info_biome = fromMaybe "" m_biome }
+    do t1 <- randomA -< (10000,2000)
+       t2 <- randomA -< (10000,2000)
+       t3 <- randomA -< (10000,2000)
+       t4 <- randomA -< (10000,2000)
+       temperature <- initial -< minimum [t1,t2,t3,t4] -- low temeratures are more probable
+       m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
+       returnA -< default_sky { sky_info_biome = fromMaybe "" m_biome,
+                                sky_info_solar_kelvins = temperature }
 
 sky :: RSAnimAX k t i o SkyInfo ()
 sky = proc sky_info ->

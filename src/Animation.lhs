@@ -24,7 +24,8 @@ module Animation
      libraryPointAtCamera,
      blockContinue,
      requestPrintTextMode,
-     readGlobal)
+     readGlobal,
+     randomA)
     where
 
 import RSAGL.FRP
@@ -42,6 +43,7 @@ import Tables
 import Control.Concurrent.MVar
 import RSAGL.Time
 import System.IO
+import System.Random
 import PrintText
 import Models.Library
 import Models.LibraryData
@@ -207,4 +209,7 @@ readGlobal :: (Globals -> g) -> RSAnimAX any t i o () g
 readGlobal f = proc () ->
     do globals_ref <- arr animstate_globals <<< fetch -< ()
        ioA (\globals_ref_ -> liftM f $ readIORef globals_ref_) -< globals_ref
+
+randomA :: (Random a) => RSAnimAX any t i o (a,a) a
+randomA = ioA randomRIO
 \end{code}

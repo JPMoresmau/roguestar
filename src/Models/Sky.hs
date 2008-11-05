@@ -47,7 +47,7 @@ default_sky :: SkyInfo
 default_sky = SkyInfo {
     sky_info_biome = "oceanbiome",
     sky_info_degrees_after_midnight = 0,
-    sky_info_degrees_latitude = 91,
+    sky_info_degrees_latitude = 100,
     sky_info_degrees_axial_tilt = 0,
     sky_info_degrees_orbital = 90,
     sky_info_solar_kelvins = 5800 }
@@ -86,7 +86,7 @@ arid_atmosphere = [
 biomeAtmosphere :: String -> (Integer,Atmosphere)
 biomeAtmosphere "rockbiome" = (0,arid_atmosphere)
 biomeAtmosphere "icyrockbiome" = (-100,thin_atmosphere)
-biomeAtmosphere "grasslandbiome" = (20,medium_atmosphere)
+biomeAtmosphere "grasslandbiome" = (35,medium_atmosphere)
 biomeAtmosphere "tundrabiome" = (-75,thin_atmosphere)
 biomeAtmosphere "desertbiome" = (100,arid_atmosphere)
 biomeAtmosphere "oceanbiome" = (5,medium_atmosphere)
@@ -103,13 +103,22 @@ sunVector sky_info =
     rotate (Vector3D 0 0 1) (fromDegrees $ realToFrac $ sky_info_degrees_after_midnight sky_info) $ 
     Vector3D 0 (-1) 0
 
+-- | Apparent temperature of a color in kelvins.
+temperatureColor :: Integer -> RGB
+temperatureColor kelvins = lerpBetweenClamped (770,realToFrac kelvins,1060) 
+                                         (gray 0,maximizeRGB $ blackBodyRGB $ realToFrac kelvins)
+
+-- | Apparent color of light comming from the sun.
 sunColor :: SunInfo -> RGB
-sunColor sun_info = lerpBetweenClamped (770,realToFrac $ sun_info_kelvins sun_info,1060) 
-                                         (gray 0,maximizeRGB $ blackBodyRGB $ realToFrac $ sun_info_kelvins sun_info)
+sunColor sun_info = temperatureColor (sun_info_kelvins sun_info)
+
+-- | The size of a very ordinary sun-like star as seen from a very temperate climate.
+base_star_size :: Double
+base_star_size = 0.1
 
 -- | Radius of the sun at a standard distance eye-to-center of 10 units.
 sunSize :: SunInfo -> Double
-sunSize sun_info = 0.05 * (5800 / (realToFrac $ sun_info_kelvins sun_info)) * 1.01 ** (realToFrac $ sun_info_size_adjustment sun_info)
+sunSize sun_info = base_star_size * (5800^2 / (realToFrac $ sun_info_kelvins sun_info ^2)) * 1.01 ** (realToFrac $ sun_info_size_adjustment sun_info)
 
 -- | 'makeSky' generates a sky sphere.
 makeSky :: SkyInfo -> Modeling ()
@@ -117,7 +126,8 @@ makeSky sky_info = model $
     do hilly_silhouette 
        model $
            do let v = sunVector sky_info
-              skyHemisphere origin_point_3d (Vector3D 0 1 0) 9.0
+              skyHemisphere origin_point_3d (Vector3D 0 1 0) 5.0
+              affine $ scale (Vector3D 2 1 2)
               material $ atmosphereScatteringMaterial (snd $ biomeAtmosphere $ sky_info_biome sky_info)
                                                       [(v,maximizeRGB $ blackBodyRGB $ realToFrac $ sky_info_solar_kelvins sky_info)] 
 					              (dynamicSkyFilter 0.05 0.5)
@@ -176,10 +186,18 @@ ambientSkyRadiation sky_info = abstractAverage $ map (atmosphereScattering atmos
 -- 'makeSun' generates a perspectiveSphere of the sun.
 makeSun :: SunInfo -> Modeling ()
 makeSun sun_info = model $
-    do perspectiveSphere (Point3D 0 (-10) 0) (sunSize sun_info) origin_point_3d
+    do let size = sunSize sun_info
+       let temp = sun_info_kelvins sun_info
+       let temperaturePattern t = pattern (cloudy (fromInteger $ temp + sun_info_size_adjustment sun_info) base_star_size) 
+               [(0.0,pure $ temperatureColor $ t + 700),(0.5,pure $ temperatureColor t),(1.0,pure $ temperatureColor $ t - 700)]
+       perspectiveSphere (Point3D 0 (-10) 0) size origin_point_3d
        material $ 
            do pigment $ pure $ gray 0
-	      emissive $ pure $ sunColor sun_info
+	      emissive $ pattern (spherical (Point3D 0 (size-10) 0) size) [(0.0,temperaturePattern temp),
+                                                                           (0.5,temperaturePattern $ temp - 200),
+                                                                           (0.75,temperaturePattern $ temp - 500),
+                                                                           (0.9,temperaturePattern $ temp - 800),
+                                                                           (1.0,temperaturePattern $ temp - 1000)]
 
 hilly_silhouette :: Modeling ()
 hilly_silhouette = model $
