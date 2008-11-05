@@ -33,14 +33,18 @@ import RSAGL.Angle
 -- REVISIT: this randomly generates solar information, eventually it needs to be generated in the engine
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
 getSkyInfo = proc () ->
-    do t1 <- randomA -< (10000,2000)
-       t2 <- randomA -< (10000,2000)
-       t3 <- randomA -< (10000,2000)
-       t4 <- randomA -< (10000,2000)
-       temperature <- initial -< minimum [t1,t2,t3,t4] -- low temeratures are more probable
+    do temperature <- initial <<< randomA -< (10000,2000)
+       degrees_after_midnight <- initial <<< randomA -< (0,360)
+       degrees_latitude <- initial <<< randomA -< (-90,90)
+       degrees_axial_tilt <- initial <<< randomA -< (0,90)
+       degrees_orbital <- initial <<< randomA -< (0,360)
        m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
        returnA -< default_sky { sky_info_biome = fromMaybe "" m_biome,
-                                sky_info_solar_kelvins = temperature }
+                                sky_info_solar_kelvins = temperature,
+                                sky_info_degrees_after_midnight = degrees_after_midnight,
+                                sky_info_degrees_latitude = degrees_latitude,
+                                sky_info_degrees_axial_tilt = degrees_axial_tilt,
+                                sky_info_degrees_orbital = degrees_orbital }
 
 sky :: RSAnimAX k t i o SkyInfo ()
 sky = proc sky_info ->
