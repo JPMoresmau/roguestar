@@ -1,7 +1,8 @@
 GIT_CHECKOUT=master
 VERSION=${GIT_CHECKOUT}
 VERSION_SUFFIX=-${VERSION}
-CONFIGURE_OPTS=--package-db="${PWD}/roguestar-local/cabal-package-db" --ghc-option=-Werror --prefix="${PWD}/roguestar-local"
+CONFIGURE_EXTRA_OPTS=
+CONFIGURE_OPTS=--package-db="${PWD}/roguestar-local/cabal-package-db" --ghc-option=-Werror --prefix="${PWD}/roguestar-local" ${CONFIGURE_EXTRA_OPTS}
 
 # Change these to make dist from somewhere other than the downstairspeople.org repo.
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
