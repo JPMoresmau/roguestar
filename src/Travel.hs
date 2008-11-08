@@ -1,5 +1,6 @@
 module Travel
     (stepCreature,
+     jumpCreature,
      turnCreature)
     where
 
@@ -23,6 +24,9 @@ walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
 
 stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
 stepCreature face = walkCreature face (facingToRelative face)
+
+jumpCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
+jumpCreature face = walkCreature face (facingToRelative7 face)
 
 turnCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
 turnCreature face = walkCreature face (0,0)

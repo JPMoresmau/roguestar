@@ -23,6 +23,7 @@ import Control.Monad.Maybe
 data Behavior = 
     Step Facing
   | TurnInPlace Facing
+  | Jump Facing
   | Pickup ToolRef
   | Wield ToolRef
   | Unwield
@@ -36,6 +37,10 @@ dbBehave :: Behavior -> CreatureRef -> DB ()
 dbBehave (Step face) creature_ref =
     do dbMove (stepCreature face) creature_ref
        dbAdvanceTime (1%20) creature_ref
+
+dbBehave (Jump face) creature_ref =
+    do dbMove (jumpCreature face) creature_ref
+       dbAdvanceTime (2%20) creature_ref
 
 dbBehave (TurnInPlace face) creature_ref =
     do dbMove (turnCreature face) creature_ref
