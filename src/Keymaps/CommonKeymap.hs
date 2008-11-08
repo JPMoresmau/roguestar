@@ -34,7 +34,16 @@ commonMovementKeymap mk = [
  (">f" ++ mk_nw mk,"fire-nw"),
  (">f" ++ mk_ne mk,"fire-ne"),
  (">f" ++ mk_sw mk,"fire-sw"),
- (">f" ++ mk_se mk,"fire-se")]
+ (">f" ++ mk_se mk,"fire-se"),
+ (">J" ++ mk_n mk,"jump-n"),
+ (">J" ++ mk_s mk,"jump-s"),
+ (">J" ++ mk_e mk,"jump-e"),
+ (">J" ++ mk_w mk,"jump-w"),
+ (">J" ++ mk_nw mk,"jump-nw"),
+ (">J" ++ mk_ne mk,"jump-ne"),
+ (">J" ++ mk_sw mk,"jump-sw"),
+ (">J" ++ mk_se mk,"jump-se")]
+
 
 common_keymap :: Keymap
 common_keymap = [

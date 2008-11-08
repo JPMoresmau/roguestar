@@ -146,6 +146,9 @@ continue_action = ("continue",\action_input ->
 moveAction :: String -> (String,Action)
 moveAction = parameterizedAction "player-turn" "move"
 
+jumpAction :: String -> (String,Action)
+jumpAction = parameterizedAction "player-turn" "jump"
+
 turnAction :: String -> (String,Action)
 turnAction = parameterizedAction "player-turn" "turn"
 
@@ -247,6 +250,9 @@ turn_actions = map turnAction eight_directions
 fire_actions :: [(String,Action)]
 fire_actions = map fireAction eight_directions
 
+jump_actions :: [(String,Action)]
+jump_actions = map jumpAction eight_directions
+
 all_actions :: [(String,Action)]
 all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action,
                zoom_in_action,zoom_out_action] ++
@@ -254,7 +260,8 @@ all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_acti
 	      select_base_class_actions ++
 	      move_actions ++
               turn_actions ++
-	      fire_actions
+	      fire_actions ++
+              jump_actions
 
 lookupAction :: String -> (String,Action)
 lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action named " ++ x) $ lookup x all_actions)
