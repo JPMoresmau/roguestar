@@ -80,7 +80,7 @@ dbGetCurrentPlane =
 -- the search_radius (it is never impossible to find an area free of objects, since
 -- terrain is infinite and objects are not).
 --
-pickRandomClearSite :: Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> DB Position
+pickRandomClearSite :: (DBReadable db) => Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> db Position
 pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
     do xys <- liftM2 (\a b -> map Position $ zip a b)
            (mapM (\x -> liftM (+start_x) $ roll [-x..x]) [1..search_radius])

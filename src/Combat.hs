@@ -85,25 +85,25 @@ dbRollRangedDamage _ weapon_ref =
 		  return $ min energy_released energy_throughput
 
 dbRollMeleeDamage :: (DBReadable db) => CreatureRef -> db Integer
-dbRollMeleeDamage attacker_ref = liftM actual_roll $ dbRollCreatureScore MeleeDamage 0 attacker_ref
+dbRollMeleeDamage attacker_ref = liftM roll_actual $ dbRollCreatureScore MeleeDamage 0 attacker_ref
 
 dbRollRangedAttack :: (DBReadable db) => CreatureRef -> db Integer
-dbRollRangedAttack attacker_ref = liftM actual_roll $ dbRollCreatureScore RangedAttack 0 attacker_ref
+dbRollRangedAttack attacker_ref = liftM roll_actual $ dbRollCreatureScore RangedAttack 0 attacker_ref
 
 dbRollMeleeAttack :: (DBReadable db) => CreatureRef -> db Integer
-dbRollMeleeAttack attacker_ref = liftM actual_roll $ dbRollCreatureScore MeleeAttack 0 attacker_ref
+dbRollMeleeAttack attacker_ref = liftM roll_actual $ dbRollCreatureScore MeleeAttack 0 attacker_ref
 
 dbRollRangedDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
 dbRollRangedDefense attacker_ref x_defender_ref =
     do distance <- liftM (fromMaybe (error "dbGetOpposedAttackRoll: defender and attacker are on different planes")) $ dbDistanceBetweenSquared attacker_ref x_defender_ref 
        case () of
-           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM actual_roll $ dbRollCreatureScore RangedDefense distance defender_ref
+           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ dbRollCreatureScore RangedDefense distance defender_ref
 	   () | otherwise -> return distance
        
 dbRollMeleeDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
 dbRollMeleeDefense _ x_defender_ref = 
     case () of
-        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM actual_roll $ dbRollCreatureScore MeleeDefense 0 defender_ref
+        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ dbRollCreatureScore MeleeDefense 0 defender_ref
         () | otherwise -> return 1
 
 dbFindRangedTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]

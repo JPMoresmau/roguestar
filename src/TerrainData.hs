@@ -9,7 +9,8 @@ module TerrainData
      generateTerrain,
      generateExampleTerrain,
      prettyPrintTerrain,
-     difficult_terrains)
+     difficult_terrains,
+     impassable_terrains)
     where
 
 import Grids
@@ -97,7 +98,14 @@ recreantFactories seed = TerrainPlacement {
 -- or for constructing buildings.
 --
 difficult_terrains :: [TerrainPatch]
-difficult_terrains = [RockFace,Forest,DeepForest,Water,DeepWater,Ice,Lava,RecreantFactory]
+difficult_terrains = impassable_terrains ++
+                     [Water,DeepWater,Ice,Lava,RecreantFactory]
+
+-- |
+-- A list of TerrainPatches that are considered "impassable" for traveling.
+--
+impassable_terrains :: [TerrainPatch]
+impassable_terrains = [RockFace,Forest,DeepForest]
 
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
 terrainFrequencies RockBiome = [(15,RockFace),(15,Rubble),(55,RockyGround),(15,Sand)]

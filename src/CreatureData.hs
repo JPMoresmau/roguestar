@@ -51,6 +51,7 @@ data CreatureAttribute = Gender CreatureGender
 		       | SpeedTrait                      -- more turns per round
 		       | HideSkill                       -- unit is harder to see
 		       | SpotSkill                       -- unit can see farther away
+                       | JumpSkill                       -- unit can jump/teleport short distances
                        | StatBonus Statistic             -- +1 to any statistic
                        | AlignmentBonus EthicalAlignment -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
 		       | CharacterLevel CharacterClass   -- record of a character class being applied to the creature, has no game effect
@@ -69,6 +70,7 @@ data Score = MaxHitPoints
 	   | EffectiveLevel
 	   | Spot
 	   | Hide
+           | Jump
 
 -- |
 -- An example creature used for test cases.
@@ -100,6 +102,7 @@ creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill
 creatureScore (Speed by_statistic) = \c -> max 1 $ getStatistic by_statistic c + attributeCount SpeedTrait c
 creatureScore Spot = statPlusDouble Perception SpotSkill
 creatureScore Hide = \c -> max 0 $ per c + attributeCount HideSkill c
+creatureScore Jump = statPlusDouble Strength JumpSkill
 
 -- |
 -- The creature's effective level.
@@ -146,6 +149,7 @@ levelAdjustment HideSkill = 1
 levelAdjustment SpotSkill = 1
 levelAdjustment FavoredClass {} = 0
 levelAdjustment CharacterLevel {} = 0
+levelAdjustment JumpSkill = 1
 
 -- |
 -- Adds a CreatureAttribute to a Creature.  The CreatureAttribute stacks with or replaces any other

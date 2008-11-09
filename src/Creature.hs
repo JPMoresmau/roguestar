@@ -57,9 +57,9 @@ dbNewCreature faction species loc =
        dbAddCreature creature loc
 
 data Roll = Roll { 
-    ideal_score :: Integer,
-    other_situation_bonus :: Integer,
-    actual_roll :: Integer }
+    roll_ideal :: Integer,
+    roll_other_situation_bonus :: Integer,
+    roll_actual :: Integer }
 
 dbRollCreatureScore :: (DBReadable db) => Score -> Integer -> CreatureRef -> db Roll
 dbRollCreatureScore score bonus creature_ref =
@@ -72,7 +72,7 @@ getCreatureFaction = liftM creature_faction . dbGetCreature
 
 dbRollInjury :: (DBReadable db) => CreatureRef -> Integer -> db Integer
 dbRollInjury creature_ref damage_roll = 
-    do damage_reduction <- liftM actual_roll $ dbRollCreatureScore DamageReduction 0 creature_ref
+    do damage_reduction <- liftM roll_actual $ dbRollCreatureScore DamageReduction 0 creature_ref
        return $ max 0 $ damage_roll - damage_reduction
        
 dbInjureCreature :: Integer -> CreatureRef -> DB ()
@@ -90,7 +90,7 @@ deleteCreature = dbUnsafeDeleteObject $ \l ->
 
 sweepDead :: Reference a -> DB ()
 sweepDead ref =
-    do worst_to_best_critters <- sortByRO (liftM ideal_score . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
+    do worst_to_best_critters <- sortByRO (liftM roll_ideal . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
            do dbPushSnapshot (KilledEvent creature_ref)
 	      deleteCreature creature_ref

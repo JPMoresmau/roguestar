@@ -298,7 +298,7 @@ dbDispatchAction ["move",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
 
 dbDispatchAction ["jump",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Jump $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Behavior.Jump $ fromJust $ stringToFacing direction) creature_ref >> done)
 
 dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
