@@ -21,10 +21,11 @@ import Control.Monad
 import Data.Maybe
 import Data.List
 import Position
+import Control.Monad.Random
 
 dbNewPlane :: TerrainGenerationData -> DB PlaneRef
 dbNewPlane tg_data = 
-    do rns <- dbNextRandomIntegerStream
+    do rns <- getRandoms
        dbAddPlane (Plane { plane_biome = tg_biome tg_data,
                            plane_terrain = generateTerrain tg_data rns }) ()
 

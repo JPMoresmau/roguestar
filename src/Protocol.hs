@@ -9,11 +9,9 @@ import Data.List as List
 import CreatureData
 import Creature
 import Character
-import StatsData
 import DB
 import DBData
 import System.Exit
-import Races
 import System.IO
 import BeginGame
 import Data.Maybe
@@ -27,6 +25,8 @@ import ToolData
 import Control.Monad.Error
 import Numeric
 import Turns
+import SpeciesData
+import Species
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -349,10 +349,9 @@ dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref 
 dbDispatchAction unrecognized = return ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
 
 dbSelectPlayerRace :: String -> DB String
-dbSelectPlayerRace race_name = case (selectPlayerRace race_name)
-			       of
+dbSelectPlayerRace race_name = case find (\s -> map toLower (show s) == race_name) player_species of
 			       Nothing -> return ("protocol-error: unrecognized race '" ++ race_name ++ "'")
-			       Just species -> do dbGenerateInitialPlayerCreature species
+			       Just species -> do generateInitialPlayerCreature species
 						  done
 
 dbSelectPlayerClass :: String -> Creature -> DB String
@@ -365,7 +364,7 @@ dbSelectPlayerClass class_name creature =
 
 dbRerollRace :: Creature -> DB String
 dbRerollRace _ = do starting_race <- dbGetStartingRace
-		    dbGenerateInitialPlayerCreature $ fromJust starting_race
+		    generateInitialPlayerCreature $ fromJust starting_race
 		    done
 
 dbQueryPlayerStats :: (DBReadable db) => Creature -> db String
@@ -377,18 +376,16 @@ dbQueryPlayerStats creature = return $ playerStatsTable creature
 playerStatsTable :: Creature -> String
 playerStatsTable c =
     "begin-table player-stats 0 property value\n" ++
-               "str " ++ (show $ str c) ++ "\n" ++
-	       "dex " ++ (show $ dex c) ++ "\n" ++
-	       "con " ++ (show $ con c) ++ "\n" ++
-	       "int " ++ (show $ int c) ++ "\n" ++
-	       "per " ++ (show $ per c) ++ "\n" ++
-	       "cha " ++ (show $ cha c) ++ "\n" ++
-	       "mind " ++ (show $ mind c) ++ "\n" ++
-	       "hp " ++ (show $ creatureScore HitPoints c) ++ "\n" ++
-	       "maxhp " ++ (show $ creatureScore MaxHitPoints c) ++ "\n" ++
-	       "species " ++ (creature_species_name c) ++ "\n" ++
+               "str " ++ (show $ rawScore Strength c) ++ "\n" ++
+	       "spd " ++ (show $ rawScore Speed c) ++ "\n" ++
+	       "con " ++ (show $ rawScore Constitution c) ++ "\n" ++
+	       "int " ++ (show $ rawScore Intellect c) ++ "\n" ++
+	       "per " ++ (show $ rawScore Perception c) ++ "\n" ++
+	       "cha " ++ (show $ rawScore Charisma c) ++ "\n" ++
+	       "mind " ++ (show $ rawScore Mindfulness c) ++ "\n" ++
+	       "maxhp " ++ (show $ creatureAbilityScore ToughnessTrait c) ++ "\n" ++
+	       "species " ++ (show $ creature_species_name c) ++ "\n" ++
 	       "random-id " ++ (show $ creature_random_id c) ++ "\n" ++
-	       "effective-level " ++ (show $ creatureScore EffectiveLevel c) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
 	       "end-table"
 
@@ -398,8 +395,7 @@ playerStatsTable c =
 -- manipulated by the caller.
 --
 creatureStatsData :: Creature -> [(String,String)]
-creatureStatsData c = [("percent-hp",show $ (creatureScore HitPoints c * 100) `div` creatureScore MaxHitPoints c),
-                       ("species",creature_species_name c),
+creatureStatsData c = [("species",show $ creature_species_name c),
                        ("random-id",show $ creature_random_id c)]
 
 -- |

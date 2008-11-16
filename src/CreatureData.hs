@@ -2,188 +2,160 @@
 module CreatureData 
     (Creature(..),
      CreatureGender(..),
-     CreatureAttribute(..),
-     creatureScore,
-     Score(..),
-     applyCreatureAttribute,
-     exampleCreature1,
+     CreatureAptitude(..),
+     CreatureInteractionMode(..),
+     CreatureAbility(..),
+     CreatureEndo(..),
+     CreatureScore(..),
+     FavoredClass(..),
      creatureGender,
-     characterClassLevels,
-     isFavoredClass)
+     creatureAbilityScore,
+     isFavoredClass,
+     empty_creature)
     where
 
 import CharacterData
 import Alignment
-import StatsData
-import ListUtils (count)
 import Data.Maybe
 import FactionData
+import Data.Monoid
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import SpeciesData
 
-data Creature = Creature { creature_stats :: Stats, 
-			   creature_attribs :: [CreatureAttribute],
-			   creature_species_name :: String,
+data Creature = Creature { creature_aptitude :: Map.Map CreatureAptitude Integer,
+                           creature_ability :: Map.Map CreatureAbility Integer,
+                           creature_ethical :: Map.Map EthicalAlignment Integer,
+                           creature_levels :: Map.Map CharacterClass Integer,
+                           creature_favored_classes :: Set.Set CharacterClass,
+                           creature_gender :: CreatureGender,
+			   creature_species_name :: Species,
 			   creature_random_id :: Integer, -- random number attached to the creature, not unique
 			   creature_damage :: Integer,
 			   creature_faction :: Faction }
 		deriving (Read,Show)
 
-instance StatisticsBlock Creature where
-    str creature = strength $ creature_stats creature
-    dex creature = dexterity $ creature_stats creature
-    con creature = constitution $ creature_stats creature
-    int creature = intelligence $ creature_stats creature
-    per creature = perception $ creature_stats creature
-    cha creature = charisma $ creature_stats creature
-    mind creature = mindfulness $ creature_stats creature
+-- | Creature having no attributes and undefined 'creature_species_name', 'creature_random_id', and 'creature_faction'
+--
+empty_creature :: Creature
+empty_creature = Creature {
+    creature_aptitude = Map.empty,
+    creature_ability = Map.empty,
+    creature_ethical = Map.empty,
+    creature_levels = Map.empty,
+    creature_favored_classes = Set.empty,
+    creature_gender = Neuter,
+    creature_species_name = error "empty_creature: undefined creature_species_name",
+    creature_random_id = error "empty_creature: undefined creature_random_id",
+    creature_damage = 0,
+    creature_faction = error "empty_creature: undefined creature_faction" }
 
 data CreatureGender = Male | Female | Neuter deriving (Eq,Read,Show)
 
--- |
--- A creature's attributes.
---
-data CreatureAttribute = Gender CreatureGender
-		       | ToughnessTrait                  -- extra hit points
-		       | DamageReductionTrait            -- subtracts from any damage inflicted
-		       | MeleeAttackSkill                -- increased melee accuracy
-		       | MeleeDefenseSkill               -- increase melee defense
-		       | RangedAttackSkill               -- increased ranged accuracy
-		       | RangedDefenseSkill              -- increase ranged defense
-		       | SpeedTrait                      -- more turns per round
-		       | HideSkill                       -- unit is harder to see
-		       | SpotSkill                       -- unit can see farther away
-                       | JumpSkill                       -- unit can jump/teleport short distances
-                       | StatBonus Statistic             -- +1 to any statistic
-                       | AlignmentBonus EthicalAlignment -- represents the creature's tendency toward strategic, tactical, diplomatic, or indifferent thinking styles
-		       | CharacterLevel CharacterClass   -- record of a character class being applied to the creature, has no game effect
-		       | FavoredClass CharacterClass     -- creature is able to take the specified class without any prerequisites
-			 deriving (Eq, Show, Read)
+-- | Endomorphisms over a 'Creature'.  These are types that contribute some feature to a 'Creature', so that 'Creature's can be defined concisely by those properties.
+class CreatureEndo a where
+    applyToCreature :: a -> Creature -> Creature
 
-data Score = MaxHitPoints
-	   | HitPoints
-	   | DamageReduction
-	   | MeleeAttack
-	   | MeleeDefense
-	   | MeleeDamage
-	   | RangedAttack
-	   | RangedDefense
-	   | Speed Statistic
-	   | EffectiveLevel
-	   | Spot
-	   | Hide
-           | Jump
+-- | Primitive numeric properties of a Creature.
+class CreatureScore s where
+    rawScore :: s -> Creature -> Integer
 
--- |
--- An example creature used for test cases.
---
-exampleCreature1 :: Creature
-exampleCreature1 = Creature 
-		   { creature_stats = Stats { strength=2, constitution=5, dexterity=1, intelligence=(-2), perception=4, charisma=(-1), mindfulness=(-1) },
-		     creature_attribs = [Gender Male,
-					 ToughnessTrait,
-					 ToughnessTrait,
-					 ToughnessTrait,
-					 MeleeAttackSkill,
-					 MeleeDefenseSkill,
-					 RangedDefenseSkill],
-		     creature_species_name = "Example-Creature-1",
-		     creature_random_id=0,
-		     creature_damage = 0,
-		     creature_faction = Monsters }
+instance (CreatureEndo a,Integral i) => CreatureEndo (a,i) where
+    applyToCreature (_,i) | i <= 0 = id
+    applyToCreature (a,i) = applyToCreature (a,toInteger i - 1) . applyToCreature a
 
-creatureScore :: Score -> Creature -> Integer
-creatureScore MaxHitPoints = \c -> max 6 (str c + con c + dex c + mind c) + 2 * attributeCount ToughnessTrait c
-creatureScore HitPoints = \c -> creatureScore MaxHitPoints c - creature_damage c
-creatureScore DamageReduction = statPlusDouble Constitution DamageReductionTrait
-creatureScore MeleeAttack = statPlusDouble Dexterity MeleeAttackSkill
-creatureScore MeleeDefense = statPlusDouble Dexterity MeleeDefenseSkill
-creatureScore MeleeDamage = getStatistic Strength
-creatureScore RangedAttack = statPlusDouble Dexterity RangedAttackSkill
-creatureScore RangedDefense = statPlusDouble Perception RangedDefenseSkill 
-creatureScore (Speed by_statistic) = \c -> max 1 $ getStatistic by_statistic c + attributeCount SpeedTrait c
-creatureScore Spot = statPlusDouble Perception SpotSkill
-creatureScore Hide = \c -> max 0 $ per c + attributeCount HideSkill c
-creatureScore Jump = statPlusDouble Strength JumpSkill
+instance (CreatureEndo a) => CreatureEndo [a] where
+    applyToCreature = appEndo . mconcat . map (Endo . applyToCreature)
 
--- |
--- The creature's effective level.
---
--- This sums all of the ability scores and attributes that a creature has and determines
---
-creatureScore EffectiveLevel = \c -> sum (map ($ c) [str,dex,con,int,per,cha,mind] ++
-					  map levelAdjustment (creature_attribs c))
+instance CreatureEndo CreatureGender where
+    applyToCreature g c = c { creature_gender = g }
 
-attributeCount :: CreatureAttribute -> Creature -> Integer
-attributeCount attrib creature = count attrib $ creature_attribs creature
+-- | The seven aptitudes.
+data CreatureAptitude = 
+     Strength
+   | Speed
+   | Constitution
+   | Intellect
+   | Perception
+   | Charisma
+   | Mindfulness
+         deriving (Eq,Read,Show,Ord,Enum,Bounded)
 
--- |
--- The standard way to calculate any score is to add the relevant Statistic to twice the number of
--- ranks in the relevant skill.
---
-statPlusDouble :: Statistic -> CreatureAttribute -> Creature -> Integer
-statPlusDouble statistic attrib creature = max 0 $ getStatistic statistic creature + 2 * attributeCount attrib creature
+instance CreatureEndo CreatureAptitude where
+    applyToCreature aptitude c = c { creature_aptitude = Map.insertWith (+) aptitude 1 $ creature_aptitude c }
 
--- |
--- Answers the number of levels a Creature has taken in a particular CharacterClass.
--- These might not be proportional to the value of creatureEffectiveLevel, taking a level
--- in a CharacterClass sometimes increases it's effective level by more than one.
---
-characterClassLevels :: CharacterClass -> Creature -> Integer
-characterClassLevels character_class creature = count (CharacterLevel character_class) (creature_attribs creature)
+instance CreatureScore CreatureAptitude where
+    rawScore aptitude c = fromMaybe 0 $ Map.lookup aptitude (creature_aptitude c)
 
--- |
--- The amount by which a creature's effective level should be adjusted
--- based on a single occurance of the given CreatureAttribute.
---
-levelAdjustment :: CreatureAttribute -> Integer
-levelAdjustment ToughnessTrait = 1
-levelAdjustment MeleeAttackSkill = 1
-levelAdjustment MeleeDefenseSkill = 1
-levelAdjustment RangedAttackSkill = 1
-levelAdjustment RangedDefenseSkill = 1
-levelAdjustment SpeedTrait = 2
-levelAdjustment (StatBonus _) = 1
-levelAdjustment (Gender {}) = 0
-levelAdjustment DamageReductionTrait = 1
-levelAdjustment AlignmentBonus {} = 0
-levelAdjustment HideSkill = 1
-levelAdjustment SpotSkill = 1
-levelAdjustment FavoredClass {} = 0
-levelAdjustment CharacterLevel {} = 0
-levelAdjustment JumpSkill = 1
+data CreatureInteractionMode = Melee | Ranged | Unarmed
+    deriving (Eq,Read,Show,Ord)
 
--- |
--- Adds a CreatureAttribute to a Creature.  The CreatureAttribute stacks with or replaces any other
--- related attributes already applied to the creature, depending on the type of attribute.
--- Includes some special handling for some CreatureAttributes.
---
-applyCreatureAttribute :: CreatureAttribute -> Creature -> Creature
-applyCreatureAttribute (StatBonus statistic) = incCreatureStat statistic 
-applyCreatureAttribute attrib = putCreatureAttribute attrib
+data CreatureAbility =
+     ToughnessTrait
+   | AttackSkill CreatureInteractionMode
+   | DefenseSkill CreatureInteractionMode
+   | DamageSkill CreatureInteractionMode
+   | DamageReductionTrait CreatureInteractionMode
+   | HideSkill
+   | SpotSkill
+   | JumpSkill
+         deriving (Eq,Read,Show,Ord)
 
--- |
--- applyCreatureAttribute with no special handling.
---
-putCreatureAttribute :: CreatureAttribute -> Creature -> Creature
-putCreatureAttribute attrib creature = creature { creature_attribs = (attrib : (creature_attribs creature))}
+instance CreatureEndo CreatureAbility where
+    applyToCreature ability c = c { creature_ability = Map.insertWith (+) ability 1 $ creature_ability c }
 
-incCreatureStat :: Statistic -> Creature -> Creature
-incCreatureStat statistic creature = 
-    let sts = creature_stats creature
-	in creature { creature_stats = setStatistic statistic (succ $ getStatistic statistic sts) sts }
+instance CreatureScore CreatureAbility where
+    rawScore ability c = fromMaybe 0 $ Map.lookup ability $ creature_ability c
 
-genderOf :: CreatureAttribute -> Maybe CreatureGender
-genderOf attrib = case attrib of
-			      Gender gender -> Just gender
-			      _ -> Nothing
+instance CreatureEndo EthicalAlignment where
+    applyToCreature ethical c = c { creature_ethical = Map.insertWith (+) ethical 1 $ creature_ethical c }
+
+instance CreatureScore EthicalAlignment where
+    rawScore ethical c = fromMaybe 0 $ Map.lookup ethical $ creature_ethical c
+
+instance CreatureEndo CharacterClass where
+    applyToCreature character_class c = c { creature_levels = Map.insertWith (+) character_class 1 $ creature_levels c }
+
+instance CreatureScore CharacterClass where
+    rawScore character_class c = fromMaybe 0 $ Map.lookup character_class $ creature_levels c
+
+newtype FavoredClass = FavoredClass CharacterClass
+
+instance CreatureEndo FavoredClass where
+    applyToCreature (FavoredClass favored_class) c = c { creature_favored_classes = Set.insert favored_class $ creature_favored_classes c }
+
+-- | Calculator to determine how many ranks a creature has in an ability.
+-- Number of aptitude points plus n times number of ability points
+figureAbility :: [CreatureAptitude] -> (CreatureAbility,Integer) -> Creature -> Integer
+figureAbility aptitude (ability,n) c = sum (map (flip rawScore c) aptitude) + rawScore ability c * n
+
+creatureAbilityScore :: CreatureAbility -> Creature -> Integer
+creatureAbilityScore ToughnessTrait = figureAbility [Strength,Speed,Constitution,Mindfulness] (ToughnessTrait,3)
+creatureAbilityScore (AttackSkill Melee) = figureAbility [Strength] (AttackSkill Melee,2)
+creatureAbilityScore (DefenseSkill Melee) = figureAbility [Strength] (DefenseSkill Melee,2)
+creatureAbilityScore (DamageSkill Melee) = figureAbility [Strength] (DamageSkill Melee,2)
+creatureAbilityScore (DamageReductionTrait Melee) = figureAbility [Constitution] (DamageReductionTrait Melee,1)
+creatureAbilityScore (AttackSkill Ranged) = figureAbility [Perception] (AttackSkill Ranged,2)
+creatureAbilityScore (DefenseSkill Ranged) = figureAbility [Perception] (DefenseSkill Ranged,2)
+creatureAbilityScore (DamageSkill Ranged) = figureAbility [Perception] (DamageSkill Ranged,2)
+creatureAbilityScore (DamageReductionTrait Ranged) = figureAbility [Constitution] (DamageReductionTrait Ranged,1)
+creatureAbilityScore (AttackSkill Unarmed) = figureAbility [Speed] (AttackSkill Unarmed,2)
+creatureAbilityScore (DefenseSkill Unarmed) = figureAbility [Speed] (DefenseSkill Unarmed,2)
+creatureAbilityScore (DamageSkill Unarmed) = figureAbility [Speed] (DamageSkill Unarmed,2)
+creatureAbilityScore (DamageReductionTrait Unarmed) = figureAbility [Constitution] (DamageReductionTrait Unarmed,1)
+creatureAbilityScore HideSkill = figureAbility [Perception] (HideSkill,2)
+creatureAbilityScore SpotSkill = figureAbility [Perception] (SpotSkill,2)
+creatureAbilityScore JumpSkill = figureAbility [Strength] (JumpSkill,2)
 
 -- |
 -- Answers the gender of this creature.
 --
 creatureGender :: Creature -> CreatureGender
-creatureGender creature = fromMaybe Neuter $ listToMaybe $ mapMaybe genderOf $ creature_attribs creature
+creatureGender = creature_gender
 
 -- |
 -- Answers true if the specified class is a favored class for this creature.
 --
 isFavoredClass :: CharacterClass -> Creature -> Bool
-isFavoredClass character_class creature = (FavoredClass character_class) `elem` (creature_attribs creature)
+isFavoredClass character_class creature = character_class `Set.member` (creature_favored_classes creature)
+

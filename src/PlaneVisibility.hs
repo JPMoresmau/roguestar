@@ -91,10 +91,10 @@ dbGetOpposedSpotCheck creature_ref object_ref =
        return $ spot * (round $ min 1 $ spot % hide)
 
 dbGetSpotCheck :: (DBReadable db) => CreatureRef -> db Integer
-dbGetSpotCheck creature_ref = liftM (creatureScore Spot) $ dbGetCreature creature_ref
+dbGetSpotCheck creature_ref = liftM (creatureAbilityScore SpotSkill) $ dbGetCreature creature_ref
 
 dbGetHideCheck :: (DBReadable db) => Reference a -> db Integer
-dbGetHideCheck ref | Just creature_ref <- coerceReferenceTyped _creature ref = liftM (creatureScore Hide) $ dbGetCreature creature_ref
+dbGetHideCheck ref | Just creature_ref <- coerceReferenceTyped _creature ref = liftM (creatureAbilityScore HideSkill) $ dbGetCreature creature_ref
 dbGetHideCheck _ = return 1
 
 -- |

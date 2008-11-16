@@ -42,7 +42,7 @@ randomTeleportLanding retries plane_ref source_destination goal_destination =
 --
 jumpCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
 jumpCreature face start_location = liftM (fromMaybe start_location) $ runMaybeT $
-    do jump_roll <- liftM roll_actual $ lift $ dbRollCreatureScore Jump 0 (entity start_location)
+    do jump_roll <- liftM roll_actual $ lift $ rollCreatureAbilityScore JumpSkill 0 (entity start_location)
        standing_location <- MaybeT $ return $ extractLocation start_location
        let jump_offset = facingToRelative7 face
        end_location <- lift $ walkCreature face jump_offset start_location

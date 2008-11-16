@@ -11,30 +11,30 @@ import DB
 import DBData
 import Facing
 import TerrainData
-import Data.Maybe
 import ToolData
+import Control.Monad.Random
+import SpeciesData
 
-player_race_to_biome :: [(String,Biome)]
-player_race_to_biome =
-    [("anachronid",DesertBiome),
-     ("androsynth",RockBiome),
-     ("ascendant",MountainBiome),
-     ("canduceator",SwampBiome),
-     ("encephalon",GrasslandBiome{-SwampBiome-}),
-     ("goliath",DesertBiome),
-     ("hellion",GrasslandBiome),
-     ("kraken",OceanBiome),
-     ("myrmidon",DesertBiome),
-     ("perennial",ForestBiome),
-     ("recreant",DesertBiome),
-     ("reptilian",SwampBiome)]
+homeBiome :: Species -> Biome
+homeBiome Anachronid = ForestBiome
+homeBiome Ascendant = MountainBiome
+homeBiome Androsynth = IcyRockBiome
+homeBiome Caduceator = GrasslandBiome
+homeBiome Encephalon = SwampBiome
+homeBiome Goliath = DesertBiome
+homeBiome Hellion = SwampBiome
+homeBiome Kraken = OceanBiome
+homeBiome Myrmidon = DesertBiome
+homeBiome Perennial = GrasslandBiome
+homeBiome Recreant = TundraBiome
+homeBiome Reptilian = ForestBiome
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
-    do seed <- dbNextRandomInteger
+    do seed <- getRandom
        dbNewPlane $ TerrainGenerationData {
            tg_smootheness = 3,
-	   tg_biome = fromMaybe GrasslandBiome $ lookup (creature_species_name creature) player_race_to_biome,
+	   tg_biome = homeBiome $ creature_species_name creature,
 	   tg_placements = [recreantFactories seed] }
 
 -- |

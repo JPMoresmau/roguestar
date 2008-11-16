@@ -48,7 +48,6 @@ import DBPrivate
 import DBData
 import CreatureData
 import PlaneData
-import System.Time
 import RNG
 import Data.Map as Map
 import Data.List as List
@@ -62,6 +61,7 @@ import Control.Monad.Reader
 import TimeCoordinate
 import Data.Ord
 import Control.Arrow (first)
+import Control.Monad.Random as Random
 
 data PlayerState = 
     RaceSelectionState
@@ -92,7 +92,7 @@ data SnapshotEvent =
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,
-    db_random :: [[Integer]] }
+    db_random :: RNG }
 
 data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 				 db_next_object_ref :: Integer,
@@ -145,25 +145,23 @@ instance MonadError DBError DB where
     throwError = DB . throwError
     catchError (DB actionM) handlerM = DB $ catchError actionM (\e -> let DB n = handlerM e in n)
 
-class (Monad db,MonadError DBError db,MonadReader DB_BaseType db) => DBReadable db where
-    dbNextRandomInteger :: db Integer
-    dbNextRandomIntegerStream :: db [Integer]
+instance MonadRandom DB where
+    getRandom = dbRandom random
+    getRandoms = liftM randoms $ dbRandom Random.split
+    getRandomR min_max = dbRandom $ randomR min_max
+    getRandomRs min_max = liftM (randomRs min_max) $ dbRandom Random.split
+
+dbRandom :: (RNG -> (a,RNG)) -> DB a
+dbRandom f =
+    do (x,g') <- liftM (f . db_random) $ DB get
+       DB $ modify $ \db -> db { db_random = g' }
+       return x
+
+class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db) => DBReadable db where
     dbSimulate :: DB a -> db a
     dbPeepSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db (Maybe a)
 
 instance DBReadable DB where
-    dbNextRandomInteger = 
-        do db <- DB get
-	   let rngss0 = db_random db 
-               (rngs0,rngss1) = (head rngss0, tail rngss0)
-               (result,rngs1) = (head rngs0, tail rngs0)
-           DB $ put db { db_random=(rngs1:rngss1) }
-           return (result)
-    dbNextRandomIntegerStream = 
-        do db <- DB get
-           let rngss = db_random db
-           DB $ put db { db_random=(tail rngss) }
-           return (head rngss)
     dbSimulate = local id
     dbPeepSnapshot actionM =
         do s <- DB $ gets db_here
@@ -220,10 +218,10 @@ initial_db = DB_BaseType {
 
 setupDBHistory :: DB_BaseType -> IO DB_History
 setupDBHistory db =
-    do (TOD seconds picos) <- getClockTime
+    do rng <- randomIO
        return $ DB_History {
            db_here = db,
-	   db_random = randomIntegerStreamStream (seconds + picos) }
+	   db_random = rng }
 
 -- |
 -- Returns the DBState of the database.
@@ -499,7 +497,7 @@ dbGetStartingRace = do gets db_starting_race
 -- Sets the starting race.
 --
 dbSetStartingRace :: Species -> DB ()
-dbSetStartingRace species = modify (\db -> db { db_starting_race = Just species })
+dbSetStartingRace the_species = modify (\db -> db { db_starting_race = Just the_species })
 
 -- |
 -- Takes a snapshot of a DBEvent in progress.

@@ -8,8 +8,8 @@ module Alignment
      alignmentPotency)
     where
 
-data MoralAlignment = Lawful | Neutral | Chaotic | Evil deriving (Eq,Read,Show)
-data EthicalAlignment = Strategic | Tactical | Diplomatic | Indifferent deriving (Eq,Read,Show)
+data MoralAlignment = Lawful | Neutral | Chaotic | Evil deriving (Eq,Read,Show,Ord)
+data EthicalAlignment = Strategic | Tactical | Diplomatic | Indifferent deriving (Eq,Read,Show,Ord)
 type Alignment = (MoralAlignment,EthicalAlignment)
 
 alignments :: [Alignment]

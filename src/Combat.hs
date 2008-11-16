@@ -36,7 +36,7 @@ dbResolveRangedAttack attacker_ref face =
            Nothing -> return $ RangedAttackMiss attacker_ref tool_ref
            Just defender_ref ->
 	       do defense_roll <- dbRollRangedDefense attacker_ref defender_ref
-                  injury_roll <- dbRollInjury defender_ref damage_roll
+                  injury_roll <- rollInjury Ranged defender_ref damage_roll
 		  return $ case () of
 		      () | attack_roll > defense_roll -> RangedAttackHitCreature attacker_ref tool_ref defender_ref injury_roll
 		      () | otherwise -> RangedAttackMiss attacker_ref tool_ref
@@ -54,7 +54,7 @@ dbResolveMeleeAttack attacker_ref face =
            Nothing -> return $ UnarmedAttackMiss attacker_ref
 	   Just defender_ref ->
 	       do defense_roll <- dbRollMeleeDefense attacker_ref defender_ref
-	          injury_roll <- dbRollInjury defender_ref damage_roll
+	          injury_roll <- rollInjury Melee defender_ref damage_roll
 		  return $ case () of
 		      () | attack_roll > defense_roll -> UnarmedAttackHitCreature attacker_ref defender_ref injury_roll
 		      () | otherwise -> UnarmedAttackMiss attacker_ref 
@@ -64,7 +64,7 @@ dbExecuteRangedAttack (RangedAttackMiss attacker_ref tool_ref) =
     do dbPushSnapshot (MissEvent attacker_ref (Just tool_ref))
 dbExecuteRangedAttack (RangedAttackHitCreature attacker_ref tool_ref defender_ref damage) =
     do dbPushSnapshot (AttackEvent attacker_ref (Just tool_ref) defender_ref)
-       dbInjureCreature damage defender_ref
+       injureCreature damage defender_ref
        sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbExecuteMeleeAttack :: MeleeAttackOutcome -> DB ()
@@ -72,7 +72,7 @@ dbExecuteMeleeAttack (UnarmedAttackMiss attacker_ref) =
     do dbPushSnapshot (MissEvent attacker_ref Nothing)
 dbExecuteMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
     do dbPushSnapshot (AttackEvent attacker_ref Nothing defender_ref)
-       dbInjureCreature damage defender_ref
+       injureCreature damage defender_ref
        sweepDead =<< liftM getLocation (dbWhere attacker_ref)
 
 dbRollRangedDamage :: (DBReadable db) => CreatureRef -> ToolRef -> db Integer
@@ -85,25 +85,25 @@ dbRollRangedDamage _ weapon_ref =
 		  return $ min energy_released energy_throughput
 
 dbRollMeleeDamage :: (DBReadable db) => CreatureRef -> db Integer
-dbRollMeleeDamage attacker_ref = liftM roll_actual $ dbRollCreatureScore MeleeDamage 0 attacker_ref
+dbRollMeleeDamage attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (DamageSkill Melee) 0 attacker_ref
 
 dbRollRangedAttack :: (DBReadable db) => CreatureRef -> db Integer
-dbRollRangedAttack attacker_ref = liftM roll_actual $ dbRollCreatureScore RangedAttack 0 attacker_ref
+dbRollRangedAttack attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (AttackSkill Melee) 0 attacker_ref
 
 dbRollMeleeAttack :: (DBReadable db) => CreatureRef -> db Integer
-dbRollMeleeAttack attacker_ref = liftM roll_actual $ dbRollCreatureScore MeleeAttack 0 attacker_ref
+dbRollMeleeAttack attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (AttackSkill Melee) 0 attacker_ref
 
 dbRollRangedDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
 dbRollRangedDefense attacker_ref x_defender_ref =
     do distance <- liftM (fromMaybe (error "dbGetOpposedAttackRoll: defender and attacker are on different planes")) $ dbDistanceBetweenSquared attacker_ref x_defender_ref 
        case () of
-           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ dbRollCreatureScore RangedDefense distance defender_ref
+           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ rollCreatureAbilityScore (DefenseSkill Ranged) distance defender_ref
 	   () | otherwise -> return distance
        
 dbRollMeleeDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
 dbRollMeleeDefense _ x_defender_ref = 
     case () of
-        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ dbRollCreatureScore MeleeDefense 0 defender_ref
+        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ rollCreatureAbilityScore (DefenseSkill Melee) 0 defender_ref
         () | otherwise -> return 1
 
 dbFindRangedTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]

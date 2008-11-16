@@ -192,7 +192,7 @@ exampleTerrainGenerator = TerrainGenerationData
 			    tg_placements = [] }
 
 generateExampleTerrain :: Integer -> TerrainGrid
-generateExampleTerrain seed = generateTerrain exampleTerrainGenerator (randomIntegerStream seed)
+generateExampleTerrain seed = generateTerrain exampleTerrainGenerator (randoms $ mkRNG seed)
 
 prettyPrintTerrain :: ((Integer,Integer),(Integer,Integer)) -> TerrainGrid -> [String]
 prettyPrintTerrain ((left_bound,right_bound),(top_bound,bottom_bound)) terrain_map =

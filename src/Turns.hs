@@ -9,7 +9,7 @@ import Control.Monad.Trans
 import DB
 import DBData
 import FactionData
-import Races
+import SpeciesData
 import Plane
 import Control.Monad
 import Creature
@@ -63,7 +63,7 @@ dbPerform1PlanarAITurn plane_ref =
        when (length native_locations < length player_locations * 2) $
            do p <- roll $ map location player_locations
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
-	      dbNewCreature Pirates recreant (Standing plane_ref spawn_position Here)
+	      newCreature Pirates Recreant (Standing plane_ref spawn_position Here)
 	      return ()
        dbAdvanceTime (1%100) plane_ref
 

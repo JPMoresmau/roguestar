@@ -16,7 +16,7 @@ data CharacterClass = Barbarian
 		    | Shepherd
 		    | Thief
 		    | Warrior
-		    deriving (Eq,Enum,Bounded,Read,Show)
+		    deriving (Eq,Enum,Bounded,Read,Show,Ord)
 
 all_character_classes :: [CharacterClass]
 all_character_classes = [minBound..maxBound]
@@ -33,3 +33,4 @@ base_character_classes = [Barbarian,
 			  Shepherd,
 			  Thief,
 			  Warrior]
+

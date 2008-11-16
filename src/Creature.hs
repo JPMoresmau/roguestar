@@ -1,14 +1,14 @@
 {-# LANGUAGE PatternGuards #-}
 
 module Creature 
-    (dbGenerateInitialPlayerCreature,
-     dbNewCreature,
+    (generateInitialPlayerCreature,
+     newCreature,
      Roll(..),
-     dbRollCreatureScore,
+     rollCreatureAbilityScore,
      getCreatureFaction,
-     dbRollInjury,
-     dbInjureCreature,
-     dbGetDead,
+     rollInjury,
+     injureCreature,
+     getDead,
      deleteCreature,
      sweepDead)
     where
@@ -21,39 +21,33 @@ import Species
 import DBData
 import FactionData
 import Control.Monad.Error
-import Dice
 import Tool
+import CreatureAttribute
+import Control.Monad.Random
+import Data.Monoid
 
 -- |
 -- Generates a new Creature from the specified species.
 --
-dbGenerateCreature :: Faction -> Species -> DB Creature
-dbGenerateCreature faction species = 
-    do (stats,attribs,name) <- generateCreatureData species
-       random_id <- dbNextRandomInteger
-       return (Creature { creature_stats=stats,
-			  creature_attribs=attribs,
-			  creature_species_name=name,
-			  creature_random_id=random_id,
-			  creature_damage=0,
-			  creature_faction=faction})
+generateCreature :: Faction -> Species -> DB Creature
+generateCreature faction species = generateAttributes faction species $ mconcat $ species_starting_attributes $ speciesInfo species
 
 -- |
 -- During DBRaceSelectionState, generates a new Creature for the player character and sets it into the 
 -- database's DBClassSelectionState.
 --
-dbGenerateInitialPlayerCreature :: Species -> DB ()
-dbGenerateInitialPlayerCreature species = 
-    do newc <- dbGenerateCreature Player species
+generateInitialPlayerCreature :: Species -> DB ()
+generateInitialPlayerCreature species = 
+    do newc <- generateCreature Player species
        dbSetStartingRace species
        setPlayerState (ClassSelectionState newc)
 
 -- |
 -- Generates a new Creature from the specified Species and adds it to the database.
 --
-dbNewCreature :: (CreatureLocation l) => Faction -> Species -> l -> DB CreatureRef
-dbNewCreature faction species loc = 
-    do creature <- dbGenerateCreature faction species
+newCreature :: (CreatureLocation l) => Faction -> Species -> l -> DB CreatureRef
+newCreature faction species loc = 
+    do creature <- generateCreature faction species
        dbAddCreature creature loc
 
 data Roll = Roll { 
@@ -61,25 +55,28 @@ data Roll = Roll {
     roll_other_situation_bonus :: Integer,
     roll_actual :: Integer }
 
-dbRollCreatureScore :: (DBReadable db) => Score -> Integer -> CreatureRef -> db Roll
-dbRollCreatureScore score bonus creature_ref =
-    do ideal <- liftM ((+ bonus) . creatureScore score) $ dbGetCreature creature_ref
-       actual <- roll [0..ideal]
+rollCreatureAbilityScore :: (DBReadable db) => CreatureAbility -> Integer -> CreatureRef -> db Roll
+rollCreatureAbilityScore score bonus creature_ref =
+    do ideal <- liftM ((+ bonus) . creatureAbilityScore score) $ dbGetCreature creature_ref
+       actual <- getRandomR (0,ideal)
        return $ Roll ideal bonus actual
 
 getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature
 
-dbRollInjury :: (DBReadable db) => CreatureRef -> Integer -> db Integer
-dbRollInjury creature_ref damage_roll = 
-    do damage_reduction <- liftM roll_actual $ dbRollCreatureScore DamageReduction 0 creature_ref
+rollInjury :: (DBReadable db) => CreatureInteractionMode -> CreatureRef -> Integer -> db Integer
+rollInjury interaction_mode creature_ref damage_roll = 
+    do damage_reduction <- liftM roll_actual $ rollCreatureAbilityScore (DamageReductionTrait interaction_mode) 0 creature_ref
        return $ max 0 $ damage_roll - damage_reduction
        
-dbInjureCreature :: Integer -> CreatureRef -> DB ()
-dbInjureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
+injureCreature :: Integer -> CreatureRef -> DB ()
+injureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
 
-dbGetDead :: (DBReadable db) => Reference a -> db [CreatureRef]
-dbGetDead parent_ref = filterRO (liftM (\c -> creatureScore HitPoints c <= 0) . dbGetCreature) =<< dbGetContents parent_ref
+getCreatureHealth :: (DBReadable db) => CreatureRef -> db Integer
+getCreatureHealth creature_ref = liftM (\c -> creatureAbilityScore ToughnessTrait c - creature_damage c) $ dbGetCreature creature_ref
+
+getDead :: (DBReadable db) => Reference a -> db [CreatureRef]
+getDead parent_ref = filterRO (liftM (<= 0) . getCreatureHealth) =<< dbGetContents parent_ref
 
 deleteCreature :: CreatureRef -> DB ()
 deleteCreature = dbUnsafeDeleteObject $ \l ->
@@ -88,9 +85,10 @@ deleteCreature = dbUnsafeDeleteObject $ \l ->
            Just dropped_loc -> generalizeLocationRecord dropped_loc
 	   Nothing -> error "dbDeleteCreature: no case for this type of entity"
 
+-- | Delete all dead creature from the database.
 sweepDead :: Reference a -> DB ()
 sweepDead ref =
-    do worst_to_best_critters <- sortByRO (liftM roll_ideal . dbRollCreatureScore HitPoints 0) =<< dbGetDead ref
+    do worst_to_best_critters <- sortByRO getCreatureHealth =<< getDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
            do dbPushSnapshot (KilledEvent creature_ref)
 	      deleteCreature creature_ref
