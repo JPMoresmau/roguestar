@@ -1,7 +1,9 @@
 module Travel
     (stepCreature,
-     jumpCreature,
-     turnCreature)
+     turnCreature,
+     TeleportJumpOutcome,
+     resolveTeleportJump,
+     executeTeleportJump)
     where
 
 import Control.Monad.Maybe
@@ -28,38 +30,46 @@ walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
        flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (entity l) $ standing_position standing)
        return $ generalizeLocation $ toStanding standing l
 
+stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
+stepCreature face = walkCreature face (facingToRelative face)
+
+turnCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
+turnCreature face = walkCreature face (0,0)
+
+-------------------------------------------------------------------------------------------------------------
+--	Teleportation/Jumping
+-------------------------------------------------------------------------------------------------------------
+
 -- |
 -- Try to teleport the creature to the specified Position.  The teleport attempt can be automatically retried a number of times, and the most accurate attempt will be used.
 -- If the retries are negative, the teleport will be made artificially innacurate.
 --
 randomTeleportLanding :: (DBReadable db) => Integer -> PlaneRef -> Position -> Position -> db Position
 randomTeleportLanding retries plane_ref source_destination goal_destination =
-    do landings <- replicateM (fromInteger $ max 1 retries) (pickRandomClearSite (1 + max 0 (negate retries)) 0 0 goal_destination (not . (`elem` impassable_terrains)) plane_ref)
-       return $ minimumBy (comparing $ \p -> distanceBetweenSquared goal_destination p * distanceBetweenSquared source_destination p) landings
+    do landings <- replicateM (fromInteger $ max 1 retries) $ (pickRandomClearSite 3) 0 0 goal_destination (not . (`elem` impassable_terrains)) plane_ref
+       return $ minimumBy (comparing $ \p -> distanceBetweenSquared goal_destination p ^ 2 * distanceBetweenSquared source_destination p) landings
+
+data TeleportJumpOutcome =
+    TeleportJumpGood CreatureRef Standing
+  | TeleportJumpFailed
 
 -- |
--- Teleport jump a creature about 7 units in the specified direction.  Teleports can fail either by stalling (not teleporting) or by teleporting to a random incorrect location.
+-- Teleport jump a creature about 7 units in the specified direction.
 --
-jumpCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
-jumpCreature face start_location = liftM (fromMaybe start_location) $ runMaybeT $
-    do jump_roll <- liftM roll_actual $ lift $ rollCreatureAbilityScore JumpSkill 0 (entity start_location)
+resolveTeleportJump :: (DBReadable db) => CreatureRef -> Facing -> db TeleportJumpOutcome
+resolveTeleportJump creature_ref face = liftM (fromMaybe TeleportJumpFailed) $ runMaybeT $
+    do start_location <- lift $ dbWhere creature_ref
+       jump_roll <- liftM roll_log $ lift $ rollCreatureAbilityScore JumpSkill 0 (entity start_location)
        standing_location <- MaybeT $ return $ extractLocation start_location
-       let jump_offset = facingToRelative7 face
-       end_location <- lift $ walkCreature face jump_offset start_location
+       landing_position <- lift $ randomTeleportLanding jump_roll (standing_plane standing_location) (standing_position standing_location) $
+           offsetPosition (facingToRelative7 face) $ standing_position standing_location
        case () of
-           -- critical fail, don't jump:
-           () | jump_roll <= 0 -> return start_location
-           -- successful jump:
-           () | start_location /= end_location -> return end_location
-           -- jump into impassable terrain, guess a random landing site
-           () | otherwise -> lift $
-               do landing_position <- randomTeleportLanding (floor $ (+1) $ sqrt $ realToFrac jump_roll) (standing_plane standing_location) (standing_position standing_location) $
-                      offsetPosition jump_offset $ standing_position standing_location
-                  return $ generalizeLocation $ toStanding (standing_location { standing_position = landing_position }) start_location
+           () | jump_roll <= 0 -> return TeleportJumpFailed
+           () | otherwise -> return $ TeleportJumpGood (entity start_location) $ standing_location { standing_position = landing_position, standing_facing = face }
 
-stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
-stepCreature face = walkCreature face (facingToRelative face)
+-- | Execute a resolved teleport jump.
+executeTeleportJump :: TeleportJumpOutcome -> DB ()
+executeTeleportJump TeleportJumpFailed = return ()
+executeTeleportJump (TeleportJumpGood creature_ref standing_location) = dbMove (return . toStanding standing_location) creature_ref >> return ()
 
-turnCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
-turnCreature face = walkCreature face (0,0)
 

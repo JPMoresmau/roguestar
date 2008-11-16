@@ -39,7 +39,7 @@ dbBehave (Step face) creature_ref =
        dbAdvanceTime (1%20) creature_ref
 
 dbBehave (Jump face) creature_ref =
-    do dbMove (jumpCreature face) creature_ref
+    do atomic $ liftM executeTeleportJump $ resolveTeleportJump creature_ref face
        dbAdvanceTime (2%20) creature_ref
 
 dbBehave (TurnInPlace face) creature_ref =
@@ -87,6 +87,6 @@ dbBehave Vanish creature_ref =
               lift $
                   do faction <- getCreatureFaction creature_ref
                      is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 
-	                 mapM (flip dbGetVisibleObjectsForFaction plane_ref) (delete faction [minBound..maxBound])
+	                 mapM (flip dbGetVisibleObjectsForFaction plane_ref) ({- all factions except this one: -} delete faction [minBound..maxBound])
                      when (not is_visible_to_anyone_else) $ deleteCreature creature_ref
        dbAdvanceTime (1%100) creature_ref

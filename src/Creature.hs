@@ -23,7 +23,6 @@ import FactionData
 import Control.Monad.Error
 import Tool
 import CreatureAttribute
-import Control.Monad.Random
 import Data.Monoid
 
 -- |
@@ -53,13 +52,15 @@ newCreature faction species loc =
 data Roll = Roll { 
     roll_ideal :: Integer,
     roll_other_situation_bonus :: Integer,
-    roll_actual :: Integer }
+    roll_actual :: Integer,
+    roll_log :: Integer }
 
 rollCreatureAbilityScore :: (DBReadable db) => CreatureAbility -> Integer -> CreatureRef -> db Roll
 rollCreatureAbilityScore score bonus creature_ref =
     do ideal <- liftM ((+ bonus) . creatureAbilityScore score) $ dbGetCreature creature_ref
-       actual <- getRandomR (0,ideal)
-       return $ Roll ideal bonus actual
+       actual <- linearRoll ideal
+       logarithmic <- logRoll ideal
+       return $ Roll ideal bonus actual logarithmic
 
 getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature
