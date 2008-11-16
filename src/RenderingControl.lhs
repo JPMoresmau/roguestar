@@ -135,7 +135,7 @@ printCharacterStats :: Integer -> RSAnimAX any t i o () ()
 printCharacterStats unique_id = proc () ->
     do m_player_stats <- driverGetTableA -< ("player-stats",show unique_id)
        print1CharacterStat -< (m_player_stats,"str")
-       print1CharacterStat -< (m_player_stats,"dex")
+       print1CharacterStat -< (m_player_stats,"spd")
        print1CharacterStat -< (m_player_stats,"con")
        print1CharacterStat -< (m_player_stats,"int")
        print1CharacterStat -< (m_player_stats,"per")

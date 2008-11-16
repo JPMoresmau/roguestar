@@ -9,13 +9,13 @@ module Strings
     where
 
 hrstring :: String -> String
-hrstring "str" = "strength"
-hrstring "dex" = "dexterity"
-hrstring "con" = "constitution"
-hrstring "int" = "intelligence"
-hrstring "per" = "perception"
-hrstring "cha" = "charisma"
-hrstring "mind" = "mindfulness"
+hrstring "str" =  "Strength     "
+hrstring "spd" =  "Speed        "
+hrstring "con" =  "Constitution "
+hrstring "int" =  "Intellect    "
+hrstring "per" =  "Perception   "
+hrstring "cha" =  "Charisma     "
+hrstring "mind" = "Mindfulness  "
 hrstring "forceadept" = "force adept"
 hrstring x = x
 \end{code}
