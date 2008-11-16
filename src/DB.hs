@@ -41,7 +41,8 @@ module DB
      dbPeepOldestSnapshot,
      dbPopOldestSnapshot,
      dbHasSnapshot,
-     module DBData)
+     module DBData,
+     module Random)
     where
 
 import DBPrivate
@@ -62,6 +63,7 @@ import TimeCoordinate
 import Data.Ord
 import Control.Arrow (first)
 import Control.Monad.Random as Random
+import Random
 
 data PlayerState = 
     RaceSelectionState

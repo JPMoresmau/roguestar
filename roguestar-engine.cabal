@@ -31,9 +31,9 @@ other-modules:       VisibilityData, Stats, FactionData, Behavior, Alignment,
                      SegmentList, Turns, Plane, CreatureData,
                      StatsData, Protocol, Character, Tool,
                      ListUtils, Substances, HierarchicalDatabase, Travel, ToolData,
-                     CharacterData, Creature, Facing, DBPrivate, Dice,
+                     CharacterData, Creature, Facing, DBPrivate,
                      RNG, Species, Position, TerrainData, Combat,
-                     RandomUtils, Tests, DBData, GridRayCaster, BeginGame,
+                     Tests, DBData, GridRayCaster, BeginGame,
                      SpeciesData, TimeCoordinate, DB, HopList, AttributeGeneration,
                      CreatureAttribute
 

@@ -15,7 +15,6 @@ import Control.Monad
 import Creature
 import Data.Ratio
 import Facing
-import Dice
 import TerrainData
 import Data.Maybe
 import Behavior
@@ -61,7 +60,7 @@ dbPerform1PlanarAITurn plane_ref =
        player_locations <- filterRO (liftM (== Player) . getCreatureFaction . entity) creature_locations
        native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . entity) creature_locations
        when (length native_locations < length player_locations * 2) $
-           do p <- roll $ map location player_locations
+           do p <- pickM $ map location player_locations
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
 	      newCreature Pirates Recreant (Standing plane_ref spawn_position Here)
 	      return ()

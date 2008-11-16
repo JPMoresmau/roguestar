@@ -12,7 +12,6 @@ module Plane
     where
 
 import Grids
-import Dice
 import DB
 import DBData
 import TerrainData
@@ -84,8 +83,8 @@ dbGetCurrentPlane =
 pickRandomClearSite :: (DBReadable db) => Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> db Position
 pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
     do xys <- liftM2 (\a b -> map Position $ zip a b)
-           (mapM (\x -> liftM (+start_x) $ roll [-x..x]) [1..search_radius])
-           (mapM (\x -> liftM (+start_y) $ roll [-x..x]) [1..search_radius])
+           (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
+           (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
        clutter_locations <- locationsOf $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 

@@ -14,7 +14,6 @@ module Perception
      myFaction,
      Perception.getCreatureFaction,
      whereAmI,
-     Perception.roll,
      localBiome)
     where
 
@@ -27,7 +26,6 @@ import PlaneVisibility
 import PlaneData
 import Data.Maybe
 import Facing
-import Dice
 import TerrainData
 
 newtype (DBReadable db) => DBPerception db a = DBPerception { fromPerception :: (ReaderT CreatureRef db a) }
@@ -35,6 +33,12 @@ newtype (DBReadable db) => DBPerception db a = DBPerception { fromPerception :: 
 instance (DBReadable db) => Monad (DBPerception db) where
     (DBPerception a) >>= m = DBPerception $ a >>= (\x -> case m x of {(DBPerception b) -> b})
     return = DBPerception . return
+
+instance (DBReadable db,MonadRandom db) => MonadRandom (DBPerception db) where
+    getRandom = liftDB getRandom
+    getRandoms = liftDB getRandoms
+    getRandomR min_max = liftDB $ getRandomR min_max
+    getRandomRs min_max = liftDB $ getRandomRs min_max
 
 -- |
 -- 'liftDB' takes an action in DBReadable and lifts it to DBPerception.  Obviously not exported,
@@ -83,6 +87,3 @@ localBiome :: (DBReadable db) => DBPerception db Biome
 localBiome = 
     do plane_ref <- whatPlaneAmIOn
        liftDB $ liftM plane_biome $ dbGetPlane plane_ref
-
-roll :: (DBReadable db) => [a] -> DBPerception db a
-roll xs = liftDB $ Dice.roll xs

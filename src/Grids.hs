@@ -7,11 +7,11 @@ module Grids
     where
 
 import RNG
-import RandomUtils
 import ListUtils
 import Data.Map as Map
 import Data.Ratio
 import Data.List
+import Random
 
 data Grid a = CompletelyRandomGrid Integer ((Integer,Integer) -> Integer) [(Integer,a)]
             | InterpolatedGrid Integer ((Integer,Integer) -> Integer) (Map (a,a) [(Integer,a)]) (Grid a)
@@ -56,13 +56,13 @@ instance (Ord a, Read a) => Read (Grid a) where
     readsPrec n = \x -> Prelude.map fromPersistant_tupled (readsPrec n x)
 
 gridAt :: Ord a => Grid a -> (Integer,Integer) -> a
-gridAt (CompletelyRandomGrid _ seedfn weights) at = weightedPick (seedfn at) weights
+gridAt (CompletelyRandomGrid _ seedfn weights) at = fst $ weightedPick weights (mkRNG $ seedfn at)
 gridAt (InterpolatedGrid _ seedfn interpolation_map grid) at@(x,y) = 
     let here = gridAt grid (x `div` 2,y `div` 2)
 	there = gridAt grid (x `div` 2 + 1,y `div` 2 + 1)
 	there_x = gridAt grid (x `div` 2 + 1,y `div` 2)
 	there_y = gridAt grid (x `div` 2,y `div` 2 + 1)
-	interpolate a1 a2 = weightedPick (seedfn at) (interpolation_map ! (a1,a2))
+	interpolate a1 a2 = fst $ weightedPick (interpolation_map ! (a1,a2)) (mkRNG $ seedfn at)
 	in case (even x,even y) of
 				(True,True) -> here
 				(True,False) -> (interpolate here there_y)
@@ -72,7 +72,7 @@ gridAt (InterpolatedGrid _ seedfn interpolation_map grid) at@(x,y) =
 gridAt (ArbitraryReplacementGrid _ seedfn sources replacements grid) at = 
     case fmap fst $ find ((== here) . snd) sources of
          Just frequency | ((seedfn at) `mod` (denominator frequency) < (numerator frequency)) ->
-	     weightedPick (seedfn at) replacements
+	     fst $ weightedPick replacements (mkRNG $ seedfn at)
 	 _ -> here
   where here = gridAt grid at
 

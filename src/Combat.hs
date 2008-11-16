@@ -17,7 +17,6 @@ import Control.Monad.Error
 import Facing
 import Data.Maybe
 import Plane
-import Dice
 import Data.List
 import Data.Ord
 import Position
@@ -80,8 +79,8 @@ dbRollRangedDamage _ weapon_ref =
     do tool <- dbGetTool weapon_ref
        case tool of
            GunTool g ->
-	       do energy_released <- roll [0..gunEnergyOutput g]
-	          energy_throughput <- roll [0..gunThroughput g] -- todo: overheats if energy_released > energy_throughput
+	       do energy_released <- linearRoll $ gunEnergyOutput g
+	          energy_throughput <- linearRoll $ gunThroughput g -- todo: overheats if energy_released > energy_throughput
 		  return $ min energy_released energy_throughput
 
 dbRollMeleeDamage :: (DBReadable db) => CreatureRef -> db Integer
