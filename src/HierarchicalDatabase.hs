@@ -20,6 +20,7 @@ import Data.List as List
 import Tests
 import Data.Maybe as Maybe
 
+-- | A record that can be a component of a 'HierarchicalDatabase'.
 class HierarchicalRelation a where
     parent :: a -> Integer
     child :: a -> Integer
@@ -28,6 +29,7 @@ instance (Integral a,Integral b) => HierarchicalRelation (a,b) where
     parent = toInteger . snd
     child = toInteger . fst
 
+-- | A tree or hierarchy based on records that represent parent-child relations.
 data HierarchicalDatabase a = 
     HierarchicalDatabase {
         hd_children :: (Map Integer [Integer]),
@@ -68,28 +70,32 @@ delete x the_map =
           xsParent = parentOf x the_map
 
 -- |
--- Answers the parent of an element, or nothing if the element
--- is not listed as a child in this HierarchicalDatabase.
+-- Answers the key of the parent of the given key, if any.
 --
 parentOf :: (HierarchicalRelation a) => Integer -> HierarchicalDatabase a -> Maybe Integer
 parentOf x the_map = fmap parent $ Map.lookup x $ hd_parent the_map
 
 -- |
--- Answers the parent relation and all children relations for a given key.
+-- Answers the parent relation and all children relations of a given key.
 --
 lookup :: (HierarchicalRelation a) => Integer -> HierarchicalDatabase a -> (Maybe a,[a])
 lookup x the_map = (Map.lookup x $ hd_parent the_map,
                     maybe [] (Maybe.mapMaybe (flip Map.lookup (hd_parent the_map))) $ Map.lookup x $ hd_children the_map)
 
+-- |
+-- Answers the child relations of a given key.
+--
 lookupChildren :: (HierarchicalRelation a) => Integer -> HierarchicalDatabase a -> [a]
 lookupChildren x the_map = snd $ HierarchicalDatabase.lookup x the_map
 
+-- |
+-- Answers the parent relation of a given key, if any.
+--
 lookupParent :: (HierarchicalRelation a) => Integer -> HierarchicalDatabase a -> Maybe a
 lookupParent x the_map = fst $ HierarchicalDatabase.lookup x the_map
 
 -- |
--- Answers a list of the children of an element, or the null list if the element is
--- not listed as a parent in this HierarchicalDatabase.
+-- Answers the keys of the children for a given key.
 --
 childrenOf :: (HierarchicalRelation a) => Integer -> HierarchicalDatabase a -> [Integer]
 childrenOf x the_map = maybe [] id $ Map.lookup x (hd_children the_map)

@@ -27,6 +27,7 @@ import Numeric
 import Turns
 import SpeciesData
 import Species
+import Data.Ord
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -252,13 +253,13 @@ dbDispatchQuery ["center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCe
 dbDispatchQuery ["base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
 dbDispatchQuery ["pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
-    do pickups <- dbAvailablePickups creature_ref
+    do pickups <- liftM (sortBy $ comparing toUID) $ dbAvailablePickups creature_ref
        return $ "begin-table pickups 0 uid\n" ++
                 unlines (map (show . toUID) pickups) ++
 		"end-table"
 
 dbDispatchQuery ["inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do (inventory :: [ToolRef]) <- dbGetContents creature_ref
+    do (inventory :: [ToolRef]) <- liftM (sortBy $ comparing toUID) $ dbGetContents creature_ref
        return $ "begin-table inventory 0 uid\n" ++
                 unlines (map (show . toUID) inventory) ++
 		"end-table"
