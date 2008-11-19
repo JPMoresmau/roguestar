@@ -78,6 +78,10 @@ data CreatureTurnMode =
   | PickupMode
   | DropMode
   | WieldMode
+  | AttackMode
+  | FireMode
+  | JumpMode
+  | TurnMode
       deriving (Read,Show)
 
 data SnapshotEvent = 

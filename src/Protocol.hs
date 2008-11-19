@@ -165,9 +165,13 @@ dbDispatchQuery ["state"] =
                            PlayerCreatureTurn _ PickupMode -> "answer: state pickup"
                            PlayerCreatureTurn _ DropMode -> "answer: state drop"
                            PlayerCreatureTurn _ WieldMode -> "answer: state wield"
-                           SnapshotEvent (AttackEvent {}) -> "answer: state attack"
-                           SnapshotEvent (MissEvent {}) -> "answer: state miss"
-                           SnapshotEvent (KilledEvent {}) -> "answer: state killed"
+                           PlayerCreatureTurn _ AttackMode -> "answer: state attack"
+                           PlayerCreatureTurn _ FireMode -> "answer: state fire"
+                           PlayerCreatureTurn _ JumpMode -> "answer: state jump"
+                           PlayerCreatureTurn _ TurnMode -> "answer: state turn"
+                           SnapshotEvent (AttackEvent {}) -> "answer: state attack-event"
+                           SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
+                           SnapshotEvent (KilledEvent {}) -> "answer: state killed-event"
                            GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["who-attacks"] =
@@ -295,11 +299,31 @@ dbDispatchAction ["reroll"] =
 dbDispatchAction ["select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
 
+dbDispatchAction [direction] | isJust $ stringToFacing direction =
+    do state <- playerState
+       case state of
+           PlayerCreatureTurn _ player_mode -> case player_mode of
+               JumpMode ->   dbDispatchAction ["jump",direction]
+               TurnMode ->   dbDispatchAction ["turn",direction]
+               AttackMode -> dbDispatchAction ["attack",direction]
+               FireMode ->   dbDispatchAction ["fire",direction]
+               _ ->          dbDispatchAction ["move",direction]
+           _ -> return "protocol-error: not in player turn state"
+
+dbDispatchAction ["move"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref NormalMode) >> done
+
 dbDispatchAction ["move",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
 
+dbDispatchAction ["jump"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref JumpMode) >> done
+
 dbDispatchAction ["jump",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Behavior.Jump $ fromJust $ stringToFacing direction) creature_ref >> done)
+
+dbDispatchAction ["turn"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref TurnMode) >> done
 
 dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
@@ -345,7 +369,15 @@ dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref 
 
 dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
 
+dbDispatchAction ["fire"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref FireMode) >> done
+
 dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
+
+dbDispatchAction ["attack"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref AttackMode) >> done
+
+dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
 
 dbDispatchAction unrecognized = return ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
 
