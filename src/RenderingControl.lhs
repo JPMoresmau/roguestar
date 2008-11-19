@@ -161,7 +161,7 @@ gameOver = proc () ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","pickup","drop","wield","attack","miss","killed"]
+planar_states = ["player-turn","pickup","drop","wield","turn","jump","attack","fire","attack-event","miss-event","killed-event"]
 
 planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
@@ -433,21 +433,21 @@ messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
 
 messages :: [(String,RSAnimA1 () () () ())]
 messages = [
-    messageState "attack" $ proc () -> 
+    messageState "attack-event" $ proc () -> 
         do m_weapon <- driverGetAnswerA -< "weapon-used"
 	   returnA -< 
 	       do weapon <- m_weapon
 	          return $ case () of
 		      () | weapon == "0" -> "It attacks!  It hits!"
 		      () | otherwise -> "You attack!  You hit!",
-    messageState "miss" $ proc () -> 
+    messageState "miss-event" $ proc () -> 
         do m_weapon <- driverGetAnswerA -< "weapon-used"
 	   returnA -<
 	       do weapon <- m_weapon
 	          return $ case () of
 		      () | weapon == "0" -> "It attacks!  It misses."
 		      () | otherwise -> "You attack!  You miss.",
-    messageState "killed" $ proc () -> 
+    messageState "killed-event" $ proc () -> 
         do m_who_killed <- driverGetAnswerA -< "who-killed"
 	   returnA -<
 	       do who_killed <- m_who_killed

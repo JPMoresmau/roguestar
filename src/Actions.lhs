@@ -93,31 +93,18 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
            return $ driverAction (action_driver_object action_input) [action_name, action_param]
 
 -- |
--- An action that depends on the state flag of the game engine and an arbitrary constant parameter.
--- For example, actions that operate directionally are parameterized
--- on the eight directions (n,s,w,e,nw,ne,sw,se).
+-- Guard an action to only run during specific states.
 --
--- i.e., parameterizedAction "player-turn" "move" "nw" becomes 
--- ("move-nw",driverAction _ ["move","nw"])
---
-parameterizedAction :: String -> String -> String -> (String,Action)
-parameterizedAction allowed_state action_name parameter =
-    (action_name ++ "-" ++ parameter,
-     stateGuard allowed_state $ \action_input ->
-         return $ driverAction (action_driver_object action_input) [action_name,parameter])
-
--- |
--- Guard an action to only run during a specific state.
---
-stateGuard :: String -> Action -> Action
-stateGuard allowed_state actionM action_input =
-    do guard =<< (liftM (== Just allowed_state) $ lift $ getAnswer (action_driver_object action_input) "state")
+stateGuard :: [String] -> Action -> Action
+stateGuard allowed_states actionM action_input =
+    do guard =<< (liftM (maybe False (`elem` allowed_states)) $ lift $ getAnswer (action_driver_object action_input) "state")
        actionM action_input
 
 -- |
--- An action that depends just on the state flag of the game engine.
+-- A simple action that can run whenever the player state is a member of a given list.
+-- The action name is passed directly to the engine.
 --
-stateLinkedAction :: String -> String -> (String,Action)
+stateLinkedAction :: [String] -> String -> (String,Action)
 stateLinkedAction allowed_state action_name = 
     (action_name,
      stateGuard allowed_state $ \action_input ->
@@ -135,6 +122,9 @@ alwaysAction action_name actionIO =
     Specific Actions
  ----------------------------------------------------------}
 
+player_turn_states :: [String]
+player_turn_states = ["player-turn","attack","fire","jump","turn"]
+
 quit_action :: (String,Action)
 quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
 
@@ -143,32 +133,38 @@ continue_action = ("continue",\action_input ->
     do guard =<< (liftM (== Just "yes") $ lift $ getAnswer (action_driver_object action_input) "snapshot")
        return $ driverAction (action_driver_object action_input) ["continue"])
 
-moveAction :: String -> (String,Action)
-moveAction = parameterizedAction "player-turn" "move"
+direction_actions :: [(String,Action)]
+direction_actions = map (stateLinkedAction player_turn_states) ["n","ne","e","se","s","sw","w","nw"]
 
-jumpAction :: String -> (String,Action)
-jumpAction = parameterizedAction "player-turn" "jump"
+move_action :: (String,Action)
+move_action = stateLinkedAction player_turn_states "move"
 
-turnAction :: String -> (String,Action)
-turnAction = parameterizedAction "player-turn" "turn"
+jump_action :: (String,Action)
+jump_action = stateLinkedAction player_turn_states "jump"
 
-fireAction :: String -> (String,Action)
-fireAction = parameterizedAction "player-turn" "fire"
+turn_action :: (String,Action)
+turn_action = stateLinkedAction player_turn_states "turn"
+
+fire_action :: (String,Action)
+fire_action = stateLinkedAction player_turn_states "fire"
+
+attack_action :: (String,Action)
+attack_action = stateLinkedAction player_turn_states "attack"
 
 reroll_action :: (String,Action)
-reroll_action = stateLinkedAction "class-selection" "reroll"
+reroll_action = stateLinkedAction ["class-selection"] "reroll"
 
 pickup_action :: (String,Action)
-pickup_action = stateLinkedAction "player-turn" "pickup"
+pickup_action = stateLinkedAction player_turn_states "pickup"
 
 drop_action :: (String,Action)
-drop_action = stateLinkedAction "player-turn" "drop"
+drop_action = stateLinkedAction player_turn_states "drop"
 
 wield_action :: (String,Action)
-wield_action = stateLinkedAction "player-turn" "wield"
+wield_action = stateLinkedAction player_turn_states "wield"
 
 unwield_action :: (String,Action)
-unwield_action = stateLinkedAction "player-turn" "unwield"
+unwield_action = stateLinkedAction player_turn_states "unwield"
 
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
@@ -238,30 +234,13 @@ select_base_class_action_names = ["barbarian",
 select_base_class_actions :: [(String,Action)]
 select_base_class_actions = map selectBaseClassAction select_base_class_action_names
 
-eight_directions :: [String]
-eight_directions = ["n","ne","nw","e","w","se","sw","s"]
-
-move_actions :: [(String,Action)]
-move_actions = map moveAction eight_directions
-
-turn_actions :: [(String,Action)]
-turn_actions = map turnAction eight_directions
-
-fire_actions :: [(String,Action)]
-fire_actions = map fireAction eight_directions
-
-jump_actions :: [(String,Action)]
-jump_actions = map jumpAction eight_directions
-
 all_actions :: [(String,Action)]
 all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action,
                zoom_in_action,zoom_out_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
-	      move_actions ++
-              turn_actions ++
-	      fire_actions ++
-              jump_actions
+              direction_actions ++
+	      [move_action,turn_action,fire_action,jump_action,attack_action]
 
 lookupAction :: String -> (String,Action)
 lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action named " ++ x) $ lookup x all_actions)
