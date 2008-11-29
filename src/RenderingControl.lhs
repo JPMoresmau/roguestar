@@ -94,7 +94,10 @@ mainDispatch = mainStateHeader (const False) >>> arr (const $ roguestarSceneLaye
 \begin{code}
 menu_states :: [String]
 menu_states = ["race-selection",
-               "class-selection"]
+               "class-selection",
+               "pickup",
+               "drop",
+               "wield"]
 menuManager :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
@@ -104,6 +107,9 @@ menuStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () SceneLayerI
 menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
   where switchTo "race-selection" = menuRaceSelection
         switchTo "class-selection" = menuClassSelection
+        switchTo "pickup" = toolMenuSelection
+        switchTo "drop" = toolMenuSelection
+        switchTo "wield" = toolMenuSelection
         switchTo unknown_state = error $ "menuStateHeader: unrecognized state: " ++ unknown_state
 
 menuDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
@@ -121,7 +127,7 @@ menuRaceSelection = proc s ->
 menuClassSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuClassSelection = proc () -> 
     do menuStateHeader (== "class-selection") -< ()
-       changed <- edgep <<< sticky isJust Nothing <<<arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
+       changed <- edgep <<< sticky isJust Nothing <<< arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
        switchContinue -< (if changed then Just menuClassSelection else Nothing,())
        requestPrintTextMode -< Unlimited
        clearPrintTextA -< ()
@@ -146,6 +152,28 @@ print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,String) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
        printTextA -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
+
+toolMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+toolMenuSelection = proc () ->
+    do menuStateHeader (`elem` ["pickup","drop","wield"]) -< ()
+       state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
+       m_menu_data <- sticky isJust Nothing <<< driverGetTableA -< ("menu","7")
+       menu_state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
+       clearPrintTextA -< ()
+       requestPrintTextMode -< Unlimited
+       printTextA -< Just (Query, unlines $ flip (maybe []) m_menu_data $ \menu_data -> flip map (tableSelect menu_data ["n","name"]) $ \[n,name] ->
+           case Just n == menu_state of
+               True ->  " ---> " ++ hrstring name
+               False -> "      " ++ hrstring name)
+       printTextA -< Just (Query, case state of
+           Just "pickup" -> "Select an item to pick up: "
+           Just "drop" -> "Select an item to drop: "
+           Just "wield" -> "Select an item to wield: "
+           _ -> "Select an item: ")
+       printMenuItemA "next" -< ()
+       printMenuItemA "prev" -< ()
+       printMenuItemA "escape" -< ()
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
 \end{code}
 
 \subsection{The Game Over State}
@@ -161,7 +189,7 @@ gameOver = proc () ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","pickup","drop","wield","turn","jump","attack","fire","attack-event","miss-event","killed-event"]
+planar_states = ["player-turn","turn","jump","attack","fire","attack-event","miss-event","killed-event"]
 
 planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->

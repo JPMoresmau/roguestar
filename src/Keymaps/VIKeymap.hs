@@ -13,4 +13,6 @@ vi_keymap = common_keymap ++
      ("l","e"),
      ("y","nw"),
      ("b","sw"),
-     ("n","se")]
+     ("n","se"),
+     ("j","next"),
+     ("k","prev")]

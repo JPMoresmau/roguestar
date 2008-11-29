@@ -17,5 +17,6 @@ hrstring "per" =  "Perception   "
 hrstring "cha" =  "Charisma     "
 hrstring "mind" = "Mindfulness  "
 hrstring "forceadept" = "force adept"
+hrstring "phase_pistol" = "phase pistol"
 hrstring x = x
 \end{code}

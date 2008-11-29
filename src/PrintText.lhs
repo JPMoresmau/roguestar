@@ -61,7 +61,7 @@ keyCallback _ (MouseButton {}) _ _ _ = return ()
 keyCallback (PrintTextObject pto) (Char char) _ _ _ = modifyIORef pto $ 
     \ptd -> ptd { text_input_buffer = text_input_buffer ptd ++ [char] }
 keyCallback (PrintTextObject pto) (SpecialKey special) _ _ _ = modifyIORef pto $
-    \ptd -> ptd { text_input_buffer = text_input_buffer ptd ++ show special }
+    \ptd -> ptd { text_input_buffer = text_input_buffer ptd ++ ":::" ++ show special }
 
 getInputBuffer :: PrintTextObject -> IO String
 getInputBuffer (PrintTextObject pto) = liftM text_input_buffer $ readIORef pto

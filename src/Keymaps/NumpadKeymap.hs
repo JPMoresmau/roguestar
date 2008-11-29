@@ -14,4 +14,6 @@ numpad_keymap = common_keymap ++
      ("7","nw"),
      ("9","ne"),
      ("1","sw"),
-     ("3","se")]
+     ("3","se"),
+     ("8","prev"),
+     ("2","next")]

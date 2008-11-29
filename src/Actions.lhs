@@ -125,6 +125,9 @@ alwaysAction action_name actionIO =
 player_turn_states :: [String]
 player_turn_states = ["player-turn","attack","fire","jump","turn"]
 
+menu_states :: [String]
+menu_states = ["pickup","drop","wield"]
+
 quit_action :: (String,Action)
 quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
 
@@ -135,6 +138,20 @@ continue_action = ("continue",\action_input ->
 
 direction_actions :: [(String,Action)]
 direction_actions = map (stateLinkedAction player_turn_states) ["n","ne","e","se","s","sw","w","nw"]
+
+next_action :: (String,Action)
+next_action = stateLinkedAction menu_states "next"
+
+prev_action :: (String,Action)
+prev_action = stateLinkedAction menu_states "prev"
+
+select_menu_action :: (String,Action)
+select_menu_action = stateLinkedAction menu_states "select-menu"
+
+escape_action :: (String,Action)
+escape_action = ("escape",
+    stateGuard menu_states $ \action_input -> 
+        return $ driverAction (action_driver_object action_input) ["move"])
 
 move_action :: (String,Action)
 move_action = stateLinkedAction player_turn_states "move"
@@ -235,7 +252,9 @@ select_base_class_actions :: [(String,Action)]
 select_base_class_actions = map selectBaseClassAction select_base_class_action_names
 
 all_actions :: [(String,Action)]
-all_actions = [continue_action,quit_action,reroll_action,pickup_action,drop_action,wield_action,unwield_action,
+all_actions = [continue_action,quit_action,reroll_action,
+               pickup_action,drop_action,wield_action,unwield_action,
+               next_action,prev_action,escape_action,select_menu_action,
                zoom_in_action,zoom_out_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
