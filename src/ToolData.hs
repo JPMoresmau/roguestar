@@ -11,7 +11,7 @@ module ToolData
 import Substances
 
 data Tool = GunTool Gun
-            deriving (Read,Show)
+            deriving (Read,Show,Eq)
 
 data GunSize = Pistol
              | Carbine

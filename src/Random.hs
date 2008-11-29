@@ -40,8 +40,7 @@ linearRoll :: (MonadRandom m) => Integer -> m Integer
 linearRoll n = getRandomR (0,n)
 
 -- | Roll a die where the typical outcome is the base-2 logarithm of the input.
--- In particular this function has exactly the same probability of rolling exactly 0
--- as 'linearDiceRoll'.
+-- This function has exactly the same probability of rolling exactly 0 as 'linearDiceRoll'.
 --
 logRoll :: (MonadRandom m) => Integer -> m Integer
 logRoll n = liftM (min n) $ accumRoll 0 n

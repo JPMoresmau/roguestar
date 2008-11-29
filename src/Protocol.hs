@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, PatternSignatures #-}
+{-# LANGUAGE ExistentialQuantification, PatternSignatures, PatternGuards #-}
 
 module Protocol
     (mainLoop)
@@ -31,7 +31,7 @@ import Data.Ord
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
-import DBPrivate (Reference(..))
+import DBPrivate (Reference(ToolRef))
 
 mainLoop :: DB_BaseType -> IO ()
 mainLoop db0 = do next_command <- getLine
@@ -76,8 +76,8 @@ dbRequiresClassSelectionState action =
 -- Perform an action that operates on the player creature (not in any context).
 -- The states that work for this are:
 --
--- DBClassSelectionState
--- DBPlayerCreatureTurn
+-- * ClassSelectionState
+-- * PlayerCreatureTurn
 --
 dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db String) -> db String
 dbRequiresPlayerCenteredState action =
@@ -92,8 +92,8 @@ dbRequiresPlayerCenteredState action =
 -- Perform an action that works during any creature's turn in a planar environment.
 -- The states that work for this are:
 --
--- DBPlayerCreaturePickupMode
--- DBEvent
+-- * PlayerCreatureTurn
+-- * SnapshotEvent
 --
 dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlanarTurnState action =
@@ -110,7 +110,7 @@ dbRequiresPlanarTurnState action =
 -- Perform an action that works only during a player-character's turn.
 -- The states that work for this are:
 --
--- DBPlayerCreatureTurn
+-- PlayerCreatureTurn
 --
 dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
 dbRequiresPlayerTurnState action =
@@ -119,6 +119,35 @@ dbRequiresPlayerTurnState action =
        case state of
                   PlayerCreatureTurn creature_ref _ -> action creature_ref
                   _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
+
+-- |
+-- For arbitrary-length menu selections, get the current index into the menu, if any.
+--
+menuState :: (DBReadable db) => db (Maybe Integer)
+menuState =
+    do state <- playerState
+       number_of_tools <- liftM genericLength toolMenuElements
+       let i = case state of
+                   PlayerCreatureTurn _ (PickupMode n) -> Just n
+                   PlayerCreatureTurn _ (DropMode n) -> Just n
+                   PlayerCreatureTurn _ (WieldMode n) -> Just n
+                   _ -> Nothing
+       return $ fmap (`mod` number_of_tools) i
+
+-- |
+-- For arbitrary-length menu selections, modify the current index into the menu.  If there is no menu index
+-- in the current state, this has no effect.
+--
+modifyMenuState :: (Integer -> Integer) -> DB ()
+modifyMenuState f_ = 
+    do state <- playerState
+       number_of_tools <- liftM genericLength toolMenuElements
+       let f = (`mod` number_of_tools) . f_
+       setPlayerState $ case state of
+           PlayerCreatureTurn c (PickupMode n) -> PlayerCreatureTurn c (PickupMode $ f n)
+           PlayerCreatureTurn c (DropMode n) -> PlayerCreatureTurn c (DropMode $ f n)
+           PlayerCreatureTurn c (WieldMode n) -> PlayerCreatureTurn c (WieldMode $ f n)
+           x -> x
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
@@ -162,9 +191,9 @@ dbDispatchQuery ["state"] =
 			   RaceSelectionState -> "answer: state race-selection"
 			   ClassSelectionState {} -> "answer: state class-selection"
 			   PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
-                           PlayerCreatureTurn _ PickupMode -> "answer: state pickup"
-                           PlayerCreatureTurn _ DropMode -> "answer: state drop"
-                           PlayerCreatureTurn _ WieldMode -> "answer: state wield"
+                           PlayerCreatureTurn _ (PickupMode {}) -> "answer: state pickup"
+                           PlayerCreatureTurn _ (DropMode {}) -> "answer: state drop"
+                           PlayerCreatureTurn _ (WieldMode {}) -> "answer: state wield"
                            PlayerCreatureTurn _ AttackMode -> "answer: state attack"
                            PlayerCreatureTurn _ FireMode -> "answer: state fire"
                            PlayerCreatureTurn _ JumpMode -> "answer: state jump"
@@ -173,6 +202,12 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
                            SnapshotEvent (KilledEvent {}) -> "answer: state killed-event"
                            GameOver -> "answer: state game-over"
+
+dbDispatchQuery ["menu-state"] =
+    do m_state <- menuState
+       return $ case m_state of
+           Nothing -> "answer: menu-state 0"
+           Just state -> "answer: menu-state " ++ show state
 
 dbDispatchQuery ["who-attacks"] =
     do state <- playerState
@@ -257,16 +292,18 @@ dbDispatchQuery ["center-coordinates","0"] = dbRequiresPlanarTurnState dbQueryCe
 dbDispatchQuery ["base-classes","0"] = dbRequiresClassSelectionState dbQueryBaseClasses
 
 dbDispatchQuery ["pickups","0"] = dbRequiresPlayerTurnState $ \creature_ref -> 
-    do pickups <- liftM (sortBy $ comparing toUID) $ dbAvailablePickups creature_ref
-       return $ "begin-table pickups 0 uid\n" ++
-                unlines (map (show . toUID) pickups) ++
-		"end-table"
+    liftM (showToolMenuTable "pickups" "0") $ toolsToMenuTable =<< dbAvailablePickups creature_ref
 
 dbDispatchQuery ["inventory","0"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do (inventory :: [ToolRef]) <- liftM (sortBy $ comparing toUID) $ dbGetContents creature_ref
-       return $ "begin-table inventory 0 uid\n" ++
-                unlines (map (show . toUID) inventory) ++
-		"end-table"
+    liftM (showToolMenuTable "inventory" "0") $ toolsToMenuTable =<< dbGetContents creature_ref
+
+dbDispatchQuery ["menu","0"] =
+    liftM (showToolMenuTable "menu" "0") $ toolsToMenuTable =<< toolMenuElements
+
+dbDispatchQuery ["menu",s] | Just window_size <- readNumber s =
+    do n <- liftM (fromMaybe 0) menuState
+       let windowF (x,_,_) = abs (x - n) <= window_size `div` 2
+       liftM (showToolMenuTable "menu" s . filter windowF) $ toolsToMenuTable =<< toolMenuElements
 
 dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
@@ -328,12 +365,29 @@ dbDispatchAction ["turn"] =
 dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
 
+dbDispatchAction ["next"] = modifyMenuState (+1) >> done
+
+dbDispatchAction ["prev"] = modifyMenuState (subtract 1) >> done
+
+dbDispatchAction ["select-menu"] =
+    do state <- playerState
+       i <- menuState
+       tool_table <- toolsToMenuTable =<< toolMenuElements
+       let selection = maybe "0" (\(_,tool_ref,_) -> show $ toUID tool_ref) $ find (\(n,_,_) -> Just n == i) tool_table
+       case state of
+           PlayerCreatureTurn _ player_mode -> case player_mode of
+               PickupMode {} -> dbDispatchAction ["pickup",selection]
+               DropMode {}   -> dbDispatchAction ["drop",selection]
+               WieldMode {}  -> dbDispatchAction ["wield",selection]
+               _ -> return "protocol-error: not in menu selection state"
+           _ -> return "protocol-error: not in player turn state"
+
 dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
        case pickups of
            [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-there"
-	   _ -> setPlayerState (PlayerCreatureTurn creature_ref PickupMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (PickupMode 0))
        done
 
 dbDispatchAction ["pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
@@ -346,7 +400,7 @@ dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> setPlayerState (PlayerCreatureTurn creature_ref DropMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (DropMode 0))
        done
 
 dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
@@ -359,7 +413,7 @@ dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
-	   _ -> setPlayerState (PlayerCreatureTurn creature_ref WieldMode)
+	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (WieldMode 0))
        done
 
 dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
@@ -402,6 +456,37 @@ dbRerollRace _ = do starting_race <- dbGetStartingRace
 
 dbQueryPlayerStats :: (DBReadable db) => Creature -> db String
 dbQueryPlayerStats creature = return $ playerStatsTable creature
+
+-- |
+-- Generate a list of tools, e.g. for an inventory list or pickup list.
+-- The data source is selected on a context-sensitive basis.
+--
+toolMenuElements :: (DBReadable db) => db [ToolRef]
+toolMenuElements =
+    do state <- playerState
+       case state of
+           PlayerCreatureTurn c (PickupMode {}) -> dbAvailablePickups c
+           PlayerCreatureTurn c _ -> dbGetContents c
+           _ -> return []
+
+-- |
+-- Convert a list of tool menu elements into table row entries.
+-- The result entries consist of an index incrementing from zero, ToolRef, and name of the tool.
+--
+toolsToMenuTable :: (DBReadable db) => [ToolRef] -> db [(Integer,ToolRef,String)]
+toolsToMenuTable raw_uids =
+    do let uids = sortBy (comparing toUID) raw_uids
+       tool_names <- mapM (liftM toolName . dbGetTool) uids
+       return $ zip3 [0..] uids tool_names
+
+-- |
+-- Generate a tool menu table in text form, with the specified name and element list.
+--
+showToolMenuTable :: String -> String -> [(Integer,ToolRef,String)] -> String
+showToolMenuTable table_name table_id tool_table = 
+    "begin-table " ++ table_name ++ " " ++ table_id ++ " n uid name" ++ "\n" ++
+    unlines (map (\(n,uid,tool_name) -> unwords [show n,show $ toUID uid,tool_name]) tool_table) ++
+    "end-table"
 
 -- |
 -- Information about player creatures (for which the player should have almost all available information.)
@@ -467,8 +552,10 @@ dbQueryCenterCoordinates creature_ref =
 
 readUID :: (Integer -> Reference a) -> String -> DB (Reference a)
 readUID f x = 
-    do let m_uid = fmap fst $ listToMaybe $ filter (null . snd) $ readDec x
+    do let m_uid = readNumber x
        ok <- maybe (return False) (dbVerify . f) m_uid
        when (not ok) $ throwError $ DBError $ "protocol-error: " ++ x ++ " is not a valid uid."
        return $ f $ fromJust m_uid
-       
+
+readNumber :: String -> Maybe Integer
+readNumber = fmap fst . listToMaybe . filter (null . snd) . readDec
