@@ -402,15 +402,17 @@ toolAvatar = proc tti ->
        m_tool <- objectDetailsLookup "tool" -< ()
        switchContinue -< (fmap switchTo m_tool,tti)
        returnA -< ()
-  where switchTo "phase_pistol" = phasePistolAvatar
+  where switchTo "phase_pistol" = phaseWeaponAvatar PhasePistol
+        switchTo "phaser" = phaseWeaponAvatar Phaser
+        switchTo "phase_rifle" = phaseWeaponAvatar PhaseRifle
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
-phasePistolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
-phasePistolAvatar = proc tti ->
+phaseWeaponAvatar :: LibraryModel -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+phaseWeaponAvatar phase_weapon_model = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation -< tti
        transformA libraryA -< maybe (root_coordinate_system,(scene_layer_local,NullModel))
-                                    (\o -> (o,(scene_layer_local,PhasePistol))) 
+                                    (\o -> (o,(scene_layer_local,phase_weapon_model))) 
 				    m_orientation
 
 floatBobbing :: Double -> Double -> RSAnimAX any t i o j p -> RSAnimAX any t i o j p

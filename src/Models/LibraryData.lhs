@@ -26,6 +26,8 @@ data LibraryModel =
   | Reptilian
     -- Tools
   | PhasePistol
+  | Phaser
+  | PhaseRifle
     -- Arms and Legs
   | MachineArmLower
   | MachineArmUpper

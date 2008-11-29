@@ -1,5 +1,7 @@
 module Models.PhaseWeapons
-    (phase_pistol)
+    (phase_pistol,
+     phaser,
+     phase_rifle)
     where
 
 import Quality
@@ -9,12 +11,16 @@ import RSAGL.Model
 import RSAGL.Affine
 import RSAGL.CurveExtras
 import RSAGL.Angle
+import Control.Monad
+import RSAGL.Interpolation
 
-phase_weapon_emitter :: Quality -> Modeling ()
-phase_weapon_emitter _ = model $
+-- | A phase weapon emitter.  Includes a specification of a phase guide length.
+phaseWeaponEmitter :: Integer -> Quality -> Modeling ()
+phaseWeaponEmitter guide_length _ = model $
     do sor $ linearInterpolation $
                 points2d $ reverse 
-		         [(0.001,0),
+		         [(0,0),
+                          (1,0),
                           (4,1),
                           (7,2),
                           (9,3),
@@ -23,15 +29,16 @@ phase_weapon_emitter _ = model $
                           (7,-6),
                           (4,-9),
                           (2,-10),
-                          (0.001,-10)]
-       deform dfn
+                          (0,-10)]
+       let guide_length_y = fromInteger guide_length * 3 + 6
+       when (guide_length > 0) $ openCone (Point3D 0 0 8,1) (Point3D 0 guide_length_y 8,0)
+       flip mapM [2..guide_length] $ \i ->
+           do let y = fromInteger i * 3
+              translate (Vector3D 0 y 0) $ torus 8 (lerpBetween (0,y,guide_length_y) (1,0))
+       deform dfn_squish
        affine $ rotateX (fromDegrees 90)
-    where dfn_squish p@(Point3D _ _ z) | z > 0 = scale (Vector3D 1 1 0.1) p
-          dfn_squish p = scale (Vector3D 1 1 0.25) p
-          dfn_smoothe_dish p@(Point3D _ y _) | y > 0 = scale (Vector3D 1 (u/10) 1) p
-              where u = distanceBetween origin_point_3d $ scale (Vector3D 1 0 1) p
-          dfn_smoothe_dish p = p
-          dfn = dfn_smoothe_dish . dfn_squish
+    where dfn_squish p@(Point3D _ _ z) | z > 0 = scale (Vector3D 1 1 0.1) p  -- bottom of emitter is flattened
+          dfn_squish p = scale (Vector3D 1 1 0.25) p                         -- top of emitter is more round
                                  
 phase_weapon_grip :: Quality -> Modeling ()
 phase_weapon_grip _ = model $
@@ -52,10 +59,19 @@ phase_weapon_grip _ = model $
          dfn_flat_sides (Point3D x y z) = Point3D ((signum x *) $ sqrt (abs x/3)) y z
          dfn_slope_backwards pt@(Point3D _ y _) = translate (Vector3D 0 0 (-y/3)) pt
          dfn = dfn_slope_backwards . dfn_flat_back . dfn_flat_sides . dfn_gripped_front
-                                
-phase_pistol :: Quality -> Modeling ()
-phase_pistol q = model $
+
+phaseWeapon :: Integer -> Quality -> Modeling ()
+phaseWeapon guide_length q = model $
     scale' (1/100) $
-        do translate (Vector3D 0 5 7) $ phase_weapon_emitter q
+        do translate (Vector3D 0 5 7) $ phaseWeaponEmitter guide_length q
            translate (Vector3D 0 5 0) $ phase_weapon_grip q
 	   concordance_metal
+
+phase_pistol :: Quality -> Modeling ()
+phase_pistol = phaseWeapon 0
+
+phaser :: Quality -> Modeling ()
+phaser = phaseWeapon 1
+
+phase_rifle :: Quality -> Modeling ()
+phase_rifle = phaseWeapon 2

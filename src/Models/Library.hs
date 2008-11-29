@@ -45,6 +45,8 @@ toModel Caduceator = caduceator
 toModel Reptilian = reptilian
 toModel AscendantGlow = ascendant_glow
 toModel PhasePistol = phase_pistol
+toModel Phaser = phaser
+toModel PhaseRifle = phase_rifle
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper
 toModel CaduceatorArmLower = caduceator_arm_lower
@@ -83,6 +85,8 @@ all_library_models =
      Reptilian,
      AscendantGlow,
      PhasePistol,
+     Phaser,
+     PhaseRifle,
      MachineArmLower,
      MachineArmUpper,
      CaduceatorArmLower,
