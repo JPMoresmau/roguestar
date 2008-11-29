@@ -47,6 +47,6 @@ dbBeginGame creature character_class =
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 (Position (0,0)) (not . (`elem` difficult_terrains)) plane_ref
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
-       phaser_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
-       dbAddTool phase_pistol (Dropped plane_ref phaser_position)
+       flip mapM_ [0..10] $ \_ -> do phaser_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
+                                     dbAddTool phase_pistol (Dropped plane_ref phaser_position)
        setPlayerState $ PlayerCreatureTurn creature_ref NormalMode
