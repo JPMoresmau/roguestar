@@ -64,15 +64,17 @@ dbPerform1PlanarAITurn plane_ref =
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
 	      newCreature Pirates Recreant (Standing plane_ref spawn_position Here)
 	      return ()
-       dbAdvanceTime (1%100) plane_ref
+       dbAdvanceTime plane_ref (1%100)
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 
     atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
         do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects 
+           (rand_x :: Integer) <- lift $ getRandomR (0,1000)
            (_,my_position) <- lift P.whereAmI
 	   let face_to_player = faceAt my_position (location player)
 	   return $ case distanceBetweenChessboard my_position (location player) of
+               _ | rand_x == 0 -> Wait -- if AI gets stuck, this will make sure they waste time so the game doesn't hang
 	       1 -> Attack $ face_to_player
 	       _ -> Step $ face_to_player
 

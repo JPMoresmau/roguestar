@@ -409,8 +409,8 @@ dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref -
        done
 
 dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    do inventory <- dbGetContents creature_ref
-       case inventory of
+    do available <- availableWields creature_ref
+       case available of
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (WieldMode 0))
@@ -466,6 +466,7 @@ toolMenuElements =
     do state <- playerState
        case state of
            PlayerCreatureTurn c (PickupMode {}) -> dbAvailablePickups c
+           PlayerCreatureTurn c (WieldMode {}) -> availableWields c
            PlayerCreatureTurn c _ -> dbGetContents c
            _ -> return []
 

@@ -349,27 +349,27 @@ dbPutTool = dbPutObjectComposable db_tools (\x db_base_type -> db_base_type { db
 -- |
 -- Gets an object from the database using getter functions.
 --
-dbGetObjectComposable :: (DBReadable db,Ord a) => (DB_BaseType -> Map a b) -> a -> db b
-dbGetObjectComposable get_fn ref = 
-    asks (fromMaybe (error "dbGetObjectComposable: Nothing") . Map.lookup ref . get_fn)
+dbGetObjectComposable :: (DBReadable db,Ord a,GenericReference a x) => String -> (DB_BaseType -> Map a b) -> a -> db b
+dbGetObjectComposable type_info get_fn ref = 
+    asks (fromMaybe (error $ "dbGetObjectComposable: Nothing.  UID was " ++ show (toUID $ generalizeReference ref) ++ ", type info was " ++ type_info) . Map.lookup ref . get_fn)
 
 -- |
 -- Gets a Creature from a CreatureRef
 --
 dbGetCreature :: (DBReadable m) => CreatureRef -> m Creature
-dbGetCreature = dbGetObjectComposable db_creatures
+dbGetCreature = dbGetObjectComposable "CreatureRef" db_creatures
 
 -- |
 -- Gets a Plane from a PlaneRef
 --
 dbGetPlane :: (DBReadable m) => PlaneRef -> m Plane
-dbGetPlane = dbGetObjectComposable db_planes
+dbGetPlane = dbGetObjectComposable "PlaneRef" db_planes
 
 -- |
 -- Gets a Plane from a PlaneRef
 --
 dbGetTool :: (DBReadable m) => ToolRef -> m Tool
-dbGetTool = dbGetObjectComposable db_tools
+dbGetTool = dbGetObjectComposable "ToolRef" db_tools
 
 -- |
 -- Modifies an Object based on an ObjectRef.
@@ -480,8 +480,8 @@ dbSetTimeCoordinate ref tc = modify (\db -> db { db_time_coordinates = Map.inser
 -- |
 -- Advances the time of an object.
 --
-dbAdvanceTime :: (ReferenceType a) => Rational -> Reference a -> DB ()
-dbAdvanceTime t ref = dbSetTimeCoordinate ref =<< (return . (advanceTime t)) =<< dbGetTimeCoordinate ref
+dbAdvanceTime :: (ReferenceType a) => Reference a -> Rational -> DB ()
+dbAdvanceTime ref t = dbSetTimeCoordinate ref =<< (return . (advanceTime t)) =<< dbGetTimeCoordinate ref
 
 -- |
 -- Finds the object whose turn is next, among a restricted group of objects.

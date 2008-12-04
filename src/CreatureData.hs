@@ -99,6 +99,7 @@ data CreatureAbility =
    | HideSkill
    | SpotSkill
    | JumpSkill
+   | InventorySkill
          deriving (Eq,Read,Show,Ord)
 
 instance CreatureEndo CreatureAbility where
@@ -146,6 +147,7 @@ creatureAbilityScore (DamageReductionTrait Unarmed) = figureAbility [Constitutio
 creatureAbilityScore HideSkill = figureAbility [Perception] (HideSkill,2)
 creatureAbilityScore SpotSkill = figureAbility [Perception] (SpotSkill,2)
 creatureAbilityScore JumpSkill = figureAbility [Strength] (JumpSkill,2)
+creatureAbilityScore InventorySkill = figureAbility [Strength,Speed,Constitution] (InventorySkill,2)
 
 -- |
 -- Answers the gender of this creature.

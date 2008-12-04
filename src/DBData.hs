@@ -31,6 +31,7 @@ module DBData
      _facing,
      _the_universe,
      asLocationTyped,
+     asReferenceTyped,
      DBPrivate.S,
      location,
      entity,
@@ -189,6 +190,9 @@ getEntity (InTheUniverse r) = unsafeReference r
 
 asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
+
+asReferenceTyped :: (LocationType e) => Type e -> e -> e
+asReferenceTyped _ = id
 
 coerceLocationTyped :: (LocationType e,LocationType t) => Type t -> Location m e x -> Maybe (Location m e t)
 coerceLocationTyped = const coerceLocation

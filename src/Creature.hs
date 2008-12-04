@@ -8,6 +8,7 @@ module Creature
      getCreatureFaction,
      rollInjury,
      injureCreature,
+     getCreatureHealth,
      getDead,
      deleteCreature,
      sweepDead)
@@ -24,6 +25,7 @@ import Control.Monad.Error
 import Tool
 import CreatureAttribute
 import Data.Monoid
+import Data.Ratio
 
 -- |
 -- Generates a new Creature from the specified species.
@@ -73,8 +75,20 @@ rollInjury interaction_mode creature_ref damage_roll =
 injureCreature :: Integer -> CreatureRef -> DB ()
 injureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
 
-getCreatureHealth :: (DBReadable db) => CreatureRef -> db Integer
-getCreatureHealth creature_ref = liftM (\c -> creatureAbilityScore ToughnessTrait c - creature_damage c) $ dbGetCreature creature_ref
+getCreatureMaxHealth :: (DBReadable db) => CreatureRef -> db Integer
+getCreatureMaxHealth = liftM (creatureAbilityScore ToughnessTrait) . dbGetCreature
+
+-- | Injury difference from maximum health as an integer count of hit points.
+getCreatureInjury :: (DBReadable db) => CreatureRef -> db Integer
+getCreatureInjury = liftM creature_damage . dbGetCreature
+
+-- | Health as an integer count of hit points.
+getCreatureAbsoluteHealth :: (DBReadable db) => CreatureRef -> db Integer
+getCreatureAbsoluteHealth creature_ref = liftM2 (-) (getCreatureMaxHealth creature_ref) (getCreatureInjury creature_ref)
+
+-- | Health as a fraction of 1.
+getCreatureHealth :: (DBReadable db) => CreatureRef -> db Rational
+getCreatureHealth creature_ref = liftM2 (%) (getCreatureAbsoluteHealth creature_ref) (getCreatureMaxHealth creature_ref)
 
 getDead :: (DBReadable db) => Reference a -> db [CreatureRef]
 getDead parent_ref = filterRO (liftM (<= 0) . getCreatureHealth) =<< dbGetContents parent_ref
