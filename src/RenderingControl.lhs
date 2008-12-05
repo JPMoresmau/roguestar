@@ -189,7 +189,7 @@ gameOver = proc () ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","turn","jump","attack","fire","attack-event","miss-event","killed-event"]
+planar_states = ["player-turn","turn","jump","attack","fire","attack-event","miss-event","killed-event","weapon-overheats-event","weapon-explodes-event"]
 
 planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
@@ -468,20 +468,34 @@ messages = [
 	   returnA -< 
 	       do weapon <- m_weapon
 	          return $ case () of
-		      () | weapon == "0" -> "It attacks!  It hits!"
-		      () | otherwise -> "You attack!  You hit!",
+		      () | weapon == "0" -> "It attacks!\nIt hits!"
+		      () | otherwise -> "You attack!\nYou hit!",
     messageState "miss-event" $ proc () -> 
         do m_weapon <- driverGetAnswerA -< "weapon-used"
 	   returnA -<
 	       do weapon <- m_weapon
 	          return $ case () of
-		      () | weapon == "0" -> "It attacks!  It misses."
-		      () | otherwise -> "You attack!  You miss.",
+		      () | weapon == "0" -> "It attacks!\nIt misses."
+		      () | otherwise -> "You attack!\nYou miss.",
     messageState "killed-event" $ proc () -> 
         do m_who_killed <- driverGetAnswerA -< "who-killed"
 	   returnA -<
 	       do who_killed <- m_who_killed
 	          return $ case () of
 		      () | who_killed == "2" -> "You are mortally wounded."
-		      () | otherwise -> "You kill it!"]
+		      () | otherwise -> "You kill it!",
+    messageState "weapon-overheats-event" $ proc () ->
+       do m_who_surprised <- driverGetAnswerA -< "who-attacks"
+          returnA -<
+              do who_surprised <- m_who_surprised
+                 return $ case () of
+                     () | who_surprised == "2" -> "You attack!\nOuch!  Your weapon overheats!"
+                     () | otherwise -> "It attacks!\nIt's weapon overheats!",
+    messageState "weapon-explodes-event" $ proc () ->
+        do m_who_surprised <- driverGetAnswerA -< "who-attacks"
+           returnA -<
+               do who_surprised <- m_who_surprised
+                  return $ case () of
+                      () | who_surprised == "2" -> "You attack!\nYour weapon explodes in your hand!\nAre you sure you're even qualified to operate a directed energy firearm?"
+                      () | otherwise -> "It attacks!\nIts weapon explodes in its hands!"]
 \end{code}
