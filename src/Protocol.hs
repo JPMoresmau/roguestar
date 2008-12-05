@@ -103,6 +103,8 @@ dbRequiresPlanarTurnState action =
 		  PlayerCreatureTurn creature_ref _ -> action creature_ref
 		  SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
 		  SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
+                  SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> action attacker_ref
+                  SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> action attacker_ref
 		  SnapshotEvent (KilledEvent killed_ref) -> action killed_ref
 		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
 
@@ -201,6 +203,8 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (AttackEvent {}) -> "answer: state attack-event"
                            SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
                            SnapshotEvent (KilledEvent {}) -> "answer: state killed-event"
+                           SnapshotEvent (WeaponOverheatsEvent {}) -> "answer: state weapon-overheats-event"
+                           SnapshotEvent (WeaponExplodesEvent {}) -> "answer: state weapon-explodes-event"
                            GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["menu-state"] =
@@ -214,6 +218,8 @@ dbDispatchQuery ["who-attacks"] =
        return $ case state of
            SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
 	   SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> "answer: who-attackers " ++ (show $ toUID attacker_ref)
 	   _ -> "answer: who-attacks 0"
 
 dbDispatchQuery ["who-hit"] =
@@ -227,6 +233,8 @@ dbDispatchQuery ["weapon-used"] =
        return $ case state of
            SnapshotEvent (AttackEvent { attack_event_source_weapon = Just weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
 	   SnapshotEvent (MissEvent { miss_event_weapon = Just weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
+           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_weapon = weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
+           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_weapon = weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
 	   _ -> "answer: weapon-used 0"
 
 dbDispatchQuery ["who-killed"] =

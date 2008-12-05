@@ -82,13 +82,13 @@ dbBehave (Drop tool_ref) creature_ref =
 
 dbBehave (Fire face) creature_ref =
     do dbMove (turnCreature face) creature_ref
-       atomic $ liftM dbExecuteRangedAttack $ dbResolveRangedAttack creature_ref face
+       atomic $ liftM executeRangedAttack $ resolveRangedAttack creature_ref face
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 dbBehave (Attack face) creature_ref =
     do dbMove (turnCreature face) creature_ref
-       atomic $ liftM dbExecuteMeleeAttack $ dbResolveMeleeAttack creature_ref face
+       atomic $ liftM executeMeleeAttack $ resolveMeleeAttack creature_ref face
        dbAdvanceTime creature_ref =<< move1ActionTime creature_ref
        return ()
 

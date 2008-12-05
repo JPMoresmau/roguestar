@@ -35,7 +35,8 @@ dbFinishPendingAITurns =
 
 dbFinishPlanarAITurns :: PlaneRef -> DB ()
 dbFinishPlanarAITurns plane_ref =
-    do (all_creatures_on_plane :: [CreatureRef]) <- dbGetContents plane_ref
+    do sweepDead plane_ref
+       (all_creatures_on_plane :: [CreatureRef]) <- dbGetContents plane_ref
        any_players_left <- liftM (any (== Player)) $ mapM getCreatureFaction all_creatures_on_plane
        next_turn <- dbNextTurn $ map generalizeReference all_creatures_on_plane ++ [generalizeReference plane_ref]
        case next_turn of

@@ -67,10 +67,15 @@ rollCreatureAbilityScore score bonus creature_ref =
 getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature
 
+-- | Roll the amount of damage taken by a creature.  The input is the amount of damage recieved,
+-- while the output is the amount of damage actually absorbed after damage reduction.
+-- A critical failure results in double damage.
 rollInjury :: (DBReadable db) => CreatureInteractionMode -> CreatureRef -> Integer -> db Integer
 rollInjury interaction_mode creature_ref damage_roll = 
     do damage_reduction <- liftM roll_actual $ rollCreatureAbilityScore (DamageReductionTrait interaction_mode) 0 creature_ref
-       return $ max 0 $ damage_roll - damage_reduction
+       return $ case damage_reduction of
+           0 -> damage_roll * 2
+           _ -> max 0 $ damage_roll - damage_reduction
        
 injureCreature :: Integer -> CreatureRef -> DB ()
 injureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }

@@ -6,7 +6,8 @@ module Tool
      dbDropTool,
      dbAvailablePickups,
      availableWields,
-     dbGetWielded)
+     dbGetWielded,
+     deleteTool)
     where
 
 import DB
@@ -55,3 +56,6 @@ availableWields creature_ref = liftM2 List.union (dbAvailablePickups creature_re
 dbGetWielded :: (DBReadable db) => CreatureRef -> db (Maybe ToolRef)
 dbGetWielded = liftM (listToMaybe . map (entity . asLocationTyped _tool _wielded)) . dbGetContents
 
+-- | Safely delete tools.
+deleteTool :: ToolRef -> DB ()
+deleteTool = dbUnsafeDeleteObject (error "deleteTool: impossible case: tools shouldn't contain anything")

@@ -94,6 +94,12 @@ data SnapshotEvent =
 	miss_event_weapon :: Maybe ToolRef }
   | KilledEvent {
         killed_event_creature :: CreatureRef }
+  | WeaponOverheatsEvent {
+        weapon_overheats_event_creature :: CreatureRef,
+        weapon_overheats_event_weapon :: ToolRef }
+  | WeaponExplodesEvent {
+        weapon_explodes_event_creature :: CreatureRef,
+        weapon_explodes_event_weapon :: ToolRef }
             deriving (Read,Show)
 
 data DB_History = DB_History {

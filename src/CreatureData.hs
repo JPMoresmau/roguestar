@@ -87,7 +87,12 @@ instance CreatureEndo CreatureAptitude where
 instance CreatureScore CreatureAptitude where
     rawScore aptitude c = fromMaybe 0 $ Map.lookup aptitude (creature_aptitude c)
 
-data CreatureInteractionMode = Melee | Ranged | Unarmed
+-- | Combat modes:
+-- Melee is armed close-quarters combat with bladed or blunt weapons
+-- Ranged is combat with projectile weapons
+-- Unarmed is close-quarters hand-to-hand
+-- Splash represts diffuse damage caused by things like explosions or falling into lava.
+data CreatureInteractionMode = Melee | Ranged | Unarmed | Splash
     deriving (Eq,Read,Show,Ord)
 
 data CreatureAbility =
@@ -144,6 +149,10 @@ creatureAbilityScore (AttackSkill Unarmed) = figureAbility [Speed] (AttackSkill 
 creatureAbilityScore (DefenseSkill Unarmed) = figureAbility [Speed] (DefenseSkill Unarmed,2)
 creatureAbilityScore (DamageSkill Unarmed) = figureAbility [Speed] (DamageSkill Unarmed,2)
 creatureAbilityScore (DamageReductionTrait Unarmed) = figureAbility [Constitution] (DamageReductionTrait Unarmed,1)
+creatureAbilityScore (AttackSkill Splash) = figureAbility [Intellect] (AttackSkill Splash,2)
+creatureAbilityScore (DefenseSkill Splash) = figureAbility [Intellect] (DefenseSkill Splash,2)
+creatureAbilityScore (DamageSkill Splash) = figureAbility [Intellect] (DamageSkill Splash,2)
+creatureAbilityScore (DamageReductionTrait Splash) = figureAbility [Constitution] (DamageReductionTrait Splash,1)
 creatureAbilityScore HideSkill = figureAbility [Perception] (HideSkill,2)
 creatureAbilityScore SpotSkill = figureAbility [Perception] (SpotSkill,2)
 creatureAbilityScore JumpSkill = figureAbility [Strength] (JumpSkill,2)
