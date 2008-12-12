@@ -42,7 +42,8 @@ module DB
      dbPopOldestSnapshot,
      dbHasSnapshot,
      module DBData,
-     module Random)
+     module Random,
+     dbTrace)
     where
 
 import DBPrivate
@@ -64,6 +65,7 @@ import Data.Ord
 import Control.Arrow (first)
 import Control.Monad.Random as Random
 import Random
+import Debug.Trace
 
 data PlayerState = 
     RaceSelectionState
@@ -534,3 +536,10 @@ popOldestSnapshot db =
     case isJust $ db_prior_snapshot =<< db_prior_snapshot db of
         False -> db { db_prior_snapshot = Nothing }
 	True  -> db { db_prior_snapshot = fmap popOldestSnapshot $ db_prior_snapshot db }
+
+-- | Print a debug/trace message from DB.
+{-# NOINLINE dbTrace #-}
+dbTrace :: (DBReadable db) => String -> db ()
+dbTrace s =
+    do db <- ask
+       trace ("trace (object count " ++ show (db_next_object_ref db) ++ ") : " ++ s) $ return ()

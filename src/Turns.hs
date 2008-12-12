@@ -55,17 +55,21 @@ dbFinishPlanarAITurns plane_ref =
 		  return ()
 	   _ -> error "dbFinishPlanarAITurns: impossible case"
 
+planar_turn_frequency :: Integer
+planar_turn_frequency = 100
+
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
 dbPerform1PlanarAITurn plane_ref = 
     do creature_locations <- dbGetContents plane_ref
        player_locations <- filterRO (liftM (== Player) . getCreatureFaction . entity) creature_locations
        native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . entity) creature_locations
-       when (length native_locations < length player_locations * 2) $
+       should_randomly_generate_monster <- liftM (<= 10) $ linearRoll planar_turn_frequency
+       when (length native_locations < length player_locations * 2 && should_randomly_generate_monster) $
            do p <- pickM $ map location player_locations
 	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
 	      newCreature Pirates Recreant (Standing plane_ref spawn_position Here)
 	      return ()
-       dbAdvanceTime plane_ref (1%100)
+       dbAdvanceTime plane_ref (1%planar_turn_frequency)
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 
