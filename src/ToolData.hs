@@ -1,9 +1,12 @@
 module ToolData 
     (Tool(..),
-     Gun,
-     gunEnergyOutput,
-     gunThroughput,
-     gunEndurance,
+     Device,
+     DeviceType(..),
+     deviceEnergyOutput,
+     deviceThroughput,
+     deviceEndurance,
+     deviceSize,
+     toDevice,
      toolName,
      phase_pistol,
      phaser,
@@ -12,49 +15,49 @@ module ToolData
 
 import Substances
 
-data Tool = GunTool Gun
+data Tool = DeviceTool DeviceType Device
+    deriving (Read,Show,Eq)
+
+data DeviceType = Gun
             deriving (Read,Show,Eq)
 
-data GunSize = Pistol
-             | Carbine
-             | Rifle
-	     | Cannon
-	     | Launcher
-             deriving (Read,Show,Eq)
-
-data Gun = Gun {
-   gun_name :: String,
-   gun_power_cell :: Chromalite,
-   gun_substrate :: Material,
-   gun_medium :: Gas,
-   gun_size :: GunSize }
+-- | Any kind of device that is constructed from a power cell, materal, and gas medium,
+-- using the various device rules to determine it's power.
+data Device = Device {
+   device_name :: String,
+   device_power_cell :: Chromalite,
+   device_material :: Material,
+   device_medium :: Gas,
+   device_size :: Integer }
      deriving (Eq,Read,Show)
 
+gun :: Device -> Tool
+gun = DeviceTool Gun
+
 phase_pistol :: Tool
-phase_pistol = GunTool $ Gun "phase_pistol" Pteulanium Zinc Argon Pistol
+phase_pistol = gun $ Device "phase_pistol" Pteulanium Zinc Argon 1
 
 phaser :: Tool
-phaser = GunTool $ Gun "phaser" Pteulanium Zinc Argon Carbine
+phaser = gun $ Device "phaser" Pteulanium Zinc Argon 3
 
 phase_rifle :: Tool
-phase_rifle = GunTool $ Gun "phase_rifle" Pteulanium Zinc Argon Rifle
+phase_rifle = gun $ Device "phase_rifle" Pteulanium Zinc Argon 5
 
-gunEnergyOutput :: Gun -> Integer
-gunEnergyOutput g = gunSizeClass g * (chromalitePotency $ gun_power_cell g)
+deviceEnergyOutput :: Device -> Integer
+deviceEnergyOutput g = device_size g * (chromalitePotency $ device_power_cell g)
 
-gunThroughput :: Gun -> Integer
-gunThroughput g = ((material_critical_value $ materialValue $ gun_substrate g) + 1) *
-                  (gasWeight $ gun_medium g)
+deviceThroughput :: Device -> Integer
+deviceThroughput g = ((material_critical_value $ materialValue $ device_material g) + 1) *
+                     (gasWeight $ device_medium g)
 
-gunEndurance :: Gun -> Integer
-gunEndurance g = 10 * (material_construction_value $ materialValue $ gun_substrate g)^2
+deviceEndurance :: Device -> Integer
+deviceEndurance g = device_size g * (material_construction_value $ materialValue $ device_material g)
 
-gunSizeClass :: Gun -> Integer
-gunSizeClass (Gun { gun_size = Pistol }) = 1
-gunSizeClass (Gun { gun_size = Carbine}) = 3
-gunSizeClass (Gun { gun_size = Rifle}) = 5
-gunSizeClass (Gun { gun_size = Cannon}) = 7
-gunSizeClass (Gun { gun_size = Launcher}) = 10
+deviceSize :: Device -> Integer
+deviceSize = device_size
+
+toDevice :: Tool -> Maybe Device
+toDevice (DeviceTool _ d) = Just d
 
 toolName :: Tool -> String
-toolName (GunTool (Gun { gun_name = s })) = s
+toolName (DeviceTool _ d) = device_name d

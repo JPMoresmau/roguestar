@@ -22,6 +22,7 @@ import Plane
 import Data.List
 import Data.Ord
 import Position
+import DeviceActivation
 
 data RangedAttackOutcome =
     RangedAttackMiss CreatureRef ToolRef
@@ -33,19 +34,20 @@ resolveRangedAttack :: (DBReadable db) => CreatureRef -> Facing -> db RangedAtta
 resolveRangedAttack attacker_ref face =
     do m_defender_ref <- liftM listToMaybe $ findRangedTargets attacker_ref face
        tool_ref <- maybe (throwError $ DBErrorFlag "no-weapon-wielded") return =<< dbGetWielded attacker_ref
-       attack_roll <- rollRangedAttack attacker_ref
-       (overheat_energy, damage_roll) <- rollRangedDamage attacker_ref tool_ref
-       self_injury_roll <- rollInjury Splash attacker_ref overheat_energy
-       case m_defender_ref of
-           _ | attack_roll == 0 && overheat_energy > 0 -> return $ RangedAttackCriticalFail attacker_ref tool_ref self_injury_roll
-           _ | overheat_energy > attack_roll -> return $ RangedAttackOverheats attacker_ref tool_ref self_injury_roll
-           Nothing -> return $ RangedAttackMiss attacker_ref tool_ref
-           Just defender_ref ->
-	       do defense_roll <- rollRangedDefense attacker_ref defender_ref
-                  injury_roll <- rollInjury Ranged defender_ref (roll_actual damage_roll)
-		  case () of
-                      () | attack_roll > defense_roll -> return $ RangedAttackHitCreature attacker_ref tool_ref defender_ref injury_roll
-		      () | otherwise -> return $ RangedAttackMiss attacker_ref tool_ref
+       tool <- dbGetTool tool_ref
+       device_activation_outcome <- case tool of
+           DeviceTool Gun device -> resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) device attacker_ref
+           --_ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+       case (m_defender_ref, dao_outcome_type device_activation_outcome) of
+           (_,DeviceCriticalFailed) -> return $ RangedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)
+           (_,DeviceFailed) -> return $ RangedAttackOverheats attacker_ref tool_ref (dao_energy device_activation_outcome)
+           (Nothing,_) -> return $ RangedAttackMiss attacker_ref tool_ref
+           (Just defender_ref,DeviceActivated) ->
+               do defense_roll <- rollRangedDefense attacker_ref defender_ref
+                  injury_roll <- rollInjury Ranged defender_ref (dao_energy device_activation_outcome)
+                  case () of
+                      () | dao_skill_roll device_activation_outcome > defense_roll -> return $ RangedAttackHitCreature attacker_ref tool_ref defender_ref injury_roll
+                      () | otherwise -> return $ RangedAttackMiss attacker_ref tool_ref
 
 data MeleeAttackOutcome =
     UnarmedAttackHitCreature CreatureRef CreatureRef Integer
@@ -86,24 +88,8 @@ executeMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
     do dbPushSnapshot (AttackEvent attacker_ref Nothing defender_ref)
        injureCreature damage defender_ref
 
--- | Roll the amount of damage released by a weapon, incorporating the attacker's skill level and the weapon's leathality.
--- The first value indicates the overheat malfunction of the weapon, while the second value indicates the damage roll itself.
-rollRangedDamage :: (DBReadable db) => CreatureRef -> ToolRef -> db (Integer,Roll)
-rollRangedDamage attacker_ref weapon_ref =
-    do tool <- dbGetTool weapon_ref
-       (overheat_energy, discharge_energy) <- case tool of
-           GunTool g ->
-	       do energy_released <- linearRoll $ gunEnergyOutput g
-	          energy_throughput <- linearRoll $ gunThroughput g -- todo: overheats if energy_released > energy_throughput
-		  return $ (max 0 $ energy_released - energy_throughput, min energy_released energy_throughput)
-       damage_roll <- rollCreatureAbilityScore (DamageSkill Ranged) discharge_energy attacker_ref
-       return (overheat_energy,damage_roll)
-
 rollMeleeDamage :: (DBReadable db) => CreatureRef -> db Integer
 rollMeleeDamage attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (DamageSkill Melee) 0 attacker_ref
-
-rollRangedAttack :: (DBReadable db) => CreatureRef -> db Integer
-rollRangedAttack attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (AttackSkill Melee) 0 attacker_ref
 
 rollMeleeAttack :: (DBReadable db) => CreatureRef -> db Integer
 rollMeleeAttack attacker_ref = liftM roll_actual $ rollCreatureAbilityScore (AttackSkill Melee) 0 attacker_ref

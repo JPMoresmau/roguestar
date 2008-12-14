@@ -219,7 +219,7 @@ dbDispatchQuery ["who-attacks"] =
            SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
 	   SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
            SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> "answer: who-attackers " ++ (show $ toUID attacker_ref)
+           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
 	   _ -> "answer: who-attacks 0"
 
 dbDispatchQuery ["who-hit"] =
@@ -529,8 +529,7 @@ creatureStatsData c = [("species",show $ creature_species_name c),
 -- Information about non-owned tools.
 --
 toolData :: Tool -> [(String,String)]
-toolData g@(GunTool {}) = [("tool-type","gun"),
-                       ("tool",toolName g)]
+toolData t@(DeviceTool Gun _) = [("tool-type","gun"),("tool",toolName t)]
 
 dbQueryBaseClasses :: (DBReadable db) => Creature -> db String
 dbQueryBaseClasses creature = return $ baseClassesTable creature

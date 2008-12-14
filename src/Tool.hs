@@ -59,3 +59,4 @@ dbGetWielded = liftM (listToMaybe . map (entity . asLocationTyped _tool _wielded
 -- | Safely delete tools.
 deleteTool :: ToolRef -> DB ()
 deleteTool = dbUnsafeDeleteObject (error "deleteTool: impossible case: tools shouldn't contain anything")
+
