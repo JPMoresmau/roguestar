@@ -22,7 +22,10 @@ module RSAGL.Curve
      curveDerivative,
      orientationLoops,
      newellCurve,
-     surfaceNormals3D)
+     surfaceNormals3D,
+     SamplingAlgorithm,
+     linearSamples,
+     integrateCurve)
     where
 
 import Control.Arrow hiding (pure)
@@ -38,12 +41,12 @@ import RSAGL.AbstractVector
 import Debug.Trace
 import RSAGL.BoundingBox
 
--- | A parametric function that is aware of it's own sampling interval.  The first parameter is the curve parameter, while the second is the sampling interval.
+-- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
 type CurveF a = (Double,Double) -> a
 -- | A surface is a curve of curves.
 type SurfaceF a = CurveF (CurveF a)
 -- | A 'Curve' is a parametric function from a one-dimensional space into a space of an arbitrary datatype.  The key feature of a 'Curve' is that it is aware of it's own
--- sampling interval.  Using this information and appropriate subtraction and scalar multiplication functions provided by RSAGL.AbstractVector, a 'Curve' can be differentiated.
+-- sampling interval.  Using this information and appropriate arithmetic and scalar multiplication functions provided by RSAGL.AbstractVector, a 'Curve' can be differentiated or integrated.
 newtype Curve a = Curve { fromCurve :: CurveF a }
 
 instance Functor Curve where
@@ -62,7 +65,7 @@ instance (AffineTransformable a) => AffineTransformable (Curve a) where
 instance NFData (Curve a) where
     rnf (Curve f) = seq f ()
 
--- | Sample a specific point on a curve given the point on the curve (first parameter) and the sampling interval (second parameter).
+-- | Sample a specific point on a curve given the sampling interval (first parameter) and the point on the curve (second parameter).
 sampleCurve :: Curve a -> Double -> Double -> a
 sampleCurve (Curve f) = curry f
 
@@ -197,3 +200,31 @@ surfaceNormals3D s = (\p by_pd by_newell -> case by_pd of
                            Just v -> SurfaceVertex3D p v
 			   Nothing -> by_newell) <$>
                      s <*> (surfaceNormals3DByPartialDerivatives s) <*> (surfaceNormals3DByOrientationLoops s)
+
+-- | An interval of a curve, including the curve, lower and upper bounds of the interval, and an instantaneous sample value for that interval.
+data IntervalSample a = IntervalSample (Curve a) Double Double a
+
+intervalSample :: Curve a -> Double -> Double -> IntervalSample a
+intervalSample c l h = IntervalSample c l h $ sampleCurve c ((abs $ l - h) / 2) ((l+h) / 2) 
+
+-- | An algorithm for generating samples.
+data SamplingAlgorithm a = SamplingAlgorithm {
+    -- | Generate initial samples from the 'Curve'.
+    firstPass :: Curve a -> [IntervalSample a],
+    -- | Generate new samples from old samples.
+    nextPass :: [IntervalSample a] -> Maybe [IntervalSample a] }
+
+-- | Integrate a curve by sampling.
+integrateCurve :: (AbstractAdd p v,AbstractScale v,AbstractZero p) => SamplingAlgorithm v -> Curve v -> p -> p
+integrateCurve algorithm c initial_value = foldr (flip add) initial_value sample_values
+    where initial_samples = firstPass algorithm c
+          f x = maybe x f $ nextPass algorithm x
+          final_samples = f initial_samples
+          sample_values = map (\(IntervalSample _ l h s) -> scalarMultiply (abs $ h-l) s) final_samples
+
+-- | Integrate by taking a fixed count of samples.
+linearSamples :: Integer -> SamplingAlgorithm a
+linearSamples n = SamplingAlgorithm {
+    firstPass = \c -> map (\(l,h) -> intervalSample c l h) $ doubles $ zeroToOne (n+1),
+    nextPass = const Nothing }
+
