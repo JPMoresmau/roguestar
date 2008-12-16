@@ -111,7 +111,7 @@ loopedLinearInterpolation = loopCurve . linearInterpolation . (\a -> last a:a)
 \texttt{smoothCurve i h} takes i samples of an h-long piece of a curve at each point to smooth it.
 
 \begin{code}
-smoothCurve :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v) => Integer -> Double -> Curve p -> Curve p
+smoothCurve :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => Integer -> Double -> Curve p -> Curve p
 smoothCurve i h c = curve (\u -> abstractAverage $ iterateCurve i $ pretransformCurve (flip lerp (u-h/2,u+h/2)) c)
 \end{code}
 

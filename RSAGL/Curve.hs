@@ -25,6 +25,7 @@ module RSAGL.Curve
      surfaceNormals3D,
      SamplingAlgorithm,
      linearSamples,
+     adaptiveMagnitudeSamples,
      integrateCurve)
     where
 
@@ -40,6 +41,7 @@ import Control.Applicative
 import RSAGL.AbstractVector
 import Debug.Trace
 import RSAGL.BoundingBox
+import RSAGL.Interpolation
 
 -- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
 type CurveF a = (Double,Double) -> a
@@ -207,24 +209,32 @@ data IntervalSample a = IntervalSample (Curve a) Double Double a
 intervalSample :: Curve a -> Double -> Double -> IntervalSample a
 intervalSample c l h = IntervalSample c l h $ sampleCurve c ((abs $ l - h) / 2) ((l+h) / 2) 
 
--- | An algorithm for generating samples.
-data SamplingAlgorithm a = SamplingAlgorithm {
-    -- | Generate initial samples from the 'Curve'.
-    firstPass :: Curve a -> [IntervalSample a],
-    -- | Generate new samples from old samples.
-    nextPass :: [IntervalSample a] -> Maybe [IntervalSample a] }
+-- | Split an interval into three equal parts.
+splitInterval :: IntervalSample a -> [IntervalSample a]
+splitInterval (IntervalSample c l h a) = [intervalSample c l l',IntervalSample c l' h' a,intervalSample c h' h]
+    where l' = lerp (1/3) (l,h)
+          h' = lerp (2/3) (l,h)
 
--- | Integrate a curve by sampling.
+type SamplingAlgorithm a = Curve a -> [IntervalSample a]
+
+-- | Definite integral of a curve by sampling.
 integrateCurve :: (AbstractAdd p v,AbstractScale v,AbstractZero p) => SamplingAlgorithm v -> Curve v -> p -> p
-integrateCurve algorithm c initial_value = foldr (flip add) initial_value sample_values
-    where initial_samples = firstPass algorithm c
-          f x = maybe x f $ nextPass algorithm x
-          final_samples = f initial_samples
-          sample_values = map (\(IntervalSample _ l h s) -> scalarMultiply (abs $ h-l) s) final_samples
+integrateCurve samplingAlgorithm c initial_value = foldr (flip add) initial_value sample_values
+    where sample_values = map (\(IntervalSample _ l h s) -> scalarMultiply (abs $ h-l) s) $ samplingAlgorithm c
 
--- | Integrate by taking a fixed count of samples.
+-- | Sampling algorithm that takes a fixed count of samples.
 linearSamples :: Integer -> SamplingAlgorithm a
-linearSamples n = SamplingAlgorithm {
-    firstPass = \c -> map (\(l,h) -> intervalSample c l h) $ doubles $ zeroToOne (n+1),
-    nextPass = const Nothing }
+linearSamples n c = map (\(l,h) -> intervalSample c l h) $ doubles $ zeroToOne (n+1)
 
+-- | Sampling algorithm that takes increasing numbers of samples over intervals where the magnitude of the sample is large.
+adaptiveMagnitudeSamples :: (AbstractMagnitude a) => Integer -> SamplingAlgorithm a
+adaptiveMagnitudeSamples n c = resampleLoop (\xs -> if genericLength xs > n then Nothing else Just $ newSamples xs) $ linearSamples (max 1 $ n `div` 10) c
+    where newSamples xs = let a = abstractAverage $ map intervalMagnitude xs
+                              in flip concatMap xs $ \x -> if intervalMagnitude x >= a then splitInterval x else [x]
+          intervalMagnitude :: (AbstractMagnitude a) => IntervalSample a -> Double
+          intervalMagnitude (IntervalSample _ l h a) = magnitude a * (abs $ h-l)
+
+-- | Loop to keep generating samples until there are at least n samples.
+resampleLoop :: (b -> Maybe b) -> b -> b
+resampleLoop nextPass initial_value = f $ initial_value
+    where f x = maybe x f $ nextPass x
