@@ -152,9 +152,10 @@ abstractScaleTo x v = scalarMultiply (x / magnitude v) v
 abstractSum :: (AbstractAdd p v,AbstractZero p) => [v] -> p
 abstractSum = foldr (flip add) zero
 
-abstractAverage :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v) => [p] -> p
-abstractAverage vs = add fixed_point $ scalarMultiply (recip $ fromInteger $ genericLength vs) $ abstractSum $ map (`sub` fixed_point) vs
-    where fixed_point = head vs
+abstractAverage :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => [p] -> p
+abstractAverage vs = zero `add` scalarMultiply (recip $ fromInteger total_count) total_sum
+    where f y (i,x) = i `seq` x `seq` (i+1,y `add` x)
+          (total_count,total_sum) = foldr f (0,zero) $ map (`sub` zero) vs
 
 abstractDistance :: (AbstractMagnitude v,AbstractSubtract p v) => p -> p -> Double
 abstractDistance x y = magnitude $ x `sub` y
