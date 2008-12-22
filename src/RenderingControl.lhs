@@ -189,7 +189,7 @@ gameOver = proc () ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","turn","jump","attack","fire","attack-event","miss-event","killed-event","weapon-overheats-event","weapon-explodes-event"]
+planar_states = ["player-turn","turn","jump","attack","fire","attack-event","miss-event","killed-event","weapon-overheats-event","weapon-explodes-event","disarm-event","sunder-event"]
 
 planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
@@ -497,5 +497,19 @@ messages = [
                do who_surprised <- m_who_surprised
                   return $ case () of
                       () | who_surprised == "2" -> "You attack!\nYour weapon explodes in your hand!\nAre you sure you're even qualified to operate a directed energy firearm?"
-                      () | otherwise -> "It attacks!\nIts weapon explodes in its hands!"]
+                      () | otherwise -> "It attacks!\nIts weapon explodes in its hands!",
+    messageState "disarm-event" $ proc () ->
+        do m_who_attacks <- driverGetAnswerA -< "who-attacks"
+           returnA -<
+               do who_attacks <- m_who_attacks
+                  return $ case () of
+                      () | who_attacks == "2" -> "You attack!\nYou disarm it!"
+                      () | otherwise -> "It attacks!\nIt disarms you!",
+    messageState "sunder-event" $ proc () ->
+        do m_who_attacks <- driverGetAnswerA -< "who-attacks"
+           returnA -<
+               do who_attacks <- m_who_attacks
+                  return $ case () of
+                      () | who_attacks == "2" -> "You attack!\nYou sunder it's weapon!"
+                      () | otherwise -> "It attacks!\nIt sunders your weapon!"]
 \end{code}
