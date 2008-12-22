@@ -4,13 +4,15 @@ module ToolData
      DeviceType(..),
      deviceEnergyOutput,
      deviceThroughput,
-     deviceEndurance,
+     deviceDurability,
      deviceSize,
      toDevice,
      toolName,
      phase_pistol,
      phaser,
-     phase_rifle)
+     phase_rifle,
+     kinetic_fleuret,
+     kinetic_sabre)
     where
 
 import Substances
@@ -18,7 +20,7 @@ import Substances
 data Tool = DeviceTool DeviceType Device
     deriving (Read,Show,Eq)
 
-data DeviceType = Gun
+data DeviceType = Gun | Sword
             deriving (Read,Show,Eq)
 
 -- | Any kind of device that is constructed from a power cell, materal, and gas medium,
@@ -34,6 +36,9 @@ data Device = Device {
 gun :: Device -> Tool
 gun = DeviceTool Gun
 
+sword :: Device -> Tool
+sword = DeviceTool Sword
+
 phase_pistol :: Tool
 phase_pistol = gun $ Device "phase_pistol" Pteulanium Zinc Argon 1
 
@@ -43,6 +48,12 @@ phaser = gun $ Device "phaser" Pteulanium Zinc Argon 3
 phase_rifle :: Tool
 phase_rifle = gun $ Device "phase_rifle" Pteulanium Zinc Argon 5
 
+kinetic_fleuret :: Tool
+kinetic_fleuret = sword $ Device "kinetic_fleuret" Ionidium Aluminum Nitrogen 2
+
+kinetic_sabre :: Tool
+kinetic_sabre = sword $ Device "kinetic_sabre" Ionidium Aluminum Nitrogen 4
+
 deviceEnergyOutput :: Device -> Integer
 deviceEnergyOutput g = device_size g * (chromalitePotency $ device_power_cell g)
 
@@ -50,8 +61,8 @@ deviceThroughput :: Device -> Integer
 deviceThroughput g = ((material_critical_value $ materialValue $ device_material g) + 1) *
                      (gasWeight $ device_medium g)
 
-deviceEndurance :: Device -> Integer
-deviceEndurance g = device_size g * (material_construction_value $ materialValue $ device_material g)
+deviceDurability :: Device -> Integer
+deviceDurability g = device_size g * (material_construction_value $ materialValue $ device_material g)
 
 deviceSize :: Device -> Integer
 deviceSize = device_size

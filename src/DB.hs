@@ -102,6 +102,15 @@ data SnapshotEvent =
   | WeaponExplodesEvent {
         weapon_explodes_event_creature :: CreatureRef,
         weapon_explodes_event_weapon :: ToolRef }
+  | DisarmEvent {
+        disarm_event_source_creature :: CreatureRef,
+        disarm_event_target_creature :: CreatureRef,
+        disarm_event_target_tool :: ToolRef }
+  | SunderEvent {
+        sunder_event_source_creature :: CreatureRef,
+        sunder_event_source_weapon :: ToolRef,
+        sunder_event_target_creature :: CreatureRef,
+        sunder_event_target_tool :: ToolRef }
             deriving (Read,Show)
 
 data DB_History = DB_History {

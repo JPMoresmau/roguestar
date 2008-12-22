@@ -7,13 +7,15 @@ module Tool
      dbAvailablePickups,
      availableWields,
      dbGetWielded,
-     deleteTool)
+     deleteTool,
+     toolDurability)
     where
 
 import DB
 import Control.Monad.Error
 import Data.Maybe
 import Data.List as List
+import ToolData
 
 dbPickupTool :: (DBReadable db,LocationType a) => CreatureRef -> Location s ToolRef a -> db (Location s ToolRef Inventory)
 dbPickupTool c l = 
@@ -60,3 +62,8 @@ dbGetWielded = liftM (listToMaybe . map (entity . asLocationTyped _tool _wielded
 deleteTool :: ToolRef -> DB ()
 deleteTool = dbUnsafeDeleteObject (error "deleteTool: impossible case: tools shouldn't contain anything")
 
+toolDurability :: (DBReadable db) => ToolRef -> db Integer
+toolDurability tool_ref = 
+    do t <- dbGetTool tool_ref
+       case t of
+          DeviceTool _ d -> return $ deviceDurability d

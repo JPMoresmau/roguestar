@@ -69,6 +69,10 @@ dbGetCurrentPlane =
                       liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
                   SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) ->
                       liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
+                  SnapshotEvent (DisarmEvent { disarm_event_source_creature = attacker_ref }) ->
+                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
+                  SnapshotEvent (SunderEvent { sunder_event_source_creature = attacker_ref }) ->
+                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
 		  _ -> return Nothing
 
 -- |
