@@ -2,10 +2,12 @@
 
 \begin{code}
 module Models.LibraryData
-    (LibraryModel(..))
+    (LibraryModel(..),EnergyColor(..))
     where
 
 import Models.Sky
+
+data EnergyColor = Blue | Yellow | Red | Green deriving (Eq,Ord,Show)
 
 data LibraryModel = 
     -- Terrain
@@ -24,10 +26,13 @@ data LibraryModel =
   | AscendantGlow
   | Caduceator
   | Reptilian
+    -- Energy Things
+  | EnergyCylinder EnergyColor
     -- Tools
   | PhasePistol
   | Phaser
   | PhaseRifle
+  | EnergySword EnergyColor Integer
     -- Arms and Legs
   | MachineArmLower
   | MachineArmUpper

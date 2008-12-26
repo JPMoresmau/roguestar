@@ -1,7 +1,7 @@
 \section{The Roguestar Animation Arrow}
 
 \begin{code}
-{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses, FlexibleInstances #-}
 
 module Animation
     (RSAnimA,
@@ -28,6 +28,7 @@ module Animation
      randomA)
     where
 
+import RSAGL.Affine
 import RSAGL.FRP
 import RSAGL.CoordinateSystems
 import RSAGL.Scene hiding (std_scene_layer_hud,std_scene_layer_cockpit,std_scene_layer_local,std_scene_layer_infinite)
@@ -84,6 +85,9 @@ type RSAnimA t i o j p = RSAnimAX Threaded t i o j p
 type RSAnimA1 i o j p = RSAnimAX () () i o j p
 
 type RSAnimA_ j p = StateArrow AnimationState (Kleisli IOGuard) j p
+
+instance (CoordinateSystemClass csc,ArrowChoice a) => AffineTransformable (FRPX k t i o (StateArrow csc a) j p) where
+    transform m actionA = proc x -> transformA actionA -< (Affine $ transform m,x)
 
 newtype RoguestarAnimationObject = RoguestarAnimationObject {
     rso_arrow :: MVar (FRPProgram (StateArrow AnimationState (Kleisli IOGuard)) () SceneLayerInfo) }

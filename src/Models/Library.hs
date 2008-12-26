@@ -25,6 +25,8 @@ import Models.PhaseWeapons
 import Models.MachineParts
 import Models.Sky
 import Models.CyborgType4
+import Models.EnergyThings
+import Models.EnergySwords
 import Control.Exception
 
 -- |
@@ -61,6 +63,8 @@ toModel CyborgType4Base = cyborg_type_4_base
 toModel CyborgType4HyperspaceDisc = cyborg_type_4_hyperspace_disc
 toModel CyborgType4HyperspaceRotor = cyborg_type_4_hyperspace_rotor
 toModel CyborgType4HyperspaceStabilizer = cyborg_type_4_hyperspace_stabilizer
+toModel (EnergyCylinder c) = energyCylinder c
+toModel (EnergySword c n) = energySword c n
 
 -- |
 -- Sometimes we want to constrain the quality of some models.

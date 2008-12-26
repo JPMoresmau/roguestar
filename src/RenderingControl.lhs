@@ -405,15 +405,29 @@ toolAvatar = proc tti ->
   where switchTo "phase_pistol" = phaseWeaponAvatar PhasePistol
         switchTo "phaser" = phaseWeaponAvatar Phaser
         switchTo "phase_rifle" = phaseWeaponAvatar PhaseRifle
+        switchTo "kinetic_fleuret" = energySwordAvatar Yellow 2
+        switchTo "kinetic_sabre" = energySwordAvatar Yellow 4
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
 phaseWeaponAvatar :: LibraryModel -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 phaseWeaponAvatar phase_weapon_model = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation -< tti
-       transformA libraryA -< maybe (root_coordinate_system,(scene_layer_local,NullModel))
-                                    (\o -> (o,(scene_layer_local,phase_weapon_model))) 
-				    m_orientation
+       whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
+       returnA -< ()
+
+energySwordAvatar :: EnergyColor -> Integer -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+energySwordAvatar energy_color sword_size = proc tti ->
+    do visibleObjectHeader -< ()
+       m_orientation <- wieldableObjectIdealOrientation -< tti
+       is_being_wielded <- isBeingWielded -< ()
+       whenJust (transformA displayA) -< fmap (\o -> (o,is_being_wielded)) m_orientation
+       returnA -< ()
+  where displayA :: RSAnimA1 i o Bool ()
+        displayA = scale' (1/75) $ proc is_being_wielded ->
+            do blade_length <- approachFrom 1 (perSecond 65) 0 -< if is_being_wielded then 10 * realToFrac sword_size else 0
+               libraryA -< (scene_layer_local,EnergySword energy_color sword_size)
+               transformA libraryA -< (Affine $ translate (Vector3D 0 2.9 0) . scale (Vector3D 1 blade_length 1),(scene_layer_local,EnergyCylinder energy_color))
 
 floatBobbing :: Double -> Double -> RSAnimAX any t i o j p -> RSAnimAX any t i o j p
 floatBobbing ay by animationA = proc j ->

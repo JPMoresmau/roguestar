@@ -9,6 +9,7 @@ module VisibleObject
      allObjects,
      wieldedParent,
      wieldedTool,
+     isBeingWielded,
      visibleObject,
      visibleObjectUniqueID,
      objectDetailsLookup,
@@ -57,17 +58,23 @@ allObjects = proc () ->
        wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< Set.toList $ Set.fromList visible_object_ids `Set.union` Set.fromList wielded_object_ids
 
+-- | As a Tool, who is wielding you?
 wieldedParent :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
 wieldedParent = proc () -> 
     do unique_id <- visibleObjectUniqueID -< ()
        wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_creature_id $ find ((== unique_id) . wo_unique_id) wielded_pairs
 
+-- | As a creature, what tool are you wielding?
 wieldedTool :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
 wieldedTool = proc () ->
     do unique_id <- visibleObjectUniqueID -< ()
        wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_unique_id $ find ((== unique_id) . wo_creature_id) wielded_pairs
+
+-- | As a Tool, are you currently being wielded?
+isBeingWielded :: RSAnimA (Maybe Integer) i o () Bool
+isBeingWielded = wieldedParent >>> arr isJust
 
 visibleObjectUniqueID :: RSAnimA (Maybe Integer) i o () Integer
 visibleObjectUniqueID = arr (fromMaybe (error "visibleObjectUniqueID: threadIdentity was Nothing")) <<< threadIdentity

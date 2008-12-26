@@ -12,11 +12,15 @@ module Models.Materials
      encephalon_skin,
      reptilian_skin,
      reptilian_pigment,
-     reptilian_specular)
+     reptilian_specular,
+     -- | Material by Energy Type
+     energyColor,
+     energyMaterial)
     where
 
 import RSAGL.Model
 import RSAGL.ModelingExtras
+import Models.LibraryData
 
 {---------------------------------------------------------
  - Materials by Faction
@@ -83,4 +87,20 @@ reptilian_skin = material $
 
 encephalon_skin :: Modeling ()
 encephalon_skin = material $ pigment $ pattern (cloudy 32 0.1) [(0.0,pure sepia),(1.0,pure amethyst)]
+
+{--------------------------------------------------------
+ - Material by Energy Type
+ - ------------------------------------------------------}
+
+energyColor :: EnergyColor -> RGB
+energyColor Blue = cobalt
+energyColor Yellow = saffron
+energyColor Red = red
+energyColor Green = shamrock
+
+energyMaterial :: EnergyColor -> Modeling ()
+energyMaterial c = material $
+    do pigment $ pure $ scaleRGB 0.33 $ energyColor c
+       specular 1.0 $ pure $ scaleRGB 0.33 $ energyColor c
+       emissive $ pure $ scaleRGB 0.33 $ energyColor c
 
