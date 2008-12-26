@@ -10,6 +10,7 @@ module RSAGL.InverseKinematics
      jointAnimation,
      legs,
      approach,
+     approachFrom,
      approachA)
     where
 
@@ -26,6 +27,7 @@ import RSAGL.Joint
 import RSAGL.Time
 import RSAGL.AbstractVector
 import RSAGL.Angle
+import RSAGL.Edge
 \end{code}
 
 \subsection{The Foot}
@@ -106,9 +108,11 @@ approach goal_point goal_radius max_speed _ position = withTime (fromSeconds 1) 
     where goal_vector = goal_point `sub` position
           speed_ratio = min 1 $ magnitude goal_vector / goal_radius
 
-approachA :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> FRPX any t i o a p p
-approachA goal_radius max_speed = frp1Context $ proc initial_value -> switchContinue -< (Just $ approachA_ initial_value,initial_value)
-    where approachA_ initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
-          frequency = 8 `per` time goal_radius max_speed 
+approachFrom :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> p -> FRPX any t i o a p p
+approachFrom goal_radius max_speed initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
+    where frequency = 8 `per` time goal_radius max_speed 
+
+approachA :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> FRPX any t i o a p p
+approachA goal_radius max_speed = frp1Context $ switchInitial (approachFrom goal_radius max_speed)
 \end{code}
 

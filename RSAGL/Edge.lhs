@@ -17,6 +17,7 @@ module RSAGL.Edge
      history,
      sticky,
      initial,
+     switchInitial,
      started)
     where
 
@@ -118,9 +119,16 @@ sticky criteria initial_value = edgeFoldBy (const $ const False) (const initial_
 
 \texttt{initial} answers the first value that an input ever has (during this instance of this thread).
 
+\texttt{switchInitial} switches into a thread that recieves it's own initial value as a parameter.
+
 \begin{code}
 initial :: (Arrow a,ArrowChoice a,ArrowApply a,Eq e) => FRPX any t i o a e e
 initial = edgeMapBy (const $ const True) id
+
+switchInitial :: (Arrow a,ArrowChoice a,ArrowApply a) => (i -> FRPX any t i o a i o) -> FRPX any t i o a i o
+switchInitial actionA = proc i -> 
+    do FRP.switchContinue -< (Just $ actionA i,i)
+       returnA -< error "switchInitial: impossible case, didn't switch"
 \end{code}
 
 \texttt{started} is the \texttt{absoluteTime} at which this thread started.
