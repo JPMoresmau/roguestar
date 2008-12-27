@@ -24,6 +24,11 @@ module RSAGL.Curve
      newellCurve,
      surfaceNormals3D,
      SamplingAlgorithm,
+     IntervalSample,
+     intervalRange,
+     intervalSize,
+     intervalSample,
+     intervalSingleIntegral,
      linearSamples,
      adaptiveMagnitudeSamples,
      integrateCurve)
@@ -209,6 +214,22 @@ data IntervalSample a = IntervalSample (Curve a) Double Double a
 intervalSample :: Curve a -> Double -> Double -> IntervalSample a
 intervalSample c l h = IntervalSample c l h $ sampleCurve c ((abs $ l - h) / 2) ((l+h) / 2) 
 
+-- | Lower and upper bounds of an 'IntervalSample'.
+intervalRange :: IntervalSample a -> (Double,Double)
+intervalRange (IntervalSample _ l h _) = (l,h)
+
+-- | Size of the range of an 'IntervalSample'.
+intervalSize :: IntervalSample a -> Double
+intervalSize (IntervalSample _ l h _) = abs $ h - l
+
+-- | Instantaneous sample value of an 'Interval'.
+intervalValue :: IntervalSample a -> a
+intervalValue (IntervalSample _ _ _ a) = a
+
+-- | Integral of the sample value over the range of the 'IntervalSample'.
+intervalSingleIntegral :: (AbstractScale a) => IntervalSample a -> a
+intervalSingleIntegral x = scalarMultiply (intervalSize x) $ intervalValue x
+
 -- | Split an interval into three equal parts.
 splitInterval :: IntervalSample a -> [IntervalSample a]
 splitInterval (IntervalSample c l h a) = [intervalSample c l l',IntervalSample c l' h' a,intervalSample c h' h]
@@ -217,10 +238,9 @@ splitInterval (IntervalSample c l h a) = [intervalSample c l l',IntervalSample c
 
 type SamplingAlgorithm a = Curve a -> [IntervalSample a]
 
--- | Definite integral of a curve by sampling.
+-- | Definite integral of a curve.
 integrateCurve :: (AbstractAdd p v,AbstractScale v,AbstractZero p) => SamplingAlgorithm v -> Curve v -> p -> p
-integrateCurve samplingAlgorithm c initial_value = foldr (flip add) initial_value sample_values
-    where sample_values = map (\(IntervalSample _ l h s) -> scalarMultiply (abs $ h-l) s) $ samplingAlgorithm c
+integrateCurve samplingAlgorithm c initial_value = foldl' add initial_value $ map intervalSingleIntegral $ samplingAlgorithm c
 
 -- | Sampling algorithm that takes a fixed count of samples.
 linearSamples :: Integer -> SamplingAlgorithm a
@@ -234,7 +254,7 @@ adaptiveMagnitudeSamples n c = resampleLoop (\xs -> if genericLength xs > n then
           intervalMagnitude :: (AbstractMagnitude a) => IntervalSample a -> Double
           intervalMagnitude (IntervalSample _ l h a) = magnitude a * (abs $ h-l)
 
--- | Loop to keep generating samples until there are at least n samples.
+-- | Loop to keep generating samples until finished.
 resampleLoop :: (b -> Maybe b) -> b -> b
 resampleLoop nextPass initial_value = f $ initial_value
     where f x = maybe x f $ nextPass x
