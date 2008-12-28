@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, ExistentialQuantification, Rank2Types #-}
 module RSAGL.Curve
     (Curve,
      zipCurve,
@@ -9,15 +9,22 @@ module RSAGL.Curve
      surface,
      wrapSurface,
      unwrapSurface,
-     pretransformCurve,
-     pretransformCurve2,
      transposeSurface,
      zipSurface,
      iterateSurface,
      halfIterateSurface,
-     pretransformSurface,
      flipTransposeSurface,
+     translateCurve,
+     scaleCurve,
+     clampCurve,
+     loopCurve,
+     controlCurve,
+     transformCurve2,
      uv_identity,
+     translateSurface,
+     scaleSurface,
+     transformSurface,
+     transformSurface2,
      surfaceDerivative,
      curveDerivative,
      orientationLoops,
@@ -34,7 +41,6 @@ module RSAGL.Curve
      integrateCurve)
     where
 
-import Control.Arrow hiding (pure)
 import RSAGL.Vector
 import RSAGL.Angle
 import RSAGL.Auxiliary
@@ -47,6 +53,7 @@ import RSAGL.AbstractVector
 import Debug.Trace
 import RSAGL.BoundingBox
 import RSAGL.Interpolation
+import Data.Fixed
 
 -- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
 type CurveF a = (Double,Double) -> a
@@ -93,17 +100,36 @@ mapCurve f = Curve . f . fromCurve
 mapCurve2 :: (SurfaceF a -> SurfaceF a) -> Curve (Curve a) -> Curve (Curve a)
 mapCurve2 f = Curve . (Curve .) . f . (fromCurve .) . fromCurve
 
--- | Transform the input parameter of a 'Curve'.
-pretransformCurve :: (Double -> Double) -> Curve a -> Curve a
-pretransformCurve g = mapCurve (\f (h,u) -> f (h,g u))
+-- | Translate a curve along the axis of the input parameter.
+translateCurve :: Double -> Curve a -> Curve a
+translateCurve x = mapCurve $ \f (h,u) -> f (h,u-x)
 
--- | Transform the input parameters of both axes of a surface 'Curve'.
-pretransformCurve2 :: (Double -> Double) -> (Double -> Double) -> Curve (Curve a) -> Curve (Curve a)
-pretransformCurve2 fu fv = mapCurve2 $ (\f u v -> f (second fu u) (second fv v))
+-- | Scale a curve along the axis of the input parameter.  Factors greater than one have a "zoom in" effect, while
+-- factors less than one have a "zoom out" effect.
+scaleCurve :: Double -> Curve a -> Curve a
+scaleCurve s = mapCurve (\f (h,u) -> f (h/s,u/s))
+
+-- | Clamp lower and upper bounds of a curve along the axis of the input parameter.
+clampCurve :: (Double,Double) -> Curve a -> Curve a
+clampCurve (a,b) | b < a = clampCurve (b,a)
+clampCurve (a,b) = mapCurve $ \f (h,u) -> f (h,min b $ max a u)
+
+-- | Loop a curve onto itself at the specified bounds.
+loopCurve :: (Double,Double) -> Curve a -> Curve a
+loopCurve (a,b) | b < a = loopCurve (b,a)
+loopCurve (a,b) = mapCurve $ \f (h,u) -> f (h,(u-a) `mod'` (b-a) + a)
+
+-- | Transform a curve by manipulating control points.
+controlCurve :: (Double,Double) -> (Double,Double) -> Curve a -> Curve a
+controlCurve (u,v) (u',v') = translateCurve u' . scaleCurve ((u'-v') / (u-v)) . translateCurve (negate u)
 
 -- | Transpose the inner and outer components of a curve.
 transposeCurve :: Curve (Curve a) -> Curve (Curve a)
 transposeCurve = mapCurve2 flip
+
+-- | Lift two curve transformations onto each axis of a second order curve.
+transformCurve2 :: (forall u. Curve u -> Curve u) -> (forall v. Curve v -> Curve v) -> Curve (Curve a) -> Curve (Curve a)
+transformCurve2 fu fv = transposeCurve . fu . transposeCurve . fv
 
 -- | Define a simple curve.
 curve :: (Double -> a) -> Curve a
@@ -145,13 +171,25 @@ instance Applicative Surface where
 zipSurface :: (x -> y -> z) -> Surface x -> Surface y -> Surface z
 zipSurface f (Surface x) (Surface y) = Surface $ zipCurve (zipCurve f) x y
 
--- | Transform the input parameters to a surface.
-pretransformSurface :: (Double -> Double) -> (Double -> Double) -> Surface a -> Surface a
-pretransformSurface fu fv = Surface . pretransformCurve2 fv fu . unwrapSurface
+-- | Lift a transformation on a second order 'Curve' onto a Surface.
+transformSurface :: (Curve (Curve a) -> Curve (Curve a)) -> Surface a -> Surface a
+transformSurface f = Surface . f . unwrapSurface
 
--- | Transpose a surface while flipping the inner curve, so that that orientable surfaces retain their orientation.
+-- | Lift two curve transformations onto each axis of a Surface.
+transformSurface2 :: (forall u. Curve u -> Curve u) -> (forall v. Curve v -> Curve v) -> Surface a -> Surface a
+transformSurface2 fu fv = transformSurface (transformCurve2 fu fv)
+
+-- | Translate a surface over each of its input parameter axes, as translateCurve.
+translateSurface :: (Double,Double) -> Surface a -> Surface a
+translateSurface (u,v) = transformSurface2 (translateCurve u) (translateCurve v)
+
+-- | Scale a surface along each of its input parameter axes, as scaleCurve.
+scaleSurface :: (Double,Double) -> Surface a -> Surface a
+scaleSurface (u,v) = transformSurface2 (scaleCurve u) (scaleCurve v)
+
+-- | Transpose a surface while flipping the inner curve, so that that orientable surfaces retain their original orientation.
 flipTransposeSurface :: Surface a -> Surface a
-flipTransposeSurface = pretransformSurface id (1-) . transposeSurface
+flipTransposeSurface = transformSurface (mapCurve2 $ \f (hu,u) (hv,v) -> f (hu,u) (hv,1-v)) . transposeSurface
 
 -- | An identity 'Surface'.
 uv_identity :: Surface (Double,Double)
@@ -170,7 +208,7 @@ surfaceDerivative s = zipSurface (,) (curvewiseDerivative s) (transposeSurface $
 --
 -- A gotchya with this operation is that as much as 3/4ths of the orientation loop may lie outside of the 0..1 range that is normally
 -- sampled.  Depending on how the surface is constructed, this may produce unexpected results.  The solution is to clamp the
--- the problematic parametric inputs using 'pretransformSurface'.
+-- the problematic parametric inputs at 0 and 1 using 'clampSurface'.
 --
 -- As a rule, do clamp longitudinal axes that come to a singularity at each end.
 -- Do not clamp latitudinal axes that are connected at each end.

@@ -9,7 +9,6 @@ module RSAGL.CurveExtras
      polarCoordinates,
      transformUnitSquareToUnitCircle,
      transformUnitCubeToUnitSphere,
-     clampV,
      circleXY,
      regularPolygon,
      linearInterpolation,
@@ -24,7 +23,6 @@ import RSAGL.Vector
 import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.AbstractVector
-import Data.Fixed
 import RSAGL.Affine
 import Control.Arrow hiding (pure)
 \end{code}
@@ -33,10 +31,10 @@ import Control.Arrow hiding (pure)
 
 \begin{code}
 sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
-sphericalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
+sphericalCoordinates f = transformSurface2 id (clampCurve (0,1)) $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
 
 cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
-cylindricalCoordinates f = clampV $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
+cylindricalCoordinates f = transformSurface2 id (clampCurve (0,1)) $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
 
 toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
@@ -61,13 +59,6 @@ transformUnitCubeToUnitSphere p =
         p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
         k = recip $ distanceBetween origin_point_3d p_projected
         in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
-\end{code}
-
-\subsection{Common Pre-Transformations}
-
-\begin{code}
-clampV :: Surface a -> Surface a
-clampV = pretransformSurface id (min 1 . max 0)
 \end{code}
 
 \subsection{Circles}
@@ -103,24 +94,15 @@ linearInterpolation :: (AbstractSubtract p v,AbstractAdd p v,AbstractMagnitude v
 linearInterpolation = curve . lerpMap . normalizePolyline
 
 loopedLinearInterpolation :: (AbstractSubtract p v,AbstractAdd p v,AbstractMagnitude v,AbstractScale v) => [p] -> Curve p
-loopedLinearInterpolation = loopCurve . linearInterpolation . (\a -> last a:a)
+loopedLinearInterpolation = loopCurve (0,1) . linearInterpolation . (\a -> last a:a)
 \end{code}
 
 \subsection{Smoothing Curves}
 
-\texttt{smoothCurve i h} takes i samples of an h-long piece of a curve at each point to smooth it.
+\texttt{smoothCurve i h} takes i samples of an h-long piece of a 'Curve' at each point to smooth it.  This is not an interpolation function and will tend to shrink shapes
+toward their center of gravity.
 
 \begin{code}
 smoothCurve :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => Integer -> Double -> Curve p -> Curve p
-smoothCurve i h c = curve (\u -> abstractAverage $ iterateCurve i $ pretransformCurve (flip lerp (u-h/2,u+h/2)) c)
-\end{code}
-
-\subsection{Looping Curves}
-
-Curves can be forced to loop with a pre-transformation, however, if the curve does not evaluate to the same value at \texttt{u = 0} and \texttt{u = 1},
-this creates a discontinuity in the curve.
-
-\begin{code}
-loopCurve :: Curve a -> Curve a
-loopCurve = pretransformCurve (`mod'` 1.0)
+smoothCurve i h c = curve $ \u -> abstractAverage $ iterateCurve i $ controlCurve (u-h/2,u+h/2) (0,1) c
 \end{code}

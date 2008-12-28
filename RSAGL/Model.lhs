@@ -392,15 +392,15 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
        quadralateral (Point3D hx ly' lz') (Point3D hx hy' lz') (Point3D hx hy' hz') (Point3D hx ly' hz')  -- right
 
 sor :: (Monoid attr) => Curve Point3D -> Modeling attr
-sor c = model $ generalSurface $ Left $ clampV $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
+sor c = model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
 
 tube :: (Monoid attr) => Curve (Double,Point3D) -> Modeling attr
 tube c | radius <- fmap fst c 
        , spine <- fmap snd c = 
-    model $ generalSurface $ Left $ clampV $ extrudeTube radius spine
+    model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ extrudeTube radius spine
 
 prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
-prism upish ara brb c = model $ generalSurface $ Left $ clampV $ extrudePrism upish ara brb c
+prism upish ara brb c = model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ extrudePrism upish ara brb c
 \end{code}
 
 \subsection{Rendering Models to OpenGL}
