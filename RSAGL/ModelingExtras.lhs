@@ -85,7 +85,7 @@ regularPrism (a,ra) (b,rb) n =
 -- | A rectangular height field rising off of the x-z plane.
 heightField :: (Monoid attr) => (Double,Double) -> (Double,Double) -> ((Double,Double) -> Double) -> Modeling attr
 heightField (x1,z1) (x2,z2) f = model $
-    do quadralateral (Point3D x1 0 z1) (Point3D x2 0 z1) (Point3D x2 0 z2) (Point3D x1 0 z2)
+    do quadralateral (Point3D x1 0 z1) (Point3D x1 0 z2) (Point3D x2 0 z2) (Point3D x2 0 z1)
        heightMap f
        
 \end{code}
