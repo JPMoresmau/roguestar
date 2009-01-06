@@ -11,7 +11,6 @@ import Models.Tree
 import RSAGL.Vector
 import RSAGL.Interpolation
 import RSAGL.Affine
-import RSAGL.Angle
 
 -- |
 -- A list of all terrain type names known to roguestar-gl.
@@ -44,20 +43,20 @@ known_terrain_types =
 --
 -- This is just the shape, without any material.
 --
-terrainTileShape :: Double -> Double -> Modeling ()
-terrainTileShape physical_height aesthetic_height = model $
-    do regularPrism (origin_point_3d,sqrt 0.5) (Point3D 0 1 0,0.0) 4
-       deform $ \(Point3D x y z) -> Point3D x (sqrt $ max 0 y) z
-       affine $ scale (Vector3D 1 aesthetic_height 1) . rotate (Vector3D 0 1 0) (fromDegrees 45)
+terrainTileShape :: Double -> Double -> Quality -> Modeling ()
+terrainTileShape physical_height aesthetic_height q = model $
+    do heightField (-0.5,-0.5) (0.5,0.5) $ \(x,z) -> let y = 1 - max (abs x) (abs z) * 2 in min (max 0 $ sqrt y) (2*y)
+       affine $ scale (Vector3D 1 aesthetic_height 1)
        deform $ \(SurfaceVertex3D p v) -> SurfaceVertex3D (scale (Vector3D 1 (physical_height/aesthetic_height) 1) p) v
+       qualityToFixed q
 
 -- |
 -- Creates a terrain tile based on 'terrainTileShape' with appropriate characteristics and material for its type,
 -- but without any special casing for unsual terrains like forest.
 --
-basicTerrainTile :: String -> Modeling ()
-basicTerrainTile s = model $
-    do terrainTileShape 0.01 (terrainHeight s)
+basicTerrainTile :: String -> Quality -> Modeling ()
+basicTerrainTile s q = model $
+    do terrainTileShape 0.01 (terrainHeight s) q
        material $ terrainTexture s
 
 -- |
@@ -67,17 +66,17 @@ basicTerrainTile s = model $
 terrainTile :: String -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
 terrainTile "forest" q =
-    do basicTerrainTile "forest"
+    do basicTerrainTile "forest" q
        leafy_tree q
 terrainTile "deepforest" q =
-    do basicTerrainTile "deepforest"
+    do basicTerrainTile "deepforest" q
        translate (Vector3D 0.5 0 0.5) $ leafy_tree q
        translate (Vector3D (-0.5) 0 0.5) $ leafy_tree q
        translate (Vector3D 0 0 (-0.5)) $ leafy_tree q
-terrainTile "rockface" _ = model $
-    do terrainTileShape (terrainHeight "rockface") (terrainHeight "rockface")
+terrainTile "rockface" q = model $
+    do terrainTileShape (terrainHeight "rockface") (terrainHeight "rockface") q
        material $ terrainTexture "rockface"
-terrainTile s _ = basicTerrainTile s
+terrainTile s q = basicTerrainTile s q
 
 -- |
 -- Answers the height of a type of terrain.
