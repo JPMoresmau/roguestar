@@ -1,7 +1,6 @@
-
-\section{Actions}
-
-\begin{code}
+-- |
+-- A set of actions that should be bound to keystrokes.
+--
 module Actions
     (takeUserInputAction,
      getValidActions,
@@ -33,7 +32,7 @@ data ActionInput = ActionInput {
 type Action = ActionInput -> ErrorT String IO (IO ())
 
 {----------------------------------------------------------
-    Supports functions for Actions
+ --  Support functions for Actions
  ----------------------------------------------------------}
 
 actionValid :: ActionInput -> Action -> IO Bool
@@ -251,6 +250,7 @@ select_base_class_action_names = ["barbarian",
 select_base_class_actions :: [(String,Action)]
 select_base_class_actions = map selectBaseClassAction select_base_class_action_names
 
+-- | List of every convievable action.
 all_actions :: [(String,Action)]
 all_actions = [continue_action,quit_action,reroll_action,
                pickup_action,drop_action,wield_action,unwield_action,
@@ -261,6 +261,7 @@ all_actions = [continue_action,quit_action,reroll_action,
               direction_actions ++
 	      [move_action,turn_action,fire_action,jump_action,attack_action]
 
+-- | Find an action with the given name.
 lookupAction :: String -> (String,Action)
 lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action named " ++ x) $ lookup x all_actions)
 
@@ -292,4 +293,3 @@ takeUserInputAction action_input action_names =
 	   _ -> do hPutStrLn stderr ("Action bindings warning: multiple valid action for binding: " ++ (concat $ intersperse ", " $ map fst action))
 		   executeAction action_input $ snd $ head action
                    return True
-\end{code}
