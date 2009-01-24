@@ -1,9 +1,8 @@
 -- | Interacts with Protocol module of roguestar-engine.
 module Driver
-    (DriverObject,
+    (DriverObject,RoguestarEngineState,FrozenDriver,
+     freezeDriver,thawDriver,
      DriverClass(..),
-     MonadRoguestarEngineReader(..),
-     withDriver,
      driverNoop,
      newDriverObject,
      driverRead,
@@ -24,11 +23,6 @@ data RoguestarEngineState = RoguestarEngineState {
     restate_tables :: [RoguestarTable],
     restate_answers :: [(String,String)] }
 
--- | A 'Reader' monad class specifically for reading driver state.
-class (Monad m) => MonadRoguestarEngineReader m where
-    askAnswer :: String -> m (Maybe String)
-    askTable :: String -> String -> m (Maybe RoguestarTable)
-
 -- | A class for DriverObjects.
 class DriverClass a where
     -- | Retrieves an answer from the engine.  An answer is a single string.
@@ -39,21 +33,32 @@ class DriverClass a where
 instance DriverClass DriverObject where
     getAnswer driver_object query =
         do driverQuery driver_object [query]
-           driverGet driver_object (lookup query . restate_answers . driver_engine_state)
+           restate <- driverGet driver_object driver_engine_state
+           getAnswer restate query
     getTable driver_object the_table_name the_table_id =
         do driverQuery driver_object [the_table_name,the_table_id]
-           driverGet driver_object (find (\x -> table_name x == the_table_name && table_id x == the_table_id) . restate_tables . driver_engine_state)
+           restate <- driverGet driver_object driver_engine_state
+           getTable restate the_table_name the_table_id
 
-instance (MonadIO m,DriverClass d) => MonadRoguestarEngineReader (ReaderT d m) where
-    askAnswer query =
-        do driver_object <- ask
-	   liftIO $ getAnswer driver_object query
-    askTable the_table_name the_table_id =
-        do driver_object <- ask
-	   liftIO $ getTable driver_object the_table_name the_table_id
+instance DriverClass RoguestarEngineState where
+    getAnswer restate query = return $ lookup query $ restate_answers restate
+    getTable restate the_table_name the_table_id = return $ (find (\x -> table_name x == the_table_name && table_id x == the_table_id)) $ restate_tables restate
 
-withDriver :: (MonadIO m) => DriverObject -> (ReaderT DriverObject m a) -> m a
-withDriver driver_object actionM = runReaderT actionM driver_object
+instance DriverClass FrozenDriver where
+    getAnswer (FrozenDriver driver_object restate) query =
+        do getAnswer driver_object query
+           getAnswer restate query
+    getTable (FrozenDriver driver_object restate) the_table_name the_table_id =
+        do getTable driver_object the_table_name the_table_id
+           getTable restate the_table_name the_table_id
+
+freezeDriver :: (MonadIO m) => DriverObject -> m FrozenDriver
+freezeDriver driver_object =
+    do restate <- liftIO $ driverGet driver_object driver_engine_state
+       return $ FrozenDriver driver_object restate
+
+thawDriver :: FrozenDriver -> DriverObject
+thawDriver (FrozenDriver driver_object _) = driver_object
 
 -- | Contains detailed information about character-by-character interaction with the engine.
 data DriverData = DriverData {
@@ -76,6 +81,10 @@ data DriverData = DriverData {
 -- | An object that contains the state of the interaction between the driver and "roguestar-engine".
 -- Since the Driver interacts on 'stdin'/'stdout', there should probably only be one instance of this in any running program.
 newtype DriverObject = DriverObject (IORef DriverData)
+
+-- | A frozen 'DriverObject'.  It has a static view of the world as seen at the time that the Driver is fozen, however, the original
+-- 'DriverObject' continues to be updated when this 'FrozenDriver' is used.
+data FrozenDriver = FrozenDriver DriverObject RoguestarEngineState
 
 -- | Initialize a DriverObject.
 newDriverObject :: IO DriverObject

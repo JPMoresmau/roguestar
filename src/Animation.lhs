@@ -63,7 +63,7 @@ import Data.IORef
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator IO,
     animstate_globals :: IORef Globals,
-    animstate_driver_object :: DriverObject,
+    animstate_driver_object :: FrozenDriver,
     animstate_print_text_object :: PrintTextObject,
     animstate_library :: Library,
     animstate_block_continue :: Bool,
@@ -99,12 +99,13 @@ newRoguestarAnimationObject rs_anim =
 runRoguestarAnimationObject :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO Scene
 runRoguestarAnimationObject lib globals_ref driver_object print_text_object rso =
     do old_rso_program <- takeMVar $ rso_arrow rso
+       frozen_driver_object <- freezeDriver driver_object
        t <- getTime
        ((result_scene_layer_info,new_rso_program),result_animstate) <- runIOGuard $ (runKleisli $ StateArrow.runState $ updateFRPProgram old_rso_program) (((),t),
            AnimationState {
                animstate_globals = globals_ref,
 	       animstate_scene_accumulator = null_scene_accumulator,
-	       animstate_driver_object = driver_object,
+	       animstate_driver_object = frozen_driver_object,
 	       animstate_print_text_object = print_text_object,
 	       animstate_library = lib,
 	       animstate_block_continue = False,
@@ -157,7 +158,7 @@ actionNameToKeysA :: String -> RSAnimAX any t i o () [String]
 actionNameToKeysA action_name = Arrow.lift $ proc () ->
     do animstate <- fetch -< ()
        let action_input = ActionInput (animstate_globals animstate)
-                                      (animstate_driver_object animstate)
+                                      (thawDriver $ animstate_driver_object animstate)
                                       (animstate_print_text_object animstate)
        app -< (Arrow.lift $ Kleisli $ const $ IOGuard $ actionNameToKeys action_input common_keymap action_name,())
 
