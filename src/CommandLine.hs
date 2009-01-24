@@ -1,4 +1,3 @@
-\begin{code}
 module CommandLine(CommandLineOptions, keymap_name, parseCommandLine) where
 
 import Keymaps.Keymaps
@@ -11,4 +10,3 @@ data CommandLineOptions = CommandLineOptions {
 parseCommandLine :: [String] -> CommandLineOptions
 parseCommandLine [the_keymap_name] = CommandLineOptions $ Just the_keymap_name
 parseCommandLine _ = CommandLineOptions Nothing
-\end{code}
