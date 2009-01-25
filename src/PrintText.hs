@@ -1,8 +1,5 @@
-\section{PrintText}
+-- | A 'PrintTextObject' renders the text console at the bottom of the screen.
 
-A \texttt{PrintTextObject} renders the text console at the bottom of the screen.
-
-\begin{code}
 module PrintText
     (newPrintTextObject,
      printText,
@@ -22,9 +19,7 @@ import Data.IORef
 import Graphics.UI.GLUT as GLUT
 import PrintTextData
 import Control.Monad
-\end{code}
 
-\begin{code}
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,String)],
     text_input_buffer :: String,
@@ -134,4 +129,3 @@ textTypeToColor UnexpectedEvent = Color3 1.0 0.5 0.0
 textTypeToColor Event = Color3 0.5 0.75 1.0
 textTypeToColor Input = Color3 0.5 1.0 0.5
 textTypeToColor Query = Color3 1.0 1.0 1.0
-\end{code}
