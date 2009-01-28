@@ -1,6 +1,4 @@
-\section{Protocol Types}
-
-\begin{code}
+-- | ADTs corresponding to certain data tables incomming from roguestar-engine.
 module ProtocolTypes
     (ProtocolType(..),
      TerrainTile(..),
@@ -13,12 +11,9 @@ import Data.Maybe
 import Tables
 import RSAGL.Angle
 import Debug.Trace
-\end{code}
 
-\texttt{ProtocolType} is any type that can be constructed from a row of a \texttt{RoguestarTable}.
-\texttt{formatTable} is a function from bottom to the expected format of the table row.
-
-\begin{code}
+-- | 'ProtocolType' is any type that can be constructed from a row of a 'RoguestarTable'.
+-- 'formatTable' is a function from bottom to the expected format of the table row.
 class ProtocolType t where
     fromTable :: [TableDataFormat String Integer] -> Maybe t
     formatTable :: t -> [TableDataFormat String String]
@@ -69,4 +64,4 @@ tableSelectTyped :: (ProtocolType t) => RoguestarTable -> [t]
 tableSelectTyped the_table = result
     where result = mapMaybe fromTable $ tableSelectFormatted the_table the_format 
           the_format = formatTable $ (error "tableSelectTyped: undefined" :: (a -> a)) (head result)
-\end{code}
+
