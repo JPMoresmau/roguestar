@@ -1,6 +1,3 @@
-\section{Main}
-
-\begin{code}
 {-# LANGUAGE Arrows #-}
 
 module Main
@@ -110,4 +107,3 @@ maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap =
        if worked
            then clearInputBuffer print_text_object
 	   else setInputBuffer print_text_object =<< filterKeySequence action_input keymap buffer_contents
-\end{code}
