@@ -1,9 +1,6 @@
-\section{Strings}
+-- | This section merely contains a mapping from strings used in the protocol to human-readable strings.
+-- For example, "str" becomes "strength."
 
-This section merely contains a mapping from strings used in the protocol to human-readable strings.
-For example, "str" becomes "strength."
-
-\begin{code}
 module Strings
     (hrstring)
     where
@@ -18,5 +15,5 @@ hrstring "cha" =  "Charisma     "
 hrstring "mind" = "Mindfulness  "
 hrstring "forceadept" = "force adept"
 hrstring "phase_pistol" = "phase pistol"
+hrstring "phase_rifle" = "phase rifle"
 hrstring x = x
-\end{code}
