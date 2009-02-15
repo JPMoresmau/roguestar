@@ -2,6 +2,11 @@
 
 module VisibleObject
     (ToolThreadInput(..),
+     CreatureThreadOutput(..),
+     AbstractEmpty(..),
+     visibleObjectThreadLauncher,
+     objectTypeGuard,
+     questionMarkAvatar,
      visibleObjects,
      allObjects,
      wieldedParent,
@@ -33,12 +38,64 @@ import RSAGL.Vector
 import RSAGL.Angle
 import RSAGL.Affine
 import RSAGL.CoordinateSystems
+import RSAGL.AbstractVector
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
+import Scene
+import Models.LibraryData
 
 data ToolThreadInput = ToolThreadInput {
+    -- | Wield points of all creatures that are on screen.
     tti_wield_points :: Map.Map Integer CoordinateSystem }
+
+data CreatureThreadOutput = CreatureThreadOutput {
+    -- | Wield point for this creature.  This is the coordinate system in which a tool should be rendered, 
+    -- where the origin is the point at which the creature is grasping the weapon.
+    cto_wield_point :: CoordinateSystem }
+
+class AbstractEmpty a where
+    abstractEmpty :: a
+
+instance AbstractEmpty () where
+    abstractEmpty = ()
+
+instance AbstractEmpty (Maybe a) where
+    abstractEmpty = Nothing
+
+-- | Avatar for unrecognized objects.  Basically this is a big conspicuous warning that
+-- something is implemented in the engine but not in the client.
+questionMarkAvatar :: RSAnimA (Maybe Integer) i o i (Maybe CreatureThreadOutput)
+questionMarkAvatar = proc _ ->
+    do visibleObjectHeader -< ()
+       t <- threadTime -< ()
+       m_object_type <- objectDetailsLookup "object-type" -< ()
+       m_species <- objectDetailsLookup "species" -< ()
+       m_tool <- objectDetailsLookup "tool" -< ()                
+       debugOnce -< if any (isJust) [m_object_type,m_species,m_tool] 
+                    then (Just $ "questionMarkAvatar: apparently didn't recognize object: " ++ 
+		                 show m_object_type ++ ", " ++ show m_species ++ ", " ++ show m_tool)
+		    else Nothing
+       m_position <- objectIdealPosition -< ()
+       let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)
+       let m_transform = fmap (translate (Vector3D 0 (0.7 + float_y/10) 0)) m_position 
+       transformA libraryA -< maybe (Affine id,(scene_layer_local,NullModel)) (\p -> (Affine $ translateToFrom p origin_point_3d,(scene_layer_local,QuestionMark))) m_transform
+       m_wield_point <- whenJust exportCoordinateSystem -< fmap (\p -> translate (vectorToFrom p origin_point_3d `add` Vector3D 0.4 0 0)) m_transform 
+       returnA -< 
+           do wield_point <- m_wield_point
+	      return $ CreatureThreadOutput {
+                           cto_wield_point = wield_point }
+
+
+-- | Launch threads to represent every visible object.
+visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimA (Maybe Integer) i o i o -> RSAnimA (Maybe Integer) i o i o
+visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
+
+-- | Kill a thread if an object has the wrong \"object-type\" field, e.g. anything that isn't a \"creature\".
+objectTypeGuard :: (String -> Bool) -> RSAnimA (Maybe Integer) a b () ()
+objectTypeGuard f = proc () ->
+    do m_obj_type <- objectDetailsLookup "object-type" -< ()
+       killThreadIf -< maybe False (not . f) m_obj_type
 
 -- | Header function that just kills the current thread if it isn't a visible object.
 visibleObjectHeader :: RSAnimA (Maybe Integer) i o () ()
