@@ -24,7 +24,7 @@ data DeviceActivationOutcome = DeviceActivationOutcome {
 -- | Given a device, and a primary and secondary roll, determine the outcome of activating the device.
 -- The better the primary roll, the less likely that the device will fail, while the better the secondary 
 -- roll, the more energy the device will output.
-resolveDeviceActivation :: (DBReadable db) => CreatureAbility -> CreatureAbility -> Device -> CreatureRef -> db DeviceActivationOutcome
+resolveDeviceActivation :: (DBReadable db,DeviceType d) => CreatureAbility -> CreatureAbility -> d -> CreatureRef -> db DeviceActivationOutcome
 resolveDeviceActivation primary secondary device creature_ref =
     do primary_roll <- rollCreatureAbilityScore primary 0 creature_ref
        secondary_roll <- rollCreatureAbilityScore secondary (deviceEnergyOutput device) creature_ref
