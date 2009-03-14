@@ -1,7 +1,9 @@
 {-# LANGUAGE PatternGuards, FlexibleContexts #-}
 
 module Combat
-    (resolveRangedAttack,
+    (RangedAttackModel,
+     rangedAttackWithWeapon,
+     resolveRangedAttack,
      resolveMeleeAttack,
      executeRangedAttack,
      executeMeleeAttack,
@@ -31,14 +33,20 @@ data RangedAttackOutcome =
   | RangedAttackOverheats CreatureRef ToolRef Integer
   | RangedAttackCriticalFail CreatureRef ToolRef Integer
 
-resolveRangedAttack :: (DBReadable db) => CreatureRef -> Facing -> db RangedAttackOutcome
-resolveRangedAttack attacker_ref face =
-    do m_defender_ref <- liftM listToMaybe $ findRangedTargets attacker_ref face
-       tool_ref <- maybe (throwError $ DBErrorFlag "no-weapon-wielded") return =<< dbGetWielded attacker_ref
+data RangedAttackModel = WithWeapon CreatureRef ToolRef Device deriving (Read,Show)
+
+rangedAttackWithWeapon :: (DBReadable db) => CreatureRef -> db RangedAttackModel
+rangedAttackWithWeapon attacker_ref =
+    do tool_ref <- maybe (throwError $ DBErrorFlag "no-weapon-wielded") return =<< dbGetWielded attacker_ref
        tool <- dbGetTool tool_ref
-       device_activation_outcome <- case tool of
-           DeviceTool Gun device -> resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) device attacker_ref
+       case tool of
+           DeviceTool Gun device -> return $ WithWeapon attacker_ref tool_ref device
            _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+
+resolveRangedAttack :: (DBReadable db) => RangedAttackModel -> Facing -> db RangedAttackOutcome
+resolveRangedAttack (WithWeapon attacker_ref tool_ref device) face =
+    do device_activation_outcome <- resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) device attacker_ref
+       m_defender_ref <- liftM listToMaybe $ findRangedTargets attacker_ref face
        case (m_defender_ref, dao_outcome_type device_activation_outcome) of
            (_,DeviceCriticalFailed) -> return $ RangedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)
            (_,DeviceFailed) -> return $ RangedAttackOverheats attacker_ref tool_ref (dao_energy device_activation_outcome)

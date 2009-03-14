@@ -28,6 +28,7 @@ import Turns
 import SpeciesData
 import Species
 import Data.Ord
+import Combat
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -446,7 +447,7 @@ dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref 
 dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
 
 dbDispatchAction ["fire"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref FireMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> rangedAttackWithWeapon creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref FireMode) >> done
 
 dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
 
