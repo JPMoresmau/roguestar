@@ -10,7 +10,7 @@ module Substances
      substances,
      prettySubstance,
      printSubstances,
-     gasWeight,
+     gasValue,
      chromaliteAlignment,
      chromalitePotency)
     where
@@ -43,7 +43,8 @@ data Solid = MaterialSolid Material
            deriving (Read,Show,Eq,Ord)
              
 data Gas = 
-    Hydrogen
+    Water
+  | Hydrogen
   | Helium
   | Oxygen
   | Nitrogen
@@ -53,6 +54,9 @@ data Gas =
   | Krypton
   | Xenon
   | Radon
+  | Methane
+  | Ammonia
+  | Iodine
   | Chlorine deriving (Eq,Enum,Ord,Show,Read,Bounded)
 	
 data Material = 
@@ -76,6 +80,8 @@ data Material =
   | Carbon
   | Wood
   | Plastic
+  | Silicon
+  | Nickel
         deriving (Eq,Enum,Ord,Show,Read,Bounded)
 
 --
@@ -104,45 +110,51 @@ data Chromalite =
   | Bectonite    -- radiant black Chromalite
      deriving (Eq,Enum,Ord,Show,Read,Bounded)
 
+gasValue :: Gas -> Integer
+gasValue Water = 2
+gasValue Hydrogen = 4
+gasValue Helium = 6
+gasValue Nitrogen = 7
+gasValue Oxygen = 10
+gasValue Flourine = 12
+gasValue Neon = 20
+gasValue Ammonia = 21
+gasValue Methane = 24
+gasValue Chlorine = 30
+gasValue Argon = 40
+gasValue Krypton = 42
+gasValue Xenon = 60
+gasValue Radon = 70
+gasValue Iodine = 100
+
 data MaterialValue = MaterialValue {
     material_construction_value :: Integer, -- value of material for constructing buildings, pipes, casings for gadgets, etc
     material_critical_value :: Integer,     -- value of material for critical purposes, such as miniature electronic components
-    material_scarcity :: Integer }          -- how rare the material is in nature and by synthesis
-
-gasWeight :: Gas -> Integer
-gasWeight Hydrogen = 1
-gasWeight Helium = 4
-gasWeight Oxygen = 16
-gasWeight Nitrogen = 14
-gasWeight Flourine = 19
-gasWeight Neon = 20
-gasWeight Argon = 40
-gasWeight Krypton = 84
-gasWeight Xenon = 131
-gasWeight Radon = 222
-gasWeight Chlorine = 35
+    material_scarcity :: Integer }          -- scarcity of material
 
 materialValue :: Material -> MaterialValue
-materialValue Aluminum =    MaterialValue   10  10  10
-materialValue Titanium =    MaterialValue   15  10  20
-materialValue Palladium =   MaterialValue    2 150   5
-materialValue Molybdenum =  MaterialValue    1  50   3
-materialValue Lead =        MaterialValue    3  20   2
-materialValue Copper =      MaterialValue    8  80  15
-materialValue Iron =        MaterialValue    5  10   2
-materialValue Cobalt =      MaterialValue    3  60   7
-materialValue Zirconium =   MaterialValue    2  40  10
-materialValue Gold =        MaterialValue    4  20  50
-materialValue Silver =      MaterialValue    3  30  20
-materialValue Platinum =    MaterialValue    1 100  70
-materialValue Zinc =        MaterialValue    6  50   4
-materialValue Uranium =     MaterialValue    1 300  40
-materialValue Plutonium =   MaterialValue    1 500 100
-materialValue Thorium =     MaterialValue    2 200   4
-materialValue Diamond =     MaterialValue   40  20  15
-materialValue Carbon =      MaterialValue    2  20   1
-materialValue Wood =        MaterialValue    3   0   2
-materialValue Plastic =     MaterialValue    4   0   2
+materialValue Aluminum =    MaterialValue  50  20   6
+materialValue Titanium =    MaterialValue  70  15  15
+materialValue Palladium =   MaterialValue  30  30  65
+materialValue Molybdenum =  MaterialValue  18  55  40
+materialValue Lead =        MaterialValue  15   7  31
+materialValue Copper =      MaterialValue  40  40  18
+materialValue Iron =        MaterialValue  25  15  10
+materialValue Cobalt =      MaterialValue  30  35  30
+materialValue Zirconium =   MaterialValue  12  50  23
+materialValue Gold =        MaterialValue  20  35  83
+materialValue Silver =      MaterialValue  10  20  80
+materialValue Platinum =    MaterialValue  22  40  81
+materialValue Zinc =        MaterialValue  35  25  26
+materialValue Uranium =     MaterialValue   5  90  37
+materialValue Plutonium =   MaterialValue   1 100 100
+materialValue Thorium =     MaterialValue  20  80  33
+materialValue Diamond =     MaterialValue 100 100  90
+materialValue Carbon =      MaterialValue  60  20  20
+materialValue Wood =        MaterialValue  25   1   3
+materialValue Plastic =     MaterialValue  30  10   1
+materialValue Silicon =     MaterialValue  25  50   5
+materialValue Nickel =      MaterialValue  25  45  25
 
 chromaliteAlignment :: Chromalite -> Alignment
 chromaliteAlignment Rutilium = (Chaotic,Strategic)
@@ -167,16 +179,16 @@ class SubstanceType a where
     toSubstance :: a -> Substance
 
 instance SubstanceType Gas where
-    substanceValue x = gasWeight x ^ 2 - gasWeight x
+    substanceValue x = gasValue x + 10
     toSubstance x = GasSubstance x
     
 instance SubstanceType Material where
-    substanceValue x = nom * crit * scarce + nom + crit + scarce
+    substanceValue x = (nom + crit) * scarce
         where MaterialValue nom crit scarce = materialValue x
     toSubstance x = MaterialSubstance x
 
 instance SubstanceType Chromalite where
-    substanceValue x = 10 * chromalitePotency x ^ 2 + 100 * chromalitePotency x
+    substanceValue x = 1000 + 2 * chromalitePotency x ^ 2
     toSubstance x = ChromaliteSubstance x
 
 instance SubstanceType Substance where

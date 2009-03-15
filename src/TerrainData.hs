@@ -16,7 +16,7 @@ module TerrainData
 import Grids
 import Data.List as List
 import Data.Map as Map
-import Substances
+import Substances hiding (Water)
 import RNG
 import Data.Ratio
 

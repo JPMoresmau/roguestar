@@ -45,7 +45,7 @@ rangedAttackWithWeapon attacker_ref =
 
 resolveRangedAttack :: (DBReadable db) => RangedAttackModel -> Facing -> db RangedAttackOutcome
 resolveRangedAttack (WithWeapon attacker_ref tool_ref device) face =
-    do device_activation_outcome <- resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) device attacker_ref
+    do device_activation_outcome <- resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) (ReloadSkill Ranged) device attacker_ref
        m_defender_ref <- liftM listToMaybe $ findRangedTargets attacker_ref face
        case (m_defender_ref, dao_outcome_type device_activation_outcome) of
            (_,DeviceCriticalFailed) -> return $ RangedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)
@@ -90,7 +90,7 @@ resolveMeleeAttack attacker_ref face =
            (_,Just tool_ref) ->
                do tool <- dbGetTool tool_ref
                   device_activation_outcome <- case tool of
-                      DeviceTool Sword device -> resolveDeviceActivation (AttackSkill Melee) (DamageSkill Melee) device attacker_ref
+                      DeviceTool Sword device -> resolveDeviceActivation (AttackSkill Melee) (DamageSkill Melee) (ReloadSkill Melee) device attacker_ref
                       _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
                   case (m_defender_ref, dao_outcome_type device_activation_outcome) of
                       (_,DeviceCriticalFailed) -> return $ ArmedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)

@@ -3,8 +3,9 @@ module ToolData
      Device,
      DeviceKind(..),
      DeviceType(..),
-     deviceEnergyOutput,
-     deviceThroughput,
+     deviceOutput,
+     deviceAccuracy,
+     deviceSpeed,
      deviceDurability,
      deviceSize,
      toDevice,
@@ -36,18 +37,24 @@ data Device = Device {
 
 -- | Anything that operates like a device, but isn't.  For example, an unarmed attack.
 data PseudoDevice = PseudoDevice {
-    pdevice_energy_output :: Integer,
-    pdevice_throughput :: Integer,
+    pdevice_accuracy :: Integer,
+    pdevice_output :: Integer,
+    pdevice_speed :: Integer,
     pdevice_size :: Integer }
 
 class DeviceType d where
     toPseudoDevice :: d -> PseudoDevice
 
 instance DeviceType Device where
-    toPseudoDevice d = PseudoDevice {
-        pdevice_energy_output = device_size d * (chromalitePotency $ device_power_cell d),
-        pdevice_throughput = ((material_critical_value $ materialValue $ device_material d) + 1) * (gasWeight $ device_medium d),
-        pdevice_size = device_size d }
+    toPseudoDevice d = let chromalite = chromalitePotency $ device_power_cell d
+                           gas = gasValue $ device_medium d
+                           material = material_critical_value $ materialValue $ device_material d
+                           size = device_size d
+        in PseudoDevice {
+               pdevice_accuracy = max material $ material + gas - chromalite,
+               pdevice_output = max chromalite $ chromalite + gas - material,
+               pdevice_speed = max gas $ material + chromalite - gas,
+               pdevice_size = size }
 
 instance DeviceType PseudoDevice where
     toPseudoDevice = id
@@ -73,14 +80,17 @@ kinetic_fleuret = sword $ Device "kinetic_fleuret" Ionidium Aluminum Nitrogen 2
 kinetic_sabre :: Tool
 kinetic_sabre = sword $ Device "kinetic_sabre" Ionidium Aluminum Nitrogen 4
 
-deviceEnergyOutput :: (DeviceType d) => d -> Integer
-deviceEnergyOutput = pdevice_energy_output . toPseudoDevice
-
-deviceThroughput :: (DeviceType d) => d -> Integer
-deviceThroughput = pdevice_throughput . toPseudoDevice
-
 deviceDurability :: Device -> Integer
 deviceDurability d = device_size d * (material_construction_value $ materialValue $ device_material d)
+
+deviceOutput :: (DeviceType d) => d -> Integer
+deviceOutput = pdevice_output . toPseudoDevice
+
+deviceAccuracy :: (DeviceType d) => d -> Integer
+deviceAccuracy = pdevice_accuracy . toPseudoDevice
+
+deviceSpeed :: (DeviceType d) => d -> Integer
+deviceSpeed = pdevice_speed . toPseudoDevice
 
 deviceSize :: (DeviceType d) => d -> Integer
 deviceSize = pdevice_size . toPseudoDevice

@@ -101,6 +101,7 @@ data CreatureAbility =
    | DefenseSkill CreatureInteractionMode
    | DamageSkill CreatureInteractionMode
    | DamageReductionTrait CreatureInteractionMode
+   | ReloadSkill CreatureInteractionMode
    | HideSkill
    | SpotSkill
    | JumpSkill
@@ -141,18 +142,22 @@ creatureAbilityScore (AttackSkill Melee) = figureAbility [Strength] (AttackSkill
 creatureAbilityScore (DefenseSkill Melee) = figureAbility [Strength] (DefenseSkill Melee,2)
 creatureAbilityScore (DamageSkill Melee) = figureAbility [Strength] (DamageSkill Melee,2)
 creatureAbilityScore (DamageReductionTrait Melee) = figureAbility [Constitution] (DamageReductionTrait Melee,1)
+creatureAbilityScore (ReloadSkill Melee) = figureAbility [Speed] (ReloadSkill Melee,1)
 creatureAbilityScore (AttackSkill Ranged) = figureAbility [Perception] (AttackSkill Ranged,2)
 creatureAbilityScore (DefenseSkill Ranged) = figureAbility [Perception] (DefenseSkill Ranged,2)
 creatureAbilityScore (DamageSkill Ranged) = figureAbility [Perception] (DamageSkill Ranged,2)
 creatureAbilityScore (DamageReductionTrait Ranged) = figureAbility [Constitution] (DamageReductionTrait Ranged,1)
+creatureAbilityScore (ReloadSkill Ranged) = figureAbility [Speed] (ReloadSkill Ranged,1)
 creatureAbilityScore (AttackSkill Unarmed) = figureAbility [Speed] (AttackSkill Unarmed,2)
 creatureAbilityScore (DefenseSkill Unarmed) = figureAbility [Speed] (DefenseSkill Unarmed,2)
 creatureAbilityScore (DamageSkill Unarmed) = figureAbility [Speed] (DamageSkill Unarmed,2)
 creatureAbilityScore (DamageReductionTrait Unarmed) = figureAbility [Constitution] (DamageReductionTrait Unarmed,1)
+creatureAbilityScore (ReloadSkill Unarmed) = figureAbility [Speed] (ReloadSkill Unarmed,1)
 creatureAbilityScore (AttackSkill Splash) = figureAbility [Intellect] (AttackSkill Splash,2)
 creatureAbilityScore (DefenseSkill Splash) = figureAbility [Intellect] (DefenseSkill Splash,2)
 creatureAbilityScore (DamageSkill Splash) = figureAbility [Intellect] (DamageSkill Splash,2)
 creatureAbilityScore (DamageReductionTrait Splash) = figureAbility [Constitution] (DamageReductionTrait Splash,1)
+creatureAbilityScore (ReloadSkill Splash) = figureAbility [Speed] (ReloadSkill Splash,1)
 creatureAbilityScore HideSkill = figureAbility [Perception] (HideSkill,2)
 creatureAbilityScore SpotSkill = figureAbility [Perception] (SpotSkill,2)
 creatureAbilityScore JumpSkill = figureAbility [Strength] (JumpSkill,2)
