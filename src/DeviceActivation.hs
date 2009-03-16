@@ -30,10 +30,12 @@ resolveDeviceActivation :: (DBReadable db,DeviceType d) => CreatureAbility -> Cr
 resolveDeviceActivation primary_ability secondary_ability timing_ability device creature_ref =
     do primary_roll <- rollCreatureAbilityScore primary_ability (deviceAccuracy device) creature_ref
        secondary_roll <- rollCreatureAbilityScore secondary_ability (deviceOutput device) creature_ref
+       physical_energy_roll <- linearRoll $ deviceOutput device
        timing_roll <- rollCreatureAbilityScore timing_ability (deviceSpeed device) creature_ref
-       let timing = roll_ideal secondary_roll % roll_ideal timing_roll
+       let timing = roll_ideal secondary_roll % (roll_ideal timing_roll + roll_ideal secondary_roll)
            daoF = case () of
-                      () | roll_actual primary_roll < deviceSize device -> DeviceActivationOutcome DeviceCriticalFailed 0 (roll_actual secondary_roll * deviceSize device) timing
-                      () | otherwise -> DeviceActivationOutcome DeviceActivated (roll_actual primary_roll * deviceSize device) (roll_actual secondary_roll) timing
-       return $ daoF primary_roll secondary_roll
+                      () | roll_actual primary_roll == 0 -> DeviceActivationOutcome DeviceCriticalFailed 0 (deviceOutput device * deviceSize device)
+                      () | roll_actual primary_roll <= deviceSize device -> DeviceActivationOutcome DeviceFailed (roll_actual primary_roll) physical_energy_roll
+                      () | otherwise -> DeviceActivationOutcome DeviceActivated (roll_actual primary_roll * deviceSize device) (roll_actual secondary_roll)
+       return $ daoF timing primary_roll secondary_roll
 
