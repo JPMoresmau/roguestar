@@ -8,7 +8,7 @@ module DBData
      ToolRef,
      TheUniverse(..),
      the_universe,
-     (=:=),
+     (=:=), (=/=),
      GenericReference(..),
      locationsOf,
      ReferenceType(..),
@@ -126,6 +126,9 @@ locationsOf = liftM (map location)
 --
 (=:=) :: (GenericReference a m,GenericReference b n) => a -> b -> Bool
 a =:= b = generalizeReference a == generalizeReference b
+
+(=/=) :: (GenericReference a m,GenericReference b n) => a -> b -> Bool
+a =/= b = not $ a =:= b
 
 --
 -- References

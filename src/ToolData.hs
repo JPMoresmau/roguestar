@@ -1,6 +1,7 @@
 module ToolData 
     (Tool(..),
      Device,
+     PseudoDevice(..),
      DeviceKind(..),
      DeviceType(..),
      deviceOutput,
@@ -51,9 +52,9 @@ instance DeviceType Device where
                            material = material_critical_value $ materialValue $ device_material d
                            size = device_size d
         in PseudoDevice {
-               pdevice_accuracy = max material $ material + gas - chromalite,
-               pdevice_output = max chromalite $ chromalite + gas - material,
-               pdevice_speed = max gas $ material + chromalite - gas,
+               pdevice_accuracy = min chromalite material + chromalite,
+               pdevice_output = min chromalite gas + chromalite,
+               pdevice_speed = gas + material,
                pdevice_size = size }
 
 instance DeviceType PseudoDevice where
@@ -66,13 +67,13 @@ sword :: Device -> Tool
 sword = DeviceTool Sword
 
 phase_pistol :: Tool
-phase_pistol = gun $ Device "phase_pistol" Pteulanium Zinc Argon 1
+phase_pistol = gun $ Device "phase_pistol" Caerulite Zinc Flourine 1
 
 phaser :: Tool
-phaser = gun $ Device "phaser" Pteulanium Zinc Argon 3
+phaser = gun $ Device "phaser" Caerulite Zinc Flourine 3
 
 phase_rifle :: Tool
-phase_rifle = gun $ Device "phase_rifle" Pteulanium Zinc Argon 5
+phase_rifle = gun $ Device "phase_rifle" Caerulite Zinc Flourine 5
 
 kinetic_fleuret :: Tool
 kinetic_fleuret = sword $ Device "kinetic_fleuret" Ionidium Aluminum Nitrogen 2

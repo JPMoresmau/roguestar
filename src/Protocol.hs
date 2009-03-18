@@ -447,12 +447,12 @@ dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref 
 dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
 
 dbDispatchAction ["fire"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> rangedAttackWithWeapon creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref FireMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> rangedAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref FireMode) >> done
 
 dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
 
 dbDispatchAction ["attack"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref AttackMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> meleeAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref AttackMode) >> done
 
 dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Attack $ fromJust $ stringToFacing direction) creature_ref >> done
 

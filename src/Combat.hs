@@ -1,14 +1,11 @@
 {-# LANGUAGE PatternGuards, FlexibleContexts #-}
 
 module Combat
-    (RangedAttackModel,
-     rangedAttackWithWeapon,
-     resolveRangedAttack,
-     resolveMeleeAttack,
-     executeRangedAttack,
-     executeMeleeAttack,
-     RangedAttackOutcome,
-     MeleeAttackOutcome)
+    (AttackModel,
+     meleeAttackModel,
+     rangedAttackModel,
+     resolveAttack,
+     executeAttack)
     where
 
 import DB
@@ -20,173 +17,151 @@ import ToolData
 import Control.Monad.Error
 import Facing
 import Data.Maybe
-import Plane
 import Data.List
 import Data.Ord
-import Position
 import DeviceActivation
-import Control.Monad.Maybe
+import Contact
+import Plane
 
-data RangedAttackOutcome =
-    RangedAttackMiss CreatureRef ToolRef
-  | RangedAttackHitCreature CreatureRef ToolRef CreatureRef Integer
-  | RangedAttackOverheats CreatureRef ToolRef Integer
-  | RangedAttackCriticalFail CreatureRef ToolRef Integer
+data AttackModel =
+    RangedAttackModel CreatureRef ToolRef Device
+  | MeleeAttackModel CreatureRef ToolRef Device
+  | UnarmedAttackModel CreatureRef
 
-data RangedAttackModel = WithWeapon CreatureRef ToolRef Device deriving (Read,Show)
+attacker :: AttackModel -> CreatureRef
+attacker (RangedAttackModel attacker_ref _ _) = attacker_ref
+attacker (MeleeAttackModel attacker_ref _ _) = attacker_ref
+attacker (UnarmedAttackModel attacker_ref) = attacker_ref
 
-rangedAttackWithWeapon :: (DBReadable db) => CreatureRef -> db RangedAttackModel
-rangedAttackWithWeapon attacker_ref =
-    do tool_ref <- maybe (throwError $ DBErrorFlag "no-weapon-wielded") return =<< dbGetWielded attacker_ref
-       tool <- dbGetTool tool_ref
-       case tool of
-           DeviceTool Gun device -> return $ WithWeapon attacker_ref tool_ref device
+weapon :: AttackModel -> Maybe ToolRef
+weapon (RangedAttackModel _ weapon_ref _) = Just weapon_ref
+weapon (MeleeAttackModel _ weapon_ref _) = Just weapon_ref
+weapon (UnarmedAttackModel {}) = Nothing
+
+instance DeviceType AttackModel where
+    toPseudoDevice (RangedAttackModel _ _ d) = toPseudoDevice d
+    toPseudoDevice (MeleeAttackModel _ _ d) = toPseudoDevice d
+    toPseudoDevice (UnarmedAttackModel {}) = PseudoDevice 0 0 0 1
+
+interactionMode :: AttackModel -> CreatureInteractionMode
+interactionMode (RangedAttackModel {}) = Ranged
+interactionMode (MeleeAttackModel {}) = Melee
+interactionMode (UnarmedAttackModel {}) = Unarmed
+
+-- | Get the attack model for a creature, based on whatever tool the creature is holding.
+-- This will fail if the creature is holding anything other than a weapon.
+attackModel :: (DBReadable db) => CreatureRef -> db AttackModel
+attackModel attacker_ref =
+    do m_tool_ref <- dbGetWielded attacker_ref
+       case m_tool_ref of
+           Nothing -> return $ UnarmedAttackModel attacker_ref
+           Just tool_ref ->
+               do tool <- dbGetTool tool_ref
+                  case tool of
+                      DeviceTool Gun device -> return $ RangedAttackModel attacker_ref tool_ref device
+                      DeviceTool Sword device -> return $ MeleeAttackModel attacker_ref tool_ref device
+
+-- | Get an appropriate melee attack model for a creature, based on whatever tool the creature is holding.
+-- This will fail if the creature is holding anything other than a suitable melee weapon.
+meleeAttackModel :: (DBReadable db) => CreatureRef -> db AttackModel
+meleeAttackModel attacker_ref =
+    do attack_model <- attackModel attacker_ref
+       case interactionMode attack_model `elem` [Melee,Unarmed] of
+           True -> return attack_model
            _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
 
-resolveRangedAttack :: (DBReadable db) => RangedAttackModel -> Facing -> db RangedAttackOutcome
-resolveRangedAttack (WithWeapon attacker_ref tool_ref device) face =
-    do device_activation_outcome <- resolveDeviceActivation (AttackSkill Ranged) (DamageSkill Ranged) (ReloadSkill Ranged) device attacker_ref
-       m_defender_ref <- liftM listToMaybe $ findRangedTargets attacker_ref face
-       case (m_defender_ref, dao_outcome_type device_activation_outcome) of
-           (_,DeviceCriticalFailed) -> return $ RangedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)
-           (_,DeviceFailed) -> return $ RangedAttackOverheats attacker_ref tool_ref (dao_energy device_activation_outcome)
-           (Nothing,_) -> return $ RangedAttackMiss attacker_ref tool_ref
-           (Just defender_ref,DeviceActivated) ->
-               do defense_roll <- rollRangedDefense attacker_ref defender_ref
-                  injury_roll <- rollInjury Ranged defender_ref (dao_energy device_activation_outcome)
+-- | Get an appropriate ranged attack model for a creature, based on whatever tool the creature is holding.
+-- This will fail if the creature is holding anything other than a suitable ranged or splash weapon.
+rangedAttackModel :: (DBReadable db) => CreatureRef -> db AttackModel
+rangedAttackModel attacker_ref =
+    do attack_model <- attackModel attacker_ref
+       case interactionMode attack_model `elem` [Ranged,Splash] of
+           True -> return attack_model
+           _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+
+data AttackOutcome =
+    AttackMiss CreatureRef (Maybe ToolRef)
+  | AttackMalfunction CreatureRef ToolRef Integer
+  | AttackExplodes CreatureRef ToolRef Integer
+  | AttackHit CreatureRef (Maybe ToolRef) CreatureRef Integer
+  | AttackDisarm CreatureRef CreatureRef ToolRef
+  | AttackSunder CreatureRef ToolRef CreatureRef ToolRef
+
+resolveAttack :: (DBReadable db) => AttackModel -> Facing -> db AttackOutcome
+resolveAttack attack_model face =
+    do device_activation <- resolveDeviceActivation (AttackSkill $ interactionMode attack_model) 
+                                                    (DamageSkill $ interactionMode attack_model)
+                                                    (ReloadSkill $ interactionMode attack_model)
+                                                    (toPseudoDevice attack_model)
+                                                    (attacker attack_model)
+       m_defender_ref <- liftM listToMaybe $ findContacts (contactMode $ interactionMode attack_model) (attacker attack_model) face
+       case (dao_outcome_type device_activation,m_defender_ref) of
+           (DeviceFailed, _) | Just tool_ref <- weapon attack_model -> 
+               return $ AttackMalfunction (attacker attack_model) tool_ref (dao_energy device_activation)
+           (DeviceCriticalFailed, _) | Just tool_ref <- weapon attack_model ->
+               return $ AttackExplodes (attacker attack_model) tool_ref (dao_energy device_activation)
+           (DeviceActivated, Just defender_ref) ->
+               do defense_outcome <- resolveDefense (interactionMode attack_model) defender_ref
+                  distance_squared <- liftM (fromMaybe 0) $ dbDistanceBetweenSquared (attacker attack_model) defender_ref
+                  let isDisarmingBlow = dao_skill_roll device_activation > do_skill_roll defense_outcome + distance_squared &&
+                                        dao_energy device_activation > do_damage_reduction defense_outcome + do_disarm_bonus defense_outcome
                   case () of
-                      () | dao_skill_roll device_activation_outcome > defense_roll -> return $ RangedAttackHitCreature attacker_ref tool_ref defender_ref injury_roll
-                      () | otherwise -> return $ RangedAttackMiss attacker_ref tool_ref
+                      () | dao_skill_roll device_activation <= do_skill_roll defense_outcome + distance_squared ->
+                           return $ AttackMiss (attacker attack_model) (weapon attack_model)
+                      () | isDisarmingBlow && interactionMode attack_model == Unarmed,
+                           Just defender_wield_ref <- do_defender_wield defense_outcome ->
+                               return $ AttackDisarm (attacker attack_model) defender_ref defender_wield_ref
+                      () | isDisarmingBlow && interactionMode attack_model == Melee,
+                           Just weapon_ref <- weapon attack_model,
+                           Just defender_wield_ref <- do_defender_wield defense_outcome ->
+                               return $ AttackSunder (attacker attack_model) weapon_ref defender_ref defender_wield_ref
+                      () -> return $ AttackHit (attacker attack_model) (weapon attack_model) defender_ref (max 0 $ dao_energy device_activation - do_damage_reduction defense_outcome)
+           _ -> return $ AttackMiss (attacker attack_model) (weapon attack_model)
 
-data MeleeAttackOutcome =
-    UnarmedAttackHitCreature CreatureRef CreatureRef Integer
-  | UnarmedAttackMiss CreatureRef
-  | UnarmedAttackDisarm CreatureRef CreatureRef ToolRef
-  | ArmedAttackHitCreature CreatureRef ToolRef CreatureRef Integer
-  | ArmedAttackSunder CreatureRef ToolRef CreatureRef ToolRef
-  | ArmedAttackMiss CreatureRef ToolRef
-  | ArmedAttackOverheats CreatureRef ToolRef Integer
-  | ArmedAttackCriticalFail CreatureRef ToolRef Integer
+data DefenseOutcome = DefenseOutcome {
+    do_defender_wield :: Maybe ToolRef,
+    do_skill_roll :: Integer,
+    do_damage_reduction :: Integer,
+    do_disarm_bonus :: Integer }
 
-resolveMeleeAttack :: (DBReadable db) => CreatureRef -> Facing -> db MeleeAttackOutcome
-resolveMeleeAttack attacker_ref face =
-    do m_defender_ref <- liftM listToMaybe $ findMeleeTargets attacker_ref face
-       m_tool_ref <- dbGetWielded attacker_ref
-       case (m_defender_ref,m_tool_ref) of
-           -- unarmed attack against thin air
-           (Nothing,Nothing) -> return $ UnarmedAttackMiss attacker_ref
-           -- unarmed attack against a creature
-           (Just defender_ref,Nothing) ->
-               do attack_roll <- liftM roll_actual $ rollCreatureAbilityScore (AttackSkill Unarmed) 0 attacker_ref
-                  damage_roll <- liftM roll_actual $ rollCreatureAbilityScore (DamageSkill Unarmed) 0 attacker_ref
-                  defense_roll <- rollMeleeDefense attacker_ref defender_ref
-                  injury_roll <- rollInjury Unarmed defender_ref damage_roll
-                  m_defender_wield <- dbGetWielded defender_ref
-                  case m_defender_wield of
-                      (Just defender_wield_ref) | attack_roll > defense_roll && injury_roll > 0 -> return $ UnarmedAttackDisarm attacker_ref defender_ref defender_wield_ref
-                      _ | attack_roll > defense_roll -> return $ UnarmedAttackHitCreature attacker_ref defender_ref injury_roll
-                      _ | otherwise -> return $ UnarmedAttackMiss attacker_ref
-           -- armed attack
-           (_,Just tool_ref) ->
-               do tool <- dbGetTool tool_ref
-                  device_activation_outcome <- case tool of
-                      DeviceTool Sword device -> resolveDeviceActivation (AttackSkill Melee) (DamageSkill Melee) (ReloadSkill Melee) device attacker_ref
-                      _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
-                  case (m_defender_ref, dao_outcome_type device_activation_outcome) of
-                      (_,DeviceCriticalFailed) -> return $ ArmedAttackCriticalFail attacker_ref tool_ref (dao_energy device_activation_outcome)
-                      (_,DeviceFailed) -> return $ ArmedAttackOverheats attacker_ref tool_ref (dao_energy device_activation_outcome)
-                      (Nothing,_) -> return $ ArmedAttackMiss attacker_ref tool_ref
-                      (Just defender_ref,DeviceActivated) ->
-                          do defense_roll <- rollMeleeDefense attacker_ref defender_ref
-                             injury_roll <- rollInjury Ranged defender_ref (dao_energy device_activation_outcome)
-                             m_defender_wield_info <- runMaybeT $
-                                 do defender_wield_ref <- MaybeT $ dbGetWielded defender_ref
-                                    defender_wield_durability <- lift $ toolDurability defender_wield_ref
-                                    return (defender_wield_ref,defender_wield_durability)
-                             case m_defender_wield_info of
-                                 Just (defender_wield_ref,durability) | roll_actual (dao_primary_roll device_activation_outcome) > defense_roll && injury_roll > durability -> 
-                                     return $ ArmedAttackSunder attacker_ref tool_ref defender_ref defender_wield_ref
-                                 _ | dao_skill_roll device_activation_outcome > defense_roll -> return $ ArmedAttackHitCreature attacker_ref tool_ref defender_ref injury_roll
-                                 _ | otherwise -> return $ ArmedAttackMiss attacker_ref tool_ref 
+resolveDefense :: (DBReadable db) => CreatureInteractionMode -> CreatureRef -> db DefenseOutcome                                                                                             
+resolveDefense interaction_mode defender_ref =
+    do m_tool_ref <- dbGetWielded defender_ref
+       m_tool <- maybe (return Nothing) (liftM Just . dbGetTool) m_tool_ref
+       disarm_bonus <- maybe (return 0) toolDurability m_tool_ref
+       let pdevice = case m_tool of
+               Just (DeviceTool Sword d) | interaction_mode `elem` [Melee,Unarmed] -> toPseudoDevice d
+               _ -> PseudoDevice 0 0 0 1
+       device_activation <- resolveDeviceActivation (DefenseSkill interaction_mode)
+                                                    (DamageReductionTrait interaction_mode)
+                                                    InventorySkill
+                                                    pdevice
+                                                    defender_ref
+       return $ case dao_outcome_type device_activation of
+          DeviceActivated -> DefenseOutcome m_tool_ref (dao_skill_roll device_activation) (dao_energy device_activation) disarm_bonus
+          DeviceFailed -> DefenseOutcome m_tool_ref 0 0 disarm_bonus
+          DeviceCriticalFailed -> DefenseOutcome m_tool_ref 0 0 0
 
-executeRangedAttack :: RangedAttackOutcome -> DB ()
-executeRangedAttack (RangedAttackMiss attacker_ref tool_ref) = 
-    do dbPushSnapshot (MissEvent attacker_ref (Just tool_ref))
-executeRangedAttack (RangedAttackHitCreature attacker_ref tool_ref defender_ref damage) =
-    do dbPushSnapshot (AttackEvent attacker_ref (Just tool_ref) defender_ref)
+executeAttack :: AttackOutcome -> DB ()
+executeAttack (AttackMiss attacker_ref m_tool_ref) =
+    do dbPushSnapshot $ MissEvent attacker_ref m_tool_ref
+executeAttack (AttackHit attacker_ref m_tool_ref defender_ref damage) =
+    do dbPushSnapshot $ AttackEvent attacker_ref m_tool_ref defender_ref
        injureCreature damage defender_ref
-executeRangedAttack (RangedAttackOverheats attacker_ref tool_ref damage) =
-    do dbPushSnapshot (WeaponOverheatsEvent attacker_ref tool_ref)
+executeAttack (AttackMalfunction attacker_ref tool_ref damage) =
+    do dbPushSnapshot $ WeaponOverheatsEvent attacker_ref tool_ref
        injureCreature damage attacker_ref
-executeRangedAttack (RangedAttackCriticalFail attacker_ref tool_ref damage) =
-    do dbPushSnapshot (WeaponExplodesEvent attacker_ref tool_ref)
+       dbMove dbDropTool tool_ref
+       return ()
+executeAttack (AttackExplodes attacker_ref tool_ref damage) =
+    do dbPushSnapshot $ WeaponExplodesEvent attacker_ref tool_ref
        injureCreature damage attacker_ref
        deleteTool tool_ref
-
-executeMeleeAttack :: MeleeAttackOutcome -> DB ()
-executeMeleeAttack (UnarmedAttackHitCreature attacker_ref defender_ref damage) =
-    do dbPushSnapshot (AttackEvent attacker_ref Nothing defender_ref)
-       injureCreature damage defender_ref
-executeMeleeAttack (UnarmedAttackMiss attacker_ref) =
-    do dbPushSnapshot (MissEvent attacker_ref Nothing)
-executeMeleeAttack (UnarmedAttackDisarm attacker_ref defender_ref dropped_tool) =
-    do dbPushSnapshot (DisarmEvent attacker_ref defender_ref dropped_tool)
+executeAttack (AttackDisarm attacker_ref defender_ref dropped_tool) =
+    do dbPushSnapshot $ DisarmEvent attacker_ref defender_ref dropped_tool
        dbMove dbDropTool dropped_tool
        return ()
-executeMeleeAttack (ArmedAttackHitCreature attacker_ref weapon_ref defender_ref damage) =
-    do dbPushSnapshot (AttackEvent attacker_ref (Just weapon_ref) defender_ref)
-       injureCreature damage defender_ref
-executeMeleeAttack (ArmedAttackSunder attacker_ref weapon_ref defender_ref sundered_tool) =
-    do dbPushSnapshot (SunderEvent attacker_ref weapon_ref defender_ref sundered_tool)
+executeAttack (AttackSunder attacker_ref weapon_ref defender_ref sundered_tool) =
+    do dbPushSnapshot $ SunderEvent attacker_ref weapon_ref defender_ref sundered_tool
        deleteTool sundered_tool
-executeMeleeAttack (ArmedAttackMiss attacker_ref weapon_ref) =
-    do dbPushSnapshot (MissEvent attacker_ref $ Just weapon_ref)
-executeMeleeAttack (ArmedAttackOverheats attacker_ref weapon_ref damage) =
-    do dbPushSnapshot (WeaponOverheatsEvent attacker_ref weapon_ref)
-       injureCreature damage attacker_ref
-executeMeleeAttack (ArmedAttackCriticalFail attacker_ref weapon_ref damage) =
-    do dbPushSnapshot (WeaponExplodesEvent attacker_ref weapon_ref)
-       injureCreature damage attacker_ref
-       deleteTool weapon_ref
 
-rollRangedDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
-rollRangedDefense attacker_ref x_defender_ref =
-    do distance <- liftM (fromMaybe (error "dbGetOpposedAttackRoll: defender and attacker are on different planes")) $ dbDistanceBetweenSquared attacker_ref x_defender_ref 
-       case () of
-           () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> liftM roll_actual $ rollCreatureAbilityScore (DefenseSkill Ranged) distance defender_ref
-	   () | otherwise -> return distance
-       
-rollMeleeDefense :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Integer
-rollMeleeDefense _ x_defender_ref = 
-    case () of
-        () | Just defender_ref <- coerceReferenceTyped _creature x_defender_ref -> 
-            do m_defender_wield <- dbGetWielded defender_ref
-               case m_defender_wield of
-                   Nothing -> liftM roll_actual $ rollCreatureAbilityScore (DefenseSkill Unarmed) 0 defender_ref
-                   Just defender_wield -> 
-                       do t <- dbGetTool defender_wield
-                          let defense_multiplier = case t of
-                                                       DeviceTool Sword d -> deviceSize d
-                                                       _ -> 1
-                          liftM ((* defense_multiplier) . roll_actual) $ rollCreatureAbilityScore (DefenseSkill Melee) 0 defender_ref
-                              
-        () | otherwise -> return 1
-
-findRangedTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
-findRangedTargets attacker_ref face =
-    do m_l <- liftM (fmap location) $ getPlanarLocation attacker_ref
-       flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
-           liftM (mapMaybe fromLocation .
-	          sortBy (comparing (distanceBetweenSquared pos . location)) .
-	          filter ((/= generalizeReference attacker_ref) . entity) . 
-	          filter (isFacing (pos,face) . location)) $ 
-		      dbGetContents plane_ref
-
-findMeleeTargets :: (DBReadable db,ReferenceType x,GenericReference a S) => Reference x -> Facing -> db [a]
-findMeleeTargets attacker_ref face =
-    do m_l <- liftM (fmap location) $ getPlanarLocation attacker_ref
-       flip (maybe $ return []) m_l $ \(plane_ref,pos) ->
-           liftM (mapMaybe fromLocation .
-	          filter (\x -> (location x == (offsetPosition (facingToRelative face) pos) || location x == pos) &&
-	                        generalizeReference attacker_ref /= entity x)) $
-	       dbGetContents plane_ref
