@@ -10,6 +10,7 @@ import Alignment
 import CharacterData
 import CreatureAttribute
 import CreatureData
+import TerrainData
 
 type Prerequisite = Creature -> Bool
 
@@ -86,7 +87,7 @@ classInfo Scout = characterClass (prerequisites [mustHave Perception 20]) $
 		     SpotSkill & Speed & Perception & Tactical
 
 classInfo Shepherd = characterClass (prerequisites [mustHave Charisma 15,mustHave Mindfulness 15]) $
-		     SpotSkill & Perception & Mindfulness & Indifferent
+		     SpotSkill & TerrainAffinity Grass & Perception & Mindfulness & Indifferent
 
 classInfo Thief = characterClass (mustHave Perception 20) $
 		     HideSkill & Speed & Charisma & Perception & Tactical

@@ -12,6 +12,7 @@ import SpeciesData
 import Data.List
 import CreatureAttribute
 import Data.Monoid
+import TerrainData
 
 player_race_names :: [String]
 player_race_names = map (map toLower . show) player_species
@@ -89,6 +90,7 @@ speciesInfo Goliath = SpeciesData (Constitution & Perception) [
 speciesInfo Kraken = SpeciesData (Constitution & Charisma) [
     gender 0.5 [] [],
     aptitudeBlock 3 20 [Constitution,Charisma],
+    attributeStatic 1 $ TerrainAffinity Water,
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Consular]
 
@@ -104,6 +106,8 @@ speciesInfo Myrmidon = SpeciesData (Speed & Intellect) [
 
 speciesInfo Perennial = SpeciesData (Constitution & Mindfulness) [
     aptitudeBlock 1 25 [Constitution, Mindfulness],
+    attributeStatic 1 $ TerrainAffinity Forest,
+    attributeStatic 1 $ TerrainAffinity DeepForest,
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Barbarian,
     attributeStatic 1 $ FavoredClass Engineer,

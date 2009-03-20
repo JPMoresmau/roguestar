@@ -22,6 +22,7 @@ import Data.Monoid
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import SpeciesData
+import TerrainData
 
 data Creature = Creature { creature_aptitude :: Map.Map CreatureAptitude Integer,
                            creature_ability :: Map.Map CreatureAbility Integer,
@@ -102,6 +103,7 @@ data CreatureAbility =
    | DamageSkill CreatureInteractionMode
    | DamageReductionTrait CreatureInteractionMode
    | ReloadSkill CreatureInteractionMode
+   | TerrainAffinity TerrainPatch
    | HideSkill
    | SpotSkill
    | JumpSkill
@@ -158,6 +160,7 @@ creatureAbilityScore (DefenseSkill Splash) = figureAbility [Intellect] (DefenseS
 creatureAbilityScore (DamageSkill Splash) = figureAbility [Intellect] (DamageSkill Splash,2)
 creatureAbilityScore (DamageReductionTrait Splash) = figureAbility [Constitution] (DamageReductionTrait Splash,1)
 creatureAbilityScore (ReloadSkill Splash) = figureAbility [Speed] (ReloadSkill Splash,1)
+creatureAbilityScore (TerrainAffinity terrain_type) = figureAbility [] (TerrainAffinity terrain_type,1)
 creatureAbilityScore HideSkill = figureAbility [Perception] (HideSkill,2)
 creatureAbilityScore SpotSkill = figureAbility [Perception] (SpotSkill,2)
 creatureAbilityScore JumpSkill = figureAbility [Strength] (JumpSkill,2)

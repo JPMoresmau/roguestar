@@ -16,7 +16,7 @@ module TerrainData
 import Grids
 import Data.List as List
 import Data.Map as Map
-import Substances hiding (Water)
+--import Substances hiding (Water)
 import RNG
 import Data.Ratio
 
@@ -44,7 +44,7 @@ data Biome = RockBiome
 --
 data TerrainPatch = RockFace
                   | Rubble
-                  | Ore Solid
+                  | Ore
                   | RockyGround
                   | Dirt
                   | Grass
@@ -170,7 +170,7 @@ generateTerrain tg rands = flip (foldr placeTerrain) (tg_placements tg) $
 terrainPatchToASCII :: TerrainPatch -> Char
 terrainPatchToASCII RockFace = '#'
 terrainPatchToASCII Rubble = '*'
-terrainPatchToASCII (Ore _) = '$'
+terrainPatchToASCII Ore = '$'
 terrainPatchToASCII RockyGround = ':'
 terrainPatchToASCII Dirt = '.'
 terrainPatchToASCII Grass = ','

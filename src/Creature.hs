@@ -25,6 +25,9 @@ import Tool
 import CreatureAttribute
 import Data.Monoid
 import Data.Ratio
+import Facing
+import Position
+import Plane
 
 -- |
 -- Generates a new Creature from the specified species.
@@ -53,18 +56,31 @@ newCreature faction species loc =
 data Roll = Roll { 
     roll_ideal :: Integer,
     roll_other_situation_bonus :: Integer,
+    roll_terrain_affinity_bonus :: Integer,
     roll_actual :: Integer,
     roll_raw :: Integer,
     roll_log :: Integer }
 
 rollCreatureAbilityScore :: (DBReadable db) => CreatureAbility -> Integer -> CreatureRef -> db Roll
-rollCreatureAbilityScore score bonus creature_ref =
+rollCreatureAbilityScore score other_bonus creature_ref =
     do raw_ability <- liftM (creatureAbilityScore score) $ dbGetCreature creature_ref
-       let ideal = raw_ability + bonus
+       terrain_affinity <- getTerrainAffinity creature_ref
+       let ideal = raw_ability + other_bonus + terrain_affinity
        raw <- linearRoll raw_ability
        actual <- linearRoll ideal
        logarithmic <- logRoll ideal
-       return $ Roll ideal bonus actual raw logarithmic
+       return $ Roll ideal other_bonus terrain_affinity actual raw logarithmic
+
+-- | Ability bonus based on being good at working on specific types of terrain.
+getTerrainAffinity :: (DBReadable db) => CreatureRef -> db Integer
+getTerrainAffinity creature_ref =
+    do l <- liftM (fmap location) $ getPlanarLocation creature_ref
+       terrain_affinity_points <- case l of
+           Nothing -> return 0
+           Just (plane_ref,pos) -> liftM sum $ forM [minBound..maxBound] $ \face ->
+               do t <- terrainAt plane_ref $ offsetPosition (facingToRelative face) pos
+                  liftM (creatureAbilityScore $ TerrainAffinity t) $ dbGetCreature creature_ref
+       return $ terrain_affinity_points `div` 4
 
 getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature
