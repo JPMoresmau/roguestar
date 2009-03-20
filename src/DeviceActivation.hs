@@ -31,7 +31,7 @@ resolveDeviceActivation primary_ability secondary_ability timing_ability device 
        timing_roll <- rollCreatureAbilityScore timing_ability (deviceSpeed device) creature_ref
        let timing = roll_ideal secondary_roll % (roll_ideal timing_roll + roll_ideal secondary_roll)
            daoF = case () of
-                      () | roll_raw primary_roll == 0 -> DeviceActivationOutcome DeviceCriticalFailed 0 (deviceOutput device * deviceSize device)
-                      () | roll_raw primary_roll <= deviceSize device -> DeviceActivationOutcome DeviceFailed (roll_raw primary_roll) (deviceOutput device)
+                      () | roll_actual primary_roll == 0 -> DeviceActivationOutcome DeviceCriticalFailed 0 (deviceOutput device * deviceSize device)
+                      () | roll_actual primary_roll <= deviceSize device -> DeviceActivationOutcome DeviceFailed (roll_actual primary_roll) (deviceOutput device)
                       () | otherwise -> DeviceActivationOutcome DeviceActivated (min (deviceSize device) $ roll_actual primary_roll * deviceSize device) (roll_actual secondary_roll)
        return $ daoF timing

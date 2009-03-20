@@ -5,6 +5,8 @@ module Random
      weightedPick,
      weightedPickM,
      linearRoll,
+     fixedSumRoll,
+     fixedSumLinearRoll,
      logRoll)
     where
 
@@ -38,6 +40,19 @@ weightedPickM elems =
 -- | Roll an (n+1) sided die numbered zero to n.
 linearRoll :: (MonadRandom m) => Integer -> m Integer
 linearRoll n = getRandomR (0,n)
+
+-- | fixedSumRoll using 'linearRoll', with optimizations.
+-- REVISIT: this can be improved significantly, but performance doesn't seem to be a material problem so far.
+fixedSumLinearRoll :: (MonadRandom m) => [Integer] -> Integer -> m [Integer]
+fixedSumLinearRoll xs a = fixedSumRoll (map (linearRoll . min a) xs) a
+
+-- | Roll a sequence of random variables, such that the sum of the result is a fixed value.
+fixedSumRoll :: (MonadRandom m) => [m Integer] -> Integer -> m [Integer]
+fixedSumRoll rs a = 
+    do xs <- sequence rs
+       case sum xs == a of
+           True -> return xs
+           False -> fixedSumRoll rs a
 
 -- | Roll a die where the typical outcome is the base-2 logarithm of the input.
 -- This function has exactly the same probability of rolling exactly 0 as 'linearDiceRoll'.

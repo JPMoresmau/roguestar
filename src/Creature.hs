@@ -4,6 +4,7 @@ module Creature
     (generateInitialPlayerCreature,
      newCreature,
      Roll(..),
+     RollComponents(..),
      rollCreatureAbilityScore,
      getCreatureFaction,
      injureCreature,
@@ -53,23 +54,29 @@ newCreature faction species loc =
     do creature <- generateCreature faction species
        dbAddCreature creature loc
 
+data RollComponents = RollComponents {
+    component_base :: Integer,
+    component_other_situation_bonus :: Integer,
+    component_terrain_affinity_bonus :: Integer }
+
 data Roll = Roll { 
     roll_ideal :: Integer,
-    roll_other_situation_bonus :: Integer,
-    roll_terrain_affinity_bonus :: Integer,
     roll_actual :: Integer,
-    roll_raw :: Integer,
+    roll_ideal_components :: RollComponents,
+    roll_actual_components :: RollComponents,
     roll_log :: Integer }
 
 rollCreatureAbilityScore :: (DBReadable db) => CreatureAbility -> Integer -> CreatureRef -> db Roll
-rollCreatureAbilityScore score other_bonus creature_ref =
-    do raw_ability <- liftM (creatureAbilityScore score) $ dbGetCreature creature_ref
-       terrain_affinity <- getTerrainAffinity creature_ref
-       let ideal = raw_ability + other_bonus + terrain_affinity
-       raw <- linearRoll raw_ability
+rollCreatureAbilityScore score other_ideal creature_ref =
+    do raw_ideal <- liftM (creatureAbilityScore score) $ dbGetCreature creature_ref
+       terrain_ideal <- getTerrainAffinity creature_ref
+       let ideal = raw_ideal + other_ideal + terrain_ideal
        actual <- linearRoll ideal
+       [raw_actual, other_actual, terrain_actual] <- fixedSumLinearRoll [raw_ideal, other_ideal, terrain_ideal] actual
        logarithmic <- logRoll ideal
-       return $ Roll ideal other_bonus terrain_affinity actual raw logarithmic
+       return $ Roll ideal (if raw_actual == 0 then 0 else actual)
+                (RollComponents raw_ideal other_ideal terrain_ideal)
+                (RollComponents raw_actual other_actual terrain_actual) logarithmic
 
 -- | Ability bonus based on being good at working on specific types of terrain.
 getTerrainAffinity :: (DBReadable db) => CreatureRef -> db Integer
