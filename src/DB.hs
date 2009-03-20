@@ -77,6 +77,7 @@ data PlayerState =
 
 data CreatureTurnMode =
     NormalMode
+  | MoveMode
   | PickupMode Integer
   | DropMode Integer
   | WieldMode Integer

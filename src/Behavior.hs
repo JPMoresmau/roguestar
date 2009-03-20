@@ -1,12 +1,14 @@
-{-# LANGUAGE ExistentialQuantification, Rank2Types #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types, PatternSignatures #-}
 
 module Behavior
     (Behavior(..),
+     facingBehavior,
      dbBehave)
     where
 
 import DB
 import DBData
+import Position
 import Facing
 import Data.Ratio
 import Tool
@@ -20,6 +22,7 @@ import PlaneVisibility
 import Data.List
 import Data.Maybe
 import Control.Monad.Maybe
+import TerrainData
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -36,6 +39,25 @@ data Behavior =
   | Attack Facing
   | Wait
   | Vanish
+
+-- | Get an appropriate behavior facing in the given direction.
+-- If the adjacent facing square is empty, this is 'Step', but
+-- if occupied by a creature this is 'Attack'.
+facingBehavior :: (DBReadable db) => CreatureRef -> Facing -> db Behavior
+facingBehavior creature_ref face =
+    do m_standing <- liftM (fmap location) $ getPlanarLocation creature_ref
+       case m_standing of
+           Nothing -> return Wait
+           Just (plane_ref,pos) ->
+               do let facing_pos = offsetPosition (facingToRelative face) pos
+                  t <- terrainAt plane_ref facing_pos
+                  who :: [CreatureRef] <- whatIsOccupying plane_ref facing_pos
+                  case t of
+                      _ | not (null who) -> return $ Attack face
+                      Forest -> return $ TurnInPlace face
+                      DeepForest -> return $ TurnInPlace face
+                      RockFace -> return $ TurnInPlace face
+                      _ -> return $ Step face
 
 dbBehave :: Behavior -> CreatureRef -> DB ()
 dbBehave (Step face) creature_ref =

@@ -196,6 +196,7 @@ dbDispatchQuery ["state"] =
 			   RaceSelectionState -> "answer: state race-selection"
 			   ClassSelectionState {} -> "answer: state class-selection"
 			   PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
+                           PlayerCreatureTurn _ MoveMode -> "answer: state move"
                            PlayerCreatureTurn _ (PickupMode {}) -> "answer: state pickup"
                            PlayerCreatureTurn _ (DropMode {}) -> "answer: state drop"
                            PlayerCreatureTurn _ (WieldMode {}) -> "answer: state wield"
@@ -367,11 +368,21 @@ dbDispatchAction [direction] | isJust $ stringToFacing direction =
                TurnMode ->   dbDispatchAction ["turn",direction]
                AttackMode -> dbDispatchAction ["attack",direction]
                FireMode ->   dbDispatchAction ["fire",direction]
-               _ ->          dbDispatchAction ["move",direction]
+               MoveMode ->   dbDispatchAction ["move",direction]
+               _ ->          dbDispatchAction ["normal",direction]
            _ -> return "protocol-error: not in player turn state"
 
-dbDispatchAction ["move"] =
+dbDispatchAction ["normal"] =
     dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref NormalMode) >> done
+
+dbDispatchAction ["normal",direction] | Just face <- stringToFacing direction =
+    dbRequiresPlayerTurnState $ \creature_ref -> 
+        do behavior <- facingBehavior creature_ref face
+           dbPerformPlayerTurn behavior creature_ref
+           done
+
+dbDispatchAction ["move"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref MoveMode) >> done
 
 dbDispatchAction ["move",direction] | isJust $ stringToFacing direction =
     dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
