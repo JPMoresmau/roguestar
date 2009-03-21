@@ -30,7 +30,6 @@ import RSAGL.LightSource
 import Sky
 import Scene
 import Data.Monoid
-import Starships
 import AnimationTerrain
 import AnimationCreatures
 import AnimationTools
@@ -108,8 +107,6 @@ planarGameplayDispatch = proc () ->
        frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
 	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos }
-       -- cyborg planet killer, just there for no reason
-       transformA cyborgType4 -< (Affine $ translate (Vector3D 3 4 (-3)) . scale' 0.1,StarshipInput)
        -- camera/lighting stuff, including sky sphere 
        sky_info <- getSkyInfo -< ()
        sky -< sky_info

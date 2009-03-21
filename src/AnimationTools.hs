@@ -15,27 +15,35 @@ import RSAGL.InverseKinematics
 import Control.Arrow
 import VisibleObject
 import Models.LibraryData
+import Control.Applicative
 
 -- | Avatar for any tool that automatically switched to the correct tool-specific thread.
 toolAvatar :: RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 toolAvatar = proc tti ->
     do objectTypeGuard (== "tool") -< ()
        m_tool <- objectDetailsLookup "tool" -< ()
-       switchContinue -< (fmap switchTo m_tool,tti)
+       m_tool_type <- objectDetailsLookup "tool-type" -< ()
+       switchContinue -< (fmap switchTo $ (,) <$> m_tool_type <*> m_tool,tti)
        returnA -< ()
-  where switchTo "phase_pistol" = phaseWeaponAvatar PhasePistol
-        switchTo "phaser" = phaseWeaponAvatar Phaser
-        switchTo "phase_rifle" = phaseWeaponAvatar PhaseRifle
-        switchTo "kinetic_fleuret" = energySwordAvatar Yellow 2
-        switchTo "kinetic_sabre" = energySwordAvatar Yellow 4
+  where switchTo (_,"phase_pistol") = phaseWeaponAvatar PhasePistol
+        switchTo (_,"phaser") = phaseWeaponAvatar Phaser
+        switchTo (_,"phase_rifle") = phaseWeaponAvatar PhaseRifle
+        switchTo (_,"kinetic_fleuret") = energySwordAvatar Yellow 2
+        switchTo (_,"kinetic_sabre") = energySwordAvatar Yellow 4
+        switchTo ("sphere-gas",gas) = gasSphereAvatar gas
+        switchTo ("sphere-material",material) = materialSphereAvatar material
+        switchTo ("sphere-chromalite",chromalite) = chromaliteSphereAvatar chromalite
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
-phaseWeaponAvatar :: LibraryModel -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
-phaseWeaponAvatar phase_weapon_model = proc tti ->
+simpleToolAvatar :: LibraryModel -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+simpleToolAvatar phase_weapon_model = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation -< tti
        whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
        returnA -< ()
+
+phaseWeaponAvatar :: LibraryModel -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+phaseWeaponAvatar = simpleToolAvatar
 
 energySwordAvatar :: EnergyColor -> Integer -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 energySwordAvatar energy_color sword_size = proc tti ->
@@ -50,3 +58,16 @@ energySwordAvatar energy_color sword_size = proc tti ->
                libraryA -< (scene_layer_local,EnergySword energy_color sword_size)
                transformA libraryA -< (Affine $ translate (Vector3D 0 2.9 0) . scale (Vector3D 1 blade_length 1),(scene_layer_local,EnergyCylinder energy_color))
 
+gasSphereAvatar :: String -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+gasSphereAvatar = simpleToolAvatar . gasToModel
+    where gasToModel :: String -> LibraryModel
+          gasToModel = const GasSphere
+
+materialSphereAvatar :: String -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+materialSphereAvatar = simpleToolAvatar . materialToModel
+    where materialToModel :: String -> LibraryModel
+          materialToModel = const MetalSphere
+
+chromaliteSphereAvatar :: String -> RSAnimA (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+chromaliteSphereAvatar = simpleToolAvatar . const ChromaliteSphere
+          

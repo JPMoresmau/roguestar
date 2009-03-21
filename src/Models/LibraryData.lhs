@@ -33,6 +33,9 @@ data LibraryModel =
   | Phaser
   | PhaseRifle
   | EnergySword EnergyColor Integer
+  | GasSphere
+  | MetalSphere
+  | ChromaliteSphere
     -- Arms and Legs
   | MachineArmLower
   | MachineArmUpper

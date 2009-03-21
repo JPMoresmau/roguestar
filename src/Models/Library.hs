@@ -27,6 +27,7 @@ import Models.Sky
 import Models.CyborgType4
 import Models.EnergyThings
 import Models.EnergySwords
+import Models.Spheres
 import Control.Exception
 
 -- |
@@ -49,6 +50,9 @@ toModel AscendantGlow = ascendant_glow
 toModel PhasePistol = phase_pistol
 toModel Phaser = phaser
 toModel PhaseRifle = phase_rifle
+toModel GasSphere = gasSphere
+toModel MetalSphere = metalSphere
+toModel ChromaliteSphere = chromaliteSphere
 toModel MachineArmLower = machine_arm_lower
 toModel MachineArmUpper = machine_arm_upper
 toModel CaduceatorArmLower = caduceator_arm_lower
