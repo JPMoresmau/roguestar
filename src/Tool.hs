@@ -16,6 +16,7 @@ import Control.Monad.Error
 import Data.Maybe
 import Data.List as List
 import ToolData
+import Substances
 
 dbPickupTool :: (DBReadable db,LocationType a) => CreatureRef -> Location s ToolRef a -> db (Location s ToolRef Inventory)
 dbPickupTool c l = 
@@ -65,5 +66,8 @@ deleteTool = dbUnsafeDeleteObject (error "deleteTool: impossible case: tools sho
 toolDurability :: (DBReadable db) => ToolRef -> db Integer
 toolDurability tool_ref = 
     do t <- dbGetTool tool_ref
-       case t of
-          DeviceTool _ d -> return $ deviceDurability d
+       return $ case t of
+          DeviceTool _ d -> deviceDurability d
+          Sphere (MaterialSubstance m) -> material_construction_value (materialValue m) + 10
+          Sphere (GasSubstance {}) -> 10
+          Sphere (ChromaliteSubstance {}) -> 110

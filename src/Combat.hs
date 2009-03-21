@@ -60,6 +60,7 @@ attackModel attacker_ref =
                   case tool of
                       DeviceTool Gun device -> return $ RangedAttackModel attacker_ref tool_ref device
                       DeviceTool Sword device -> return $ MeleeAttackModel attacker_ref tool_ref device
+                      _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
 
 -- | Get an appropriate melee attack model for a creature, based on whatever tool the creature is holding.
 -- This will fail if the creature is holding anything other than a suitable melee weapon.

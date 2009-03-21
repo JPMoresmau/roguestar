@@ -29,6 +29,7 @@ import SpeciesData
 import Species
 import Data.Ord
 import Combat
+import Substances
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -307,7 +308,8 @@ dbDispatchQuery ["object-details",_] = ro $
            toolToTableData :: (ToolRef,Tool) -> String
            toolToTableData (ref,tool) = objectTableWrapper ref $
                "object-type tool\n" ++
-               (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ toolData tool)
+               "tool-type " ++ toolType tool ++ "\n" ++
+               "tool " ++ toolName tool ++ "\n"
 
 dbDispatchQuery ["player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
@@ -551,12 +553,16 @@ creatureStatsData :: Creature -> [(String,String)]
 creatureStatsData c = [("species",show $ creature_species_name c),
                        ("random-id",show $ creature_random_id c)]
 
--- |
--- Information about non-owned tools.
---
-toolData :: Tool -> [(String,String)]
-toolData t@(DeviceTool Gun _) = [("tool-type","gun"),("tool",toolName t)]
-toolData t@(DeviceTool Sword _) = [("tool-type","sword"),("tool",toolName t)]
+toolName :: Tool -> String
+toolName (DeviceTool _ d) = device_name d
+toolName (Sphere s) = prettySubstance s
+
+toolType :: Tool -> String
+toolType (DeviceTool Gun _) = "gun"
+toolType (DeviceTool Sword _) = "sword"
+toolType (Sphere (GasSubstance _)) = "sphere-gas"
+toolType (Sphere (MaterialSubstance _)) = "sphere-material"
+toolType (Sphere (ChromaliteSubstance _)) = "sphere-chromalite"
 
 dbQueryBaseClasses :: (DBReadable db) => Creature -> db String
 dbQueryBaseClasses creature = return $ baseClassesTable creature

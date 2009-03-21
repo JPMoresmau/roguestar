@@ -14,6 +14,7 @@ import TerrainData
 import ToolData
 import Control.Monad.Random
 import SpeciesData
+import Substances
 
 homeBiome :: Species -> Biome
 homeBiome Anachronid = ForestBiome
@@ -48,6 +49,7 @@ dbBeginGame creature character_class =
        landing_site <- pickRandomClearSite 200 30 2 (Position (0,0)) (not . (`elem` difficult_terrains)) plane_ref
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
        flip mapM_ [0..10] $ \_ -> do phaser_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
-                                     phaser_type <- weightedPickM [(8,phase_pistol),(5,phaser),(3,phase_rifle),(8,kinetic_fleuret),(3,kinetic_sabre)]
+                                     phaser_type <- weightedPickM [(8,phase_pistol),(5,phaser),(3,phase_rifle),(8,kinetic_fleuret),(3,kinetic_sabre),
+                                                                   (5,Sphere $ toSubstance Nitrogen),(5,Sphere $ toSubstance Ionidium),(5,Sphere $ toSubstance Aluminum)]
                                      dbAddTool phaser_type (Dropped plane_ref phaser_position)
        setPlayerState $ PlayerCreatureTurn creature_ref NormalMode

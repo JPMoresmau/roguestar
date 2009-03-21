@@ -6,7 +6,12 @@ module Substances
      Solid(..),
      materialValue,
      MaterialValue(..),
-     Substance,
+     Substance(..),
+     SubstanceType(toSubstance),
+     coerceSubstance,
+     isGas,
+     isMaterial,
+     isChromalite,
      substances,
      prettySubstance,
      printSubstances,
@@ -18,6 +23,7 @@ module Substances
 import Alignment
 import Data.List
 import Data.Ord
+import Data.Maybe
 
 data Substance = 
     GasSubstance Gas
@@ -175,32 +181,53 @@ chromaliteAlignment Diabolite = (Evil,Diplomatic)
 chromaliteAlignment Bectonite = (Evil,Indifferent)
 
 class SubstanceType a where
-    substanceValue :: a -> Integer
     toSubstance :: a -> Substance
+    fromSubstance :: Substance -> Maybe a
+
+coerceSubstance :: (SubstanceType a,SubstanceType b) => a -> Maybe b
+coerceSubstance = fromSubstance . toSubstance
+
+isGas :: (SubstanceType a) => a -> Bool
+isGas = isJust . asTypeOf (undefined :: Maybe Gas) . coerceSubstance
+
+isMaterial :: (SubstanceType a) => a -> Bool
+isMaterial = isJust . asTypeOf (undefined :: Maybe Material) . coerceSubstance
+
+isChromalite :: (SubstanceType a) => a -> Bool
+isChromalite = isJust . asTypeOf (undefined :: Maybe Chromalite) . coerceSubstance
+
+substanceValue :: (SubstanceType a) => a -> Integer
+substanceValue a = case toSubstance a of
+    GasSubstance x -> gasValue x + 10
+    MaterialSubstance x -> (nom + crit) * scarce
+        where MaterialValue nom crit scarce = materialValue x
+    ChromaliteSubstance x -> 1000 + 2 * chromalitePotency x ^ 2
 
 instance SubstanceType Gas where
-    substanceValue x = gasValue x + 10
     toSubstance x = GasSubstance x
+    fromSubstance (GasSubstance x) = Just x
+    fromSubstance _ = Nothing
     
 instance SubstanceType Material where
-    substanceValue x = (nom + crit) * scarce
-        where MaterialValue nom crit scarce = materialValue x
     toSubstance x = MaterialSubstance x
+    fromSubstance (MaterialSubstance x) = Just x
+    fromSubstance _ = Nothing
 
 instance SubstanceType Chromalite where
-    substanceValue x = 1000 + 2 * chromalitePotency x ^ 2
     toSubstance x = ChromaliteSubstance x
+    fromSubstance (ChromaliteSubstance x) = Just x
+    fromSubstance _ = Nothing
 
 instance SubstanceType Substance where
-    substanceValue (GasSubstance x) = substanceValue x
-    substanceValue (MaterialSubstance x) = substanceValue x
-    substanceValue (ChromaliteSubstance x) = substanceValue x
     toSubstance x = x
+    fromSubstance = Just
 
 instance SubstanceType Solid where
-    substanceValue = substanceValue . toSubstance
     toSubstance (MaterialSolid x) = toSubstance x
     toSubstance (ChromaliteSolid x) = toSubstance x
+    fromSubstance (MaterialSubstance x) = Just $ MaterialSolid x
+    fromSubstance (ChromaliteSubstance x) = Just $ ChromaliteSolid x
+    fromSubstance _ = Nothing
 
 chromalitePotency :: Chromalite -> Integer
 chromalitePotency = alignmentPotency . chromaliteAlignment

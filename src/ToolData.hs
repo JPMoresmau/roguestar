@@ -1,6 +1,6 @@
 module ToolData 
     (Tool(..),
-     Device,
+     Device(device_name),
      PseudoDevice(..),
      DeviceKind(..),
      DeviceType(..),
@@ -9,8 +9,6 @@ module ToolData
      deviceSpeed,
      deviceDurability,
      deviceSize,
-     toDevice,
-     toolName,
      phase_pistol,
      phaser,
      phase_rifle,
@@ -21,6 +19,7 @@ module ToolData
 import Substances
 
 data Tool = DeviceTool DeviceKind Device
+          | Sphere Substance
     deriving (Read,Show,Eq)
 
 data DeviceKind = Gun | Sword
@@ -95,9 +94,3 @@ deviceSpeed = pdevice_speed . toPseudoDevice
 
 deviceSize :: (DeviceType d) => d -> Integer
 deviceSize = pdevice_size . toPseudoDevice
-
-toDevice :: Tool -> Maybe Device
-toDevice (DeviceTool _ d) = Just d
-
-toolName :: Tool -> String
-toolName (DeviceTool _ d) = device_name d
