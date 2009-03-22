@@ -14,6 +14,7 @@ import Data.Ratio
 import Tool
 import Control.Monad.Error
 import Combat
+import Activate
 import Travel
 import Creature
 import CreatureData
@@ -39,6 +40,7 @@ data Behavior =
   | Attack Facing
   | Wait
   | Vanish
+  | Activate
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but
@@ -127,6 +129,11 @@ dbBehave Vanish creature_ref =
                      is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 
 	                 mapM (flip dbGetVisibleObjectsForFaction plane_ref) ({- all factions except this one: -} delete faction [minBound..maxBound])
                      when (not is_visible_to_anyone_else) $ deleteCreature creature_ref
+       return ()
+
+dbBehave Activate creature_ref =
+    do atomic $ liftM executeActivation $ resolveActivation creature_ref
+       dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 {---------------------------------------------------------------------------------------------------

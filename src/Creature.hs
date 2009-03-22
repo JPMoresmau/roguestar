@@ -8,6 +8,7 @@ module Creature
      rollCreatureAbilityScore,
      getCreatureFaction,
      injureCreature,
+     healCreature,
      getCreatureHealth,
      getDead,
      deleteCreature,
@@ -93,7 +94,10 @@ getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature
 
 injureCreature :: Integer -> CreatureRef -> DB ()
-injureCreature x = dbModCreature $ \c -> c { creature_damage = creature_damage c + x }
+injureCreature x = dbModCreature $ \c -> c { creature_damage = max 0 $ creature_damage c + x }
+
+healCreature :: Integer -> CreatureRef -> DB ()
+healCreature = injureCreature . negate
 
 getCreatureMaxHealth :: (DBReadable db) => CreatureRef -> db Integer
 getCreatureMaxHealth = liftM (creatureAbilityScore ToughnessTrait) . dbGetCreature
