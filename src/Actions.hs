@@ -182,6 +182,9 @@ wield_action = stateLinkedAction player_turn_states "wield"
 unwield_action :: (String,Action)
 unwield_action = stateLinkedAction player_turn_states "unwield"
 
+activate_action :: (String,Action)
+activate_action = stateLinkedAction player_turn_states "activate"
+
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
     (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
@@ -259,7 +262,7 @@ all_actions = [continue_action,quit_action,reroll_action,
               select_race_actions ++ 
 	      select_base_class_actions ++
               direction_actions ++
-	      [move_action,turn_action,fire_action,jump_action,attack_action]
+	      [move_action,turn_action,fire_action,jump_action,attack_action,activate_action]
 
 -- | Find an action with the given name.
 lookupAction :: String -> (String,Action)

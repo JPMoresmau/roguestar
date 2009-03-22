@@ -32,6 +32,8 @@ common_keymap = [
  (":attack","attack"),
  ("f","fire"),
  (":fire","fire"),
+ ("a","activate"),
+ (":activate","activate"),
  ("x","anachronid"),
  (":anachronid","anachronid"),
  ("a","androsynth"),
