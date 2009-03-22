@@ -150,7 +150,7 @@ select_menu_action = stateLinkedAction menu_states "select-menu"
 escape_action :: (String,Action)
 escape_action = ("escape",
     stateGuard menu_states $ \action_input -> 
-        return $ driverAction (action_driver_object action_input) ["move"])
+        return $ driverAction (action_driver_object action_input) ["normal"])
 
 move_action :: (String,Action)
 move_action = stateLinkedAction player_turn_states "move"
