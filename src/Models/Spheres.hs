@@ -23,10 +23,10 @@ gasSphere _ = model $
 
 metalSphere :: Quality -> Modeling ()
 metalSphere _ = model $
-    do sphere (Point3D 0 0.08 0) 0.08
+    do sphere (Point3D 0 0.05 0) 0.05
        concordance_metal
 
 chromaliteSphere :: Quality -> Modeling ()
 chromaliteSphere _ = model $
-    do sphere (Point3D 0 0.1 0) 0.1
+    do sphere (Point3D 0 0.04 0) 0.04
        energyMaterial Yellow
