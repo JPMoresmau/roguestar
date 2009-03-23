@@ -182,7 +182,7 @@ materialLayerToOpenGLWrapper (DiffuseLayer ms) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        materialSpecular FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
-       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
        io
        colorMaterial $= cm
 materialLayerToOpenGLWrapper (TransparentLayer ms) io = 
@@ -190,13 +190,13 @@ materialLayerToOpenGLWrapper (TransparentLayer ms) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        materialSpecular FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
-       maybe (return ()) (rgbaToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbaToOpenGL) $ fromPure ms
        alphaBlendWrapper io
        colorMaterial $= cm
 materialLayerToOpenGLWrapper (EmissiveLayer ms) io = 
     do l <- get lighting
        lighting $= Disabled
-       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
        additiveBlendWrapper io
        lighting $= l
 materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io = 
@@ -207,7 +207,7 @@ materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,Specular)
        lightModelLocalViewer $= Enabled
-       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
        additiveBlendWrapper io
        colorMaterial $= cm
        lightModelLocalViewer $= lmlv
@@ -219,14 +219,14 @@ materialLayerToOpenGLWrapper (CompoundLayer ms specular_rgb emissive_rgb shinine
        materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1) emissive_rgb
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
        lightModelLocalViewer $= Enabled
-       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
        io
        colorMaterial $= cm
        lightModelLocalViewer $= lmlv
 materialLayerToOpenGLWrapper (FilterLayer ms) io =
     do l <- get lighting
        lighting $= Disabled
-       maybe (return ()) (rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
        filterBlendWrapper io
        lighting $= l
 

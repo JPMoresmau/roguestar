@@ -18,6 +18,7 @@ import Data.List
 import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd
+import RSAGL.OpenGLPrimitives
 \end{code}
 
 Tesselation is a stage of transforming a model into OpenGL procedure calls.  Tesselation is done by breaking a surface into a sequence of polylines (a grid).  Pairs of polylines, possibly of differing length, describe a polygon strip.  We subdivide that strip into triangle fans and quadralateral strips, as described by the OpenGL specification.
@@ -106,6 +107,6 @@ tesselateAsSidedTriangle test lrs =    -- looking for a pattern that contains at
 \subsection{Sending decomposed data to OpenGL}
 
 \begin{code}
-tesselatedElementToOpenGL :: (a -> IO ()) -> TesselatedElement a -> IO ()
-tesselatedElementToOpenGL f (TesselatedTriangleFan xs) = renderPrimitive TriangleFan $ mapM_ f xs
+tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
+tesselatedElementToOpenGL colors_on (TesselatedTriangleFan xs) = renderPrimitives TriangleFan colors_on xs
 \end{code}

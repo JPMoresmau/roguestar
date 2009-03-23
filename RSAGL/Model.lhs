@@ -79,6 +79,7 @@ import Graphics.Rendering.OpenGL.GL.BasicTypes
 import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
 import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
 import Graphics.Rendering.OpenGL.GL.Polygons
+import RSAGL.OpenGLPrimitives
 \end{code}
 
 \subsection{Modeling Monad}
@@ -412,6 +413,11 @@ data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
 
+instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
+    getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 x y z
+    getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 x y z
+    getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = rgbaToOpenGL c
+
 intermediateModelToOpenGL :: IntermediateModel -> IO ()
 intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
 
@@ -454,18 +460,7 @@ selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv
                                                  SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..(n-1)]
 
 layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
-layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (mapM_ (tesselatedElementToOpenGL toOpenGL) tesselation)
-        where vertexToOpenGLWithMaterialColor (SingleMaterialSurfaceVertex3D 
-                                                  (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz))
-                                                  (MaterialVertex3D color_material _)) =
-                  do rgbaToOpenGL color_material
-                     normal $ Normal3 vx vy vz
-                     vertex $ Vertex3 px py pz
-              vertexToOpenGL (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D px py pz) (Vector3D vx vy vz)) _) =
-                  do normal $ Normal3 vx vy vz
-                     vertex $ Vertex3 px py pz
-              toOpenGL = if isPure $ materialLayerSurface layer then vertexToOpenGL else vertexToOpenGLWithMaterialColor
-
+layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (mapM_ (tesselatedElementToOpenGL $ not $ isPure $ materialLayerSurface layer) tesselation)
 \end{code}
 
 \subsubsection{Seperating Opaque and Transparent Surfaces}

@@ -39,5 +39,7 @@ exposed-modules:     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArr
                      RSAGL.Homogenous, RSAGL.LightSource, RSAGL.Scattering,
 		     RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics
 
+other-modules:       RSAGL.OpenGLPrimitives
+
 ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
