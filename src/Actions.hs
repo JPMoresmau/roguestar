@@ -122,7 +122,7 @@ alwaysAction action_name actionIO =
  ----------------------------------------------------------}
 
 player_turn_states :: [String]
-player_turn_states = ["player-turn","attack","fire","jump","turn"]
+player_turn_states = ["player-turn","move","attack","fire","jump","turn"]
 
 menu_states :: [String]
 menu_states = ["pickup","drop","wield"]
@@ -147,9 +147,9 @@ prev_action = stateLinkedAction menu_states "prev"
 select_menu_action :: (String,Action)
 select_menu_action = stateLinkedAction menu_states "select-menu"
 
-escape_action :: (String,Action)
-escape_action = ("escape",
-    stateGuard menu_states $ \action_input -> 
+normal_action :: (String,Action)
+normal_action = ("normal",
+    stateGuard (menu_states ++ player_turn_states) $ \action_input -> 
         return $ driverAction (action_driver_object action_input) ["normal"])
 
 move_action :: (String,Action)
@@ -257,7 +257,7 @@ select_base_class_actions = map selectBaseClassAction select_base_class_action_n
 all_actions :: [(String,Action)]
 all_actions = [continue_action,quit_action,reroll_action,
                pickup_action,drop_action,wield_action,unwield_action,
-               next_action,prev_action,escape_action,select_menu_action,
+               next_action,prev_action,normal_action,select_menu_action,
                zoom_in_action,zoom_out_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
