@@ -37,7 +37,8 @@ exposed-modules:     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArr
                      RSAGL.Tests, RSAGL.CoordinateSystems, RSAGL.Orthagonal,
                      RSAGL.AbstractVector, RSAGL.ThreadedArrow, RSAGL.Edge,
                      RSAGL.Homogenous, RSAGL.LightSource, RSAGL.Scattering,
-		     RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics
+		     RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
+                     RSAGL.BakedModel
 
 other-modules:       RSAGL.OpenGLPrimitives
 
