@@ -7,7 +7,8 @@ module RSAGL.Tesselation
      tesselatedSurfaceToVertexCloud,
      tesselateSurface,
      tesselateGrid,
-     tesselatedElementToOpenGL)
+     tesselatedElementToOpenGL,
+     unmapTesselatedElement)
     where
 
 import RSAGL.Curve
@@ -109,4 +110,7 @@ tesselateAsSidedTriangle test lrs =    -- looking for a pattern that contains at
 \begin{code}
 tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
 tesselatedElementToOpenGL colors_on (TesselatedTriangleFan xs) = renderPrimitives TriangleFan colors_on xs
+
+unmapTesselatedElement :: TesselatedElement a -> (PrimitiveMode,[a])
+unmapTesselatedElement (TesselatedTriangleFan as) = (TriangleFan,as)
 \end{code}

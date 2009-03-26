@@ -14,7 +14,11 @@ module RSAGL.Model
      parIntermediateModel,
      generalSurface,
      extractModel,
-     toIntermediateModel,
+     ModelType(..),
+     BakedModel,
+     bakeModel,
+     freeModel,
+     buildIntermediateModel,
      intermediateModelToOpenGL,
      intermediateModelToVertexCloud,
      splitOpaques,
@@ -56,7 +60,7 @@ import RSAGL.CurveExtras
 import RSAGL.Auxiliary
 import Control.Applicative
 import RSAGL.ApplicativeWrapper
-import Data.Traversable
+import Data.Traversable (sequenceA)
 import RSAGL.Deformation
 import RSAGL.Vector
 import RSAGL.Material
@@ -80,6 +84,9 @@ import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
 import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
 import Graphics.Rendering.OpenGL.GL.Polygons
 import RSAGL.OpenGLPrimitives
+import RSAGL.BakedModel hiding (tesselatedElementToOpenGL)
+import Data.IORef
+import Control.Monad
 \end{code}
 
 \subsection{Modeling Monad}
@@ -407,8 +414,15 @@ prism upish ara brb c = model $ generalSurface $ Left $ transformSurface2 id (cl
 \subsection{Rendering Models to OpenGL}
 
 \begin{code}
-data IntermediateModel = IntermediateModel [IntermediateModeledSurface]
-data IntermediateModeledSurface = IntermediateModeledSurface [(TesselatedSurface SingleMaterialSurfaceVertex3D,MaterialLayer)] Bool
+data BakedModel = BakedModel IntermediateModel -- this is just a newtype trick to keep track of what needs to be 'free'ed later.
+data IntermediateModel = IntermediateModel [IMSurface]
+data IMSurface = IMSurface {
+    imsurface_layers :: [IMLayer],
+    _imsurface_two_sided :: Bool }
+data IMLayer = IMLayer {
+    imlayer_baked_surface :: Maybe (IORef (Maybe BakedSurface)),
+    imlayer_tesselated_surface :: TesselatedSurface SingleMaterialSurfaceVertex3D,
+    imlayer_material :: MaterialLayer }
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
@@ -418,32 +432,57 @@ instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
     getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 x y z
     getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = rgbaToOpenGL c
 
+class ModelType m where
+    toIntermediateModel :: m -> IntermediateModel
+
+instance ModelType IntermediateModel where
+    toIntermediateModel = id
+
+instance ModelType BakedModel where
+    toIntermediateModel (BakedModel im) = im
+
+bakeModel :: IntermediateModel -> IO BakedModel
+bakeModel (IntermediateModel surfaces) = liftM (BakedModel . IntermediateModel) $ forM surfaces $ \imsurface -> 
+    do layers <- forM (imsurface_layers imsurface) $ \imlayer -> 
+           do b <- (newIORef . Just) =<< bakeSurface (materialLayerToOpenGLWrapper $ imlayer_material imlayer) 
+                                             (not $ isPure $ materialLayerSurface $ imlayer_material imlayer) 
+                                             (map unmapTesselatedElement $ imlayer_tesselated_surface imlayer)
+              return $ imlayer { imlayer_baked_surface = Just b }
+       return $ imsurface { imsurface_layers = layers }
+
+freeModel :: BakedModel -> IO ()
+freeModel (BakedModel (IntermediateModel surfaces)) = mapM_ (mapM_ (freeIt . imlayer_baked_surface) . imsurface_layers) surfaces
+    where freeIt Nothing = return ()
+          freeIt (Just ref) =
+              do b <- readIORef ref
+                 modifyIORef ref (const Nothing)
+                 maybe (return ()) freeSurface b
+
 intermediateModelToOpenGL :: IntermediateModel -> IO ()
 intermediateModelToOpenGL (IntermediateModel ms) = mapM_ intermediateModeledSurfaceToOpenGL ms
 
 modelingToOpenGL :: Integer -> Modeling attr -> IO ()
-modelingToOpenGL n modeling = intermediateModelToOpenGL $ toIntermediateModel n modeling
+modelingToOpenGL n modeling = intermediateModelToOpenGL $ buildIntermediateModel n modeling
 
-toIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
-toIntermediateModel n modeling = IntermediateModel $ zipWith intermediateModeledSurface complexities ms
+buildIntermediateModel :: Integer -> Modeling attr -> IntermediateModel
+buildIntermediateModel n modeling = IntermediateModel $ zipWith intermediateModeledSurface complexities ms
     where complexities = allocateComplexity sv3d_ruler (map (\m -> (ms_surface m,extraComplexity m)) ms) n
           ms = extractModel (modeling >> finishModeling)
           extraComplexity m = (1 + fromInteger (ms_tesselation_hint_complexity m)) * 
                               (1 + fromInteger (materialComplexity $ ms_material m))
 
-intermediateModeledSurfaceToOpenGL :: IntermediateModeledSurface -> IO ()
-intermediateModeledSurfaceToOpenGL (IntermediateModeledSurface layers two_sided) = 
+intermediateModeledSurfaceToOpenGL :: IMSurface -> IO ()
+intermediateModeledSurfaceToOpenGL (IMSurface layers two_sided) = 
     do lmts <- get lightModelTwoSide
        cf <- get cullFace
        lightModelTwoSide $= (if two_sided then Enabled else Disabled)
        cullFace $= (if two_sided then Nothing else Just Back)
-       foldr (>>) (return ()) $ map (uncurry layerToOpenGL) layers
+       foldr (>>) (return ()) $ map layerToOpenGL layers
        lightModelTwoSide $= lmts
        cullFace $= cf
 
-intermediateModeledSurface :: Integer -> ModeledSurface attr -> IntermediateModeledSurface
-intermediateModeledSurface n m = IntermediateModeledSurface (zip (selectLayers (genericLength layers) tesselation) layers)
-                                                            (ms_two_sided m)
+intermediateModeledSurface :: Integer -> ModeledSurface attr -> IMSurface
+intermediateModeledSurface n m = IMSurface (zipWith (IMLayer Nothing) (selectLayers (genericLength layers) tesselation) layers) (ms_two_sided m)
     where layers = toLayers $ ms_material m
           color_material_layers :: [Surface RGBA]
           color_material_layers = map (toApplicative . materialLayerSurface) layers
@@ -459,8 +498,9 @@ selectLayers :: Integer -> TesselatedSurface MultiMaterialSurfaceVertex3D -> [Te
 selectLayers n layered = map (\k -> map (fmap (\(MultiMaterialSurfaceVertex3D sv3d mv3ds) -> 
                                                  SingleMaterialSurfaceVertex3D sv3d (mv3ds `genericIndex` k))) layered) [0..(n-1)]
 
-layerToOpenGL :: TesselatedSurface SingleMaterialSurfaceVertex3D -> MaterialLayer -> IO ()
-layerToOpenGL tesselation layer = materialLayerToOpenGLWrapper layer (mapM_ (tesselatedElementToOpenGL $ not $ isPure $ materialLayerSurface layer) tesselation)
+layerToOpenGL :: IMLayer -> IO ()
+layerToOpenGL (IMLayer Nothing tesselation layer) = materialLayerToOpenGLWrapper layer (mapM_ (tesselatedElementToOpenGL $ not $ isPure $ materialLayerSurface layer) tesselation)
+layerToOpenGL (IMLayer (Just mvar_baked_surface) tesselation layer) = maybe (layerToOpenGL $ IMLayer Nothing tesselation layer) (surfaceToOpenGL) =<< readIORef mvar_baked_surface
 \end{code}
 
 \subsubsection{Seperating Opaque and Transparent Surfaces}
@@ -473,8 +513,8 @@ splitOpaques :: IntermediateModel -> (IntermediateModel,[IntermediateModel])
 splitOpaques (IntermediateModel ms) = (IntermediateModel opaques,map (\x -> IntermediateModel [x]) transparents)
     where opaques = filter isOpaque surfaces
           transparents = filter (not . isOpaque) surfaces
-          isOpaque (IntermediateModeledSurface layers _) = any (isOpaqueLayer . snd) layers
-	  notEmpty (IntermediateModeledSurface layers _) = not $ null layers
+          isOpaque (IMSurface layers _) = any (isOpaqueLayer . imlayer_material) layers
+	  notEmpty (IMSurface layers _) = not $ null layers
 	  surfaces = filter notEmpty ms
 \end{code}
 
@@ -487,12 +527,12 @@ intermediateModelToVertexCloud (IntermediateModel ms) = concatMap intermediateMo
 instance Bound3D IntermediateModel where
     boundingBox (IntermediateModel ms) = boundingBox ms
 
-intermediateModeledSurfaceToVertexCloud :: IntermediateModeledSurface -> [SurfaceVertex3D]
-intermediateModeledSurfaceToVertexCloud (IntermediateModeledSurface layers _) = 
-    fromMaybe [] $ fmap (map strip . tesselatedSurfaceToVertexCloud . fst) $ listToMaybe layers
-        where strip (SingleMaterialSurfaceVertex3D sv3d _) = sv3d
+intermediateModeledSurfaceToVertexCloud :: IMSurface -> [SurfaceVertex3D]
+intermediateModeledSurfaceToVertexCloud (IMSurface layers _) = 
+    fromMaybe [] $ fmap (map toVertex . tesselatedSurfaceToVertexCloud . imlayer_tesselated_surface) $ listToMaybe layers
+        where toVertex (SingleMaterialSurfaceVertex3D sv3d _) = sv3d
 
-instance Bound3D IntermediateModeledSurface where
+instance Bound3D IMSurface where
     boundingBox = boundingBox . intermediateModeledSurfaceToVertexCloud
 \end{code}
 
@@ -522,17 +562,23 @@ instance NFData IntermediateModel where
     rnf (IntermediateModel ms) = rnf ms
 
 parIntermediateModel :: Strategy IntermediateModel
-parIntermediateModel (IntermediateModel ms) = waitParList parIntermediateModeledSurface ms
+parIntermediateModel (IntermediateModel ms) = waitParList parIMSurface ms
 
-instance NFData IntermediateModeledSurface where
-    rnf (IntermediateModeledSurface layers two_sided) = rnf (layers,two_sided)
+instance NFData IMSurface where
+    rnf (IMSurface layers two_sided) = rnf (layers,two_sided)
 
-parIntermediateModeledSurface :: Strategy IntermediateModeledSurface
-parIntermediateModeledSurface (IntermediateModeledSurface layers _) = waitParList rnf layers
+parIMSurface :: Strategy IMSurface
+parIMSurface (IMSurface layers _) = waitParList rnf layers
+
+instance NFData IMLayer where
+    rnf (IMLayer _ t m) = rnf (t,m)
 
 instance NFData SingleMaterialSurfaceVertex3D where
     rnf (SingleMaterialSurfaceVertex3D sv3d mv3d) = rnf (sv3d,mv3d)
 
 instance NFData MaterialVertex3D where
     rnf (MaterialVertex3D cm b) = rnf (cm,b)
+
+instance NFData BakedModel where
+    rnf (BakedModel im) = rnf im
 \end{code}

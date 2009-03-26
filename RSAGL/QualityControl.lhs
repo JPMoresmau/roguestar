@@ -25,23 +25,26 @@ one worker thread is ever actually running for each \texttt{QualityCache}.
 The effect when \texttt{QualityCache} is used to view 3D models is a little like loading a progressive JPEG.  First a very low
 quality model appears, which is gradually replaced by higher and higher qualities until the desired level of detail is finished.
 \begin{code}
-data QualityCache q a = QualityCache Bottleneck (Strategy a) (q -> a) (MVar [q]) (MVar (Map q a))
+data QualityCache q a = QualityCache Bottleneck (Strategy a) (q -> IO a) (MVar [q]) (MVar (Map q a))
 
-newQuality :: (Ord q) => Bottleneck -> Strategy a -> (q -> a) -> [q] -> IO (QualityCache q a)
-newQuality _ _ _ [] = error "mkQuality: empty quality list"
-newQuality bottleneck strategy f (q:qs) = 
-    do lowest_quality <- return $! (f q `using` strategy)
+newQuality :: (Ord q) => Bottleneck -> Strategy a -> (q -> IO a) -> [q] -> IO (QualityCache q a)
+newQuality _ _ _ [] = error "newQuality: empty quality list"
+newQuality bottleneck strategy f (q:qs) =
+    do lowest_quality <- forceM =<< liftM (`using` strategy) (f q)
        liftM2 (QualityCache bottleneck strategy f) (newMVar qs) (newMVar $ singleton q lowest_quality)
 
 completeQuality :: (Ord q) => QualityCache q a -> q -> IO ()
 completeQuality (qo@(QualityCache bottleneck strategy f quality_mvar map_mvar)) want_q =
     do qualities <- takeMVar quality_mvar  -- block on the quality_mvar
        case qualities of
-           (q:qs) | q <= want_q -> do new_elem <- constrict bottleneck $ return $| strategy $ f q
+           (q:qs) | q <= want_q -> do new_elem <- constrict bottleneck $ forceM =<< liftM (`using` strategy) (f q)
                                       modifyMVar_ map_mvar (return . Map.insert q new_elem)
                                       putMVar quality_mvar qs
                                       completeQuality qo want_q
            _ -> do putMVar quality_mvar qualities
+
+forceM :: (Monad m) => a -> m a
+forceM a = a `seq` return a
 
 getQuality :: (Ord q) => QualityCache q a -> q -> IO a
 getQuality (qo@(QualityCache _ _ _ quality_mvar mv)) q = 

@@ -36,12 +36,13 @@ import RSAGL.ModelingExtras
 import RSAGL.WrappedAffine
 import RSAGL.InverseKinematics
 import RSAGL.LightSource
+import Control.Parallel.Strategies
 
 test_quality :: Integer
 test_quality = 2^14
 --test_quality = 64
 
-moon_orbital_animation :: AniA () i o (IO IntermediateModel) (CSN Point3D)
+moon_orbital_animation :: AniA () i o (IO BakedModel) (CSN Point3D)
 moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
@@ -49,8 +50,8 @@ moon_orbital_animation =
                       (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite+2,sceneObject im)
                                          exportA -< origin_point_3d)
 
-walking_orb_animation :: QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
-                         QualityCache Integer IntermediateModel -> QualityCache Integer IntermediateModel ->
+walking_orb_animation :: QualityCache Integer BakedModel -> QualityCache Integer BakedModel ->
+                         QualityCache Integer BakedModel -> QualityCache Integer BakedModel ->
                          IO (AniA () i o () ())
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
     do let upper_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getQuality qo_orb_upper_leg 50)
@@ -69,7 +70,8 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
 testScene :: IO (AniM ((),Camera))
 testScene = 
     do bottleneck <- newBottleneck
-       let newQO im = newQuality bottleneck parIntermediateModel (flip toIntermediateModel im) $ iterate (*2) 64
+       let newQO :: Modeling () -> IO (QualityCache Integer BakedModel)
+           newQO im = newQuality bottleneck rnf (bakeModel . flip buildIntermediateModel im) $ iterate (*2) 64
        putStrLn "loading planet..."
        qo_planet <- newQO planet
        putStrLn "loading ring..."

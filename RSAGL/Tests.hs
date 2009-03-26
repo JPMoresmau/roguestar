@@ -502,7 +502,7 @@ testClose name actual expected _ =
 testQualityObject :: IO ()
 testQualityObject =
     do bottleneck <- newBottleneck
-       qo <- newQuality bottleneck rnf naiveFib qs
+       qo <- newQuality bottleneck rnf (return . naiveFib) qs
        print =<< getQuality qo 100
        threadDelay 1000000
        print =<< getQuality qo 100

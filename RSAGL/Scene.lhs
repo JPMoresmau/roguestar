@@ -129,8 +129,8 @@ instance (Monad m) => ScenicAccumulator (SceneAccumulator m) m where
 null_scene_accumulator :: SceneAccumulator m
 null_scene_accumulator = SceneAccumulator [] root_coordinate_system
 
-sceneObject :: (Monad m) => m IntermediateModel -> SceneObject m
-sceneObject = cameraRelativeSceneObject . const . liftM wrapAffine
+sceneObject :: (Monad m,ModelType mt) => m mt -> SceneObject m
+sceneObject = cameraRelativeSceneObject . const . liftM (wrapAffine . toIntermediateModel)
 
 cameraRelativeSceneObject :: (Monad m) => (Camera -> m (WrappedAffine IntermediateModel)) -> SceneObject m
 cameraRelativeSceneObject = Model

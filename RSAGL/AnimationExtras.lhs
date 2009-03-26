@@ -54,12 +54,12 @@ rotateA v a = animateA (rotationA v a)
 \texttt{pointAtCameraA} always points at the camera, using a single rotation.
 
 \begin{code}
-pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumulator s m) => a (SceneLayer,m IntermediateModel) ()
-pointAtCameraA = proc (slayer,imodel) ->
+pointAtCameraA :: (Arrow a,ArrowState s a,CoordinateSystemClass s,ScenicAccumulator s m,ModelType model) => a (SceneLayer,m model) ()
+pointAtCameraA = proc (slayer,the_model) ->
     do cs <- arr getCoordinateSystem <<< fetch -< ()
        accumulateSceneA -< (slayer,cameraRelativeSceneObject $ \c -> 
            liftM ((rotateToFrom (vectorToFrom (migrateToFrom root_coordinate_system cs $ camera_position c) $ origin_point_3d)
-                                       (Vector3D 0 1 0)) . wrapAffine) imodel)
+                                       (Vector3D 0 1 0)) . wrapAffine) (liftM toIntermediateModel the_model))
 \end{code}
 
 \subsection{Particle Physics Models}
