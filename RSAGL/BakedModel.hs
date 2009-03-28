@@ -84,7 +84,7 @@ surfaceToOpenGL :: BakedSurface -> IO ()
 surfaceToOpenGL baked_surface = baked_model_action baked_surface $ mapM_ fragmentToOpenGL $ baked_model_fragments baked_surface
 
 tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
-tesselatedElementToOpenGL colors_on (TesselatedTriangleFan as) =
-    do fragment <- bakeSurface id colors_on [(TriangleFan,as)]
+tesselatedElementToOpenGL colors_on tesselated_element =
+    do fragment <- bakeSurface id colors_on $ [unmapTesselatedElement tesselated_element]
        surfaceToOpenGL fragment
        freeSurface fragment

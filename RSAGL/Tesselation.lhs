@@ -31,20 +31,24 @@ Tesselation is a stage of transforming a model into OpenGL procedure calls.  Tes
 \begin{code}
 type TesselatedSurface a = [TesselatedElement a]
 
-data TesselatedElement a = TesselatedTriangleFan [a]
+data TesselatedElement a = TesselatedTriangleFan { tesselated_vertices :: [a] } 
+                         | TesselatedTriangleStrip { tesselated_vertices :: [a] }
     deriving (Read,Show)
 
 instance (AffineTransformable a) => AffineTransformable (TesselatedElement a) where
     transform m (TesselatedTriangleFan as) = TesselatedTriangleFan $ transform m as
+    transform m (TesselatedTriangleStrip as) = TesselatedTriangleStrip $ transform m as
 
 instance (NFData a) => NFData (TesselatedElement a) where
     rnf (TesselatedTriangleFan as) = rnf as
+    rnf (TesselatedTriangleStrip as) = rnf as
 
 instance Functor TesselatedElement where
     fmap f (TesselatedTriangleFan as) = TesselatedTriangleFan $ fmap f as
+    fmap f (TesselatedTriangleStrip as) = TesselatedTriangleStrip $ fmap f as
 
 tesselatedSurfaceToVertexCloud :: TesselatedSurface a -> [a]
-tesselatedSurfaceToVertexCloud = concatMap $ \(TesselatedTriangleFan as) -> as
+tesselatedSurfaceToVertexCloud = concatMap tesselated_vertices
 
 instance (Bound3D a) => Bound3D (TesselatedElement a) where
     boundingBox x = boundingBox $ tesselatedSurfaceToVertexCloud [x]
@@ -114,7 +118,9 @@ tesselate = either (error . ("tesselate: " ++) . show) id . runParser parser () 
 \begin{code}
 tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
 tesselatedElementToOpenGL colors_on (TesselatedTriangleFan xs) = renderPrimitives TriangleFan colors_on xs
+tesselatedElementToOpenGL colors_on (TesselatedTriangleStrip xs) = renderPrimitives TriangleStrip colors_on xs
 
 unmapTesselatedElement :: TesselatedElement a -> (PrimitiveMode,[a])
 unmapTesselatedElement (TesselatedTriangleFan as) = (TriangleFan,as)
+unmapTesselatedElement (TesselatedTriangleStrip as) = (TriangleStrip,as)
 \end{code}
