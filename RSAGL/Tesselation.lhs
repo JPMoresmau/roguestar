@@ -20,6 +20,10 @@ import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd
 import RSAGL.OpenGLPrimitives
+import Text.Parsec.Prim
+import Text.Parsec.String ()
+import Data.Ord
+import Control.Monad
 \end{code}
 
 Tesselation is a stage of transforming a model into OpenGL procedure calls.  Tesselation is done by breaking a surface into a sequence of polylines (a grid).  Pairs of polylines, possibly of differing length, describe a polygon strip.  We subdivide that strip into triangle fans and quadralateral strips, as described by the OpenGL specification.
@@ -52,57 +56,57 @@ tesselateGrid :: [[(Double,a)]] -> TesselatedSurface a
 tesselateGrid = concatMap (uncurry tesselateStrip) . doubles
 
 tesselateStrip :: [(Double,a)] -> [(Double,a)] -> TesselatedSurface a
-tesselateStrip lefts rights = tesselatePieces $ tesselateSteps lefts rights
+tesselateStrip lefts rights = tesselate $ tesselateSteps lefts rights
 
-tesselateSteps :: [(Double,a)] -> [(Double,a)] -> [Either a a]
-tesselateSteps lefts rights = map (either (Left . snd) (Right . snd)) $ sortBy (\x y -> compare (either fst fst x) (either fst fst y)) 
-                                      (map Left (tesselateResequence lefts) ++ map Right (tesselateResequence rights))
+data LR = L | R deriving (Eq)
 
-tesselateResequence :: [(Double,a)] -> [(Double,a)]
-tesselateResequence [] = []
-tesselateResequence [a] = [a]
-tesselateResequence (a:as) = a : map (\((x,_),(y,b)) -> ((x+y)/2,b)) aas
-    where aas = doubles (a:as)
+otherLR :: LR -> LR
+otherLR L = R
+otherLR R = L
 
-tesselatePieces :: [Either a a] -> TesselatedSurface a
-tesselatePieces [] = []
-tesselatePieces [_] = []
-tesselatePieces [_,_] = []
-tesselatePieces xs = fst best : tesselatePieces (snd best)
-    where rightside_triangle = tesselateAsRightSidedTriangle xs
-          leftside_triangle = tesselateAsLeftSidedTriangle xs
-          best = case (length $ fst leftside_triangle,length $ fst rightside_triangle) of
-                     (0,0) -> (undefined,[])
-                     (l,r) | l >= r -> first TesselatedTriangleFan leftside_triangle
-                     _ -> first TesselatedTriangleFan rightside_triangle
+tesselateSteps :: [(Double,a)] -> [(Double,a)] -> [(LR,a)]
+tesselateSteps lefts rights = map (second snd) $ sortBy (comparing $ fst . snd) $ map ((,) L) (reorder lefts) ++ map ((,) R) (reorder rights)
+    where reorder :: [(Double,a)] -> [(Double,a)]
+          reorder [] = []
+          reorder [a] = [a]
+          reorder (a:as) = a : map (\((x,_),(y,b)) -> ((x+y)/2,b)) (doubles (a:as))
+\end{code}
 
-isLeft :: Either a b -> Bool
-isLeft = either (const True) (const False)
+\subsection{Tesselation Parsers}
 
-isRight :: Either a b -> Bool
-isRight = either (const False) (const True)
+\begin{code}
+type TesselationParser a = Parsec [(LR,a)] ()
 
-stripEither :: Either a a -> a
-stripEither = either id id
+vertex :: (LR -> Bool) -> TesselationParser a a
+vertex testF = liftM snd $ tokenPrim (const "") (\x _ _ -> x) (\(lr,a) -> if testF lr then Just (lr,a) else Nothing)
 
-tesselateAsLeftSidedTriangle :: [Either a a] -> ([a],[Either a a])
-tesselateAsLeftSidedTriangle = tesselateAsSidedTriangle isLeft
+pushback :: [(LR,a)] -> TesselationParser a ()
+pushback as =
+    do setInput =<< liftM (as ++) getInput
+       return ()
 
-tesselateAsRightSidedTriangle :: [Either a a] -> ([a],[Either a a])
-tesselateAsRightSidedTriangle = first (\x -> take 1 x ++ reverse (drop 1 x)) . tesselateAsSidedTriangle isRight
+triangleFan :: TesselationParser a (TesselatedElement a)
+triangleFan = try (triangleFanSided L) <|> try (triangleFanSided R)
+    where triangleFanSided :: LR -> TesselationParser a (TesselatedElement a)
+          triangleFanSided x_side =
+              do let y_side = otherLR x_side
+                 xs1 <- many $ vertex (== x_side)
+                 y <- vertex $ (== y_side)
+                 xs2 <- many $ vertex (== x_side)
+                 let xs = xs1 ++ xs2
+                 when (null $ drop 1 xs) $ fail "teriangleFanSided: not enough l-vertices"
+                 pushback $ if null xs2 then [(x_side,last xs1),(y_side,y)] else [(y_side,y),(x_side,last xs2)]
+                 return $ TesselatedTriangleFan $ case x_side of
+                     L -> y:xs
+                     R -> y:reverse xs
 
-tesselateAsSidedTriangle :: (Either a a -> Bool) -> [Either a a] -> ([a],[Either a a])
-tesselateAsSidedTriangle test lrs =    -- looking for a pattern that contains at least two Lefts and exactly one Right 
-                                       -- (except the test may be reversed Left for Right)
-        if ok then (map stripEither $ right_vertex : (leading_lefts ++ trailing_lefts),
-	                               -- the triangle strip defined by one right edge and several left edges
-                    right_vertex : (last $ leading_lefts ++ trailing_lefts) : rest)      
-		                       -- the right edge and the trailing left edge define the start of the next strip
-              else ([],lrs)            -- pattern match failure, return the parameters as we recieved them to pattern match on something else
-    where (leading_lefts,trailing) = span test lrs
-          right_vertex = head trailing
-          (trailing_lefts,rest) = span test $ tail trailing
-          ok = (not $ null trailing) && ((not $ null leading_lefts) || (not $ null trailing_lefts))
+tesselate :: [(LR,a)] -> TesselatedSurface a
+tesselate = either (error . ("tesselate: " ++) . show) id . runParser parser () ""
+    where base_parser = triangleFan
+          parser =
+              do tesselated_surface <- many base_parser
+                 many (vertex $ const True)
+                 return tesselated_surface
 \end{code}
 
 \subsection{Sending decomposed data to OpenGL}
