@@ -18,7 +18,7 @@ import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.Vector
 import RSAGL.Matrix
-import RSAGL.QualityControl
+import RSAGL.LODCache
 import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
@@ -26,7 +26,6 @@ import Data.List as List
 import Data.Monoid
 import Test.QuickCheck hiding (test)
 import Control.Concurrent
-import Control.Parallel.Strategies
 import RSAGL.RK4
 import RSAGL.Bottleneck
 import RSAGL.Joint
@@ -499,27 +498,27 @@ testClose name actual expected _ =
        putStrLn $ "actual: " ++ show actual
        putStrLn ""
 
-testQualityObject :: IO ()
-testQualityObject =
-    do bottleneck <- newBottleneck
-       qo <- newQuality bottleneck rnf (return . naiveFib) qs
-       print =<< getQuality qo 100
+testLODCache :: IO ()
+testLODCache =
+    do bottleneck <- simpleBottleneck
+       qo <- newLODCache bottleneck (return . naiveFib) qs
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
        threadDelay 1000000
-       print =<< getQuality qo 100
+       print =<< getLOD qo 100
         where qs = [1..100]
               naiveFib :: Integer -> Integer
               naiveFib 0 = 0
@@ -592,4 +591,4 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckMatrixInverse4
           testJoint
           testRK4
-          testQualityObject
+          testLODCache
