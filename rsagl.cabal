@@ -30,7 +30,7 @@ exposed-modules:     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArr
                      RSAGL.Affine, RSAGL.WrappedAffine, RSAGL.CurveExtras,
                      RSAGL.Scene, RSAGL.InverseKinematics, RSAGL.FRP,
                      RSAGL.RK4, RSAGL.AnimationExtras, RSAGL.Interpolation,
-                     RSAGL.Model, RSAGL.Deformation, RSAGL.QualityControl,
+                     RSAGL.Model, RSAGL.Deformation, RSAGL.LODCache,
                      RSAGL.Noise, RSAGL.ApplicativeWrapper, RSAGL.Tesselation,
                      RSAGL.Bottleneck, RSAGL.ModelingExtras, RSAGL.Animation,
                      RSAGL.Curve, RSAGL.Angle, RSAGL.Optimization,
