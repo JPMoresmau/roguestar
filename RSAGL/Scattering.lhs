@@ -264,7 +264,7 @@ to immitate Mie scattering.
 \begin{code}
 elasticForwardScatter :: Double -> Angle -> RGB -> Scattering
 elasticForwardScatter d a c = s {
-    scattering_scatter = scattering_scatter s . reverseAngle }
+    scattering_scatter = scattering_scatter s . supplementaryAngle }
         where s = elasticBackScatter d a c
 \end{code}
 
