@@ -116,7 +116,7 @@ all_library_models =
 --
 data Library = Library 
     Bottleneck
-    (MVar (Map LibraryModel (QualityCache Quality IntermediateModel)))
+    (MVar (Map LibraryModel (QualityCache Quality BakedModel)))
 
 -- |
 -- Create a new library.  Only one Library should be needed per process instance, i.e. a singleton.
@@ -131,7 +131,7 @@ newLibrary =
 -- |
 -- Get a library model.  If the model is not available at the requested quality level, a
 -- poorer model will be provided instead, and a background thread will launch to begin
--- generated the model at the requested level of detail.
+-- generating the model at the requested level of detail.
 --
 -- If the model is not available at any level of quality, this may block until the model is completed.
 --
@@ -140,9 +140,9 @@ lookupModel (Library bottleneck lib) lm q_ = bracket (takeMVar lib) (\lib_map ->
     do let q = forceQuality lm q_
        let m_qo = Map.lookup lm lib_map
        case m_qo of
-           Just qo -> getQuality qo q
+           Just qo -> liftM toIntermediateModel $ getQuality qo q
 	   Nothing ->
 	       do hPutStrLn stderr ("lookupModel: introducing model: " ++ show lm)
-                  qo <- newQuality bottleneck parIntermediateModel (\q' -> toIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
+                  qo <- newQuality bottleneck (`seq` ()) (\q' -> bakeModel $ buildIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
                   putMVar lib $ insert lm qo lib_map
-	          getQuality qo q
+	          liftM toIntermediateModel $ getQuality qo q
