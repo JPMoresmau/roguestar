@@ -10,7 +10,7 @@ import Models.Terrain
 import Models.QuestionMark
 import Data.Map as Map
 import RSAGL.Model
-import RSAGL.QualityControl
+import RSAGL.LODCache
 import Control.Concurrent
 import RSAGL.Bottleneck
 import Control.Monad
@@ -116,14 +116,14 @@ all_library_models =
 --
 data Library = Library 
     Bottleneck
-    (MVar (Map LibraryModel (QualityCache Quality BakedModel)))
+    (MVar (Map LibraryModel (LODCache Quality BakedModel)))
 
 -- |
 -- Create a new library.  Only one Library should be needed per process instance, i.e. a singleton.
 --
 newLibrary :: IO Library
 newLibrary = 
-    do lib <- liftM2 Library newBottleneck (newMVar Map.empty)
+    do lib <- liftM2 Library simpleBottleneck (newMVar Map.empty)
        mapM_ (\x -> do hPutStrLn stderr ("newLibrary: preloading model: " ++ show x)
                        lookupModel lib x Bad) all_library_models
        return lib
@@ -140,9 +140,9 @@ lookupModel (Library bottleneck lib) lm q_ = bracket (takeMVar lib) (\lib_map ->
     do let q = forceQuality lm q_
        let m_qo = Map.lookup lm lib_map
        case m_qo of
-           Just qo -> liftM toIntermediateModel $ getQuality qo q
+           Just qo -> liftM toIntermediateModel $ getLOD qo q
 	   Nothing ->
 	       do hPutStrLn stderr ("lookupModel: introducing model: " ++ show lm)
-                  qo <- newQuality bottleneck (`seq` ()) (\q' -> bakeModel $ buildIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
+                  qo <- newLODCache bottleneck (\q' -> bakeModel $ buildIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
                   putMVar lib $ insert lm qo lib_map
-	          liftM toIntermediateModel $ getQuality qo q
+	          liftM toIntermediateModel $ getLOD qo q
