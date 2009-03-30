@@ -69,7 +69,7 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
 
 testScene :: IO (AniM ((),Camera))
 testScene = 
-    do bottleneck <- newBottleneck
+    do bottleneck <- simpleBottleneck
        let newQO :: Modeling () -> IO (LODCache Integer BakedModel)
            newQO im = newLODCache bottleneck (bakeModel . flip buildIntermediateModel im) $ takeWhile (<= test_quality) $ iterate (*2) 64
        putStrLn "loading planet..."
