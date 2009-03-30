@@ -30,16 +30,11 @@ data BakedSurface = BakedSurface {
 bakeFragment :: (OpenGLPrimitive a) => PrimitiveMode -> Bool -> [a] -> IO BakedFragment
 bakeFragment primitive_mode colors_on as =
     do let l = length as
-       v <- mallocArray l
-       n <- mallocArray l
-       pokeArray v $ map getVertex as
-       pokeArray n $ map getNormal as
+       v <- newArray $ map getVertex as
+       n <- newArray $ map getNormal as
        m_c <- case colors_on of
            False -> return Nothing
-           True ->
-               do c <- mallocArray l
-                  pokeArray c $ map getColor as
-                  return $ Just c
+           True -> liftM Just $ newArray $ map getColor as
        return $ BakedFragment {
            baked_model_primitive_mode = primitive_mode,
            baked_model_length = fromInteger $ toInteger l,
