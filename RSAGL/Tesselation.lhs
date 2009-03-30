@@ -98,18 +98,33 @@ triangleFan = try (triangleFanSided L) <|> try (triangleFanSided R)
                  y <- vertex $ (== y_side)
                  xs2 <- many $ vertex (== x_side)
                  let xs = xs1 ++ xs2
-                 when (null $ drop 1 xs) $ fail "teriangleFanSided: not enough l-vertices"
+                 when (null $ drop 1 xs) $ fail "triangleFanSided: not enough x-vertices"
                  pushback $ if null xs2 then [(x_side,last xs1),(y_side,y)] else [(y_side,y),(x_side,last xs2)]
                  return $ TesselatedTriangleFan $ case x_side of
                      L -> y:xs
                      R -> y:reverse xs
 
+triangleStrip :: TesselationParser a (TesselatedElement a)
+triangleStrip =
+        do (pairs,pbs) <- liftM (first (concatMap $ \(x,y) -> [x,y]) . unzip) $ many $ try (opposingPair L) <|> try (opposingPair R)
+           when (null $ drop 2 pairs) $ fail "triangleStrip: not enough vertex pairs"
+           pushback $ last pbs
+           return $ TesselatedTriangleStrip pairs
+    where opposingPair :: LR -> TesselationParser a ((a,a),[(LR,a)])
+          opposingPair x_side =
+              do let y_side = otherLR x_side
+                 x <- vertex (== x_side)
+                 y <- vertex (== y_side)
+                 return $ (case x_side of
+                     L -> (y,x)
+                     R -> (x,y),
+                         [(x_side,x),(y_side,y)])
+
 tesselate :: [(LR,a)] -> TesselatedSurface a
 tesselate = either (error . ("tesselate: " ++) . show) id . runParser parser () ""
-    where base_parser = triangleFan
-          parser =
-              do tesselated_surface <- many base_parser
-                 many (vertex $ const True)
+    where parser =
+              do tesselated_surface <- many $ try triangleStrip <|> try triangleFan
+                 skipMany (vertex $ const True)
                  return tesselated_surface
 \end{code}
 
@@ -117,8 +132,8 @@ tesselate = either (error . ("tesselate: " ++) . show) id . runParser parser () 
 
 \begin{code}
 tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
-tesselatedElementToOpenGL colors_on (TesselatedTriangleFan xs) = renderPrimitives TriangleFan colors_on xs
-tesselatedElementToOpenGL colors_on (TesselatedTriangleStrip xs) = renderPrimitives TriangleStrip colors_on xs
+tesselatedElementToOpenGL colors_on tesselated_element = renderPrimitives prim_mode colors_on as
+    where (prim_mode,as) = unmapTesselatedElement tesselated_element
 
 unmapTesselatedElement :: TesselatedElement a -> (PrimitiveMode,[a])
 unmapTesselatedElement (TesselatedTriangleFan as) = (TriangleFan,as)

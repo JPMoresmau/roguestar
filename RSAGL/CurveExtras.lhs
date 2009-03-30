@@ -58,7 +58,8 @@ transformUnitCubeToUnitSphere p =
     let p_centered@(Point3D x y z) = scale' 2.0 $ translate (Vector3D (-0.5) (-0.5) (-0.5)) p
         p_projected = scale' (minimum [recip $ abs x,recip $ abs y,recip $ abs z]) p_centered
         k = recip $ distanceBetween origin_point_3d p_projected
-        in if p_centered == origin_point_3d then origin_point_3d else scale' k p_centered
+        w = distanceBetween p_centered p_projected / sqrt 3 -- 'w' could be 1, but this gives a smoother tesselation
+        in if p_centered == origin_point_3d then origin_point_3d else lerp w (p_centered,scale' k p_centered)
 \end{code}
 
 \subsection{Circles}
