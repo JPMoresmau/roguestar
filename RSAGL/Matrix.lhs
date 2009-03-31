@@ -19,7 +19,9 @@ module RSAGL.Matrix
      matrixTranspose,
      matrixInverse,
      determinant,
-     matrixInversePrim)
+     matrixInversePrim,
+     matrixTransposePrim,
+     matrixInverseTransposePrim)
     where
 
 import Data.List
@@ -43,6 +45,7 @@ as if written on paper.
 data Matrix = Matrix { matrix_rows, matrix_cols :: !Int, 
                        matrix_data :: UArray Int Double, 
                        matrix_inverse :: Matrix,
+                       matrix_transpose :: Matrix,
                        matrix_determinant :: Double }
 
 {-# INLINE rows #-}
@@ -107,11 +110,16 @@ matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number
     
 uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
 uncheckedMatrix number_of_rows number_of_cols dats = m
-    where m = Matrix { matrix_rows=number_of_rows,
+    where m_inverse = matrixTransposePrim m_inverse_transpose { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
+          m_transpose = matrixTransposePrim m { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
+          m_inverse_transpose = matrixInverseTransposePrim m { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
+          m_det = determinantPrim m
+          m = Matrix { matrix_rows=number_of_rows,
                        matrix_cols=number_of_cols,
                        matrix_data=dats,
-                       matrix_inverse = (matrixInversePrim m) { matrix_inverse = m },
-                       matrix_determinant = determinantPrim m }
+                       matrix_inverse = m_inverse,
+                       matrix_transpose = m_transpose,
+                       matrix_determinant = m_det }
 \end{code}
 
 identityMatrix constructs the n by n identity matrix
@@ -200,7 +208,7 @@ matrixMultiply m n = case () of
 		 return a
 
 matrixTranspose :: Matrix -> Matrix
-matrixTranspose = matrix . colMajorForm -- works because matrix expects row major form
+matrixTranspose = matrix_transpose
 \end{code}
 
 \subsection{Inverse and determinant of a matrix}
@@ -253,13 +261,16 @@ matrixCofactor m (i,j) = (-1)^(i+j) * matrixMinor m (i,j)
 Implementation of determinant and matrix inverse for matrices of Rationals.
 
 \begin{code}
-matrixInversePrim :: Matrix -> Matrix
-matrixInversePrim m | rows m /= cols m = error "matrixInversePrim: not a square matrix"
-matrixInversePrim m | determinant m == 0 = error "matrixInversePrim: det m = 0"
-matrixInversePrim m = 
+matrixInverseTransposePrim :: Matrix -> Matrix
+matrixInverseTransposePrim m | rows m /= cols m = error "matrixInverseTransposePrim: not a square matrix"
+matrixInverseTransposePrim m | determinant m == 0 = error "matrixInverseTransposePrim: det m = 0"
+matrixInverseTransposePrim m = 
     let scale_factor = 1 / determinant m
-        in matrixTranspose $ matrix [[scale_factor * matrixCofactor m (i,j) | j <- [0..(cols m-1)]]
-                                                                            | i <- [0..(rows m-1)]]
+        in matrix [[scale_factor * matrixCofactor m (i,j) | j <- [0..(cols m-1)]]
+                                                          | i <- [0..(rows m-1)]]
+
+matrixInversePrim :: Matrix -> Matrix
+matrixInversePrim = matrixTransposePrim . matrixInverseTransposePrim
 
 determinantPrim :: Matrix -> Double
 determinantPrim m | rows m /= cols m = error "determinantPrim: not a square matrix"
@@ -273,4 +284,7 @@ determinantPrim m | rows m == 3 && cols m == 3 = uncheckedMatrixAt m (0,0) * unc
 						 uncheckedMatrixAt m (2,1) * uncheckedMatrixAt m (1,2) * uncheckedMatrixAt m (0,0) -
 						 uncheckedMatrixAt m (2,2) * uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (0,1)
 determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (0,x)) [0..(cols m - 1)]
+
+matrixTransposePrim :: Matrix -> Matrix
+matrixTransposePrim = matrix . colMajorForm -- works because matrix expects row major form
 \end{code}

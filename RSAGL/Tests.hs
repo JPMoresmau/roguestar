@@ -368,7 +368,7 @@ quickCheckMatrixDeterminant2 =
        quickCheck _qcmi
            where _qcmi :: Double22 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) `equalClose` determinant mat
+                     determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d2ToMatrix m
 
 quickCheckMatrixDeterminant3 :: IO ()
@@ -377,7 +377,7 @@ quickCheckMatrixDeterminant3 =
        quickCheck _qcmi
            where _qcmi :: Double33 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) `equalClose` determinant mat
+                     determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d3ToMatrix m
 
 quickCheckMatrixDeterminant4 :: IO ()
@@ -386,7 +386,7 @@ quickCheckMatrixDeterminant4 =
        quickCheck _qcmi
            where _qcmi :: Double44 -> Bool
                  _qcmi m = 
-                     determinant (matrixTranspose mat) `equalClose` determinant mat
+                     determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d4ToMatrix m
 
 quickCheckMatrixMultiplyDeterminant2 :: IO ()
