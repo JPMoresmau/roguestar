@@ -1,9 +1,4 @@
-\section{Applicative Wrapper}
-
-\texttt{ApplicativeWrapper} is a simple wrapper over the Applicative typeclass that retains information about the purity of the wrapper data structure type.
-
-\begin{code}
-{-# OPTIONS_GHC -fglasgow-exts #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module RSAGL.ApplicativeWrapper
     (ApplicativeWrapper(..),
@@ -18,6 +13,7 @@ import Control.Applicative
 import Data.Maybe
 import Control.Parallel.Strategies
 
+-- | 'ApplicativeWrapper' captures an applicative entity and remembers whether the entity is pure.
 newtype ApplicativeWrapper f a = ApplicativeWrapper (Either (f a) a)
 
 instance (Functor f,Applicative f) => Functor (ApplicativeWrapper f) where
@@ -46,4 +42,3 @@ wrapApplicative = ApplicativeWrapper . Left
 
 isPure :: (Applicative f) => ApplicativeWrapper f a -> Bool
 isPure = isJust . fromPure
-\end{code}
