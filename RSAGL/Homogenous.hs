@@ -1,13 +1,3 @@
-\section{Representing objects in homogenous coordinates: RSAGL.Homogenous}
-
-Entities such as points and vectors that can be represented as matrices.  The Homogenous typeclass is
-an easy way to implement affine transformations on these types.
-
-toHomogenous always results in a column matrix, while fromHomogenous always expects a row matrix.
-This means that (fromHomogenous . toHomogenous) is not an identity function.
-Instead, (fromHomogenous . matrixTranspose . toHomogenous) is an identity function.
-
-\begin{code}
 module RSAGL.Homogenous
     (Homogenous(..),
      transformHomogenous)
@@ -16,6 +6,11 @@ module RSAGL.Homogenous
 import RSAGL.Vector
 import RSAGL.Matrix
 
+-- | Entities such as points and vectors that can be represented as matrices.  The 'Homogenous' typeclass is
+-- an easy way to implement affine transformations on these types.
+-- 'toHomogenous' always results in a column matrix, while 'fromHomogenous' always expects a row matrix.
+-- This means that @(fromHomogenous . toHomogenous)@ is not an identity function.
+-- Instead, @(fromHomogenous . matrixTranspose . toHomogenous)@ is an identity function.
 class Homogenous a where
     toHomogenous :: a -> Matrix
     fromHomogenous :: Matrix -> a
@@ -42,4 +37,3 @@ instance Homogenous Point3D where
 transformHomogenous :: (Homogenous a, Homogenous b) => Matrix -> a -> b
 transformHomogenous transformation_matrix = 
     fromHomogenous . matrixMultiply transformation_matrix . toHomogenous
-\end{code}
