@@ -21,6 +21,8 @@ module RSAGL.FRPBase
      RSAGL.FRPBase.statefulForm)
     where
 
+import Prelude hiding ((.),id)
+import Control.Category
 import Data.Monoid
 import Control.Arrow
 import Control.Arrow.Transformer
@@ -36,8 +38,11 @@ newtype FRPBase t i o a j p = FRPBase (
 fromFRPBase :: FRPBase t i o a j p -> (StatefulArrow (ThreadedArrow t i o a) j p)
 fromFRPBase (FRPBase a) = collapseArrowTransformer a
 
+instance (Category a,ArrowChoice a) => Category (FRPBase t i o a) where
+    (.) (FRPBase lhs) (FRPBase rhs) = FRPBase $ lhs . rhs
+    id = lift id
+
 instance (ArrowChoice a) => Arrow (FRPBase t i o a) where
-    (>>>) (FRPBase x) (FRPBase y) = FRPBase $ x >>> y
     arr = FRPBase . arr
     first (FRPBase f) = FRPBase $ first f
 

@@ -24,7 +24,7 @@ import RSAGL.Angle
 import RSAGL.Auxiliary
 import RSAGL.AbstractVector
 import RSAGL.Affine
-import Control.Arrow hiding (pure)
+import Control.Arrow
 \end{code}
 
 \subsection{Alternate Coordinate Systems for Models}

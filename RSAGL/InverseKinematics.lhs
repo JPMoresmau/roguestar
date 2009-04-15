@@ -1,8 +1,7 @@
 \section{Inverse Kinematics}
 
 \begin{code}
-{-# LANGUAGE Arrows #-}
-{-# OPTIONS_GHC -fallow-undecidable-instances #-}
+{-# LANGUAGE Arrows, UndecidableInstances #-}
 
 module RSAGL.InverseKinematics
     (leg,

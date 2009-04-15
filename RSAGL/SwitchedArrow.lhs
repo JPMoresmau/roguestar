@@ -8,7 +8,7 @@ allowing any of it's delegate arrows to explicitly switch (and thereby terminate
 execution of the current iteration of) the switched arrow.
 
 \begin{code}
-{-# OPTIONS_GHC -farrows -fglasgow-exts #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances #-}
 
 module RSAGL.SwitchedArrow
     (SwitchedArrow,
@@ -21,12 +21,14 @@ module RSAGL.SwitchedArrow
      RSAGL.SwitchedArrow.withExposedState)
     where
 
+import Prelude hiding ((.),id)
 import RSAGL.StatefulArrow as StatefulArrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer.Error
 import Control.Arrow.Transformer.State
 import Control.Arrow.Transformer
 import Control.Arrow
+import Control.Category
 
 type SwitchedFunction i o j p = SwitchedArrow i o (->) j p
 \end{code}
@@ -36,8 +38,11 @@ The SwitchedArrow is really a special case of the ErrorArrow with ArrowApply.
 \begin{code}
 newtype SwitchedArrow i o a j p = SwitchedArrow (ErrorArrow (o,SwitchedArrow i o a i o) a j p)
 
+instance (Category a,ArrowChoice a) => Category (SwitchedArrow i o a) where
+    (.) (SwitchedArrow lhs) (SwitchedArrow rhs) = SwitchedArrow $ lhs . rhs
+    id = SwitchedArrow id
+
 instance (Arrow a,ArrowChoice a) => Arrow (SwitchedArrow i o a) where
-    (>>>) (SwitchedArrow sa1) (SwitchedArrow sa2) = SwitchedArrow $ sa1 >>> sa2
     arr = SwitchedArrow . arr
     first (SwitchedArrow a) = SwitchedArrow $ first a
 

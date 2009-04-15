@@ -1,7 +1,7 @@
 \section{Specific Animations}
 
 \begin{code}
-{-# OPTIONS_GHC -farrows #-}
+{-# LANGUAGE Arrows #-}
 
 module RSAGL.AnimationExtras
     (rotationA,

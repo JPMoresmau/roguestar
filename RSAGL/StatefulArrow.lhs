@@ -7,7 +7,7 @@ The result of each iteration includes a new form of the StatefulArrow
 that will be evaluated on the next iteration.
 
 \begin{code}
-{-# OPTIONS_GHC -farrows -fglasgow-exts #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, MultiParamTypeClasses, FlexibleInstances, Rank2Types #-}
 
 module RSAGL.StatefulArrow
     (StatefulArrow(..),
@@ -19,19 +19,24 @@ module RSAGL.StatefulArrow
      runStateMachine)
     where
 
+import Prelude hiding ((.),id)
 import Control.Arrow
 import Control.Arrow.Transformer.State
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
+import Control.Category
 
 type StatefulFunction = StatefulArrow (->)
 data StatefulArrow a i o = StatefulArrow { runStatefulArrow :: (a i (o,StatefulArrow a i o)) }
 
-instance (Arrow a) => Arrow (StatefulArrow a) where
-    (>>>) (StatefulArrow sf1) (StatefulArrow sf2) = StatefulArrow $
+instance (Category a,Arrow a) => Category (StatefulArrow a) where
+    (.) (StatefulArrow sf2) (StatefulArrow sf1) = StatefulArrow $
         proc a -> do (b,sf1') <- sf1 -< a
                      (c,sf2') <- sf2 -< b
                      returnA -< seq b $ seq c $ seq sf1' $ seq sf2' $ (c,sf1' >>> sf2')
+    id = lift id
+
+instance (Arrow a) => Arrow (StatefulArrow a) where
     arr = lift . arr
     first (StatefulArrow sf) = StatefulArrow $
         proc (b,d) -> do (c,sf') <- sf -< b

@@ -3,7 +3,7 @@
 Edge detection works for all inputs that implement Eq, and is simply a mechanism to observe when a value changes.
 
 \begin{code}
-{-# OPTIONS_GHC -farrows -fglasgow-exts #-}
+{-# LANGUAGE Arrows #-}
 
 module RSAGL.Edge 
     (Edge(..),

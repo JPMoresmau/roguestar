@@ -3,7 +3,7 @@
 The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine transformation and scene accumulation.
 
 \begin{code}
-{-# OPTIONS_GHC -fglasgow-exts -farrows #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving #-}
 
 module RSAGL.Animation
     (AniM,

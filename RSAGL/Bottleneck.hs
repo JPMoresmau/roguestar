@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module RSAGL.Bottleneck
     (constrict,dispatch,simpleBottleneck,Bottleneck)
     where
@@ -24,7 +25,7 @@ simpleBottleneck =
 work :: Bottleneck -> IO ()
 work bottleneck = forever $
     do actionM <- readChan $ bottleneck_chan bottleneck
-       catch actionM $ \e ->
+       catch actionM $ \(e :: SomeException) ->
            do hPutStr stderr "RSAGL.Bottleneck: exception thrown from bottleneck worker thread."
               hPutStr stderr $ show e
 

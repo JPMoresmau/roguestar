@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports -farrows #-}
+{-# LANGUAGE Arrows #-}
 
 module RSAGL.Main
     (main,
@@ -13,10 +13,8 @@ import RSAGL.Model
 import Models.PlanetRingMoon
 import RSAGL.Time
 import Control.Monad
-import Control.Monad.Trans
 import RSAGL.Angle
 import System.Exit
-import RSAGL.Color
 import RSAGL.Bottleneck
 import RSAGL.LODCache
 import RSAGL.Scene
@@ -26,17 +24,11 @@ import RSAGL.AnimationExtras
 import RSAGL.ThreadedArrow
 import Control.Arrow
 import RSAGL.Vector
-import RSAGL.RSAGLColors
 import RSAGL.CoordinateSystems
 import qualified RSAGL.Affine as Affine
-import RSAGL.Matrix
-import RSAGL.Interpolation
-import Debug.Trace
 import RSAGL.ModelingExtras
-import RSAGL.WrappedAffine
 import RSAGL.InverseKinematics
 import RSAGL.LightSource
-import Control.Parallel.Strategies
 
 test_quality :: Integer
 test_quality = 2^14

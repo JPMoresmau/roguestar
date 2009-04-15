@@ -5,7 +5,7 @@ can be represented in coordinate system neutral form.
 
 \begin{code}
 
-{-# OPTIONS_GHC -farrows -fglasgow-exts #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, Rank2Types #-}
 
 module RSAGL.CoordinateSystems
     (AffineTransformation,

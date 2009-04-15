@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -farrows #-}
+{-# LANGUAGE Arrows #-}
 
 --
 -- Some basic tests of the FRP arrow system.

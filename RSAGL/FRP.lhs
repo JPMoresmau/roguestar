@@ -11,7 +11,7 @@ and the arrow-embedding operations from FRPBase.
 
 \begin{code}
 
-{-# OPTIONS_GHC -fglasgow-exts -farrows -fallow-undecidable-instances #-}
+{-# LANGUAGE Arrows, UndecidableInstances, ExistentialQuantification, EmptyDataDecls, MultiParamTypeClasses, FlexibleInstances, Rank2Types #-}
 
 module RSAGL.FRP
     (FRPX,
@@ -46,6 +46,7 @@ module RSAGL.FRP
      whenJust)
     where
 
+import Prelude hiding ((.),id)
 import RSAGL.AbstractVector
 import RSAGL.Time
 import RSAGL.StatefulArrow as StatefulArrow
@@ -53,6 +54,7 @@ import RSAGL.SwitchedArrow as SwitchedArrow
 import RSAGL.ThreadedArrow as ThreadedArrow
 import RSAGL.FRPBase as FRPBase
 import RSAGL.RK4
+import Control.Category
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
@@ -72,8 +74,11 @@ newtype FRPX k t i o a j p = FRP (FRPBase t i o (StateArrow FRPState a) j p)
 fromFRP :: FRPX k t i o a j p -> FRPBase t i o (StateArrow FRPState a) j p
 fromFRP (FRP frp) = frp
 
+instance (Category a,ArrowChoice a) => Category (FRPX k t i o a) where
+    (FRP lhs) . (FRP rhs) = FRP $ lhs . rhs
+    id = FRP id
+
 instance (Arrow a,ArrowChoice a) => Arrow (FRPX k t i o a) where
-    (FRP a) >>> (FRP b) = FRP $ a >>> b
     arr = FRP . arr
     first (FRP f) = FRP $ first f
 

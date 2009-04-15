@@ -10,7 +10,7 @@ While the ThreadedArrow has conceptual similarities to the threading systems pro
 it provides neither parallelism nor concurency.
 
 \begin{code}
-{-# OPTIONS_GHC -farrows -fglasgow-exts #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, Rank2Types, MultiParamTypeClasses, FlexibleInstances #-}
 
 module RSAGL.ThreadedArrow
     (ThreadIdentity,
@@ -27,6 +27,8 @@ module RSAGL.ThreadedArrow
      RSAGL.ThreadedArrow.statefulForm)
     where
 
+import Prelude hiding ((.),id)
+import Control.Category
 import Control.Arrow
 import Control.Arrow.Operations
 import Control.Arrow.Transformer
@@ -53,8 +55,11 @@ unionThreadIdentity predicate _ news olds_ = map snd $ unionBy (\x y -> fst x `p
 newtype ThreadedArrow t i o a j p = ThreadedArrow (SwitchedArrow i (Maybe o) (StateArrow (t,[(t,ThreadedArrow t i o a i (Maybe o))]) a) j p)
 type ThreadedFunction i o j p = ThreadedArrow () i o (->) j p
 
+instance (Category a,ArrowChoice a) => Category (ThreadedArrow t i o a) where
+    (.) (ThreadedArrow lhs) (ThreadedArrow rhs) = ThreadedArrow $ lhs . rhs
+    id = lift id
+
 instance (ArrowChoice a) => Arrow (ThreadedArrow t i o a) where
-    (>>>) (ThreadedArrow ta1) (ThreadedArrow ta2) = ThreadedArrow $ ta1 >>> ta2
     arr = ThreadedArrow . arr
     first (ThreadedArrow f) = ThreadedArrow $ first f
 

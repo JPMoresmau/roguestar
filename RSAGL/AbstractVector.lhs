@@ -3,8 +3,7 @@
 The \texttt{AbstractVector} typeclass provides some basic operations sufficient to implement various generic numerical algorithms, including numerical integration.
 
 \begin{code}
-{-# OPTIONS_GHC -fallow-undecidable-instances #-}
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, UndecidableInstances #-}
 module RSAGL.AbstractVector
     (AbstractVector,
      AbstractZero(..),
