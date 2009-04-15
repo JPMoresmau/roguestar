@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 module Plane
     (dbNewPlane,
      dbGetCurrentPlane,

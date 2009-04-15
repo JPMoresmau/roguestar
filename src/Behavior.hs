@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, Rank2Types, PatternSignatures #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types, ScopedTypeVariables #-}
 
 module Behavior
     (Behavior(..),

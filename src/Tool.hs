@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternSignatures, PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables, PatternGuards #-}
 
 module Tool
     (dbPickupTool,

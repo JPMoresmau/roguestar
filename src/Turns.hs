@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, PatternSignatures #-}
+{-# LANGUAGE PatternGuards, ScopedTypeVariables #-}
 
 module Turns
     (dbPerformPlayerTurn)

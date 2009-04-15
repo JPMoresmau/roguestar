@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, PatternSignatures, PatternGuards #-}
+{-# LANGUAGE ExistentialQuantification, ScopedTypeVariables, PatternGuards #-}
 
 module Protocol
     (mainLoop)
