@@ -8,18 +8,29 @@ import System.FilePath
 import System.IO
 import Control.Monad
 import Paths_roguestar_gl
+import GHC.Environment
+
+known_args :: [String]
+known_args = [arg_echo_protocol,arg_single_threaded]
+
+arg_echo_protocol :: String
+arg_echo_protocol = "--echo-protocol"
+
+arg_single_threaded :: String
+arg_single_threaded = "--single-threaded"
 
 main :: IO ()
 main = 
-    do (should_echo_protocol,args) <- 
-           do args <- getArgs
-	      return ("--echo-protocol" `elem` args,
-		      filter (/= "--echo-protocol") $ args)
+    do (should_echo_protocol,single_threaded,args) <- 
+           do args <- getFullArgs
+	      return (arg_echo_protocol `elem` args,
+                      arg_single_threaded `elem` args,
+		      filter (not . (`elem` known_args)) $ args)
        n <- getNumberOfCPUCores
        bin_dir <- getBinDir
-       let n_rts_string = if n == 1 then [] else ["-N" ++ show n]
+       let n_rts_string = if n == 1 || single_threaded then [] else ["-N" ++ show n]
        let gl_args = ["+RTS", "-G4"] ++ n_rts_string ++ ["-RTS"] ++ args
-       let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ ["version","over","begin"]
+       let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ args ++ ["version","over","begin"]
        let roguestar_engine_bin = bin_dir `combine` "roguestar-engine"
        let roguestar_gl_bin = bin_dir `combine` "roguestar-gl"
        when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_engine_bin ++ " " ++ unwords engine_args
