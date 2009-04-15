@@ -133,15 +133,18 @@ cyclical' t k = (toSeconds $ t `cyclical` k) / toSeconds k
 \subsection{Rate as Change over Time}
 
 \begin{code}
+{-# INLINE over #-}
 over :: (AbstractVector a) => Rate a -> Time -> a
 over (Rate a) (Time t) = realToFrac t `scalarMultiply` a
 
+{-# INLINE rate #-}
 rate :: (AbstractVector a) => (a,Time) -> (a,Time) -> Rate a
 rate (x,t1) (y,t2) = (y `sub` x) `per` (t2 `sub` t1)
 
 perSecond :: a -> Rate a
 perSecond a = Rate a
 
+{-# INLINE per #-}
 per :: (AbstractVector a) => a -> Time -> Rate a
 per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
 
@@ -151,6 +154,7 @@ interval (Rate x) = fromSeconds $ recip x
 time :: Double -> Rate Double -> Time
 time d r = interval $ withTime (fromSeconds 1) (/d) r
 
+{-# INLINE withTime #-}
 withTime :: (AbstractVector a,AbstractVector b) => Time -> (a -> b) -> Rate a -> Rate b
 withTime t f = (`per` t) . f . (`over` t)
 \end{code}
