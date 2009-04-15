@@ -1,8 +1,9 @@
 GIT_CHECKOUT=master
 VERSION=${GIT_CHECKOUT}
 VERSION_SUFFIX=-${VERSION}
+PACKAGE_DB=--package-db="${PWD}/roguestar-local/cabal-package-db" 
 CONFIGURE_EXTRA_OPTS=--ghc-option=-Werror
-CONFIGURE_OPTS=--package-db="${PWD}/roguestar-local/cabal-package-db" --prefix="${PWD}/roguestar-local"
+CONFIGURE_OPTS=${PACKAGE_DB} --prefix="${PWD}/roguestar-local"
 
 # Change these to make dist from somewhere other than the downstairspeople.org repo.
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
@@ -17,10 +18,11 @@ setup :
 	cabal install MaybeT ${CONFIGURE_OPTS}
 	cabal install MonadRandom ${CONFIGURE_OPTS}
 	cabal install parsec ${CONFIGURE_OPTS} --preference='parsec >= 3'
-	(cd roguestar-engine && ./Setup.hs clean && ./Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
-	(cd rsagl && ./Setup.hs clean && ./Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
+	cabal install QuickCheck ${CONFIGURE_OPTS} --preference='QuickCheck < 2'
+	(cd roguestar-engine && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
+	(cd rsagl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
-	(cd roguestar-gl && ./Setup.hs clean && ./Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
+	(cd roguestar-gl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
 
 rsagl :
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
