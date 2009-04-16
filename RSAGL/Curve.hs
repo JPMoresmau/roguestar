@@ -75,6 +75,9 @@ instance (AffineTransformable a) => AffineTransformable (Curve a) where
     translate v = fmap (translate v)
     rotate vector angle = fmap (rotate vector angle)
     transform m = fmap (transform m)
+    rotateX angle = fmap (rotateX angle)
+    rotateY angle = fmap (rotateY angle)
+    rotateZ angle = fmap (rotateZ angle)
 
 instance NFData (Curve a) where
     rnf (Curve f) = seq f ()

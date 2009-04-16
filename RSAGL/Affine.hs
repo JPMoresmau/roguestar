@@ -1,9 +1,6 @@
 -- | Affine Transformations of Arbitrary Geometric Objects
 module RSAGL.Affine
     (AffineTransformable(..),
-     rotateX,
-     rotateY,
-     rotateZ,
      scale',
      inverseTransform,
      withTransformation,
@@ -35,26 +32,20 @@ class AffineTransformable a where
     -- See also 'transformAbout' to rotate around an arbitrary point.
     rotate :: Vector3D -> Angle -> a -> a
     rotate vector angle = transform $ rotationMatrix vector angle
+    -- | Specific rotation around the x-axis.
+    rotateX :: Angle -> a -> a
+    rotateX = RSAGL.Affine.rotate (Vector3D 1 0 0)
+    -- | Specific rotation around the y-axis.
+    rotateY :: Angle -> a -> a
+    rotateY = RSAGL.Affine.rotate (Vector3D 0 1 0)
+    -- | Specific rotation around the z-axis.
+    rotateZ :: Angle -> a -> a
+    rotateZ = RSAGL.Affine.rotate (Vector3D 0 0 1)
 
 -- | Apply the inverse of an affine transformation, defined by a 4x4 matrix.
 {-# INLINE inverseTransform #-}
 inverseTransform :: (AffineTransformable a) => RSAGL.Matrix.Matrix -> a -> a
 inverseTransform m = transform (matrixInverse m)
-
--- | Specific rotation around the x-axis.
-{-# INLINE rotateX #-}
-rotateX :: (AffineTransformable a) => Angle -> a -> a
-rotateX = RSAGL.Affine.rotate (Vector3D 1 0 0)
-
--- | Specific rotation around the y-axis.
-{-# INLINE rotateY #-}
-rotateY :: (AffineTransformable a) => Angle -> a -> a
-rotateY = RSAGL.Affine.rotate (Vector3D 0 1 0)
-
--- | Specific rotation around the z-axis.
-{-# INLINE rotateZ #-}
-rotateZ :: (AffineTransformable a) => Angle -> a -> a
-rotateZ = RSAGL.Affine.rotate (Vector3D 0 0 1)
 
 -- | Specific scale preserving proportions.
 {-# INLINE scale' #-}
@@ -110,11 +101,29 @@ instance AffineTransformable Vector3D where
     transform = transformHomogenous
     scale (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) = Vector3D (x1*x2) (y1*y2) (z1*z2)
     translate _ = id
+    rotateX a (Vector3D x y z) = Vector3D x (c*y-s*z) (c*z+s*y)
+        where s = sine a
+              c = cosine a
+    rotateY a (Vector3D x y z) = Vector3D (c*x+s*z) y (c*z-s*x)
+        where s = sine a
+              c = cosine a
+    rotateZ a (Vector3D x y z) = Vector3D (c*x-s*y) (c*y+s*x) z
+        where s = sine a
+              c = cosine a
 
 instance AffineTransformable Point3D where
     transform = transformHomogenous
     scale (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1*x2) (y1*y2) (z1*z2)
     translate (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1+x2) (y1+y2) (z1+z2)
+    rotateX a (Point3D x y z) = Point3D x (c*y-s*z) (c*z+s*y)
+        where s = sine a
+              c = cosine a
+    rotateY a (Point3D x y z) = Point3D (c*x+s*z) y (c*z-s*x)
+        where s = sine a
+              c = cosine a
+    rotateZ a (Point3D x y z) = Point3D (c*x-s*y) (c*y+s*x) z
+        where s = sine a
+              c = cosine a
 
 instance AffineTransformable SurfaceVertex3D where
     transform m (SurfaceVertex3D p v) = SurfaceVertex3D (RSAGL.Affine.transform m p) (RSAGL.Affine.transform (matrixTranspose $ matrixInverse m) v)
