@@ -76,10 +76,10 @@ fromFRP (FRP frp) = frp
 
 instance (Category a,ArrowChoice a) => Category (FRPX k t i o a) where
     (FRP lhs) . (FRP rhs) = FRP $ lhs . rhs
-    id = FRP id
+    id = lift id
 
 instance (Arrow a,ArrowChoice a) => Arrow (FRPX k t i o a) where
-    arr = FRP . arr
+    arr = lift . arr
     first (FRP f) = FRP $ first f
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (FRPX k t i o) a where

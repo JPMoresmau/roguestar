@@ -43,7 +43,7 @@ instance (Category a,ArrowChoice a) => Category (FRPBase t i o a) where
     id = lift id
 
 instance (ArrowChoice a) => Arrow (FRPBase t i o a) where
-    arr = FRPBase . arr
+    arr = lift . arr
     first (FRPBase f) = FRPBase $ first f
 
 instance (ArrowChoice a) => ArrowTransformer (FRPBase t i o) a where

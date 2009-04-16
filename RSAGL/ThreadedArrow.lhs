@@ -60,7 +60,7 @@ instance (Category a,ArrowChoice a) => Category (ThreadedArrow t i o a) where
     id = lift id
 
 instance (ArrowChoice a) => Arrow (ThreadedArrow t i o a) where
-    arr = ThreadedArrow . arr
+    arr = lift . arr
     first (ThreadedArrow f) = ThreadedArrow $ first f
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (ThreadedArrow t i o) a where

@@ -43,7 +43,7 @@ instance (Category a,ArrowChoice a) => Category (SwitchedArrow i o a) where
     id = SwitchedArrow id
 
 instance (Arrow a,ArrowChoice a) => Arrow (SwitchedArrow i o a) where
-    arr = SwitchedArrow . arr
+    arr = lift . arr
     first (SwitchedArrow a) = SwitchedArrow $ first a
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (SwitchedArrow i o) a where
