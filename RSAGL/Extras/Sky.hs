@@ -14,21 +14,21 @@ module RSAGL.Extras.Sky
      atmosphereScatteringMaterial)
     where
 
-import RSAGL.Scattering
-import RSAGL.Ray
-import RSAGL.RayTrace
-import RSAGL.Vector
-import RSAGL.Color
-import RSAGL.Angle
-import RSAGL.ApplicativeWrapper
+import RSAGL.Math.Ray
+import RSAGL.RayTrace.RayTrace
+import RSAGL.RayTrace.Scattering
+import RSAGL.Math.Vector
+import RSAGL.Modeling.Color
+import RSAGL.Math.Angle
+import RSAGL.Auxiliary.ApplicativeWrapper
 import Data.Monoid
 import Data.Maybe as Maybe
 import Data.List as List
 import Data.Ord
-import qualified RSAGL.Model as Model
+import qualified RSAGL.Modeling.Model as Model
 import Control.Monad
 import System.Random
-import RSAGL.Model hiding (sphere)
+import RSAGL.Modeling.Model hiding (sphere)
 
 -- | An atmosphere that is fairly typical of the earth.
 earth_atmosphere :: Atmosphere

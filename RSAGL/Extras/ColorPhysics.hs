@@ -4,10 +4,10 @@ module RSAGL.Extras.ColorPhysics
      blackBodyRGB,
      spectralRGB) where
 
-import RSAGL.Color
-import RSAGL.AbstractVector
-import RSAGL.Auxiliary
-import RSAGL.Interpolation
+import RSAGL.Modeling.Color
+import RSAGL.Math.AbstractVector
+import RSAGL.Auxiliary.Auxiliary
+import RSAGL.Math.Interpolation
 
 -- | Evaluates planck's law respecting blackbody radiation.
 -- Accepts temperature in Kelvins (K) and wavelength in nanometers (nm).
@@ -33,7 +33,7 @@ blackBodyRGB t = spectralRGB (blackBody t)
 -- | Interprets a spectral function as an 'RGB' color by sampling in the red, green, blue, and indigo wavelengths.
 -- This is pretty rough, and actually interprets monochromatic spectral yellow or monochromatic spectral cyan as
 -- black, for example.  It also does not take into account the relative responsiveness of the human eye to
--- red and green, for example, so passing @'plancksLaw' 5800@ directly to this function results in bright green.
+-- different wavelengths, so passing @'plancksLaw' 5800@ directly to this function results in bright green.
 spectralRGB :: (Double -> Double) -> RGB
 spectralRGB f = rgb
     (abstractAverage $ (map (f . (flip lerp (625,740))) $ zeroToOne 5) ++ [f 415])

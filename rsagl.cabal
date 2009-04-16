@@ -15,32 +15,49 @@ description:         RSAGL, the RogueStar Animation and Graphics Library, includ
                      it accessable to other projects that might benefit from it.
                      .
                      The Darcs repository is available at <http://www.downstairspeople.org/darcs/rsagl>.
+cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 
-build-depends:       base>3, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2, parsec>=3
 build-type:          Simple
 tested-with:         GHC==6.8.2
 
-exposed-modules:     RSAGL.FRPBase, RSAGL.RayTrace, RSAGL.Ray, RSAGL.StatefulArrow,
-                     RSAGL.Material, RSAGL.Auxiliary, RSAGL.BoundingBox,
-                     RSAGL.Vector, RSAGL.KinematicSensors, RSAGL.RSAGLColors,
-                     RSAGL.Extrusion, RSAGL.Main, RSAGL.Color,
-                     RSAGL.SwitchedArrow, RSAGL.Time, RSAGL.Matrix,
-                     RSAGL.Joint, RSAGL.ArrowTransformerOptimizer, RSAGL.ProcessColors,
-                     RSAGL.Affine, RSAGL.WrappedAffine, RSAGL.CurveExtras,
-                     RSAGL.Scene, RSAGL.InverseKinematics, RSAGL.FRP,
-                     RSAGL.RK4, RSAGL.AnimationExtras, RSAGL.Interpolation,
-                     RSAGL.Model, RSAGL.Deformation, RSAGL.LODCache,
-                     RSAGL.Noise, RSAGL.ApplicativeWrapper, RSAGL.Tesselation,
-                     RSAGL.Bottleneck, RSAGL.ModelingExtras, RSAGL.Animation,
-                     RSAGL.Curve, RSAGL.Angle, RSAGL.Optimization,
-                     RSAGL.Tests, RSAGL.CoordinateSystems, RSAGL.Orthagonal,
-                     RSAGL.AbstractVector, RSAGL.ThreadedArrow, RSAGL.Edge,
-                     RSAGL.Homogenous, RSAGL.LightSource, RSAGL.Scattering,
-		     RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
-                     RSAGL.BakedModel
+Library
+    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math,
+                         RSAGL.FRP.FRPBase, RSAGL.RayTrace.RayTrace, RSAGL.Math.Ray, RSAGL.FRP.StatefulArrow,
+                         RSAGL.Modeling.Material, RSAGL.Modeling.BoundingBox,
+                         RSAGL.Math.Vector, RSAGL.Animation.KinematicSensors, RSAGL.Modeling.RSAGLColors,
+                         RSAGL.Modeling.Extrusion, RSAGL.Modeling.Color,
+                         RSAGL.FRP.SwitchedArrow, RSAGL.FRP.Time, RSAGL.Math.Matrix,
+                         RSAGL.Animation.Joint, RSAGL.FRP.ArrowTransformerOptimizer,
+                         RSAGL.Math.Affine, RSAGL.Math.WrappedAffine, RSAGL.Math.CurveExtras,
+                         RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics, RSAGL.FRP.FRP,
+                         RSAGL.Math.RK4, RSAGL.Animation.AnimationExtras, RSAGL.Math.Interpolation,
+                         RSAGL.Modeling.Model, RSAGL.Modeling.Deformation, RSAGL.Scene.LODCache,
+                         RSAGL.Modeling.Noise, RSAGL.Modeling.Tesselation,
+                         RSAGL.Bottleneck, RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,
+                         RSAGL.Math.Curve, RSAGL.Math.Angle, RSAGL.Modeling.Optimization,
+                         RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthagonal,
+                         RSAGL.Math.AbstractVector, RSAGL.FRP.ThreadedArrow, RSAGL.FRP.Edge,
+                         RSAGL.Math.Homogenous, RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
+                         RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
+                         RSAGL.Modeling.BakedModel
 
-other-modules:       RSAGL.OpenGLPrimitives
+    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 
-ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
-ghc-prof-options:    -prof -auto-all
+    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+    ghc-prof-options:    -prof -auto-all
+
+    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2, parsec>=3
+
+Executable _rsagl_modelview
+    main-is:             ModelView.hs
+    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+
+Executable _rsagl_tests
+    main-is:             Tests.hs
+    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+
+Executable _rsagl_process_colors
+    main-is:             ProcessColors.hs
+    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+
