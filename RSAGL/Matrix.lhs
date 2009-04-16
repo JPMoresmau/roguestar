@@ -5,6 +5,8 @@
 module RSAGL.Matrix
     (Matrix,
      matrix,
+     columnMatrix4,
+     unsafeFromRowMatrix3,
      rowMajorForm,
      colMajorForm,
      rowAt,
@@ -107,6 +109,22 @@ matrix dats | not (all (== length (head dats)) (map length dats)) = error "matri
 matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number_of_rows * number_of_cols - 1) $ concat dats)
     where number_of_rows = length dats
           number_of_cols = length $ head dats
+
+-- | Generate a column matrix of length 4.
+{-# INLINE columnMatrix4 #-}
+columnMatrix4 :: Double -> Double -> Double -> Double -> Matrix
+columnMatrix4 x y z w = seq x $ seq y $ seq z $ seq w $ uncheckedMatrix 4 1 $ runSTUArray $
+    do a <- newArray_ (0,3)
+       unsafeWrite a 0 x
+       unsafeWrite a 1 y
+       unsafeWrite a 2 z
+       unsafeWrite a 3 w
+       return a
+
+-- | Generate a point or vector value from a row matrix of length (at least) 3.
+{-# INLINE unsafeFromRowMatrix3 #-}
+unsafeFromRowMatrix3 :: (Double -> Double -> Double -> a) -> Matrix -> a
+unsafeFromRowMatrix3 f m = f (uncheckedMatrixAt m (0,0)) (uncheckedMatrixAt m (0,1)) (uncheckedMatrixAt m (0,2))
     
 uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
 uncheckedMatrix number_of_rows number_of_cols dats = m

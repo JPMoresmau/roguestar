@@ -72,7 +72,7 @@ uncurry3d fn (x,y,z) = fn x y z
 \subsection{Points in 3-space}
 
 \begin{code}
-data Point3D = Point3D !Double !Double !Double
+data Point3D = Point3D {-# UNPACK #-} !Double {-# UNPACK #-} !Double {-# UNPACK #-} !Double
 	     deriving (Read,Show,Eq)
 
 origin_point_3d :: Point3D
@@ -109,7 +109,7 @@ instance NFData Point3D
 \subsection{Vectors in 3-space}
 
 \begin{code}
-data Vector3D = Vector3D !Double !Double !Double
+data Vector3D = Vector3D {-# UNPACK #-} !Double {-# UNPACK #-} !Double {-# UNPACK #-} !Double
 	      deriving (Read,Show,Eq)
 
 zero_vector :: Vector3D

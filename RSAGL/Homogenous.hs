@@ -16,22 +16,12 @@ class Homogenous a where
     fromHomogenous :: Matrix -> a
 
 instance Homogenous Vector3D where
-    toHomogenous (Vector3D x y z) = matrix [[x],
-                                            [y],
-                                            [z],
-                                            [0.0]]
-    fromHomogenous m = Vector3D (matrixAt m (0,0))
-                                (matrixAt m (1,0))
-				(matrixAt m (2,0))
+    toHomogenous (Vector3D x y z) = columnMatrix4 x y z 0
+    fromHomogenous = unsafeFromRowMatrix3 Vector3D
 
 instance Homogenous Point3D where
-    toHomogenous (Point3D x y z) = matrix [[x],
-                                           [y],
-                                           [z],
-                                           [1.0]]
-    fromHomogenous m = Point3D (matrixAt m (0,0))
-                               (matrixAt m (1,0))
-			       (matrixAt m (2,0))
+    toHomogenous (Point3D x y z) = columnMatrix4 x y z 1
+    fromHomogenous = unsafeFromRowMatrix3 Point3D
 
 {-# INLINE transformHomogenous #-}
 transformHomogenous :: (Homogenous a, Homogenous b) => Matrix -> a -> b

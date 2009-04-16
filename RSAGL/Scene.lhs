@@ -236,7 +236,7 @@ render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
 render1Element :: SceneElement -> IO ()
 render1Element (SceneElement { scene_elem_light_sources = lss, scene_elem_model = (WrappedAffine m imodel)}) =
     do setLightSourcesToOpenGL lss
-       transformation (migrateToFrom m root_coordinate_system) $ intermediateModelToOpenGL imodel
+       migrateToFrom m root_coordinate_system $ intermediateModelToOpenGL imodel
 \end{code}
 
 \subsection{Standard Scene Layers}
