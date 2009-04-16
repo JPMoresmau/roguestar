@@ -109,7 +109,7 @@ approach goal_point goal_radius max_speed _ position = withTime (fromSeconds 1) 
 
 approachFrom :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> p -> FRPX any t i o a p p
 approachFrom goal_radius max_speed initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
-    where frequency = 8 `per` time goal_radius max_speed 
+    where frequency = 1 `per` time goal_radius max_speed 
 
 approachA :: (ArrowChoice a,ArrowApply a,AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> FRPX any t i o a p p
 approachA goal_radius max_speed = frp1Context $ switchInitial (approachFrom goal_radius max_speed)
