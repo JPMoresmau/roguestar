@@ -22,7 +22,8 @@ module RSAGL.Math.Matrix
      determinant,
      matrixInversePrim,
      matrixTransposePrim,
-     matrixInverseTransposePrim)
+     matrixInverseTransposePrim,
+     determinantPrim)
     where
 
 import Data.List
@@ -118,9 +119,9 @@ transformHomogenous x y z w f m = f (matrixAt result (0,0)) (matrixAt result (1,
 
 uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
 uncheckedMatrix number_of_rows number_of_cols dats = m
-    where m_inverse = matrixTransposePrim m_inverse_transpose { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
-          m_transpose = matrixTransposePrim m { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
-          m_inverse_transpose = matrixInverseTransposePrim m { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
+    where m_inverse = (matrixTransposePrim m_inverse_transpose) { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
+          m_transpose = (matrixTransposePrim m) { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
+          m_inverse_transpose = (matrixInverseTransposePrim m) { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
           m_det = determinantPrim m
           m = Matrix { matrix_rows=number_of_rows,
                        matrix_cols=number_of_cols,

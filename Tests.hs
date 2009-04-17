@@ -452,6 +452,21 @@ quickCheckMatrixInverse4 =
                      else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
                          where mat = matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
+quickCheckCachedMatrixValues :: IO ()
+quickCheckCachedMatrixValues =
+    do putStr "quickCheckCachedMatrixValues: "
+       quickCheck _qccmv
+           where _qccmv :: Double44 -> Bool
+                 _qccmv ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) =
+                     let mat = matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
+                         matrixAndDeterminantEqualClose x y = determinant x `equalClose` determinant y && x `matrixEqualClose` y
+                         sensible x = matrixInverse x `matrixAndDeterminantEqualClose` matrixInversePrim x &&
+                                      matrixTranspose x `matrixAndDeterminantEqualClose` matrixTransposePrim x &&
+                                      (matrixInverse . matrixTranspose) x `matrixAndDeterminantEqualClose` (matrixInversePrim . matrixTransposePrim) x &&
+                                      (matrixTranspose . matrixInverse) x `matrixAndDeterminantEqualClose` (matrixTransposePrim . matrixInversePrim) x
+                         in if determinant mat `equalClose` 0 then True
+                                else all sensible [mat,matrixInverse mat,matrixTranspose mat,matrixInverse $ matrixTranspose mat,matrixTranspose $ matrixInverse mat]
+
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
                        do putStrLn $ "Test Case Passed: " ++ name
@@ -589,6 +604,7 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckMatrixInverse2
           quickCheckMatrixInverse3
           quickCheckMatrixInverse4
+          quickCheckCachedMatrixValues
           testJoint
           testRK4
           testLODCache
