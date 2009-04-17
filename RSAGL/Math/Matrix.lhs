@@ -5,8 +5,7 @@
 module RSAGL.Math.Matrix
     (Matrix,
      matrix,
-     columnMatrix4,
-     fromRowMatrix3,
+     transformHomogenous,
      rowMajorForm,
      colMajorForm,
      rowAt,
@@ -104,22 +103,19 @@ matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number
     where number_of_rows = length dats
           number_of_cols = length $ head dats
 
--- | Generate a column matrix of length 4.
-{-# INLINE columnMatrix4 #-}
-columnMatrix4 :: Double -> Double -> Double -> Double -> Matrix
-columnMatrix4 x y z w = seq x $ seq y $ seq z $ seq w $ uncheckedMatrix 4 1 $ runSTUArray $
-    do a <- newArray_ (0,3)
-       writeArray a 0 x
-       writeArray a 1 y
-       writeArray a 2 z
-       writeArray a 3 w
-       return a
+-- | Generate a column matrix of length 4, perform an affine transformation on it, and produce the resulting value.
+{-# INLINE transformHomogenous #-}
+transformHomogenous :: Double -> Double -> Double -> Double -> (Double -> Double -> Double -> a) -> Matrix -> a
+transformHomogenous x y z w f m = f (matrixAt result (0,0)) (matrixAt result (1,0)) (matrixAt result (2,0))
+    where result = matrixMultiply m col_matrix
+          col_matrix = seq x $ seq y $ seq z $ seq w $ uncheckedMatrix 4 1 $ runSTUArray $
+              do a <- newArray_ (0,3)
+                 writeArray a 0 x
+                 writeArray a 1 y
+                 writeArray a 2 z
+                 writeArray a 3 w
+                 return a
 
--- | Generate a point or vector value from a row matrix of length (at least) 3.
-{-# INLINE fromRowMatrix3 #-}
-fromRowMatrix3 :: (Double -> Double -> Double -> a) -> Matrix -> a
-fromRowMatrix3 f m = f (matrixAt m (0,0)) (matrixAt m (0,1)) (matrixAt m (0,2))
-    
 uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
 uncheckedMatrix number_of_rows number_of_cols dats = m
     where m_inverse = matrixTransposePrim m_inverse_transpose { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }

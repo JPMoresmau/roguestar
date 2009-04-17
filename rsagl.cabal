@@ -38,7 +38,7 @@ Library
                          RSAGL.Math.Curve, RSAGL.Math.Angle, RSAGL.Modeling.Optimization,
                          RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthagonal,
                          RSAGL.Math.AbstractVector, RSAGL.FRP.ThreadedArrow, RSAGL.FRP.Edge,
-                         RSAGL.Math.Homogenous, RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
+                         RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
                          RSAGL.Modeling.BakedModel
 

@@ -14,7 +14,6 @@ import Graphics.Rendering.OpenGL.GL as GL hiding (R)
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Math.Angle
-import RSAGL.Math.Homogenous
 import Data.Maybe
 
 -- | 'AffineTransformable' objects are subject to affine transformations using matrix multiplication.
@@ -98,7 +97,7 @@ instance AffineTransformable RSAGL.Math.Matrix.Matrix where
     transform mat = matrixMultiply mat
 
 instance AffineTransformable Vector3D where
-    transform = transformHomogenous
+    transform m (Vector3D x y z) = transformHomogenous x y z 0 Vector3D m
     scale (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) = Vector3D (x1*x2) (y1*y2) (z1*z2)
     translate _ = id
     rotateX a (Vector3D x y z) = Vector3D x (c*y-s*z) (c*z+s*y)
@@ -112,7 +111,7 @@ instance AffineTransformable Vector3D where
               c = cosine a
 
 instance AffineTransformable Point3D where
-    transform = transformHomogenous
+    transform m (Point3D x y z) = transformHomogenous x y z 1 Point3D m
     scale (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1*x2) (y1*y2) (z1*z2)
     translate (Vector3D x1 y1 z1) (Point3D x2 y2 z2) = Point3D (x1+x2) (y1+y2) (z1+z2)
     rotateX a (Point3D x y z) = Point3D x (c*y-s*z) (c*z+s*y)
