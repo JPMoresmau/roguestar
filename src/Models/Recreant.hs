@@ -3,10 +3,9 @@ module Models.Recreant
     where
     
 import Quality
-import RSAGL.Model
-import RSAGL.CurveExtras
-import RSAGL.Vector
-import RSAGL.Affine
+import RSAGL.Modeling
+import RSAGL.Math.CurveExtras
+import RSAGL.Math
 import Models.Materials
 
 recreant_antenna_small :: Quality -> Modeling ()

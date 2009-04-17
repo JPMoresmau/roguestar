@@ -6,14 +6,11 @@ module Models.Reptilian
      reptilian_arm_lower)
     where
 
-import RSAGL.Vector
-import RSAGL.Model
+import RSAGL.Math
+import RSAGL.Modeling
 import Quality
 import Models.Materials
-import RSAGL.ModelingExtras
-import RSAGL.CurveExtras
-import RSAGL.Affine
-import RSAGL.Angle
+import RSAGL.Math.CurveExtras
 
 reptilian :: Quality -> Modeling ()
 reptilian _ = model $

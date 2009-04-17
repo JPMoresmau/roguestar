@@ -5,11 +5,9 @@ module Models.MachineParts
     where
     
 import Quality
-import RSAGL.Model
-import RSAGL.CurveExtras
-import RSAGL.Affine
-import RSAGL.Vector
-import RSAGL.Angle
+import RSAGL.Modeling
+import RSAGL.Math.CurveExtras
+import RSAGL.Math
 import Models.Materials
 
 machine_arm_lower :: Quality -> Modeling ()

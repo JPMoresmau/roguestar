@@ -15,19 +15,13 @@ import Models.Sky
 import Animation
 import Scene
 import Models.LibraryData
-import RSAGL.Affine
-import RSAGL.CoordinateSystems
-import RSAGL.Vector
-import RSAGL.Edge
+import RSAGL.Math
+import RSAGL.Scene
+import RSAGL.FRP
 import Data.Maybe
 import Control.Arrow
-import RSAGL.LightSource
-import RSAGL.RSAGLColors
-import RSAGL.InverseKinematics
-import RSAGL.Time
-import RSAGL.Color
-import RSAGL.FRP
-import RSAGL.Angle
+import RSAGL.Modeling
+import RSAGL.Animation
 
 -- | Get the current SkyInfo data for the current planet.
 -- REVISIT: this randomly generates solar information, eventually it needs to be generated in the engine

@@ -25,20 +25,14 @@ module VisibleObject
     where
 
 import RSAGL.FRP
-import RSAGL.Edge
 import Data.Maybe
 import ProtocolTypes
 import Animation
 import Tables
 import Control.Arrow
 import Data.List
-import RSAGL.Time
-import RSAGL.InverseKinematics
-import RSAGL.Vector
-import RSAGL.Angle
-import RSAGL.Affine
-import RSAGL.CoordinateSystems
-import RSAGL.AbstractVector
+import RSAGL.Animation
+import RSAGL.Math
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad

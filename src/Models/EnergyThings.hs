@@ -2,9 +2,8 @@ module Models.EnergyThings
     (energyCylinder) where
 
 import Models.LibraryData
-import RSAGL.Model
-import RSAGL.ModelingExtras
-import RSAGL.Vector
+import RSAGL.Modeling
+import RSAGL.Math
 import Quality
 import Data.Monoid
 import Models.Materials

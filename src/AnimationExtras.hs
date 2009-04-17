@@ -7,15 +7,10 @@ module AnimationExtras
     where
 
 import Animation
-import RSAGL.Interpolation
-import RSAGL.Time
-import RSAGL.Angle
-import RSAGL.Affine
+import RSAGL.Math
 import RSAGL.FRP
-import RSAGL.CoordinateSystems
-import RSAGL.Vector
-import Control.Arrow
 import RSAGL.Scene
+import Control.Arrow
 
 -- | Switch out if the driver \"state\" does match the specified predicate.
 genericStateHeader :: (String -> RSAnimA1 i o i o) -> (String -> Bool) -> RSAnimA1 i o i ()

@@ -4,14 +4,11 @@ module AnimationTools
     (toolAvatar)
     where
 
-import RSAGL.Vector
-import RSAGL.Affine
-import RSAGL.CoordinateSystems
+import RSAGL.Math
 import Scene
 import Animation
-import RSAGL.Time
+import RSAGL.Animation
 import RSAGL.FRP
-import RSAGL.InverseKinematics
 import Control.Arrow
 import VisibleObject
 import Models.LibraryData

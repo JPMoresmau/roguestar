@@ -7,15 +7,11 @@ module Models.CyborgType4
    where
 
 import Models.Materials
-import RSAGL.Vector
-import RSAGL.Model
-import RSAGL.CurveExtras
+import RSAGL.Math
+import RSAGL.Modeling
+import RSAGL.Math.CurveExtras
 import Quality
-import RSAGL.Affine
-import RSAGL.ModelingExtras
-import RSAGL.Interpolation
-import RSAGL.Angle
-import RSAGL.CoordinateSystems
+import RSAGL.Scene.CoordinateSystems
 
 cyborg_type_4_dome :: Quality -> Modeling ()
 cyborg_type_4_dome q =

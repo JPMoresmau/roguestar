@@ -5,12 +5,9 @@ module Models.Spheres
     where
 
 import Quality
-import RSAGL.Color
-import RSAGL.Vector
-import RSAGL.Model
+import RSAGL.Modeling
+import RSAGL.Math
 import Models.Materials
-import RSAGL.RSAGLColors
-import Control.Applicative
 import Models.LibraryData
 
 -- | An empty (or transparent) gas sphere.

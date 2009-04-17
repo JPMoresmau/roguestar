@@ -26,11 +26,10 @@ module Animation
      randomA)
     where
 
-import RSAGL.Affine
+import RSAGL.Math
 import RSAGL.FRP
-import RSAGL.CoordinateSystems
 import RSAGL.Scene hiding (std_scene_layer_hud,std_scene_layer_cockpit,std_scene_layer_local,std_scene_layer_infinite)
-import RSAGL.AnimationExtras
+import RSAGL.Animation
 import Control.Monad.State
 import Control.Arrow
 import Control.Arrow.Transformer hiding (lift)
@@ -40,7 +39,6 @@ import Control.Arrow.Operations
 import Driver
 import Tables
 import Control.Concurrent.MVar
-import RSAGL.Time
 import System.IO
 import System.Random
 import PrintText

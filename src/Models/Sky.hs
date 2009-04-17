@@ -12,17 +12,11 @@ module Models.Sky
      ambientSkyRadiation)
     where
 
-import RSAGL.Vector
-import RSAGL.Affine
+import RSAGL.Math
 import RSAGL.Extras.Sky
-import RSAGL.Angle
 import RSAGL.Extras.ColorPhysics
-import RSAGL.Model
-import RSAGL.Interpolation
-import RSAGL.ModelingExtras
-import RSAGL.Noise
-import RSAGL.LightSource
-import RSAGL.AbstractVector
+import RSAGL.Modeling
+import RSAGL.Modeling.Noise
 import Scene
 import Data.Monoid
 

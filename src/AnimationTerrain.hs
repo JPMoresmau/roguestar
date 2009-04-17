@@ -7,16 +7,12 @@ module AnimationTerrain
 
 import Data.List
 import RSAGL.FRP
-import RSAGL.Edge
-import RSAGL.Vector
+import RSAGL.Math
 import Animation
 import Control.Arrow
 import Data.Maybe
 import Models.LibraryData
-import RSAGL.CoordinateSystems
-import RSAGL.Affine
 import ProtocolTypes
-import RSAGL.Time
 import Scene
 
 -- | Thread that launches rendering threads for the terrain tiles.

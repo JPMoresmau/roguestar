@@ -18,8 +18,7 @@ module Models.Materials
      energyMaterial)
     where
 
-import RSAGL.Model
-import RSAGL.ModelingExtras
+import RSAGL.Modeling
 import Models.LibraryData
 
 {---------------------------------------------------------

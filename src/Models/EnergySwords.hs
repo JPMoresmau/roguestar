@@ -1,12 +1,12 @@
 module Models.EnergySwords
     (energySword) where
 
-import RSAGL.Model
-import RSAGL.Vector
-import Models.Materials
+import RSAGL.Modeling
+import RSAGL.Math
 import Quality
 import Models.LibraryData
 import Control.Monad
+import Models.Materials
 
 energySword :: EnergyColor -> Integer -> Quality -> Modeling ()
 energySword energy_color size_count _ = model $

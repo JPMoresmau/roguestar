@@ -14,7 +14,7 @@ import Data.IORef
 import Data.List
 import System.IO
 import Tables
-import RSAGL.Time
+import RSAGL.FRP.Time
 import Control.Monad.Reader
 
 -- | Contains all of the information that is known about roguestar-engine at a specific moment in time.

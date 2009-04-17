@@ -2,12 +2,10 @@ module Models.Androsynth
     (androsynth)
     where
 
-import RSAGL.Affine
-import RSAGL.Vector
-import RSAGL.Model
+import RSAGL.Math
+import RSAGL.Modeling
 import Quality
 import Models.Materials
-import RSAGL.ModelingExtras
 
 androsynth_head :: Quality -> Modeling ()
 androsynth_head _ = model $

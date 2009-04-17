@@ -3,8 +3,8 @@ module Models.RecreantFactory
     where
     
 import Quality
-import RSAGL.Model
-import RSAGL.Vector
+import RSAGL.Modeling
+import RSAGL.Math
 import Models.Materials
 
 recreant_factory :: Quality -> Modeling ()

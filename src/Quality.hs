@@ -5,7 +5,7 @@ module Quality
      qualityToFixed)
     where
 
-import RSAGL.Model
+import RSAGL.Modeling
 
 data Quality = Bad
 	     | Poor

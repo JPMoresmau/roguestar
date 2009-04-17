@@ -12,7 +12,6 @@ import RSAGL.FRP
 import Control.Arrow
 import Strings
 import Tables
-import RSAGL.Edge
 import Data.Monoid
 import Data.Maybe
 import Actions

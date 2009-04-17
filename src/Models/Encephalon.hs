@@ -3,12 +3,10 @@ module Models.Encephalon
     where
     
 import Quality
-import RSAGL.Vector
-import RSAGL.CurveExtras
-import RSAGL.Model
-import RSAGL.ModelingExtras
+import RSAGL.Math
+import RSAGL.Math.CurveExtras
+import RSAGL.Modeling
 import Models.Materials
-import RSAGL.Affine
 
 encephalon_head :: Quality -> Modeling ()
 encephalon_head _ = model $

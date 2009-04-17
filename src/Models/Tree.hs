@@ -2,14 +2,10 @@ module Models.Tree
     (leafy_tree)
     where
 
-import RSAGL.Model
-import RSAGL.ModelingExtras
-import RSAGL.Vector
+import RSAGL.Modeling
+import RSAGL.Math
 import Control.Monad.Random
 import Quality
-import RSAGL.Affine
-import RSAGL.AbstractVector
-import RSAGL.Interpolation
 import Control.Monad.State
 
 leafy_tree :: Quality -> Modeling ()

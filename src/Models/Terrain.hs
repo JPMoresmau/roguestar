@@ -5,12 +5,9 @@ module Models.Terrain
 
 import Quality
 import Models.RecreantFactory
-import RSAGL.Model
-import RSAGL.ModelingExtras
+import RSAGL.Modeling
 import Models.Tree
-import RSAGL.Vector
-import RSAGL.Interpolation
-import RSAGL.Affine
+import RSAGL.Math
 
 -- |
 -- A list of all terrain type names known to roguestar-gl.

@@ -6,13 +6,10 @@ module Models.PhaseWeapons
 
 import Quality
 import Models.Materials
-import RSAGL.Vector
-import RSAGL.Model
-import RSAGL.Affine
-import RSAGL.CurveExtras
-import RSAGL.Angle
+import RSAGL.Math
+import RSAGL.Modeling
+import RSAGL.Math.CurveExtras
 import Control.Monad
-import RSAGL.Interpolation
 
 -- | A phase weapon emitter.  Includes a specification of a phase guide length.
 phaseWeaponEmitter :: Integer -> Quality -> Modeling ()

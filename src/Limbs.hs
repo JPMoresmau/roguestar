@@ -9,16 +9,13 @@ module Limbs
 
 import VisibleObject
 import Animation
-import RSAGL.Joint
-import RSAGL.Affine
+import RSAGL.Animation
+import RSAGL.Math
 import Models.LibraryData
 import Control.Arrow
-import RSAGL.Vector
-import RSAGL.CoordinateSystems
 import RSAGL.Scene
-import RSAGL.InverseKinematics
 import Data.Maybe
-import RSAGL.Time
+import RSAGL.FRP
 
 -- | Animate an arbitrary articulated joint.
 libraryJointAnimation :: Double -> LibraryModel -> LibraryModel -> RSAnimAX any t i o Joint ()

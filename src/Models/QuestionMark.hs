@@ -2,12 +2,9 @@ module Models.QuestionMark
     (question_mark)
     where
     
-import RSAGL.Model
-import RSAGL.ModelingExtras
-import RSAGL.Affine
-import RSAGL.Vector
-import RSAGL.CurveExtras
-import RSAGL.Curve
+import RSAGL.Modeling
+import RSAGL.Math
+import RSAGL.Math.CurveExtras
 
 question_mark_material :: Modeling () 
 question_mark_material = material $

@@ -2,11 +2,9 @@ module Models.Ascendant
     (ascendant_glow)
     where
 
-import RSAGL.Model
-import RSAGL.ModelingExtras
-import RSAGL.Vector
+import RSAGL.Modeling
+import RSAGL.Math
 import Quality
-import RSAGL.Affine
 
 ascendant_glow :: Quality -> Modeling ()
 ascendant_glow _ =

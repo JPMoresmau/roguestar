@@ -4,15 +4,11 @@ module Models.Caduceator
      caduceator_arm_lower)
     where
 
-import RSAGL.Vector
-import RSAGL.CurveExtras
-import RSAGL.Model
+import RSAGL.Math
+import RSAGL.Math.CurveExtras
+import RSAGL.Modeling
 import Quality
 import Models.Materials
-import RSAGL.Affine
-import RSAGL.Interpolation
-import RSAGL.ModelingExtras
-import RSAGL.Angle
 
 caduceator :: Quality -> Modeling ()
 caduceator _ = model $

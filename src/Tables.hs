@@ -9,7 +9,7 @@ module Tables
 
 import Data.List
 import Data.Maybe
-import RSAGL.Time
+import RSAGL.FRP.Time
 import Control.Monad
 
 -- | 'RoguestarTable' is a crude implementation of a relational data table that is used to represent information that has been sent to us from roguestar-engine.

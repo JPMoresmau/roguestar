@@ -5,23 +5,15 @@ module AnimationCreatures
     where
 
 import RSAGL.FRP
-import RSAGL.Vector
+import RSAGL.Math
+import RSAGL.Animation
+import RSAGL.Modeling.RSAGLColors
 import Animation
-import RSAGL.Angle
 import Control.Arrow
 import Data.Maybe
 import Models.LibraryData
-import RSAGL.CoordinateSystems
-import RSAGL.Affine
-import RSAGL.ModelingExtras
-import RSAGL.Time
-import RSAGL.AbstractVector
 import VisibleObject
-import RSAGL.AnimationExtras
 import Limbs
-import RSAGL.Joint
-import RSAGL.AbstractVector
-import RSAGL.LightSource
 import Scene
 import AnimationExtras
 

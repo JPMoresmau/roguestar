@@ -10,23 +10,17 @@ module RenderingControl
 import Globals
 import Data.List
 import RSAGL.FRP
-import RSAGL.Edge
-import RSAGL.Vector
+import RSAGL.Math
+import RSAGL.Modeling
 import Animation
-import RSAGL.Angle
 import Control.Arrow
 import Data.Maybe
 import PrintText
 import Tables
-import RSAGL.CoordinateSystems
-import RSAGL.Affine
-import RSAGL.ModelingExtras
-import RSAGL.Time
 import VisibleObject
-import RSAGL.InverseKinematics
+import RSAGL.Animation
 import Control.Applicative
 import qualified Data.Map as Map
-import RSAGL.LightSource
 import Sky
 import Scene
 import Data.Monoid

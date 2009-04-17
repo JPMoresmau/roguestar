@@ -9,7 +9,7 @@ module ProtocolTypes
 
 import Data.Maybe
 import Tables
-import RSAGL.Angle
+import RSAGL.Math.Angle
 import Debug.Trace
 
 -- | 'ProtocolType' is any type that can be constructed from a row of a 'RoguestarTable'.

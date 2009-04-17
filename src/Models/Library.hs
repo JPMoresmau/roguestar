@@ -9,8 +9,8 @@ import Models.LibraryData
 import Models.Terrain
 import Models.QuestionMark
 import Data.Map as Map
-import RSAGL.Model
-import RSAGL.LODCache
+import RSAGL.Modeling
+import RSAGL.Scene.LODCache
 import Control.Concurrent
 import RSAGL.Bottleneck
 import Control.Monad
