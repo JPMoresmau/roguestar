@@ -1,15 +1,16 @@
 GIT_CHECKOUT=master
 VERSION=${GIT_CHECKOUT}
 VERSION_SUFFIX=-${VERSION}
-PACKAGE_DB=--package-db="${PWD}/roguestar-local/cabal-package-db" 
-CONFIGURE_EXTRA_OPTS=--ghc-option=-Werror
-CONFIGURE_OPTS=${PACKAGE_DB} --prefix="${PWD}/roguestar-local"
+PACKAGE_DB=--package-db="${PWD}/roguestar-local/cabal-package-db"
+OPTS=
+CONFIGURE_ROGUESTAR_OPTS=--ghc-option=-Werror
+CONFIGURE_OPTS=${PACKAGE_DB} --prefix="${PWD}/roguestar-local" ${OPTS}
 
 # Change these to make dist from somewhere other than the downstairspeople.org repo.
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
 GIT_ORIGIN_SUFFIX=.git
 
-make : roguestar-gl roguestar-engine rsagl-doc
+make : roguestar-gl roguestar-engine rsagl-doc rsagl-demos
 
 setup :
 	-rm -rf roguestar-local
@@ -19,10 +20,14 @@ setup :
 	cabal install MonadRandom ${CONFIGURE_OPTS}
 	cabal install parsec ${CONFIGURE_OPTS} --preference='parsec >= 3'
 	cabal install QuickCheck ${CONFIGURE_OPTS} --preference='QuickCheck < 2'
-	(cd roguestar-engine && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
-	(cd rsagl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
+	cabal install Arrows ${CONFIGURE_OPTS}
+	cabal install GLUT ${CONFIGURE_OPTS}
+	cabal install OpenGL ${CONFIGURE_OPTS}
+	(cd roguestar-engine && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
+	(cd rsagl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
-	(cd roguestar-gl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_EXTRA_OPTS})
+	(cd roguestar-gl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
+	(cd rsagl-demos && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 
 rsagl :
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
@@ -32,6 +37,9 @@ roguestar-gl : rsagl
 
 roguestar-engine :
 	(cd roguestar-engine && runghc Setup.hs build && runghc Setup.hs install)
+
+rsagl-demos : rsagl
+	(cd rsagl-demos && runghc Setup.hs build && runghc Setup.hs install)
 
 rsagl-doc :
 	(cd rsagl && runghc Setup.hs haddock --internal)
@@ -47,6 +55,7 @@ clean :
 	-(cd roguestar-engine && runghc Setup.hs clean)
 	-(cd roguestar-gl && runghc Setup.hs clean)
 	-(cd rsagl && runghc Setup.hs clean)
+	-(cd rsagl-demos && runghc Setup.hs clean)
 
 dist :
 	rm -rf dist

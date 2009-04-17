@@ -10,3 +10,6 @@
 [submodule "roguestar-html"]
 	path = roguestar-html
 	url = http://www.downstairspeople.org/git/roguestar-html.git
+[submodule "rsagl-demos"]
+	path = rsagl-demos
+	url = http://www.downstairspeople.org/git/rsagl-demos.git
