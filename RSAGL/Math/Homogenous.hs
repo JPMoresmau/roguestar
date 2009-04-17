@@ -17,11 +17,11 @@ class Homogenous a where
 
 instance Homogenous Vector3D where
     toHomogenous (Vector3D x y z) = columnMatrix4 x y z 0
-    fromHomogenous = unsafeFromRowMatrix3 Vector3D
+    fromHomogenous = fromRowMatrix3 Vector3D
 
 instance Homogenous Point3D where
     toHomogenous (Point3D x y z) = columnMatrix4 x y z 1
-    fromHomogenous = unsafeFromRowMatrix3 Point3D
+    fromHomogenous = fromRowMatrix3 Point3D
 
 {-# INLINE transformHomogenous #-}
 transformHomogenous :: (Homogenous a, Homogenous b) => Matrix -> a -> b

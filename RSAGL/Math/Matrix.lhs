@@ -6,7 +6,7 @@ module RSAGL.Math.Matrix
     (Matrix,
      matrix,
      columnMatrix4,
-     unsafeFromRowMatrix3,
+     fromRowMatrix3,
      rowMajorForm,
      colMajorForm,
      rowAt,
@@ -83,17 +83,11 @@ rowAt m n = (rowMajorForm m) !! n
 matrixAt answers the (i'th,j'th) element of a matrix.
 
 \begin{code}
+{-# INLINE matrixAt #-}
 matrixAt :: Matrix -> (Int,Int) -> Double
 matrixAt m (i,j) = case () of
     () | i `seq` j `seq` False -> undefined
-    () | i >= rows m || j >= cols m -> error "matrixAt: out of bounds"
-    () | otherwise -> uncheckedMatrixAt m (i,j)
-
-{-# INLINE uncheckedMatrixAt #-}
-uncheckedMatrixAt :: Matrix -> (Int,Int) -> Double
-uncheckedMatrixAt m (i,j) = case () of
-    () | i `seq` j `seq` False -> undefined
-    () | otherwise -> matrix_data m `unsafeAt` ((i*cols m) + j)
+    () | otherwise -> matrix_data m ! ((i*cols m) + j)
 \end{code}
 
 \subsection{Constructing matrices}
@@ -115,16 +109,16 @@ matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number
 columnMatrix4 :: Double -> Double -> Double -> Double -> Matrix
 columnMatrix4 x y z w = seq x $ seq y $ seq z $ seq w $ uncheckedMatrix 4 1 $ runSTUArray $
     do a <- newArray_ (0,3)
-       unsafeWrite a 0 x
-       unsafeWrite a 1 y
-       unsafeWrite a 2 z
-       unsafeWrite a 3 w
+       writeArray a 0 x
+       writeArray a 1 y
+       writeArray a 2 z
+       writeArray a 3 w
        return a
 
 -- | Generate a point or vector value from a row matrix of length (at least) 3.
-{-# INLINE unsafeFromRowMatrix3 #-}
-unsafeFromRowMatrix3 :: (Double -> Double -> Double -> a) -> Matrix -> a
-unsafeFromRowMatrix3 f m = f (uncheckedMatrixAt m (0,0)) (uncheckedMatrixAt m (0,1)) (uncheckedMatrixAt m (0,2))
+{-# INLINE fromRowMatrix3 #-}
+fromRowMatrix3 :: (Double -> Double -> Double -> a) -> Matrix -> a
+fromRowMatrix3 f m = f (matrixAt m (0,0)) (matrixAt m (0,1)) (matrixAt m (0,2))
     
 uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
 uncheckedMatrix number_of_rows number_of_cols dats = m
@@ -215,14 +209,14 @@ matrixMultiply m n = case () of
 	      () | otherwise -> return ()
 	  multiplyCell i j r = case () of
 	      () | i `seq` j `seq` r `seq` False -> undefined
-	      () | r < run_length -> uncheckedMatrixAt m (i,r) * uncheckedMatrixAt n (r,j) + multiplyCell i j (r+1)
+	      () | r < run_length -> matrixAt m (i,r) * matrixAt n (r,j) + multiplyCell i j (r+1)
 	      () | otherwise -> 0
           new_data = runSTUArray $
               do a <- newArray_ (0,number_of_rows * number_of_cols - 1)
 		 loop 0 number_of_rows $ \this_row -> 
 		     let this_row_start = this_row*number_of_cols
 		         in seq this_row_start $ loop 0 number_of_cols $ \this_col -> 
-		                unsafeWrite a (this_row_start+this_col) (multiplyCell this_row this_col 0)
+		                writeArray a (this_row_start+this_col) (multiplyCell this_row this_col 0)
 		 return a
 
 matrixTranspose :: Matrix -> Matrix
@@ -293,14 +287,14 @@ matrixInversePrim = matrixTransposePrim . matrixInverseTransposePrim
 determinantPrim :: Matrix -> Double
 determinantPrim m | rows m /= cols m = error "determinantPrim: not a square matrix"
 determinantPrim m | rows m == 1 && cols m == 1 = matrixAt m (0,0)
-determinantPrim m | rows m == 2 && cols m == 2 = uncheckedMatrixAt m (0,0) * uncheckedMatrixAt m (1,1) -
-                                                 uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (0,1)
-determinantPrim m | rows m == 3 && cols m == 3 = uncheckedMatrixAt m (0,0) * uncheckedMatrixAt m (1,1) * uncheckedMatrixAt m (2,2) +
-                                                 uncheckedMatrixAt m (0,1) * uncheckedMatrixAt m (1,2) * uncheckedMatrixAt m (2,0) +
-						 uncheckedMatrixAt m (0,2) * uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (2,1) -
-						 uncheckedMatrixAt m (2,0) * uncheckedMatrixAt m (1,1) * uncheckedMatrixAt m (0,2) -
-						 uncheckedMatrixAt m (2,1) * uncheckedMatrixAt m (1,2) * uncheckedMatrixAt m (0,0) -
-						 uncheckedMatrixAt m (2,2) * uncheckedMatrixAt m (1,0) * uncheckedMatrixAt m (0,1)
+determinantPrim m | rows m == 2 && cols m == 2 = matrixAt m (0,0) * matrixAt m (1,1) -
+                                                 matrixAt m (1,0) * matrixAt m (0,1)
+determinantPrim m | rows m == 3 && cols m == 3 = matrixAt m (0,0) * matrixAt m (1,1) * matrixAt m (2,2) +
+                                                 matrixAt m (0,1) * matrixAt m (1,2) * matrixAt m (2,0) +
+						 matrixAt m (0,2) * matrixAt m (1,0) * matrixAt m (2,1) -
+						 matrixAt m (2,0) * matrixAt m (1,1) * matrixAt m (0,2) -
+						 matrixAt m (2,1) * matrixAt m (1,2) * matrixAt m (0,0) -
+						 matrixAt m (2,2) * matrixAt m (1,0) * matrixAt m (0,1)
 determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (0,x)) [0..(cols m - 1)]
 
 matrixTransposePrim :: Matrix -> Matrix
