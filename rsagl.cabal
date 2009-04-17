@@ -49,14 +49,6 @@ Library
 
     build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2, parsec>=3
 
-Executable _rsagl_modelview
-    main-is:             ModelView.hs
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
-
-Executable _rsagl_tests
-    main-is:             Tests.hs
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
-
 Executable _rsagl_process_colors
     main-is:             ProcessColors.hs
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision

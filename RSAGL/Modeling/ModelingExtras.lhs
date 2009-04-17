@@ -25,6 +25,7 @@ module RSAGL.Modeling.ModelingExtras
      disregardSurfaceNormals,
      ColorFunction,
      Pattern,
+     dropRandomElements,
      module RSAGL.Modeling.RSAGLColors,
      module RSAGL.Modeling.Material,
      module RSAGL.Auxiliary.ApplicativeWrapper,
