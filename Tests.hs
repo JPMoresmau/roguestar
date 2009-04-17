@@ -15,7 +15,6 @@ import RSAGL.FRP.FRP as FRP
 import RSAGL.FRP.Edge as Edge
 import RSAGL.FRP.Time
 import RSAGL.Math.Angle
-import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Scene.LODCache
@@ -193,36 +192,6 @@ testAngleSubtract = testClose "testAngleSubtract"
                         (toDegrees $ fromDegrees (-20) `angleSubtract` fromDegrees 400)
                         (-60)
                         equalClose
-
-testDoubles :: IO ()
-testDoubles = test "testDoubles"
-                             (doubles [1,2,3,4])
-                             [(1,2),(2,3),(3,4)]
-
-testLoopedDoubles :: IO ()
-testLoopedDoubles = test "testLoopedDoubles"
-                             (loopedDoubles [1,2,3,4])
-                             [(1,2),(2,3),(3,4),(4,1)]
-
-testConsecutives :: IO ()
-testConsecutives = test "testConsecutives"
-                             (consecutives 3 [1,2,3,4])
-                             [[1,2,3],[2,3,4]]
-
-testShortConsecutives :: IO ()
-testShortConsecutives = test "testShortConsecutives"
-                            (consecutives 3 [1,2])
-                            []
-
-testLoopedConsecutives :: IO ()
-testLoopedConsecutives = test "testLoopedConsecutives"
-                             (loopedConsecutives 3 [1,2,3,4])
-                             [[1,2,3],[2,3,4],[3,4,1],[4,1,2]]
-
-testShortLoopedConsecutives :: IO ()
-testShortLoopedConsecutives = test "testShortLoopedConsecutives"
-                             (loopedConsecutives 3 [1,2])
-                             [[1,2,1],[2,1,2]]
 
 testAngleBetween :: IO ()
 testAngleBetween = testClose "testAngleBetween"
@@ -575,12 +544,6 @@ main = do test "add five test (sanity test of StatefulArrow)"
           testDegreesToRadians
           testAngleAdd
           testAngleSubtract
-          testDoubles
-          testLoopedDoubles
-          testConsecutives
-          testShortConsecutives
-          testLoopedConsecutives
-          testShortLoopedConsecutives
           testAngleBetween
           testDistanceBetween
           testCrossProduct

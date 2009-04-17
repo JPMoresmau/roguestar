@@ -19,7 +19,6 @@ import RSAGL.Scene.LODCache
 import RSAGL.RayTrace.RayTrace as RT
 import RSAGL.Extras.Sky
 import RSAGL.Math.CurveExtras
-import RSAGL.Auxiliary.Auxiliary
 import Control.Monad
 import System.Exit
 import RSAGL.Bottleneck
