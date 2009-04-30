@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.List
 import Position
 import Control.Monad.Random
+import PlayerState
 
 dbNewPlane :: TerrainGenerationData -> DB PlaneRef
 dbNewPlane tg_data = 
@@ -54,26 +55,7 @@ dbDistanceBetweenSquared a_ref b_ref =
 -- Gets the current plane of interest based on whose turn it is.
 --
 dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
-dbGetCurrentPlane = 
-    do state <- playerState
-       case state of
-		  PlayerCreatureTurn creature_ref _ -> 
-                      liftM (fmap $ fst . location) $ getPlanarLocation creature_ref
-		  SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) ->
-		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-		  SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) ->
-		      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-		  SnapshotEvent (KilledEvent killed_ref) ->
-		      liftM (fmap $ fst . location) $ getPlanarLocation killed_ref
-                  SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) ->
-                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-                  SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) ->
-                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-                  SnapshotEvent (DisarmEvent { disarm_event_source_creature = attacker_ref }) ->
-                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-                  SnapshotEvent (SunderEvent { sunder_event_source_creature = attacker_ref }) ->
-                      liftM (fmap $ fst . location) $ getPlanarLocation attacker_ref
-		  _ -> return Nothing
+dbGetCurrentPlane = liftM (fmap $ fst . location) $ maybe (return Nothing) getPlanarLocation . creatureOf =<< playerState
 
 -- |
 -- Selects sites at random until one seems reasonably clear.  It begins at

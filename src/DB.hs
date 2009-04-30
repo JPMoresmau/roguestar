@@ -6,8 +6,6 @@ module DB
      DBReadable(..),
      playerState,
      setPlayerState,
-     PlayerState(..),
-     CreatureTurnMode(..),
      SnapshotEvent(..),
      DBError(..),
      CreatureLocation(..),
@@ -66,53 +64,7 @@ import Control.Arrow (first)
 import Control.Monad.Random as Random
 import Random
 import Debug.Trace
-
-data PlayerState = 
-    RaceSelectionState
-  | ClassSelectionState Creature
-  | PlayerCreatureTurn CreatureRef CreatureTurnMode
-  | SnapshotEvent SnapshotEvent
-  | GameOver
-	     deriving (Read,Show)
-
-data CreatureTurnMode =
-    NormalMode
-  | MoveMode
-  | PickupMode Integer
-  | DropMode Integer
-  | WieldMode Integer
-  | AttackMode
-  | FireMode
-  | JumpMode
-  | TurnMode
-      deriving (Read,Show)
-
-data SnapshotEvent = 
-    AttackEvent {
-        attack_event_source_creature :: CreatureRef,
-        attack_event_source_weapon :: Maybe ToolRef,
-        attack_event_target_creature :: CreatureRef }
-  | MissEvent {
-        miss_event_creature :: CreatureRef,
-	miss_event_weapon :: Maybe ToolRef }
-  | KilledEvent {
-        killed_event_creature :: CreatureRef }
-  | WeaponOverheatsEvent {
-        weapon_overheats_event_creature :: CreatureRef,
-        weapon_overheats_event_weapon :: ToolRef }
-  | WeaponExplodesEvent {
-        weapon_explodes_event_creature :: CreatureRef,
-        weapon_explodes_event_weapon :: ToolRef }
-  | DisarmEvent {
-        disarm_event_source_creature :: CreatureRef,
-        disarm_event_target_creature :: CreatureRef,
-        disarm_event_target_tool :: ToolRef }
-  | SunderEvent {
-        sunder_event_source_creature :: CreatureRef,
-        sunder_event_source_weapon :: ToolRef,
-        sunder_event_target_creature :: CreatureRef,
-        sunder_event_target_tool :: ToolRef }
-            deriving (Read,Show)
+import PlayerState
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,

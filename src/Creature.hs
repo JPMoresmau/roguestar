@@ -30,6 +30,7 @@ import Data.Ratio
 import Facing
 import Position
 import Plane
+import PlayerState
 
 -- |
 -- Generates a new Creature from the specified species.

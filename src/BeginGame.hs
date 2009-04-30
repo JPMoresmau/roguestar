@@ -15,6 +15,7 @@ import ToolData
 import Control.Monad.Random
 import SpeciesData
 import Substances
+import PlayerState
 
 homeBiome :: Species -> Biome
 homeBiome Anachronid = ForestBiome

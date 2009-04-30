@@ -20,6 +20,7 @@ import Data.Maybe
 import Behavior
 import qualified Perception as P
 import Position
+import PlayerState
 
 dbPerformPlayerTurn :: Behavior -> CreatureRef -> DB ()
 dbPerformPlayerTurn beh creature_ref =

@@ -30,6 +30,7 @@ import Species
 import Data.Ord
 import Combat
 import Substances
+import PlayerState
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -101,16 +102,7 @@ dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db
 dbRequiresPlanarTurnState action =
     do dbOldestSnapshotOnly
        state <- playerState
-       case state of
-		  PlayerCreatureTurn creature_ref _ -> action creature_ref
-		  SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> action attacker_ref
-		  SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> action attacker_ref
-                  SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> action attacker_ref
-                  SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> action attacker_ref
-		  SnapshotEvent (KilledEvent killed_ref) -> action killed_ref
-                  SnapshotEvent (DisarmEvent { disarm_event_source_creature = attacker_ref }) -> action attacker_ref
-                  SnapshotEvent (SunderEvent { sunder_event_source_creature = attacker_ref }) -> action attacker_ref
-		  _ -> return $ "protocol-error: not in planar turn state (" ++ show state ++ ")"
+       maybe (return $ "protocol-error: not in planar turn state (" ++ show state ++ ")") action $ creatureOf state
 
 -- |
 -- Perform an action that works only during a player-character's turn.
@@ -130,15 +122,7 @@ dbRequiresPlayerTurnState action =
 -- For arbitrary-length menu selections, get the current index into the menu, if any.
 --
 menuState :: (DBReadable db) => db (Maybe Integer)
-menuState =
-    do state <- playerState
-       number_of_tools <- liftM genericLength toolMenuElements
-       let i = case state of
-                   PlayerCreatureTurn _ (PickupMode n) -> Just n
-                   PlayerCreatureTurn _ (DropMode n) -> Just n
-                   PlayerCreatureTurn _ (WieldMode n) -> Just n
-                   _ -> Nothing
-       return $ fmap (`mod` number_of_tools) i
+menuState = liftM menuIndex playerState
 
 -- |
 -- For arbitrary-length menu selections, modify the current index into the menu.  If there is no menu index
@@ -146,14 +130,9 @@ menuState =
 --
 modifyMenuState :: (Integer -> Integer) -> DB ()
 modifyMenuState f_ = 
-    do state <- playerState
-       number_of_tools <- liftM genericLength toolMenuElements
+    do number_of_tools <- liftM genericLength toolMenuElements
        let f = (`mod` number_of_tools) . f_
-       setPlayerState $ case state of
-           PlayerCreatureTurn c (PickupMode n) -> PlayerCreatureTurn c (PickupMode $ f n)
-           PlayerCreatureTurn c (DropMode n) -> PlayerCreatureTurn c (DropMode $ f n)
-           PlayerCreatureTurn c (WieldMode n) -> PlayerCreatureTurn c (WieldMode $ f n)
-           x -> x
+       setPlayerState . modifyMenuIndex f =<< playerState
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
 
