@@ -30,13 +30,13 @@ data Creature = Creature { creature_aptitude :: Map.Map CreatureAptitude Integer
                            creature_levels :: Map.Map CharacterClass Integer,
                            creature_favored_classes :: Set.Set CharacterClass,
                            creature_gender :: CreatureGender,
-			   creature_species_name :: Species,
+			   creature_species :: Species,
 			   creature_random_id :: Integer, -- random number attached to the creature, not unique
 			   creature_damage :: Integer,
 			   creature_faction :: Faction }
 		deriving (Read,Show)
 
--- | Creature having no attributes and undefined 'creature_species_name', 'creature_random_id', and 'creature_faction'
+-- | Creature having no attributes and undefined 'creature_species', 'creature_random_id', and 'creature_faction'
 --
 empty_creature :: Creature
 empty_creature = Creature {
@@ -46,7 +46,7 @@ empty_creature = Creature {
     creature_levels = Map.empty,
     creature_favored_classes = Set.empty,
     creature_gender = Neuter,
-    creature_species_name = error "empty_creature: undefined creature_species_name",
+    creature_species = error "empty_creature: undefined creature_species",
     creature_random_id = error "empty_creature: undefined creature_random_id",
     creature_damage = 0,
     creature_faction = error "empty_creature: undefined creature_faction" }

@@ -11,6 +11,8 @@ import DBData
 import Position
 import Facing
 import Data.Ratio
+import ToolData
+import Substances
 import Tool
 import Control.Monad.Error
 import Combat
@@ -41,6 +43,7 @@ data Behavior =
   | Wait
   | Vanish
   | Activate
+  | Make DeviceKind Chromalite Material Gas
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but
@@ -134,6 +137,10 @@ dbBehave Vanish creature_ref =
 dbBehave Activate creature_ref =
     do atomic $ liftM executeActivation $ resolveActivation creature_ref
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
+       return ()
+
+dbBehave (Make {}) creature_ref =
+    do dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 {---------------------------------------------------------------------------------------------------

@@ -188,13 +188,13 @@ coerceSubstance :: (SubstanceType a,SubstanceType b) => a -> Maybe b
 coerceSubstance = fromSubstance . toSubstance
 
 isGas :: (SubstanceType a) => a -> Bool
-isGas = isJust . asTypeOf (undefined :: Maybe Gas) . coerceSubstance
+isGas = isJust . (`asTypeOf` (undefined :: Maybe Gas)) . coerceSubstance
 
 isMaterial :: (SubstanceType a) => a -> Bool
-isMaterial = isJust . asTypeOf (undefined :: Maybe Material) . coerceSubstance
+isMaterial = isJust . (`asTypeOf` (undefined :: Maybe Material)) . coerceSubstance
 
 isChromalite :: (SubstanceType a) => a -> Bool
-isChromalite = isJust . asTypeOf (undefined :: Maybe Chromalite) . coerceSubstance
+isChromalite = isJust . (`asTypeOf` (undefined :: Maybe Chromalite)) . coerceSubstance
 
 substanceValue :: (SubstanceType a) => a -> Integer
 substanceValue a = case toSubstance a of

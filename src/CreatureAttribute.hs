@@ -47,7 +47,7 @@ generateAttributes faction species_name attrib_generator =
     do attribs <- AG.generateAttributes attrib_generator
        random_id <- getRandomR (0,30000)
        let c = empty_creature {
-           creature_species_name = species_name,
+           creature_species = species_name,
            creature_random_id = random_id,
            creature_faction = faction } 
        return $ (appEndo $ mconcat $ map fromCreatureAttribute attribs) c

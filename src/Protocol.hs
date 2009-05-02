@@ -131,7 +131,7 @@ menuState = liftM menuIndex playerState
 modifyMenuState :: (Integer -> Integer) -> DB ()
 modifyMenuState f_ = 
     do number_of_tools <- liftM genericLength toolMenuElements
-       let f = (`mod` number_of_tools) . f_
+       let f = (\x -> if number_of_tools == 0 then 0 else x `mod` number_of_tools) . f_
        setPlayerState . modifyMenuIndex f =<< playerState
 
 ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
@@ -184,6 +184,9 @@ dbDispatchQuery ["state"] =
                            PlayerCreatureTurn _ FireMode -> "answer: state fire"
                            PlayerCreatureTurn _ JumpMode -> "answer: state jump"
                            PlayerCreatureTurn _ TurnMode -> "answer: state turn"
+                           PlayerCreatureTurn _ (MakeMode _ (Just _) (Just _) (Just _) (Just _)) -> "answer: state make-finished"
+                           PlayerCreatureTurn _ (MakeMode _ Nothing _ _ _) -> "answer: state make-what"
+                           PlayerCreatureTurn _ (MakeMode {}) -> "answer: state make"
                            SnapshotEvent (AttackEvent {}) -> "answer: state attack-event"
                            SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
                            SnapshotEvent (KilledEvent {}) -> "answer: state killed-event"
@@ -307,7 +310,8 @@ dbDispatchQuery ["menu","0"] =
 
 dbDispatchQuery ["menu",s] | Just window_size <- readNumber s =
     do n <- liftM (fromMaybe 0) menuState
-       let windowF (x,_,_) = abs (x - n) <= window_size `div` 2
+       let half_window = window_size `div` 2
+       let windowF (x,_,_) = abs (x - (max half_window n)) <= half_window
        liftM (showToolMenuTable "menu" s . filter windowF) $ toolsToMenuTable =<< toolMenuElements
 
 dbDispatchQuery ["wielded-objects","0"] =
@@ -394,8 +398,36 @@ dbDispatchAction ["select-menu"] =
                PickupMode {} -> dbDispatchAction ["pickup",selection]
                DropMode {}   -> dbDispatchAction ["drop",selection]
                WieldMode {}  -> dbDispatchAction ["wield",selection]
+               MakeMode {}   -> dbDispatchAction ["make-with",selection]
                _ -> return "protocol-error: not in menu selection state"
            _ -> return "protocol-error: not in player turn state"
+
+dbDispatchAction ["make-begin"] = dbRequiresPlayerTurnState $ \creature_ref ->
+    setPlayerState (PlayerCreatureTurn creature_ref (MakeMode 0 Nothing Nothing Nothing Nothing)) >> done
+
+dbDispatchAction ["make-what",what] | (Just device_type) <- readDeviceKind what =
+    do state <- playerState
+       case state of
+           PlayerCreatureTurn c (MakeMode n _ ch m g) -> (setPlayerState $ PlayerCreatureTurn c $ MakeMode n (Just device_type) ch m g) >> done
+           _ -> return "protocol-error: not in make or make-what state"
+
+dbDispatchAction ["make-with",tool_uid] =
+    do tool <- dbGetTool =<< readUID ToolRef tool_uid
+       state <- playerState
+       case state of
+           PlayerCreatureTurn c (MakeMode n dk ch m g) -> case fromSphere tool of
+               Just (ChromaliteSubstance ch') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk (Just ch') m g)) >> done
+               Just (MaterialSubstance m') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk ch (Just m') g)) >> done
+               Just (GasSubstance g') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk ch m (Just g'))) >> done
+               Nothing -> return "protocol-error: not a material sphere"
+           _ -> return "protocol-error: not in make or make-what state"
+
+dbDispatchAction ["make-end"] =
+    do state <- playerState
+       case state of
+           PlayerCreatureTurn c (MakeMode _ (Just dk) (Just ch) (Just m) (Just g)) -> dbPerformPlayerTurn (Make dk ch m g) c >> done
+           PlayerCreatureTurn _ (MakeMode {}) -> return "protocol-error: make isn't complete"
+           _ -> return "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
@@ -484,6 +516,9 @@ toolMenuElements =
        case state of
            PlayerCreatureTurn c (PickupMode {}) -> dbAvailablePickups c
            PlayerCreatureTurn c (WieldMode {}) -> availableWields c
+           PlayerCreatureTurn c (MakeMode _ _ Nothing _ _) -> filterM (liftM (maybe False isChromalite . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ _ (Just _) Nothing _) -> filterM (liftM (maybe False isMaterial . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ _ (Just _) (Just _) Nothing) -> filterM (liftM (maybe False isGas . fromSphere) . dbGetTool) =<< availableWields c
            PlayerCreatureTurn c _ -> dbGetContents c
            _ -> return []
 
@@ -520,7 +555,7 @@ playerStatsTable c =
 	       "cha " ++ (show $ rawScore Charisma c) ++ "\n" ++
 	       "mind " ++ (show $ rawScore Mindfulness c) ++ "\n" ++
 	       "maxhp " ++ (show $ creatureAbilityScore ToughnessTrait c) ++ "\n" ++
-	       "species " ++ (show $ creature_species_name c) ++ "\n" ++
+	       "species " ++ (show $ creature_species c) ++ "\n" ++
 	       "random-id " ++ (show $ creature_random_id c) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
 	       "end-table"
@@ -531,7 +566,7 @@ playerStatsTable c =
 -- manipulated by the caller.
 --
 creatureStatsData :: Creature -> [(String,String)]
-creatureStatsData c = [("species",show $ creature_species_name c),
+creatureStatsData c = [("species",show $ creature_species c),
                        ("random-id",show $ creature_random_id c)]
 
 toolName :: Tool -> String
@@ -581,3 +616,8 @@ readUID f x =
 
 readNumber :: String -> Maybe Integer
 readNumber = fmap fst . listToMaybe . filter (null . snd) . readDec
+
+readDeviceKind :: String -> Maybe DeviceKind
+readDeviceKind "pistol" = Just Gun
+readDeviceKind "fleuret" = Just Sword
+readDeviceKind _ = Nothing

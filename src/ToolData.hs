@@ -1,5 +1,7 @@
 module ToolData 
     (Tool(..),
+     fromSphere,
+     sphere,
      Device(device_name),
      PseudoDevice(..),
      DeviceKind(..),
@@ -21,6 +23,14 @@ import Substances
 data Tool = DeviceTool DeviceKind Device
           | Sphere Substance
     deriving (Read,Show,Eq)
+
+-- | Get the substance type of a material sphere, if it is one.
+fromSphere :: Tool -> Maybe Substance
+fromSphere (Sphere s) = Just s
+fromSphere _ = Nothing
+
+sphere :: (SubstanceType a) => a -> Tool
+sphere = Sphere . toSubstance
 
 data DeviceKind = Gun | Sword
             deriving (Read,Show,Eq)

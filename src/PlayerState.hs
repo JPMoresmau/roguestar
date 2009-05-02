@@ -10,6 +10,8 @@ module PlayerState
 
 import DBData
 import CreatureData
+import ToolData
+import Substances
 
 data PlayerState = 
     RaceSelectionState
@@ -25,6 +27,7 @@ data CreatureTurnMode =
   | PickupMode Integer
   | DropMode Integer
   | WieldMode Integer
+  | MakeMode Integer (Maybe DeviceKind) (Maybe Chromalite) (Maybe Material) (Maybe Gas)
   | AttackMode
   | FireMode
   | JumpMode
@@ -80,18 +83,17 @@ subjectOf event = case event of
 
 -- | Current index into the menu, if there is one. 
 menuIndex :: PlayerState -> Maybe Integer
-menuIndex state = case state of
-    PlayerCreatureTurn _ (PickupMode n) -> Just n
-    PlayerCreatureTurn _ (DropMode n) -> Just n
-    PlayerCreatureTurn _ (WieldMode n) -> Just n
-    _ -> Nothing
+menuIndex state = fst $ modifyMenuIndex_ id state
 
 -- | Modify the current index into the menu, if there is one (otherwise has no effect).
 modifyMenuIndex :: (Integer -> Integer) -> PlayerState -> PlayerState
-modifyMenuIndex f state = case state of
-    PlayerCreatureTurn c (PickupMode n) -> PlayerCreatureTurn c (PickupMode $ f n)
-    PlayerCreatureTurn c (DropMode n) -> PlayerCreatureTurn c (DropMode $ f n)
-    PlayerCreatureTurn c (WieldMode n) -> PlayerCreatureTurn c (WieldMode $ f n)
-    x -> x
+modifyMenuIndex f state = snd $ modifyMenuIndex_ f state
 
+modifyMenuIndex_ :: (Integer -> Integer) -> PlayerState -> (Maybe Integer,PlayerState)
+modifyMenuIndex_ f state = case state of
+    PlayerCreatureTurn c (PickupMode n) -> (Just n,PlayerCreatureTurn c $ PickupMode $ f n)
+    PlayerCreatureTurn c (DropMode n) -> (Just n,PlayerCreatureTurn c $ DropMode $ f n)
+    PlayerCreatureTurn c (WieldMode n) -> (Just n,PlayerCreatureTurn c $ WieldMode $ f n)
+    PlayerCreatureTurn c (MakeMode n dk ch m g) -> (Just n,PlayerCreatureTurn c $ MakeMode (f n) dk ch m g)
+    x -> (Nothing,x)
 
