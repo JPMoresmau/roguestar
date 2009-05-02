@@ -196,7 +196,7 @@ make_begin_action :: (String,Action)
 make_begin_action = stateLinkedAction player_turn_states "make-begin"
 
 make_what_action_names :: [String]
-make_what_action_names = ["pistol","fleuret"]
+make_what_action_names = ["pistol","carbine","rifle","fleuret","sabre"]
 
 makeWhatAction :: String -> (String,Action)
 makeWhatAction s = (s,
