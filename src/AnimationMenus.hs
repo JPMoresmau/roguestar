@@ -17,14 +17,6 @@ import Data.Maybe
 import Actions
 import Scene
 
--- | States in which we try to display a menu.
-menu_states :: [String]
-menu_states = ["race-selection",
-               "class-selection",
-               "pickup",
-               "drop",
-               "wield"]
-
 -- Header for menu states.  This will automatically switch away to an approprate menu if the provided state predicate does not match.
 menuStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
@@ -33,6 +25,9 @@ menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarScen
         switchTo "pickup" = toolMenuSelection
         switchTo "drop" = toolMenuSelection
         switchTo "wield" = toolMenuSelection
+        switchTo "make" = toolMenuSelection
+        switchTo "make-what" = makeWhatMenuSelection
+        switchTo "make-finished" = makeFinishedMenuSelection
         switchTo unknown_state = menuStateHeader (== unknown_state)
 
 menuDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
@@ -76,9 +71,22 @@ print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
        printTextA -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
 
+makeWhatMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+makeWhatMenuSelection = proc () ->
+    do result <- menuStateHeader (== "make-what") -< ()
+       requestPrintTextMode -< Unlimited
+       clearPrintTextA -< ()
+       printMenuA make_what_action_names -< ()
+       printTextA -< Just (Query,"Build what?")
+       returnA -< result
+
+makeFinishedMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+makeFinishedMenuSelection = proc () ->
+    do menuStateHeader (== "make-finished") -< ()
+
 toolMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
 toolMenuSelection = proc () ->
-    do menuStateHeader (`elem` ["pickup","drop","wield"]) -< ()
+    do menuStateHeader (`elem` ["pickup","drop","wield","make"]) -< ()
        state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
        m_menu_data <- sticky isJust Nothing <<< driverGetTableA -< ("menu","7")
        menu_state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
@@ -92,6 +100,7 @@ toolMenuSelection = proc () ->
            Just "pickup" -> "Select an item to pick up: "
            Just "drop" -> "Select an item to drop: "
            Just "wield" -> "Select an item to wield: "
+           Just "make" -> "Select materials to craft an item: "  -- FIXME should say what kind of item
            _ -> "Select an item: ")
        printMenuItemA "next" -< ()
        printMenuItemA "prev" -< ()

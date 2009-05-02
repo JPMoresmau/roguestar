@@ -7,7 +7,10 @@ module Actions
      ActionInput(..),
      select_race_action_names,
      select_base_class_action_names,
-     executeContinueAction)
+     make_what_action_names,
+     executeContinueAction,
+     menu_states,
+     player_turn_states)
     where
 
 import System.Exit
@@ -125,7 +128,11 @@ player_turn_states :: [String]
 player_turn_states = ["player-turn","move","attack","fire","jump","turn"]
 
 menu_states :: [String]
-menu_states = ["pickup","drop","wield"]
+menu_states = ["race-selection","class-selection","pickup","drop","wield","make","make-finished","make-what"]
+
+selectable_menu_states :: [String]
+selectable_menu_states = if all (`elem` menu_states) states then states else error "selectable_menu_states: inconsistent with menu_states"
+    where states = ["pickup","drop","wield","make"]
 
 quit_action :: (String,Action)
 quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
@@ -139,13 +146,13 @@ direction_actions :: [(String,Action)]
 direction_actions = map (stateLinkedAction player_turn_states) ["n","ne","e","se","s","sw","w","nw"]
 
 next_action :: (String,Action)
-next_action = stateLinkedAction menu_states "next"
+next_action = stateLinkedAction selectable_menu_states "next"
 
 prev_action :: (String,Action)
-prev_action = stateLinkedAction menu_states "prev"
+prev_action = stateLinkedAction selectable_menu_states "prev"
 
 select_menu_action :: (String,Action)
-select_menu_action = stateLinkedAction menu_states "select-menu"
+select_menu_action = stateLinkedAction selectable_menu_states "select-menu"
 
 normal_action :: (String,Action)
 normal_action = ("normal",
@@ -184,6 +191,23 @@ unwield_action = stateLinkedAction player_turn_states "unwield"
 
 activate_action :: (String,Action)
 activate_action = stateLinkedAction player_turn_states "activate"
+
+make_begin_action :: (String,Action)
+make_begin_action = stateLinkedAction player_turn_states "make-begin"
+
+make_what_action_names :: [String]
+make_what_action_names = ["pistol","fleuret"]
+
+makeWhatAction :: String -> (String,Action)
+makeWhatAction s = (s,
+    stateGuard ["make-what","make","make-finished"] $ \action_input ->
+        return $ driverAction (action_driver_object action_input) ["make-what",s])
+
+make_what_actions :: [(String,Action)]
+make_what_actions = map makeWhatAction make_what_action_names
+
+make_end_action :: (String,Action)
+make_end_action = stateLinkedAction ["make-finished"] "make-end"
 
 selectRaceAction :: String -> (String,Action)
 selectRaceAction s = 
@@ -262,7 +286,9 @@ all_actions = [continue_action,quit_action,reroll_action,
               select_race_actions ++ 
 	      select_base_class_actions ++
               direction_actions ++
-	      [move_action,turn_action,fire_action,jump_action,attack_action,activate_action]
+              make_what_actions ++
+	      [move_action,turn_action,fire_action,jump_action,attack_action,activate_action,
+               make_begin_action,make_end_action]
 
 -- | Find an action with the given name.
 lookupAction :: String -> (String,Action)
