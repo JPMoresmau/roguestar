@@ -10,8 +10,7 @@ module PlayerState
 
 import DBData
 import CreatureData
-import ToolData
-import Substances
+import Make
 
 data PlayerState = 
     RaceSelectionState
@@ -27,7 +26,7 @@ data CreatureTurnMode =
   | PickupMode Integer
   | DropMode Integer
   | WieldMode Integer
-  | MakeMode Integer (Maybe DeviceKind) (Maybe Chromalite) (Maybe Material) (Maybe Gas)
+  | MakeMode Integer PrepareMake
   | AttackMode
   | FireMode
   | JumpMode
@@ -94,6 +93,6 @@ modifyMenuIndex_ f state = case state of
     PlayerCreatureTurn c (PickupMode n) -> (Just n,PlayerCreatureTurn c $ PickupMode $ f n)
     PlayerCreatureTurn c (DropMode n) -> (Just n,PlayerCreatureTurn c $ DropMode $ f n)
     PlayerCreatureTurn c (WieldMode n) -> (Just n,PlayerCreatureTurn c $ WieldMode $ f n)
-    PlayerCreatureTurn c (MakeMode n dk ch m g) -> (Just n,PlayerCreatureTurn c $ MakeMode (f n) dk ch m g)
+    PlayerCreatureTurn c (MakeMode n make_prep) -> (Just n,PlayerCreatureTurn c $ MakeMode (f n) make_prep)
     x -> (Nothing,x)
 

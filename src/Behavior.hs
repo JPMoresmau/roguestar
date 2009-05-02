@@ -11,8 +11,6 @@ import DBData
 import Position
 import Facing
 import Data.Ratio
-import ToolData
-import Substances
 import Tool
 import Control.Monad.Error
 import Combat
@@ -26,6 +24,7 @@ import Data.List
 import Data.Maybe
 import Control.Monad.Maybe
 import TerrainData
+import Make
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -43,7 +42,7 @@ data Behavior =
   | Wait
   | Vanish
   | Activate
-  | Make DeviceKind Chromalite Material Gas
+  | Make PrepareMake
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but

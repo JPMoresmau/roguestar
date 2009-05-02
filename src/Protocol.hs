@@ -31,6 +31,7 @@ import Data.Ord
 import Combat
 import Substances
 import PlayerState
+import Make
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -184,8 +185,8 @@ dbDispatchQuery ["state"] =
                            PlayerCreatureTurn _ FireMode -> "answer: state fire"
                            PlayerCreatureTurn _ JumpMode -> "answer: state jump"
                            PlayerCreatureTurn _ TurnMode -> "answer: state turn"
-                           PlayerCreatureTurn _ (MakeMode _ (Just _) (Just _) (Just _) (Just _)) -> "answer: state make-finished"
-                           PlayerCreatureTurn _ (MakeMode _ Nothing _ _ _) -> "answer: state make-what"
+                           PlayerCreatureTurn _ (MakeMode _ make_prep) | isFinished make_prep -> "answer: state make-finished"
+                           PlayerCreatureTurn _ (MakeMode _ make_prep) | needsKind make_prep -> "answer: state make-what"
                            PlayerCreatureTurn _ (MakeMode {}) -> "answer: state make"
                            SnapshotEvent (AttackEvent {}) -> "answer: state attack-event"
                            SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
@@ -403,29 +404,28 @@ dbDispatchAction ["select-menu"] =
            _ -> return "protocol-error: not in player turn state"
 
 dbDispatchAction ["make-begin"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    setPlayerState (PlayerCreatureTurn creature_ref (MakeMode 0 Nothing Nothing Nothing Nothing)) >> done
+    setPlayerState (PlayerCreatureTurn creature_ref (MakeMode 0 prepare_make)) >> done
 
-dbDispatchAction ["make-what",what] | (Just device_type) <- readDeviceKind what =
+dbDispatchAction ["make-what",what] | (Just device_kind) <- readDeviceKind what =
     do state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode n _ ch m g) -> (setPlayerState $ PlayerCreatureTurn c $ MakeMode n (Just device_type) ch m g) >> done
+           PlayerCreatureTurn c (MakeMode n make_prep) -> (setPlayerState $ PlayerCreatureTurn c $ MakeMode n (make_prep `makeWith` device_kind)) >> done
            _ -> return "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-with",tool_uid] =
-    do tool <- dbGetTool =<< readUID ToolRef tool_uid
+    do tool_ref <- readUID ToolRef tool_uid
+       tool <- dbGetTool tool_ref
        state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode n dk ch m g) -> case fromSphere tool of
-               Just (ChromaliteSubstance ch') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk (Just ch') m g)) >> done
-               Just (MaterialSubstance m') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk ch (Just m') g)) >> done
-               Just (GasSubstance g') -> setPlayerState (PlayerCreatureTurn c (MakeMode n dk ch m (Just g'))) >> done
+           PlayerCreatureTurn c (MakeMode n make_prep) -> case fromSphere tool of
+               Just s -> setPlayerState (PlayerCreatureTurn c $ MakeMode n $ make_prep `makeWith` (s,tool_ref)) >> done
                Nothing -> return "protocol-error: not a material sphere"
            _ -> return "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-end"] =
     do state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode _ (Just dk) (Just ch) (Just m) (Just g)) -> dbPerformPlayerTurn (Make dk ch m g) c >> done
+           PlayerCreatureTurn c (MakeMode _ make_prep) | isFinished make_prep -> dbPerformPlayerTurn (Make make_prep) c >> done
            PlayerCreatureTurn _ (MakeMode {}) -> return "protocol-error: make isn't complete"
            _ -> return "protocol-error: not in make or make-what state"
 
@@ -516,9 +516,9 @@ toolMenuElements =
        case state of
            PlayerCreatureTurn c (PickupMode {}) -> dbAvailablePickups c
            PlayerCreatureTurn c (WieldMode {}) -> availableWields c
-           PlayerCreatureTurn c (MakeMode _ _ Nothing _ _) -> filterM (liftM (maybe False isChromalite . fromSphere) . dbGetTool) =<< availableWields c
-           PlayerCreatureTurn c (MakeMode _ _ (Just _) Nothing _) -> filterM (liftM (maybe False isMaterial . fromSphere) . dbGetTool) =<< availableWields c
-           PlayerCreatureTurn c (MakeMode _ _ (Just _) (Just _) Nothing) -> filterM (liftM (maybe False isGas . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsChromalite make_prep -> filterM (liftM (maybe False isChromalite . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsMaterial make_prep -> filterM (liftM (maybe False isMaterial . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsGas make_prep -> filterM (liftM (maybe False isGas . fromSphere) . dbGetTool) =<< availableWields c
            PlayerCreatureTurn c _ -> dbGetContents c
            _ -> return []
 
@@ -617,7 +617,10 @@ readUID f x =
 readNumber :: String -> Maybe Integer
 readNumber = fmap fst . listToMaybe . filter (null . snd) . readDec
 
-readDeviceKind :: String -> Maybe DeviceKind
-readDeviceKind "pistol" = Just Gun
-readDeviceKind "fleuret" = Just Sword
+readDeviceKind :: String -> Maybe (DeviceKind,Integer)
+readDeviceKind "pistol" = Just (Gun,1)
+readDeviceKind "carbine" = Just (Gun,3)
+readDeviceKind "rifle" = Just (Gun,5)
+readDeviceKind "fleuret" = Just (Sword,2)
+readDeviceKind "sabre" = Just (Sword,4)
 readDeviceKind _ = Nothing
