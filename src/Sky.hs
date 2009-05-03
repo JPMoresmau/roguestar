@@ -47,6 +47,7 @@ sky = proc sky_info ->
        whenJust (transformA sun) -< if angleBetween sun_vector (Vector3D 0 1 0) < fromDegrees 135
            then Just (affineOf $ rotateToFrom (sunVector sky_info) (Vector3D 0 (-1) 0),sky_info)
 	   else Nothing
+       returnA -< ()
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
        let nightlight_intensity = lighting_nightlight lighting_configuration
        let skylight_intensity = lighting_skylight lighting_configuration
@@ -54,21 +55,24 @@ sky = proc sky_info ->
        accumulateSceneA -< (scene_layer_local,lightSource $ if nightlight_intensity > 0.05
            then mapLightSource (mapBoth $ scaleRGB $ nightlight_intensity) $ DirectionalLight {
                     lightsource_direction = Vector3D 0 1 0,
-	            lightsource_color = rgb 0.1 0.1 0.2,
-	            lightsource_ambient = rgb 0.0 0.0 0.3 }
+                   lightsource_color = rgb 0.1 0.1 0.2,
+                  lightsource_ambient = rgb 0.0 0.0 0.3 }
            else NoLight)
        accumulateSceneA -< (scene_layer_local,lightSource $ if skylight_intensity > 0.05
            then mapLightSource (mapBoth $ scaleRGB $ lighting_skylight lighting_configuration) $ skylight (Vector3D 0 1 0) skylight_color
-	   else NoLight)
+           else NoLight)
 
 sun :: RSAnimAX k t i o SkyInfo ()
 sun = proc sky_info ->
     do libraryA -< (scene_layer_distant,SunDisc $ sunInfoOf sky_info)
-       accumulateSceneA -< (scene_layer_distant,lightSource $ PointLight {
-           lightsource_position = Point3D 0 (-10) 0,
-	   lightsource_radius = measure origin_point_3d (Point3D 0 (-10) 0),
-	   lightsource_color = sunColor $ sunInfoOf sky_info,
-	   lightsource_ambient = blackbody})
+       lighting_configuration <- Sky.lightingConfiguration -< sky_info
+       accumulateSceneA -< (scene_layer_distant,lightSource $ if (lighting_sunlight lighting_configuration > 0.05)
+            then PointLight {
+               lightsource_position = Point3D 0 (-10) 0,
+	       lightsource_radius = measure origin_point_3d (Point3D 0 (-10) 0),
+	       lightsource_color = sunColor $ sunInfoOf sky_info,
+	       lightsource_ambient = blackbody}
+            else NoLight)
 
 lightingConfiguration :: RSAnimAX k t i o SkyInfo LightingConfiguration
 lightingConfiguration = proc sky_info ->
