@@ -14,6 +14,4 @@ hrstring "per" =  "Perception   "
 hrstring "cha" =  "Charisma     "
 hrstring "mind" = "Mindfulness  "
 hrstring "forceadept" = "force adept"
-hrstring "phase_pistol" = "phase pistol"
-hrstring "phase_rifle" = "phase rifle"
-hrstring x = x
+hrstring x = map (\c -> if c == '_' then ' ' else c) x
