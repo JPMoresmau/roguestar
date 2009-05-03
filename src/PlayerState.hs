@@ -10,7 +10,7 @@ module PlayerState
 
 import DBData
 import CreatureData
-import Make
+import MakeData
 
 data PlayerState = 
     RaceSelectionState

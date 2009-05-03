@@ -138,8 +138,9 @@ dbBehave Activate creature_ref =
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
-dbBehave (Make {}) creature_ref =
-    do dbAdvanceTime creature_ref =<< quickActionTime creature_ref
+dbBehave (Make make_prep) creature_ref =
+    do atomic $ liftM executeMake $ resolveMake creature_ref make_prep
+       dbAdvanceTime creature_ref =<< fullActionTime creature_ref
        return ()
 
 {---------------------------------------------------------------------------------------------------

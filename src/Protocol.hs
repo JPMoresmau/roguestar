@@ -516,9 +516,9 @@ toolMenuElements =
        case state of
            PlayerCreatureTurn c (PickupMode {}) -> dbAvailablePickups c
            PlayerCreatureTurn c (WieldMode {}) -> availableWields c
-           PlayerCreatureTurn c (MakeMode _ make_prep) | needsChromalite make_prep -> filterM (liftM (maybe False isChromalite . fromSphere) . dbGetTool) =<< availableWields c
-           PlayerCreatureTurn c (MakeMode _ make_prep) | needsMaterial make_prep -> filterM (liftM (maybe False isMaterial . fromSphere) . dbGetTool) =<< availableWields c
-           PlayerCreatureTurn c (MakeMode _ make_prep) | needsGas make_prep -> filterM (liftM (maybe False isGas . fromSphere) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsChromalite make_prep -> filterM (liftM (isJust . hasChromalite) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsMaterial make_prep -> filterM (liftM (isJust . hasMaterial) . dbGetTool) =<< availableWields c
+           PlayerCreatureTurn c (MakeMode _ make_prep) | needsGas make_prep -> filterM (liftM (isJust . hasGas) . dbGetTool) =<< availableWields c
            PlayerCreatureTurn c _ -> dbGetContents c
            _ -> return []
 
@@ -570,7 +570,7 @@ creatureStatsData c = [("species",show $ creature_species c),
                        ("random-id",show $ creature_random_id c)]
 
 toolName :: Tool -> String
-toolName (DeviceTool _ d) = device_name d
+toolName (DeviceTool _ d) = deviceName d
 toolName (Sphere s) = prettySubstance s
 
 toolType :: Tool -> String
@@ -617,10 +617,10 @@ readUID f x =
 readNumber :: String -> Maybe Integer
 readNumber = fmap fst . listToMaybe . filter (null . snd) . readDec
 
-readDeviceKind :: String -> Maybe (DeviceKind,Integer)
-readDeviceKind "pistol" = Just (Gun,1)
-readDeviceKind "carbine" = Just (Gun,3)
-readDeviceKind "rifle" = Just (Gun,5)
-readDeviceKind "fleuret" = Just (Sword,2)
-readDeviceKind "sabre" = Just (Sword,4)
+readDeviceKind :: String -> Maybe DeviceKind
+readDeviceKind "pistol" = Just Pistol
+readDeviceKind "carbine" = Just Carbine
+readDeviceKind "rifle" = Just Rifle
+readDeviceKind "fleuret" = Just Fleuret
+readDeviceKind "sabre" = Just Sabre
 readDeviceKind _ = Nothing

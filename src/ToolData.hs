@@ -2,15 +2,21 @@ module ToolData
     (Tool(..),
      fromSphere,
      sphere,
-     Device(device_name),
+     Device,
      PseudoDevice(..),
      DeviceKind(..),
+     DeviceFunction(..),
      DeviceType(..),
+     deviceName,
      deviceOutput,
      deviceAccuracy,
      deviceSpeed,
      deviceDurability,
      deviceSize,
+     deviceChromalite,
+     deviceMaterial,
+     deviceGas,
+     improvised,
      phase_pistol,
      phaser,
      phase_rifle,
@@ -19,8 +25,9 @@ module ToolData
     where
 
 import Substances
+import Data.Char
 
-data Tool = DeviceTool DeviceKind Device
+data Tool = DeviceTool DeviceFunction Device
           | Sphere Substance
     deriving (Read,Show,Eq)
 
@@ -32,16 +39,31 @@ fromSphere _ = Nothing
 sphere :: (SubstanceType a) => a -> Tool
 sphere = Sphere . toSubstance
 
-data DeviceKind = Gun | Sword
+data DeviceFunction = Gun | Sword
             deriving (Read,Show,Eq)
+
+data DeviceKind =
+    Pistol
+  | Carbine
+  | Rifle
+  | Fleuret
+  | Sabre
+        deriving (Read,Show,Eq)
+
+kindToFunction :: DeviceKind -> (DeviceFunction,Integer)
+kindToFunction Pistol = (Gun,1)
+kindToFunction Carbine = (Gun,3)
+kindToFunction Rifle = (Gun,5)
+kindToFunction Fleuret = (Sword,2)
+kindToFunction Sabre = (Sword,4) 
 
 -- | Any kind of device that is constructed from a power cell, materal, and gas medium,
 -- using the various device rules to determine it's power.
 data Device = Device {
    device_name :: String,
-   device_power_cell :: Chromalite,
+   device_chromalite :: Chromalite,
    device_material :: Material,
-   device_medium :: Gas,
+   device_gas :: Gas,
    device_size :: Integer }
      deriving (Eq,Read,Show)
 
@@ -56,8 +78,8 @@ class DeviceType d where
     toPseudoDevice :: d -> PseudoDevice
 
 instance DeviceType Device where
-    toPseudoDevice d = let chromalite = chromalitePotency $ device_power_cell d
-                           gas = gasValue $ device_medium d
+    toPseudoDevice d = let chromalite = chromalitePotency $ device_chromalite d
+                           gas = gasValue $ device_gas d
                            material = material_critical_value $ materialValue $ device_material d
                            size = device_size d
         in PseudoDevice {
@@ -69,26 +91,30 @@ instance DeviceType Device where
 instance DeviceType PseudoDevice where
     toPseudoDevice = id
 
-gun :: Device -> Tool
-gun = DeviceTool Gun
+device :: String -> DeviceKind -> Chromalite -> Material -> Gas -> Tool
+device s dk c m g = DeviceTool func (Device s c m g size)
+    where (func,size) = kindToFunction dk
 
-sword :: Device -> Tool
-sword = DeviceTool Sword
+improvised :: DeviceKind -> Chromalite -> Material -> Gas -> Tool
+improvised dk c m g = device ("improvised_" ++ show dk) dk c m g
 
 phase_pistol :: Tool
-phase_pistol = gun $ Device "phase_pistol" Caerulite Zinc Flourine 1
+phase_pistol = device "phase_pistol" Pistol Caerulite Zinc Flourine
 
 phaser :: Tool
-phaser = gun $ Device "phaser" Caerulite Zinc Flourine 3
+phaser = device "phaser" Carbine Caerulite Zinc Flourine
 
 phase_rifle :: Tool
-phase_rifle = gun $ Device "phase_rifle" Caerulite Zinc Flourine 5
+phase_rifle = device "phase_rifle" Rifle Caerulite Zinc Flourine
 
 kinetic_fleuret :: Tool
-kinetic_fleuret = sword $ Device "kinetic_fleuret" Ionidium Aluminum Nitrogen 2
+kinetic_fleuret = device "kinetic_fleuret" Fleuret Ionidium Aluminum Nitrogen
 
 kinetic_sabre :: Tool
-kinetic_sabre = sword $ Device "kinetic_sabre" Ionidium Aluminum Nitrogen 4
+kinetic_sabre = device "kinetic_sabre" Sabre Ionidium Aluminum Nitrogen
+
+deviceName :: Device -> String
+deviceName = device_name
 
 deviceDurability :: Device -> Integer
 deviceDurability d = device_size d * (material_construction_value $ materialValue $ device_material d)
@@ -104,3 +130,12 @@ deviceSpeed = pdevice_speed . toPseudoDevice
 
 deviceSize :: (DeviceType d) => d -> Integer
 deviceSize = pdevice_size . toPseudoDevice
+
+deviceChromalite :: Device -> Chromalite
+deviceChromalite = device_chromalite
+
+deviceMaterial :: Device -> Material
+deviceMaterial = device_material
+
+deviceGas :: Device -> Gas
+deviceGas = device_gas

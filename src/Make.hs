@@ -1,61 +1,26 @@
-{-# LANGUAGE FlexibleInstances #-}
 module Make
-    (PrepareMake,
-     prepare_make,
-     isFinished,
-     needsKind,
-     needsChromalite,
-     needsMaterial,
-     needsGas,
-     MakeWith(..))
+    (module MakeData,
+     MakeOutcome,
+     resolveMake,
+     executeMake)
     where
 
+import MakeData
+import DB
+import Tool
 import ToolData
-import DBData
-import Substances
+import Data.List
 
--- | Multi-step process for gathering the materials to make something.
-data PrepareMake = PrepareMake {
-    m_device_kind :: (Maybe (DeviceKind,Integer)),
-    m_chromalite :: (Maybe (Chromalite,ToolRef)),
-    m_material :: (Maybe (Material,ToolRef)),
-    m_gas :: (Maybe (Gas,ToolRef)) } deriving (Read,Show)
+data MakeOutcome = MakeSuccess CreatureRef Tool [ToolRef] | MakeFailed
 
--- | An empty prepare_make.
-prepare_make :: PrepareMake
-prepare_make = PrepareMake Nothing Nothing Nothing Nothing
+resolveMake :: (DBReadable db) => CreatureRef -> PrepareMake -> db MakeOutcome
+resolveMake c (PrepareMake (Just dk) (Just (ch,ch_tool_ref)) (Just (m,m_tool_ref)) (Just (g,g_tool_ref))) =
+    return $ MakeSuccess c (improvised dk ch m g) [ch_tool_ref,m_tool_ref,g_tool_ref]
+resolveMake _ _ = return MakeFailed
 
-isFinished :: PrepareMake -> Bool
-isFinished (PrepareMake (Just _) (Just _) (Just _) (Just _)) = True
-isFinished _ = False
-
-needsKind :: PrepareMake -> Bool
-needsKind (PrepareMake Nothing _ _ _) = True
-needsKind _ = False
-
-needsChromalite :: PrepareMake -> Bool
-needsChromalite (PrepareMake _ Nothing _ _) = True
-needsChromalite _ = False
-
-needsMaterial :: PrepareMake -> Bool
-needsMaterial (PrepareMake _ _ Nothing _) = True
-needsMaterial _ = False
-
-needsGas :: PrepareMake -> Bool
-needsGas (PrepareMake _ _ _ Nothing) = True
-needsGas _ = False
-
-class MakeWith a where
-    makeWith :: PrepareMake -> a -> PrepareMake
-
-instance MakeWith (DeviceKind,Integer) where
-    makeWith make_prep x = make_prep { m_device_kind = Just x }
-
-instance (SubstanceType s) => MakeWith (s,ToolRef) where
-    makeWith make_prep (x,tool_ref) = makeWithSubstance make_prep (toSubstance x,tool_ref)
-
-makeWithSubstance :: PrepareMake -> (Substance,ToolRef) -> PrepareMake
-makeWithSubstance make_prep (ChromaliteSubstance s,tool_ref) = make_prep { m_chromalite = Just (s,tool_ref) }
-makeWithSubstance make_prep (MaterialSubstance s,tool_ref) = make_prep { m_material = Just (s,tool_ref) }
-makeWithSubstance make_prep (GasSubstance s,tool_ref) = make_prep { m_gas = Just (s,tool_ref) }
-
+executeMake :: MakeOutcome -> DB ()
+executeMake (MakeSuccess c t refs) =
+    do mapM_ deleteTool $ nub refs
+       dbAddTool t (Wielded c)
+       return ()
+executeMake MakeFailed = return ()
