@@ -12,7 +12,7 @@ GIT_ORIGIN_SUFFIX=.git
 
 make : roguestar-gl roguestar-engine rsagl-doc rsagl-demos
 
-setup :
+depends-setup :
 	-rm -rf roguestar-local
 	mkdir roguestar-local
 	echo "[]" > roguestar-local/cabal-package-db
@@ -21,8 +21,13 @@ setup :
 	cabal install parsec ${CONFIGURE_OPTS} --preference='parsec >= 3'
 	cabal install QuickCheck ${CONFIGURE_OPTS} --preference='QuickCheck < 2'
 	cabal install Arrows ${CONFIGURE_OPTS}
-	cabal install GLUT ${CONFIGURE_OPTS}
 	cabal install OpenGL ${CONFIGURE_OPTS}
+	cabal install GLUT ${CONFIGURE_OPTS}
+	cabal install heap ${CONFIGURE_OPTS}
+	cabal install stm ${CONFIGURE_OPTS}
+
+setup :
+	(cd priority-sync && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 	(cd roguestar-engine && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 	(cd rsagl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
@@ -45,6 +50,7 @@ rsagl-doc :
 	(cd rsagl && runghc Setup.hs haddock --internal)
 
 from-scratch :
+	${MAKE} depends-setup
 	${MAKE} setup
 	${MAKE}
 

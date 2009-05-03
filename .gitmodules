@@ -13,3 +13,6 @@
 [submodule "rsagl-demos"]
 	path = rsagl-demos
 	url = http://www.downstairspeople.org/git/rsagl-demos.git
+[submodule "priority-sync"]
+	path = priority-sync
+	url = http://www.downstairspeople.org/git/priority-sync.git
