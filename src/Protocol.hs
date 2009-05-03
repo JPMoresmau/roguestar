@@ -417,9 +417,11 @@ dbDispatchAction ["make-with",tool_uid] =
        tool <- dbGetTool tool_ref
        state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode n make_prep) -> case fromSphere tool of
-               Just s -> setPlayerState (PlayerCreatureTurn c $ MakeMode n $ make_prep `makeWith` (s,tool_ref)) >> done
-               Nothing -> return "protocol-error: not a material sphere"
+           PlayerCreatureTurn c (MakeMode _ make_prep) -> case (hasChromalite tool, hasMaterial tool, hasGas tool) of
+               (Just ch,_,_) | needsChromalite make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (ch,tool_ref)) >> done
+               (_,Just m,_) | needsMaterial make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (m,tool_ref)) >> done
+               (_,_,Just g) | needsGas make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (g,tool_ref)) >> done
+               _ | otherwise -> return "error: tool doesn't have needed substance"
            _ -> return "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-end"] =

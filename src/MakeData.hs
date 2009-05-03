@@ -16,6 +16,7 @@ module MakeData
 import DBData
 import ToolData
 import Substances
+import Data.Maybe
 
 -- | Multi-step process for gathering the materials to make something.
 data PrepareMake = PrepareMake {
