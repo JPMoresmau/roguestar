@@ -81,6 +81,7 @@ instance (Category a,ArrowChoice a) => Category (FRPX k t i o a) where
 instance (Arrow a,ArrowChoice a) => Arrow (FRPX k t i o a) where
     arr = lift . arr
     first (FRP f) = FRP $ first f
+    second (FRP f) = FRP $ second f
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (FRPX k t i o) a where
     lift = FRP . lift . lift
@@ -233,7 +234,7 @@ accumulate frequency accumF initial_value = statefulContext_ $ SwitchedArrow.wit
               do (old_input,old_accum) <- lift fetch -< ()
                  let new_accum = accumF old_input new_input old_accum abs_t delta_t (ceiling $ toSeconds delta_t / toSeconds (interval frequency))
                  lift store -< (new_input,new_accum)
-                 returnA -< (new_accum,frpstate)
+                 returnA -< old_input `seq` old_accum `seq` new_input `seq` new_accum `seq` (new_accum,frpstate)
 \end{code}
 
 \subsection{Getting the time}

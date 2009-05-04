@@ -22,7 +22,7 @@ build-type:          Simple
 tested-with:         GHC==6.8.2
 
 Library
-    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math,
+    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math, RSAGL.Math.FMod,
                          RSAGL.FRP.FRPBase, RSAGL.RayTrace.RayTrace, RSAGL.Math.Ray, RSAGL.FRP.StatefulArrow,
                          RSAGL.Modeling.Material, RSAGL.Modeling.BoundingBox,
                          RSAGL.Math.Vector, RSAGL.Animation.KinematicSensors, RSAGL.Modeling.RSAGLColors,

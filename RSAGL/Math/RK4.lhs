@@ -36,7 +36,7 @@ rk4' addPV diffF = genericRK4
 genericIntegrate :: (p -> Time -> Time -> p) -> p -> Time -> Time -> Integer -> p
 genericIntegrate _ pn _ _ 0 = pn
 genericIntegrate f p0 t0 tn n = genericIntegrate f p1 t1 tn (n-1)
-    where t1 = t0 `add` (scalarMultiply (recip $ realToFrac n) $ tn `sub` t0)
+    where t1 = t0 `add` (scalarMultiply (recip $ fromInteger n) $ tn `sub` t0)
           p1 = f p0 t0 t1
 
 integrateRK4 :: (AbstractVector v) => (p -> v -> p) -> (Time -> p -> Rate v) -> p -> Time -> Time -> Integer -> p

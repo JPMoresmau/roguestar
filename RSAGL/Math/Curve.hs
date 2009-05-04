@@ -53,7 +53,7 @@ import RSAGL.Math.AbstractVector
 import Debug.Trace
 import RSAGL.Modeling.BoundingBox
 import RSAGL.Math.Interpolation
-import Data.Fixed
+import RSAGL.Math.FMod
 
 -- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
 type CurveF a = (Double,Double) -> a
@@ -120,7 +120,7 @@ clampCurve (a,b) = mapCurve $ \f (h,u) -> f (h,min b $ max a u)
 -- | Loop a curve onto itself at the specified bounds.
 loopCurve :: (Double,Double) -> Curve a -> Curve a
 loopCurve (a,b) | b < a = loopCurve (b,a)
-loopCurve (a,b) = mapCurve $ \f (h,u) -> f (h,(u-a) `mod'` (b-a) + a)
+loopCurve (a,b) = mapCurve $ \f (h,u) -> f (h,(u-a) `fmod` (b-a) + a)
 
 -- | Transform a curve by manipulating control points.
 controlCurve :: (Double,Double) -> (Double,Double) -> Curve a -> Curve a

@@ -93,7 +93,7 @@ quadraticTrap g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * vec
 \begin{code}
 drag :: Double -> ForceFunction
 drag x _ _ v' = perSecond $ perSecond $ vectorScaleTo (negate $ x * vectorLengthSquared v) v
-    where v = v' `over` fromSeconds 1 
+    where v = v' `over` fromSeconds 1
 \end{code}
 
 \texttt{concatForces} combines any arbitrary group of \texttt{ForceFunction}s.

@@ -33,7 +33,7 @@ module RSAGL.Math.Angle
      unboundAngle)
     where
 
-import Data.Fixed
+import RSAGL.Math.FMod
 import RSAGL.Math.AbstractVector
 
 -- | An angular value.
@@ -186,7 +186,7 @@ polarToCartesian (a,d) = (cosine a*d,sine a*d)
 -- | 'boundAngle' forces the angle into the range (-pi..pi).
 boundAngle :: Angle -> Angle
 boundAngle (Radians x) = Radians $ if bounded > pi then bounded - 2*pi else bounded
-    where bounded = x `mod'` (2*pi)
+    where bounded = x `fmod` (2*pi)
 
 unboundAngle :: BoundAngle -> Angle
 unboundAngle (BoundAngle a) = a

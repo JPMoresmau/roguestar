@@ -41,6 +41,9 @@ instance (Arrow a) => Arrow (StatefulArrow a) where
     first (StatefulArrow sf) = StatefulArrow $
         proc (b,d) -> do (c,sf') <- sf -< b
                          returnA -< seq c $ seq sf' $ ((c,d),first sf')
+    second (StatefulArrow sf) = StatefulArrow $
+        proc (d,b) -> do (c,sf') <- sf -< b
+                         returnA -< seq c $ seq sf' $ ((d,c),second sf')
 
 instance (Arrow a) => ArrowTransformer StatefulArrow a where
     lift f = lifted

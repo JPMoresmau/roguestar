@@ -38,26 +38,28 @@ module RSAGL.FRP.Time
 import RSAGL.Math.AbstractVector
 import System.Time
 import Control.Monad
-import Data.Fixed
-import Data.Ratio
 import RSAGL.Math.Affine
 
-newtype Time = Time Pico deriving (Show,Eq,Ord)
+{-# INLINE time_resolution #-}
+time_resolution :: (Num n) => n
+time_resolution = 1000000
+
+newtype Time = Time Integer deriving (Show,Eq,Ord)
 newtype Rate a = Rate a deriving (Show,Eq,Ord,AffineTransformable)
 type Acceleration a = Rate (Rate a)
 type Frequency = Rate Double
 
 instance AbstractZero Time where
-    zero = Time 0.0
+    zero = Time 0
 
 instance AbstractAdd Time Time where
-    add (Time a) (Time b) = Time $ a `add` b
+    add (Time a) (Time b) = Time $ a + b
 
 instance AbstractSubtract Time Time where
-    sub (Time a) (Time b) = Time $ a `sub` b
+    sub (Time a) (Time b) = Time $ a - b
 
 instance AbstractScale Time where
-    scalarMultiply d (Time t) = Time $ realToFrac d * t
+    scalarMultiply d (Time t) = Time $ round $ d * fromInteger t
 
 instance AbstractVector Time
 
@@ -106,15 +108,15 @@ fps120 :: Frequency
 fps120 = perSecond 120
 
 fromSeconds :: Double -> Time
-fromSeconds = Time . realToFrac
+fromSeconds = Time . round . (* time_resolution)
 
 toSeconds :: Time -> Double
-toSeconds (Time t) = realToFrac t
+toSeconds (Time t) = fromInteger t / time_resolution
 
 getTime :: IO Time
 getTime = 
     do (TOD secs picos) <- getClockTime
-       return $ Time $ fromIntegral secs + fromRational (picos%(resolution (undefined :: E12)))
+       return $ Time $ secs * time_resolution + (picos * time_resolution) `div` 1000000000000
 \end{code}
 
 \subsection{Modulo Division for Time}
@@ -124,7 +126,7 @@ in the range \texttt{0 <= x <= 1}.
 
 \begin{code}
 cyclical :: Time -> Time -> Time
-cyclical (Time t) (Time k) = Time $ t `mod'` k
+cyclical (Time t) (Time k) = Time $ t `mod` k
 
 cyclical' :: Time -> Time -> Double
 cyclical' t k = (toSeconds $ t `cyclical` k) / toSeconds k
@@ -135,7 +137,7 @@ cyclical' t k = (toSeconds $ t `cyclical` k) / toSeconds k
 \begin{code}
 {-# INLINE over #-}
 over :: (AbstractVector a) => Rate a -> Time -> a
-over (Rate a) (Time t) = realToFrac t `scalarMultiply` a
+over (Rate a) (Time t) = (fromInteger t / time_resolution) `scalarMultiply` a
 
 {-# INLINE rate #-}
 rate :: (AbstractVector a) => (a,Time) -> (a,Time) -> Rate a
@@ -146,7 +148,7 @@ perSecond a = Rate a
 
 {-# INLINE per #-}
 per :: (AbstractVector a) => a -> Time -> Rate a
-per a (Time t) = Rate $ realToFrac (recip t) `scalarMultiply` a
+per a (Time t) = Rate $ (recip $ fromInteger t / time_resolution) `scalarMultiply` a
 
 interval :: Frequency -> Time
 interval (Rate x) = fromSeconds $ recip x

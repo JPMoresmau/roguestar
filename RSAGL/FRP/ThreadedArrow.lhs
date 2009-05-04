@@ -62,6 +62,7 @@ instance (Category a,ArrowChoice a) => Category (ThreadedArrow t i o a) where
 instance (ArrowChoice a) => Arrow (ThreadedArrow t i o a) where
     arr = lift . arr
     first (ThreadedArrow f) = ThreadedArrow $ first f
+    second (ThreadedArrow f) = ThreadedArrow $ second f
 
 instance (Arrow a,ArrowChoice a) => ArrowTransformer (ThreadedArrow t i o) a where
     lift = ThreadedArrow . lift . lift

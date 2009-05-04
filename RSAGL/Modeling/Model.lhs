@@ -439,7 +439,7 @@ instance ModelType BakedModel where
     toIntermediateModel (BakedModel im) = im
 
 disable_baked_models :: Bool -- in case of segfaults, BakedModel is the #1 suspect
-disable_baked_models = True
+disable_baked_models = False
 
 bakeModel :: IntermediateModel -> IO BakedModel
 bakeModel im | disable_baked_models = evaluate (im `using` rnf) >> (return $ BakedModel im) 

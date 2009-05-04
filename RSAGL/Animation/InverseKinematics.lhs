@@ -15,7 +15,6 @@ module RSAGL.Animation.InverseKinematics
 
 import Control.Arrow
 import Control.Arrow.Operations
-import Data.Fixed
 import RSAGL.Math.Vector
 import RSAGL.FRP.FRP
 import RSAGL.Math.Affine
@@ -27,6 +26,7 @@ import RSAGL.FRP.Time
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Angle
 import RSAGL.FRP.Edge
+import RSAGL.Math.FMod
 \end{code}
 
 \subsection{The Foot}
@@ -51,9 +51,9 @@ foot forward_radius side_radius lift_radius = proc emergency_footdown ->
     do fwd_total_stepage <- arr (* recip forward_radius) <<< odometer root_coordinate_system (Vector3D 0 0 1) -< ()
        side_total_stepage <- arr (* recip side_radius) <<< odometer root_coordinate_system (Vector3D 1 0 0) -< ()
        let pre_stepage = sqrt $ fwd_total_stepage^2 + side_total_stepage^2
-       stepage_adjustment <- integralRK4 fps30 add 0 -< (\_ p -> if (p + pre_stepage) `mod'` 2 < 1 && emergency_footdown then perSecond 1 else perSecond 0) 
+       stepage_adjustment <- integralRK4 fps30 add 0 -< (\_ p -> if (p + pre_stepage) `fmod` 2 < 1 && emergency_footdown then perSecond 1 else perSecond 0) 
        let adjusted_stepage = stepage_adjustment + pre_stepage
-       let cyclic_stepage = (`mod'` 2) $ adjusted_stepage
+       let cyclic_stepage = (`fmod` 2) $ adjusted_stepage
        motion <- derivative -< adjusted_stepage
        let foot_lift = max 0 $ min 1 (motion `over` fromSeconds 1) * lift_radius * (sine $ fromRotations (cyclic_stepage / 2))
        let stepage_offset = if cyclic_stepage > 1 then 1.5 - cyclic_stepage else cyclic_stepage - 0.5

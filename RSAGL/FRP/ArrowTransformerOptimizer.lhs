@@ -38,6 +38,9 @@ instance (ArrowTransformer a l) => Arrow (ArrowTransformerOptimizer a l) where
     first (Raw a) = Raw (first a)
     first (Lifted a) = Lifted (first a)
     first (Joined x y z) = Joined (first x) (first y) (first z)
+    second (Raw a) = Raw (second a)
+    second (Lifted a) = Lifted (second a)
+    second (Joined x y z) = Joined (second x) (second y) (second z)
     arr a = Lifted (arr a)
 
 instance (ArrowTransformer a l) => ArrowTransformer (ArrowTransformerOptimizer a) l where

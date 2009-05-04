@@ -24,7 +24,6 @@ Implements linear interpolation.
 
 \begin{code}
 {-# INLINE lerp #-}
-
 lerp :: (AbstractScale v,AbstractSubtract p v,AbstractAdd p v,Real r) => r -> (p,p) -> p
 lerp u (a,b) = a `add` scalarMultiply (realToFrac u) (b `sub` a)
 \end{code}
