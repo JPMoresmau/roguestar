@@ -3,8 +3,8 @@ VERSION=${GIT_CHECKOUT}
 VERSION_SUFFIX=-${VERSION}
 PACKAGE_DB=--package-db="${PWD}/roguestar-local/cabal-package-db"
 OPTS=
-CONFIGURE_ROGUESTAR_OPTS=--ghc-option=-Werror
 CONFIGURE_OPTS=${PACKAGE_DB} --prefix="${PWD}/roguestar-local" ${OPTS}
+DEPENDS_OPTS=${CONFIGURE_OPTS} --enable-library-profiling --enable-executable-profiling
 
 # Change these to make dist from somewhere other than the downstairspeople.org repo.
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
@@ -16,15 +16,15 @@ depends-setup :
 	-rm -rf roguestar-local
 	mkdir roguestar-local
 	echo "[]" > roguestar-local/cabal-package-db
-	cabal install MaybeT ${CONFIGURE_OPTS}
-	cabal install MonadRandom ${CONFIGURE_OPTS}
-	cabal install parsec ${CONFIGURE_OPTS} --preference='parsec >= 3'
-	cabal install QuickCheck ${CONFIGURE_OPTS} --preference='QuickCheck < 2'
-	cabal install Arrows ${CONFIGURE_OPTS}
-	cabal install OpenGL ${CONFIGURE_OPTS}
-	cabal install GLUT ${CONFIGURE_OPTS}
-	cabal install heap ${CONFIGURE_OPTS}
-	cabal install stm ${CONFIGURE_OPTS}
+	cabal install MaybeT ${DEPENDS_OPTS}
+	cabal install MonadRandom ${DEPENDS_OPTS}
+	cabal install parsec ${DEPENDS_OPTS} --preference='parsec >= 3'
+	cabal install QuickCheck ${DEPENDS_OPTS} --preference='QuickCheck < 2'
+	cabal install Arrows ${DEPENDS_OPTS}
+	cabal install OpenGL ${DEPENDS_OPTS}
+	cabal install GLUT ${DEPENDS_OPTS}
+	cabal install heap ${DEPENDS_OPTS}
+	cabal install stm ${DEPENDS_OPTS}
 
 setup :
 	(cd priority-sync && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
