@@ -10,7 +10,7 @@ module RSAGL.Math.Matrix
      colMajorForm,
      rowAt,
      matrixAt,
-     identityMatrix,
+     identity_matrix,
      translationMatrix,
      rotationMatrix,
      scaleMatrix,
@@ -26,51 +26,31 @@ module RSAGL.Math.Matrix
      determinantPrim)
     where
 
-import Data.List
+import Data.List as List
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
-import Data.Array.ST
-import Data.Array.Base
+import Data.Vec as Vec
 \end{code}
 
-The Matrix data structure stores copies of the matrix in both row-major and column-major form,
-as well a copy of the Matrix's inverse.  Caching this information has been shown to lead to performance
-increases.
-
-In row-major form, each list represents one row; columns run between lists.
-In column-major form, each list represents one column; rows run between lists.
-
-In row-major form, the Haskell list representation of a matrix has the same orientation
-as if written on paper.
+A 4-by-4 matrix with cached inverse, transpose, inverse transpose, and determinant.
 
 \begin{code}
-data Matrix = Matrix { matrix_rows, matrix_cols :: !Int, 
-                       matrix_data :: UArray Int Double, 
+data Matrix = Matrix { matrix_data :: !(Mat44 Double),
                        matrix_inverse :: Matrix,
                        matrix_transpose :: Matrix,
                        matrix_determinant :: Double }
 
-{-# INLINE rows #-}
-rows :: Matrix -> Int
-rows = matrix_rows
-
-{-# INLINE cols #-}
-cols :: Matrix -> Int
-cols = matrix_cols
-
 instance Eq Matrix where
-    x == y = rows x == rows y &&
-             cols x == cols y &&
-             rowMajorForm x == rowMajorForm y
+    x == y = matrix_data x == matrix_data y
 
 instance Show Matrix where
     show m = show $ rowMajorForm m
 
 rowMajorForm :: Matrix -> [[Double]]
-rowMajorForm mat = unfoldr (\xs -> if null xs then Nothing else Just $ splitAt (matrix_cols mat) xs) $ elems $ matrix_data mat
+rowMajorForm = matToLists . matrix_data
 
 colMajorForm :: Matrix -> [[Double]]
-colMajorForm = transpose . rowMajorForm
+colMajorForm = List.transpose . rowMajorForm
 \end{code}
 
 rowAt answers the nth row of a matrix.
@@ -83,11 +63,8 @@ rowAt m n = (rowMajorForm m) !! n
 matrixAt answers the (i'th,j'th) element of a matrix.
 
 \begin{code}
-{-# INLINE matrixAt #-}
 matrixAt :: Matrix -> (Int,Int) -> Double
-matrixAt m (i,j) = case () of
-    () | i `seq` j `seq` False -> undefined
-    () | otherwise -> matrix_data m ! ((i*cols m) + j)
+matrixAt m (i,j) = rowAt m i !! j
 \end{code}
 
 \subsection{Constructing matrices}
@@ -97,35 +74,21 @@ monospaced font and haskell syntax, so that it looks like a matrix as it would b
 
 \begin{code}
 matrix :: [[Double]] -> Matrix
-matrix [] = error "matrix: empty matrix"
-matrix [[]] = error "matrix: empty matrix"
-matrix dats | not (all (== length (head dats)) (map length dats)) = error "matrix: row lengths do not match"
-matrix dats = uncheckedMatrix number_of_rows number_of_cols (listArray (0,number_of_rows * number_of_cols - 1) $ concat dats)
-    where number_of_rows = length dats
-          number_of_cols = length $ head dats
+matrix = uncheckedMatrix . matFromLists
 
 -- | Generate a column matrix of length 4, perform an affine transformation on it, and produce the resulting value.
 {-# INLINE transformHomogenous #-}
 transformHomogenous :: Double -> Double -> Double -> Double -> (Double -> Double -> Double -> a) -> Matrix -> a
-transformHomogenous x y z w f m = f (matrixAt result (0,0)) (matrixAt result (1,0)) (matrixAt result (2,0))
-    where result = matrixMultiply m col_matrix
-          col_matrix = seq x $ seq y $ seq z $ seq w $ uncheckedMatrix 4 1 $ runSTUArray $
-              do a <- newArray_ (0,3)
-                 writeArray a 0 x
-                 writeArray a 1 y
-                 writeArray a 2 z
-                 writeArray a 3 w
-                 return a
+transformHomogenous x y z w f m = f x' y' z'
+    where (x':.y':.z':._) = multmv (matrix_data m) (x:.y:.z:.w:.())
 
-uncheckedMatrix :: Int -> Int -> UArray Int Double -> Matrix
-uncheckedMatrix number_of_rows number_of_cols dats = m
+uncheckedMatrix :: Mat44 Double -> Matrix
+uncheckedMatrix dats = m
     where m_inverse = (matrixTransposePrim m_inverse_transpose) { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
           m_transpose = (matrixTransposePrim m) { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
           m_inverse_transpose = (matrixInverseTransposePrim m) { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
           m_det = determinantPrim m
-          m = Matrix { matrix_rows=number_of_rows,
-                       matrix_cols=number_of_cols,
-                       matrix_data=dats,
+          m = Matrix { matrix_data=dats,
                        matrix_inverse = m_inverse,
                        matrix_transpose = m_transpose,
                        matrix_determinant = m_det }
@@ -134,8 +97,12 @@ uncheckedMatrix number_of_rows number_of_cols dats = m
 identityMatrix constructs the n by n identity matrix
 
 \begin{code}
-identityMatrix :: (Integral i) => i -> Matrix
-identityMatrix n = matrix $ map (\x -> genericReplicate x 0 ++ [1] ++ genericReplicate (n-1-x) 0) [0..n-1]
+identity_matrix :: Matrix
+identity_matrix = Matrix {
+    matrix_data = identity,
+    matrix_inverse = identity_matrix,
+    matrix_transpose = identity_matrix,
+    matrix_determinant = 1 }
 \end{code}
 
 \begin{code}
@@ -182,39 +149,14 @@ xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
 
 \begin{code}
 matrixAdd :: Matrix -> Matrix -> Matrix
-matrixAdd m n = let new_row_major = (if and [rows m == rows n,cols m == cols n]
-				     then map ((map (uncurry (+))).(uncurry zip)) $ zip (rowMajorForm m) (rowMajorForm n)
-				     else error "matrixAdd: dimension mismatch")
-		    in matrix new_row_major
+matrixAdd m n = uncheckedMatrix $ Vec.zipWith (+) (matrix_data m) (matrix_data n)
 \end{code}
 
 \label{howtoUseMatrixMultiplyImpl}
 
 \begin{code}
 matrixMultiply :: Matrix -> Matrix -> Matrix
-matrixMultiply m n | cols m /= rows n = error "matrixMultiply: dimension mismatch"
-matrixMultiply m n = case () of
-        () | number_of_cols `seq` number_of_rows `seq` run_length `seq` False -> undefined
-	() | otherwise -> uncheckedMatrix number_of_rows number_of_cols new_data
-    where number_of_cols = cols n
-          number_of_rows = rows m
-	  run_length = cols m
-          loop a z f = case () of
-	      () | a `seq` z `seq` False -> undefined
-	      () | a < z -> do f a
-	                       loop (a+1) z f
-	      () | otherwise -> return ()
-	  multiplyCell i j r = case () of
-	      () | i `seq` j `seq` r `seq` False -> undefined
-	      () | r < run_length -> matrixAt m (i,r) * matrixAt n (r,j) + multiplyCell i j (r+1)
-	      () | otherwise -> 0
-          new_data = runSTUArray $
-              do a <- newArray_ (0,number_of_rows * number_of_cols - 1)
-		 loop 0 number_of_rows $ \this_row -> 
-		     let this_row_start = this_row*number_of_cols
-		         in seq this_row_start $ loop 0 number_of_cols $ \this_col -> 
-		                writeArray a (this_row_start+this_col) (multiplyCell this_row this_col 0)
-		 return a
+matrixMultiply m n = uncheckedMatrix $ multmm (matrix_data m) (matrix_data n)
 
 matrixTranspose :: Matrix -> Matrix
 matrixTranspose = matrix_transpose
@@ -232,68 +174,16 @@ determinant :: Matrix -> Double
 determinant = matrix_determinant
 \end{code}
 
-reduceMatrix eliminates the row and column corresponding to a specific element of a matrix.
-
-\begin{code}
-reduceMatrix :: Matrix -> (Int,Int) -> Matrix
-reduceMatrix m (i,j) = case () of
-    () | num_rows `seq` num_cols `seq` i `seq` j `seq` False -> undefined
-    () | i >= num_rows || j >= num_cols -> error "reduceMatrix: out of bounds"
-    () | otherwise -> uncheckedMatrix (rows m - 1) (cols m - 1) $ ixmap (0,rows m * cols m - rows m - cols m) (\x ->
-        let n = (x + j_push) `div` new_cols
-	    p = if x `div` new_cols >= i then num_cols else 0
-            in case () of
-	        () | x `seq` n `seq` p `seq` False -> undefined
-	        () | otherwise -> x + n + p) $ matrix_data m
-    where num_rows = rows m
-          num_cols = cols m
-	  new_cols = num_cols - 1
-	  j_push = num_cols - j - 1
-\end{code}
-
-The minor of an element of a matrix is the determinant of the matrix that is formed by removing
-the row and column corresponding to that element (see reduceMatrix).
-
-\begin{code}
-matrixMinor :: Matrix -> (Int,Int) -> Double
-matrixMinor m ij = determinant $ reduceMatrix m ij
-\end{code}
-
-The cofactor of m at (i,j) is the minor of m at (i,j), multiplied by -1 at checkerboarded elements.
-
-\begin{code}
-matrixCofactor :: Matrix -> (Int,Int) -> Double
-matrixCofactor m (0,0) | rows m == 1 && cols m == 1 = matrixAt m (0,0)
-matrixCofactor m (i,j) = (-1)^(i+j) * matrixMinor m (i,j)
-\end{code}
-
-Implementation of determinant and matrix inverse for matrices of Rationals.
-
 \begin{code}
 matrixInverseTransposePrim :: Matrix -> Matrix
-matrixInverseTransposePrim m | rows m /= cols m = error "matrixInverseTransposePrim: not a square matrix"
-matrixInverseTransposePrim m | determinant m == 0 = error "matrixInverseTransposePrim: det m = 0"
-matrixInverseTransposePrim m = 
-    let scale_factor = 1 / determinant m
-        in matrix [[scale_factor * matrixCofactor m (i,j) | j <- [0..(cols m-1)]]
-                                                          | i <- [0..(rows m-1)]]
+matrixInverseTransposePrim = uncheckedMatrix . Vec.transpose . fst . invertAndDet . matrix_data
 
 matrixInversePrim :: Matrix -> Matrix
-matrixInversePrim = matrixTransposePrim . matrixInverseTransposePrim
+matrixInversePrim = uncheckedMatrix . fst . invertAndDet . matrix_data
 
 determinantPrim :: Matrix -> Double
-determinantPrim m | rows m /= cols m = error "determinantPrim: not a square matrix"
-determinantPrim m | rows m == 1 && cols m == 1 = matrixAt m (0,0)
-determinantPrim m | rows m == 2 && cols m == 2 = matrixAt m (0,0) * matrixAt m (1,1) -
-                                                 matrixAt m (1,0) * matrixAt m (0,1)
-determinantPrim m | rows m == 3 && cols m == 3 = matrixAt m (0,0) * matrixAt m (1,1) * matrixAt m (2,2) +
-                                                 matrixAt m (0,1) * matrixAt m (1,2) * matrixAt m (2,0) +
-						 matrixAt m (0,2) * matrixAt m (1,0) * matrixAt m (2,1) -
-						 matrixAt m (2,0) * matrixAt m (1,1) * matrixAt m (0,2) -
-						 matrixAt m (2,1) * matrixAt m (1,2) * matrixAt m (0,0) -
-						 matrixAt m (2,2) * matrixAt m (1,0) * matrixAt m (0,1)
-determinantPrim m = sum $ zipWith (*) (rowAt m 0) $ map (\x -> matrixCofactor m (0,x)) [0..(cols m - 1)]
+determinantPrim = det . matrix_data
 
 matrixTransposePrim :: Matrix -> Matrix
-matrixTransposePrim = matrix . colMajorForm -- works because matrix expects row major form
+matrixTransposePrim = uncheckedMatrix . Vec.transpose . matrix_data
 \end{code}

@@ -88,7 +88,7 @@ instance (CoordinateSystemClass csc) => CoordinateSystemClass (a,csc) where
     storeCoordinateSystem cs = second (storeCoordinateSystem cs)
 
 root_coordinate_system :: CoordinateSystem
-root_coordinate_system = CoordinateSystem $ identityMatrix 4
+root_coordinate_system = CoordinateSystem identity_matrix
 \end{code}
 
 \subsection{Abstract Affine Transformations}
@@ -107,7 +107,7 @@ affineOf :: AffineTransformation -> Affine
 affineOf = ($ (Affine id))
 
 affineTransformationToMatrix :: AffineTransformation -> Matrix
-affineTransformationToMatrix f = affine_transformation (affineOf f) $ identityMatrix 4
+affineTransformationToMatrix f = affine_transformation (affineOf f) identity_matrix
 
 transformation :: (AffineTransformable a) => AffineTransformation -> a -> a
 transformation = transform . affineTransformationToMatrix

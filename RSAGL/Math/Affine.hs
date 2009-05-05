@@ -60,7 +60,7 @@ withTransformation m f = inverseTransform m . f . transform m
 -- performs a rotation about an arbitrary point rather than the origin.
 {-# INLINE transformAbout #-}
 transformAbout :: (AffineTransformable a) => Point3D -> (a -> a) -> a -> a
-transformAbout center f = withTransformation (translateToFrom origin_point_3d center $ identityMatrix 4) f
+transformAbout center f = withTransformation (translateToFrom origin_point_3d center identity_matrix) f
 
 -- | Specific translation along the vector between two points.
 -- This ordinary use is to set the second point as the center of a model (typically origin_point_3d)
@@ -79,7 +79,7 @@ rotateToFrom u v = RSAGL.Math.Affine.rotate c a
 -- | Specific scale along an arbitary axis.
 {-# INLINE scaleAlong #-}
 scaleAlong :: (AffineTransformable a) => Vector3D -> Double -> a -> a
-scaleAlong v u = withTransformation (rotateToFrom (Vector3D 0 1 0) v $ identityMatrix 4) (RSAGL.Math.Affine.scale (Vector3D 1 u 1))
+scaleAlong v u = withTransformation (rotateToFrom (Vector3D 0 1 0) v identity_matrix) (RSAGL.Math.Affine.scale (Vector3D 1 u 1))
 
 instance AffineTransformable a => AffineTransformable (Maybe a) where
     transform m = fmap (transform m)
