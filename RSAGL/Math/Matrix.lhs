@@ -107,10 +107,10 @@ identity_matrix = Matrix {
 
 \begin{code}
 translationMatrix :: Vector3D -> Matrix
-translationMatrix (Vector3D x y z) = matrix [[1,0,0,x],
-					     [0,1,0,y],
-					     [0,0,1,z],
-					     [0,0,0,1]]
+translationMatrix (Vector3D x y z) = uncheckedMatrix $ (1:.0:.0:.x:.()) :.
+                                                       (0:.1:.0:.y:.()) :.
+                                                       (0:.0:.1:.z:.()) :.
+                                                       (0:.0:.0:.1:.()) :. ()
 \end{code}
 
 \begin{code}
@@ -119,18 +119,18 @@ rotationMatrix vector angle = let s = sine angle
 				  c = cosine angle
 				  c' = 1 - c
 				  (Vector3D x y z) = vectorNormalize vector
-				  in matrix [[c+c'*x*x,     c'*y*x - s*z,   c'*z*x + s*y, 0],
-					     [c'*x*y+s*z,   c+c'*y*y,       c'*z*y - s*x, 0],
-					     [c'*x*z-s*y,   c'*y*z+s*x,     c+c'*z*z,     0],
-					     [0,            0,              0,            1]]
+				  in uncheckedMatrix $ ((c+c'*x*x)   :. (c'*y*x - s*z) :. (c'*z*x + s*y) :. 0 :. ()) :.
+					               ((c'*x*y+s*z) :. (c+c'*y*y)     :. (c'*z*y - s*x) :. 0 :. ()) :.
+					               ((c'*x*z-s*y) :. (c'*y*z+s*x)   :. (c+c'*z*z)     :. 0 :. ()) :.
+					               (0            :. 0              :. 0              :. 1 :. ()) :. ()
 \end{code}
 
 \begin{code}
 scaleMatrix :: Vector3D -> Matrix
-scaleMatrix (Vector3D x y z) = matrix [[x, 0, 0, 0],
-				       [0, y, 0, 0],
-				       [0, 0, z, 0],
-				       [0, 0, 0, 1]]
+scaleMatrix (Vector3D x y z) = uncheckedMatrix $ (x :. 0 :. 0 :. 0) :.
+				                 (0 :. y :. 0 :. 0) :.
+				                 (0 :. 0 :. z :. 0) :.
+				                 (0 :. 0 :. 0 :. 1) :. ()
 \end{code}
 
 \texttt{xyzMatrix} constructs the matrix in which the x y and z axis are transformed to point in the direction of the specified
@@ -139,10 +139,10 @@ vectors.
 \begin{code}
 xyzMatrix :: Vector3D -> Vector3D -> Vector3D -> Matrix
 xyzMatrix (Vector3D x1 y1 z1) (Vector3D x2 y2 z2) (Vector3D x3 y3 z3) =
-    matrix [[x1,x2,x3,0],
-            [y1,y2,y3,0],
-            [z1,z2,z3,0],
-            [0,0,0,1.0]]
+    uncheckedMatrix $ (x1 :. x2 :. x3 :. 0) :.
+                      (y1 :. y2 :. y3 :. 0) :.
+                      (z1 :. z2 :. z3 :. 0) :.
+                      (0  :. 0  :. 0  :. 1.0) :. ()
 \end{code}
 
 \subsection{Matrix arithmetic}
