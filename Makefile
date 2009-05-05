@@ -16,6 +16,7 @@ depends-setup :
 	-rm -rf roguestar-local
 	mkdir roguestar-local
 	echo "[]" > roguestar-local/cabal-package-db
+	cabal install Vec ${DEPENDS_OPTS}
 	cabal install MaybeT ${DEPENDS_OPTS}
 	cabal install MonadRandom ${DEPENDS_OPTS}
 	cabal install parsec ${DEPENDS_OPTS} --preference='parsec >= 3'
