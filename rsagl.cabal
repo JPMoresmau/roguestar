@@ -40,14 +40,14 @@ Library
                          RSAGL.Math.AbstractVector, RSAGL.FRP.ThreadedArrow, RSAGL.FRP.Edge,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
-                         RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow
+                         RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.FRP.HasMonad, RSAGL.FRP.MonadReference
 
     other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all
 
-    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2, parsec>=3, Vec >= 0.9.6
+    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, QuickCheck<2, parsec>=3, Vec >= 0.9.6, stm
 
 Executable _rsagl_process_colors
     main-is:             ProcessColors.hs

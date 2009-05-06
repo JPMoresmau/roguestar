@@ -3,9 +3,7 @@
 module RSAGL.FRP.FactoryArrow
     (FactoryArrow(..),
      RSAGL.FRP.FactoryArrow.stateContext,
-     RSAGL.FRP.FactoryArrow.statefulForm,
-     MonadReference(..),
-     HasMonad(..))
+     RSAGL.FRP.FactoryArrow.statefulForm)
     where
 
 import Prelude hiding ((.),id)
@@ -13,8 +11,9 @@ import Control.Arrow
 import Control.Monad
 import Control.Category
 import Control.Arrow.Transformer
-import Data.IORef
 import RSAGL.FRP.StatefulArrow
+import RSAGL.FRP.HasMonad
+import RSAGL.FRP.MonadReference
 
 -- | An 'Arrow' that generates another 'Arrow' inside a 'Monad'.
 newtype (HasMonad a) => FactoryArrow a i o = FactoryArrow { runFactory :: (MonadOf a) (a i o) }
@@ -53,24 +52,3 @@ statefulForm factory = StatefulArrow $ proc i ->
                   returnA -< (o,StatefulArrow actionA)
        app -< (actionA,i)
 
--- | A Kleisli arrow or an ArrowTransformer that can be lifted onto a Kleisli arrow.
-class (Category a) => HasMonad a where
-    type MonadOf a :: * -> *
-    monadicAction :: (i -> (MonadOf a) o) -> a i o
-
-instance (Monad m) => HasMonad (Kleisli m) where
-    type MonadOf (Kleisli m) = m
-    monadicAction = Kleisli
-
--- | A monad that has a Reference type, such as IO and IORef.
-class MonadReference m where
-    type Reference m :: * -> *
-    newReference :: a -> m (Reference m a)
-    readReference :: Reference m a -> m a
-    writeReference :: Reference m a -> a -> m ()
-
-instance MonadReference IO where
-    type Reference IO = IORef
-    newReference = newIORef
-    readReference = readIORef
-    writeReference = writeIORef
