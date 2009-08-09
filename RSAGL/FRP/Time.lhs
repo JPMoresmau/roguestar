@@ -80,7 +80,7 @@ instance (AbstractVector a) => AbstractVector (Rate a)
 
 \subsection{Getting and Constructing Time}
 
-getTime gets the current, absolute time, using Haskell's standard time facilities.
+getTime gets the current, absolute time, using Haskell's standard time facilities, getClockTime.
 
 \begin{code}
 minute :: Time
@@ -99,7 +99,7 @@ year :: Time
 year = scalarMultiply 365.25 month
 
 fps30 :: Frequency
-fps30 = perSecond 24
+fps30 = perSecond 30
 
 fps60 :: Frequency
 fps60 = perSecond 60
