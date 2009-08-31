@@ -47,7 +47,7 @@ Library
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all
 
-    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, parsec>=3, Vec >= 0.9.6, stm
+    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, parsec>=3, Vec >= 0.9.6, stm, data-memocombinators
 
 Executable _rsagl_process_colors
     main-is:             ProcessColors.hs

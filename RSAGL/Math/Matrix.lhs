@@ -84,9 +84,9 @@ transformHomogenous x y z w f m = f x' y' z'
 
 uncheckedMatrix :: Mat44 Double -> Matrix
 uncheckedMatrix dats = m
-    where m_inverse = (matrixTransposePrim m_inverse_transpose) { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
+    where m_inverse = (matrixInversePrim m) { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
           m_transpose = (matrixTransposePrim m) { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
-          m_inverse_transpose = (matrixInverseTransposePrim m) { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
+          m_inverse_transpose = (matrixTransposePrim m_inverse) { matrix_inverse = m_transpose, matrix_transpose = m_inverse, matrix_determinant = recip m_det }
           m_det = determinantPrim m
           m = Matrix { matrix_data=dats,
                        matrix_inverse = m_inverse,

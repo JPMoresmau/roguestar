@@ -53,6 +53,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Monoid
 import RSAGL.Auxiliary.RecombinantState
+import Data.MemoCombinators
 \end{code}
 
 \subsection{Cameras}
@@ -281,14 +282,14 @@ newtype LightSourceLayerTransform = LightSourceLayerTransform { lightSourceLayer
 
 instance Monoid LightSourceLayerTransform where
     mempty = LightSourceLayerTransform $ const $ const id
-    mappend (LightSourceLayerTransform f) (LightSourceLayerTransform g) = LightSourceLayerTransform $ \a b -> f a b . g a b
+    mappend (LightSourceLayerTransform f) (LightSourceLayerTransform g) = LightSourceLayerTransform $ memo2 integral integral $ \a b -> f a b . g a b
 
 -- | Performs the minimal light source layer transform needed to maintain correct light sources under camera transformations.
 cameraLightSourceLayerTransform :: (SceneLayer -> Camera) -> LightSourceLayerTransform
-cameraLightSourceLayerTransform layerToCamera = LightSourceLayerTransform f
+cameraLightSourceLayerTransform layerToCamera = LightSourceLayerTransform $ memo2 integral integral f
     where f :: SceneLayer -> SceneLayer -> LightSource -> LightSource
-          f  entering_layer originating_layer ls | entering_layer == originating_layer = ls
-          f entering_layer originating_layer ls | entering_layer < originating_layer =
-              cameraOrientation (layerToCamera entering_layer) $ infiniteLightSourceOf $ cameraLookAt (layerToCamera originating_layer) ls
-          f _ _ _ = NoLight
+          f  entering_layer originating_layer | entering_layer == originating_layer = id
+          f entering_layer originating_layer | entering_layer < originating_layer =
+              cameraOrientation (layerToCamera entering_layer) . infiniteLightSourceOf . cameraLookAt (layerToCamera originating_layer)
+          f _ _ = const NoLight
 \end{code}
