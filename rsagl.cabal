@@ -37,10 +37,10 @@ Library
                          RSAGL.Bottleneck, RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,
                          RSAGL.Math.Curve, RSAGL.Math.Angle, RSAGL.Modeling.Optimization,
                          RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthagonal,
-                         RSAGL.Math.AbstractVector, RSAGL.FRP.ThreadedArrow, RSAGL.FRP.Edge,
+                         RSAGL.Math.AbstractVector, RSAGL.FRP.ThreadedArrow,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
-                         RSAGL.Modeling.BakedModel, RSAGL.FRP2.FactoryArrow, RSAGL.FRP2.FRP
+                         RSAGL.Modeling.BakedModel, RSAGL.FRP2.FactoryArrow, RSAGL.Auxiliary.RecombinantState
 
     other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 

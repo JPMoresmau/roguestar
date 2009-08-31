@@ -4,7 +4,7 @@ A \texttt{Scene} is a complete description of an image to be rendered, consistin
 
 \begin{code}
 
-{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, FunctionalDependencies #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, FunctionalDependencies, TypeFamilies #-}
 
 module RSAGL.Scene.Scene
     (Scene,
@@ -52,6 +52,7 @@ import RSAGL.Scene.LightSource
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Monoid
+import RSAGL.Auxiliary.RecombinantState
 \end{code}
 
 \subsection{Cameras}
@@ -119,7 +120,13 @@ instance CoordinateSystemClass (SceneAccumulator m) where
     getCoordinateSystem = sceneaccum_coordinate_system
     storeCoordinateSystem cs sceneaccum = sceneaccum { sceneaccum_coordinate_system = cs }
 
-class (CoordinateSystemClass a,Monad m) => ScenicAccumulator a m | a -> m where -- REVISIT: fundeps just for this, really?
+instance RecombinantState (SceneAccumulator m) where
+    type SubState (SceneAccumulator m) = SceneAccumulator m
+    clone = id
+    recombine orig new = orig {
+        sceneaccum_objs = sceneaccum_objs new ++ sceneaccum_objs orig }
+
+class (RecombinantState a,CoordinateSystemClass a,Monad m) => ScenicAccumulator a m | a -> m where -- REVISIT: fundeps just for this, really?
     accumulateScene :: SceneLayer -> SceneObject m -> a -> a
 
 instance (Monad m) => ScenicAccumulator (SceneAccumulator m) m where

@@ -8,7 +8,6 @@ module RSAGL.Animation.KinematicSensors
     where
 
 import Control.Arrow
-import Control.Arrow.Operations
 import RSAGL.Math.Vector
 import RSAGL.FRP.FRP
 import RSAGL.Scene.CoordinateSystems
@@ -21,7 +20,7 @@ The \texttt{odometer} indicates the distance traveled in a remote coordinate sys
 It does not measure side-to-side motion, only motion in the direction of the vector.
 
 \begin{code}
-odometer :: (Arrow a,ArrowChoice a,ArrowApply a,ArrowState s a,CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX any t i o a () Double
+odometer :: (CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX k s t i o () Double
 odometer cs measurement_vector_ =
        arr (const origin_point_3d) >>> exportToA cs >>> derivative >>> importFromA cs >>>
        arr (withTime (fromSeconds 1) (dotProduct measurement_vector)) >>>

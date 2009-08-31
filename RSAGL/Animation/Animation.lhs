@@ -3,7 +3,7 @@
 The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine transformation and scene accumulation.
 
 \begin{code}
-{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving, TypeFamilies #-}
 
 module RSAGL.Animation.Animation
     (AniM,
@@ -28,8 +28,7 @@ import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Affine
 import RSAGL.FRP.FRP
-import Control.Concurrent.MVar
-import Control.Arrow.Transformer.State as StateArrow
+import RSAGL.Auxiliary.RecombinantState
 \end{code}
 
 \subsection{The AniM Monad}
@@ -42,6 +41,11 @@ newtype TimePlusSceneAccumulator m = TimePlusSceneAccumulator (Time,SceneAccumul
 
 instance (Monad m) => ScenicAccumulator (TimePlusSceneAccumulator m) m where
     accumulateScene slayer scobj (TimePlusSceneAccumulator (t,sceneaccum)) = TimePlusSceneAccumulator (t,accumulateScene slayer scobj sceneaccum)
+
+instance RecombinantState (TimePlusSceneAccumulator m) where
+    type SubState (TimePlusSceneAccumulator m) = TimePlusSceneAccumulator m
+    clone = id
+    recombine (TimePlusSceneAccumulator (t,old)) (TimePlusSceneAccumulator (_,new)) = TimePlusSceneAccumulator (t,recombine old new)
 
 type AniM a = StateT (TimePlusSceneAccumulator IO) IO a
 
@@ -72,8 +76,7 @@ rotateM v a = animateM (rotationM v a)
 \subsection{The AniA Arrow}
 
 \begin{code}
-type AniA t i o j p = FRPX Threaded t i o (StateArrow (SceneAccumulator IO) (->)) j p
-type AniA1 i o j p = FRP1 i o (StateArrow (SceneAccumulator IO) (->)) j p
+type AniA k t i o j p = FRPX k (SceneAccumulator IO) t i o j p
 \end{code}
 
 \subsection{Animation Objects}
@@ -83,21 +86,19 @@ This is one possible implementation of an animation object.
 \begin{code}
 data AnimationObject i o =
     AniMObject (i -> AniM o)
-  | AniAObject (MVar (FRPProgram (StateArrow (SceneAccumulator IO) (->)) i o))
+  | AniAObject (FRPProgram (SceneAccumulator IO) i o)
 
 newAnimationObjectM :: (i -> AniM o) -> AnimationObject i o
 newAnimationObjectM = AniMObject
 
-newAnimationObjectA :: AniA1 i o i o -> IO (AnimationObject i o)
-newAnimationObjectA thread = liftM AniAObject $ newMVar $ newFRP1Program thread
+newAnimationObjectA :: AniA () () i o i o -> IO (AnimationObject i o)
+newAnimationObjectA thread = liftM AniAObject $ newFRP1Program thread
 
 runAnimationObject :: AnimationObject i o -> i -> AniM o
 runAnimationObject (AniMObject f) i = f i
-runAnimationObject (AniAObject mv) i =
-    do old_frpp <- liftIO $ takeMVar mv
-       TimePlusSceneAccumulator (t,old_s) <- get
-       let ((o,new_frpp),new_s) = (StateArrow.runState $ updateFRPProgram old_frpp) ((i,t),old_s)
+runAnimationObject (AniAObject frpp) i =
+    do TimePlusSceneAccumulator (t,old_s) <- get
+       (o,new_s) <- liftIO $ updateFRPProgram (Just t) (i,old_s) frpp
        put $ TimePlusSceneAccumulator (t,new_s)
-       liftIO $ putMVar mv new_frpp
        return o
 \end{code}
