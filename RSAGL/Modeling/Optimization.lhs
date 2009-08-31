@@ -72,6 +72,9 @@ estimateTesselatedSurfaceArea ruler pieces = sum $ map measurePiece pieces
          measurePiece (TesselatedTriangleStrip (v0:v1:v2:vs)) = heronsFormula ruler v0 v1 v2 +
                                                               measurePiece (TesselatedTriangleStrip (v1:v2:vs))
          measurePiece (TesselatedTriangleStrip _) = 0.0
+         measurePiece (TesselatedTriangles (v0:v1:v2:vs)) = heronsFormula ruler v0 v1 v2 +
+                                                            measurePiece (TesselatedTriangles vs)
+         measurePiece (TesselatedTriangles _) = 0.0
 
 heronsFormula :: (a -> a -> Double) -> a -> a -> a -> Double
 heronsFormula ruler v0 v1 v2 = max 0 $ (/ 4) $ sqrt $ (a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c))

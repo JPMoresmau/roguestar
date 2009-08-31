@@ -1,6 +1,6 @@
-\section{Decomposing Surface Data}
-
-\begin{code}
+-- Tesselation is one stage of transforming a RSAGL model into OpenGL procedure calls.  In tesselation, polyline strips are broken
+-- down into triangle fans, triangle strips, and triangles.
+-- The RSAGL tesselator in particular implements the capability to tesselate polyline strips of differing numbers of elements.
 module RSAGL.Modeling.Tesselation
     (TesselatedSurface,
      TesselatedElement(..),
@@ -24,40 +24,55 @@ import Text.Parsec.Prim
 import Text.Parsec.String ()
 import Data.Ord
 import Control.Monad
-\end{code}
 
-Tesselation is a stage of transforming a model into OpenGL procedure calls.  Tesselation is done by breaking a surface into a sequence of polylines (a grid).  Pairs of polylines, possibly of differing length, describe a polygon strip.  We subdivide that strip into triangle fans and quadralateral strips, as described by the OpenGL specification.
-
-\begin{code}
 type TesselatedSurface a = [TesselatedElement a]
 
 data TesselatedElement a = TesselatedTriangleFan { tesselated_vertices :: [a] } 
                          | TesselatedTriangleStrip { tesselated_vertices :: [a] }
+                         | TesselatedTriangles { tesselated_vertices :: [a] }
     deriving (Read,Show)
 
 instance (AffineTransformable a) => AffineTransformable (TesselatedElement a) where
     transform m (TesselatedTriangleFan as) = TesselatedTriangleFan $ transform m as
     transform m (TesselatedTriangleStrip as) = TesselatedTriangleStrip $ transform m as
+    transform m (TesselatedTriangles as) = TesselatedTriangles $ transform m as
 
 instance (NFData a) => NFData (TesselatedElement a) where
     rnf (TesselatedTriangleFan as) = rnf as
     rnf (TesselatedTriangleStrip as) = rnf as
+    rnf (TesselatedTriangles as) = rnf as
 
 instance Functor TesselatedElement where
     fmap f (TesselatedTriangleFan as) = TesselatedTriangleFan $ fmap f as
     fmap f (TesselatedTriangleStrip as) = TesselatedTriangleStrip $ fmap f as
+    fmap f (TesselatedTriangles as) = TesselatedTriangles $ fmap f as
 
+-- | Generates a list of all vertices in a TesselatedSurface.  There will be duplicate entries.
 tesselatedSurfaceToVertexCloud :: TesselatedSurface a -> [a]
 tesselatedSurfaceToVertexCloud = concatMap tesselated_vertices
 
 instance (Bound3D a) => Bound3D (TesselatedElement a) where
     boundingBox x = boundingBox $ tesselatedSurfaceToVertexCloud [x]
 
+-- | Tesselate a surface into a u-by-v grid of triangles.
 tesselateSurface :: Surface a -> (Integer,Integer) -> TesselatedSurface a
-tesselateSurface s uv = tesselateGrid $ iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)
+tesselateSurface s uv = stripTriangles $ tesselateGrid $ iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)
 
+-- | Tesselate polylines of possibly differing number of elements.
 tesselateGrid :: [[(Double,a)]] -> TesselatedSurface a
-tesselateGrid = concatMap (uncurry tesselateStrip) . doubles
+tesselateGrid = stripTriangles . concatMap (uncurry tesselateStrip) . doubles
+
+-- | Strip out all single-triangle elements and stuff them in a single 'TesselatedTriangles' entry.
+-- This is an optimization pass, as having a lot of single-triangle elements can be detrimental to performance.
+stripTriangles :: TesselatedSurface a -> TesselatedSurface a
+stripTriangles elems = TesselatedTriangles (concatMap tesselated_vertices triangles) : not_triangles
+  where f x = length (tesselated_vertices x) == 3 || isTriangles x
+        triangles = filter f elems
+        not_triangles = filter (not . f) elems
+
+isTriangles :: TesselatedElement a -> Bool
+isTriangles (TesselatedTriangles _) = True
+isTriangles _ = False        
 
 tesselateStrip :: [(Double,a)] -> [(Double,a)] -> TesselatedSurface a
 tesselateStrip lefts rights = tesselate $ tesselateSteps lefts rights
@@ -74,11 +89,8 @@ tesselateSteps lefts rights = map (second snd) $ sortBy (comparing $ fst . snd) 
           reorder [] = []
           reorder [a] = [a]
           reorder (a:as) = a : map (\((x,_),(y,b)) -> ((x+y)/2,b)) (doubles (a:as))
-\end{code}
 
-\subsection{Tesselation Parsers}
-
-\begin{code}
+-- | A parser used to pick out the correct sequences of vertices from each pair of polylines.
 type TesselationParser a = Parsec [(LR,a)] ()
 
 vertex :: (LR -> Bool) -> TesselationParser a a
@@ -126,11 +138,7 @@ tesselate = either (error . ("tesselate: " ++) . show) id . runParser parser () 
               do tesselated_surface <- many $ try triangleStrip <|> try triangleFan
                  skipMany (vertex $ const True)
                  return tesselated_surface
-\end{code}
 
-\subsection{Sending decomposed data to OpenGL}
-
-\begin{code}
 tesselatedElementToOpenGL :: (OpenGLPrimitive a) => Bool -> TesselatedElement a -> IO ()
 tesselatedElementToOpenGL colors_on tesselated_element = renderPrimitives prim_mode colors_on as
     where (prim_mode,as) = unmapTesselatedElement tesselated_element
@@ -138,4 +146,4 @@ tesselatedElementToOpenGL colors_on tesselated_element = renderPrimitives prim_m
 unmapTesselatedElement :: TesselatedElement a -> (PrimitiveMode,[a])
 unmapTesselatedElement (TesselatedTriangleFan as) = (TriangleFan,as)
 unmapTesselatedElement (TesselatedTriangleStrip as) = (TriangleStrip,as)
-\end{code}
+unmapTesselatedElement (TesselatedTriangles as) = (Triangles,as)
