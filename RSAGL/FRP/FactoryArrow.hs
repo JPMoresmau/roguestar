@@ -1,6 +1,6 @@
 {-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, ExistentialQuantification, Rank2Types #-}
 
-module RSAGL.FRP2.FactoryArrow
+module RSAGL.FRP.FactoryArrow
     (FactoryArrow(..))
     where
 

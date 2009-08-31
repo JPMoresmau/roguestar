@@ -28,7 +28,7 @@ module RSAGL.FRP.FRP
     where
 
 import Prelude hiding ((.),id)
-import RSAGL.FRP2.FactoryArrow
+import RSAGL.FRP.FactoryArrow
 import Control.Monad.Cont
 import RSAGL.FRP.Time
 import Control.Concurrent.MVar
