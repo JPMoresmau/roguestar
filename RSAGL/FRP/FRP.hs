@@ -24,7 +24,8 @@ module RSAGL.FRP.FRP
      frp1Context,
      whenJust,
      sticky,
-     initial)
+     initial,
+     ioAction)
     where
 
 import Prelude hiding ((.),id)
@@ -378,3 +379,7 @@ sticky f x = accumulate x (\new_x old_x -> if f new_x then new_x else old_x)
 -- | Answer the first input that ever passes through a function.
 initial :: FRPX k s t i o x x
 initial = accumulate Nothing (\new_x m_old_x -> Just $ fromMaybe new_x m_old_x) >>> arr (fromMaybe $ error "initial: impossible happened")
+
+-- | Perform an arbitrary IO action.
+ioAction :: (j -> IO p) -> FRPX k s t i o j p
+ioAction action = frpxOf $ \_ j -> lift $ action j
