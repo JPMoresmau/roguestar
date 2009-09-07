@@ -1,9 +1,6 @@
-\section{Abstract Vectors}
-
-The \texttt{AbstractVector} typeclass provides some basic operations sufficient to implement various generic numerical algorithms, including numerical integration.
-
-\begin{code}
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, UndecidableInstances #-}
+
+-- | Provides generic typeclasses for common operations among many types: addition, subtraction, scalar multiplication, magnitude, and zero.
 module RSAGL.Math.AbstractVector
     (AbstractVector,
      AbstractZero(..),
@@ -21,11 +18,7 @@ import Data.Fixed
 import Data.List
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
-\end{code}
 
-\subsection{Abstract Vectors and Differences}
-
-\begin{code}
 class AbstractZero a where
     zero :: a
 
@@ -42,11 +35,23 @@ class AbstractMagnitude v where
     magnitude :: v -> Double
 
 class (AbstractZero v,AbstractAdd v v,AbstractSubtract v v,AbstractScale v) => AbstractVector v where
-\end{code}
 
-\subsection{Instances for Float, Double, and Fixed}
+-- Integer
 
-\begin{code}
+instance AbstractZero Integer where
+    zero = 0
+
+instance AbstractAdd Integer Integer where
+    add = (+)
+
+instance AbstractSubtract Integer Integer where
+    sub = (-)
+
+instance AbstractMagnitude Integer where
+    magnitude = abs . realToFrac
+
+-- Float
+
 instance AbstractZero Float where
     zero = 0
 
@@ -67,6 +72,8 @@ instance AbstractVector Float
 instance AbstractZero Double where
     zero = 0
 
+-- Double
+
 instance AbstractAdd Double Double where
     add = (+)
 
@@ -80,6 +87,8 @@ instance AbstractMagnitude Double where
     magnitude = abs
 
 instance AbstractVector Double
+
+-- Fixed
 
 instance (HasResolution a) => AbstractZero (Fixed a) where
     zero = 0
@@ -98,6 +107,8 @@ instance (HasResolution a) => AbstractMagnitude (Fixed a) where
 
 instance (HasResolution a) => AbstractVector (Fixed a)
 
+-- | ApplicativeWrapper
+
 instance (Applicative f,AbstractZero p) => AbstractZero (ApplicativeWrapper f p) where
     zero = pure zero
 
@@ -111,11 +122,9 @@ instance (Applicative f,AbstractScale v) => AbstractScale (ApplicativeWrapper f 
     scalarMultiply d v = scalarMultiply d <$> v
 
 instance (Applicative f,AbstractVector v) => AbstractVector (ApplicativeWrapper f v)
-\end{code}
 
-\subsection{Instances for Tuples}
+-- Tuples
 
-\begin{code}
 instance (AbstractZero a,AbstractZero b) => AbstractZero (a,b) where
     zero = (zero,zero)
 
@@ -132,18 +141,14 @@ instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) wh
     magnitude (a,b) = sqrt $ magnitude a ^ 2 + magnitude b ^ 2
 
 instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
-\end{code}
 
-\subsection{Instances for Lists}
+-- Lists
 
-\begin{code}
 instance (AbstractScale a) => AbstractScale [a] where
     scalarMultiply d = map (scalarMultiply d)
-\end{code}
 
-\subsection{Operations on Abstract Vectors}
+-- Generic functions.
 
-\begin{code}
 abstractScaleTo :: (AbstractScale v,AbstractMagnitude v) => Double -> v -> v
 abstractScaleTo _ v | magnitude v == 0 = v
 abstractScaleTo x v = scalarMultiply (x / magnitude v) v
@@ -158,4 +163,3 @@ abstractAverage vs = zero `add` scalarMultiply (recip $ fromInteger total_count)
 
 abstractDistance :: (AbstractMagnitude v,AbstractSubtract p v) => p -> p -> Double
 abstractDistance x y = magnitude $ x `sub` y
-\end{code}
