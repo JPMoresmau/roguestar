@@ -3,14 +3,14 @@ module RSAGL.Modeling.OpenGLPrimitives
      renderPrimitives)
     where
 
-import Graphics.Rendering.OpenGL.GL.VertexSpec
-import Graphics.Rendering.OpenGL.GL.BeginEnd
+import Graphics.Rendering.OpenGL.GL
 import Control.Monad
+import Foreign.C.Types
 
 class OpenGLPrimitive a where
-    getVertex :: a -> Vertex3 Double
-    getNormal :: a -> Normal3 Double
-    getColor :: a -> Color4 Float
+    getVertex :: a -> Vertex3 CDouble
+    getNormal :: a -> Normal3 CDouble
+    getColor :: a -> Color4 CFloat
 
 -- | Simple 'renderPrimitive' function for a list of vertices.  Optionally a single color can be specified to override vertex-wise colors.
 renderPrimitives :: (OpenGLPrimitive a) => PrimitiveMode -> Bool -> [a] -> IO ()

@@ -32,7 +32,7 @@ module RSAGL.Modeling.ModelingExtras
      module Control.Applicative)
     where
 
-import Graphics.Rendering.OpenGL.GL.BasicTypes
+import Graphics.Rendering.OpenGL.GL hiding (translate,rotate,scale,specular)
 import RSAGL.Modeling.Noise
 import RSAGL.Modeling.RSAGLColors
 import Control.Applicative

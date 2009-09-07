@@ -78,12 +78,14 @@ cameraToOpenGL aspect_ratio (near,far)
                              camera_fov = fov }) =
     do matrixMode $= Projection
        loadIdentity
-       perspective (toDegrees fov)
-                   aspect_ratio
-                   near
-                   far
+       perspective (realToFrac $ toDegrees fov)
+                   (realToFrac aspect_ratio)
+                   (realToFrac near)
+                   (realToFrac far)
        matrixMode $= Modelview 0
-       lookAt (Vertex3 px py pz) (Vertex3 lx ly lz) (Vector3 ux uy uz)
+       lookAt (Vertex3 (realToFrac px) (realToFrac py) (realToFrac pz)) 
+              (Vertex3 (realToFrac lx) (realToFrac ly) (realToFrac lz)) 
+              (Vector3 (realToFrac ux) (realToFrac uy) (realToFrac uz))
 
 infiniteCameraOf :: Camera -> Camera
 infiniteCameraOf pc = translateToFrom origin_point_3d (camera_position pc) pc

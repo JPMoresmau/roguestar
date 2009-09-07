@@ -15,6 +15,7 @@ import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Math.Angle
 import Data.Maybe
+import Foreign.C.Types
 
 -- | 'AffineTransformable' objects are subject to affine transformations using matrix multiplication.
 class AffineTransformable a where
@@ -130,15 +131,15 @@ instance AffineTransformable SurfaceVertex3D where
 
 -- | The IO monad itself is AffineTransformable.  This is done by wrapping the IO action in an OpenGL transformation.
 instance AffineTransformable (IO a) where
-    transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ concat $ rowMajorForm mat
-                                               multMatrix (mat' :: GLmatrix Double)
+    transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ map realToFrac $ concat $ rowMajorForm mat
+                                               multMatrix (mat' :: GLmatrix CDouble)
                                                iofn
     translate (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.translate $ Vector3 x y z
+        do GL.translate $ Vector3 (realToFrac x) (realToFrac y) (realToFrac z :: CDouble)
            iofn
     scale (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.scale x y z
+        do GL.scale (realToFrac x) (realToFrac y) (realToFrac z :: CDouble)
            iofn
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
-        do GL.rotate (toDegrees_ angle) (Vector3 x y z)
+        do GL.rotate (realToFrac (toDegrees_ angle) :: CDouble) (Vector3 (realToFrac x) (realToFrac y) (realToFrac z))
            iofn

@@ -7,11 +7,7 @@ module RSAGL.Modeling.BakedModel
     where
 
 import Foreign
-import Graphics.Rendering.OpenGL.GL.VertexArrays
-import Graphics.Rendering.OpenGL.GL.VertexSpec
-import Graphics.Rendering.OpenGL.GL.BeginEnd
-import Graphics.Rendering.OpenGL.GL.StateVar
-import Graphics.Rendering.OpenGL.GL.BasicTypes
+import Graphics.Rendering.OpenGL.GL
 import RSAGL.Modeling.OpenGLPrimitives
 import RSAGL.Modeling.Tesselation hiding (tesselatedElementToOpenGL)
 import Control.Monad
@@ -19,9 +15,9 @@ import Control.Monad
 data BakedFragment = BakedFragment {
     baked_model_primitive_mode :: PrimitiveMode,
     baked_model_length :: GLsizei,
-    baked_model_vertex_ptr :: Ptr (Vertex3 Double),
-    baked_model_normal_ptr :: Ptr (Normal3 Double),
-    baked_model_color_ptr :: Maybe (Ptr (Color4 Float)) }
+    baked_model_vertex_ptr :: Ptr (Vertex3 GLdouble),
+    baked_model_normal_ptr :: Ptr (Normal3 GLdouble),
+    baked_model_color_ptr :: Maybe (Ptr (Color4 GLfloat)) }
 
 data BakedSurface = BakedSurface {
     baked_model_action :: IO () -> IO (),

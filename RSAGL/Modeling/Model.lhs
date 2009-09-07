@@ -74,11 +74,7 @@ import Data.Maybe
 import qualified Control.Monad.State as State
 import Data.Monoid
 import Control.Parallel.Strategies
-import Graphics.Rendering.OpenGL.GL.VertexSpec
-import Graphics.Rendering.OpenGL.GL.BasicTypes
-import Graphics.Rendering.OpenGL.GL.Colors (lightModelTwoSide,Face(..))
-import Graphics.Rendering.OpenGL.GL.StateVar as StateVar
-import Graphics.Rendering.OpenGL.GL.Polygons
+import Graphics.Rendering.OpenGL.GL hiding (translate,rotate,scale,specular)
 import RSAGL.Modeling.OpenGLPrimitives
 import RSAGL.Modeling.BakedModel hiding (tesselatedElementToOpenGL)
 import Data.IORef
@@ -425,8 +421,8 @@ data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
 
 instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
-    getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 x y z
-    getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 x y z
+    getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 (realToFrac x) (realToFrac y) (realToFrac z)
+    getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 (realToFrac x) (realToFrac y) (realToFrac z)
     getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = rgbaToOpenGL c
 
 class ModelType m where

@@ -19,11 +19,7 @@ import RSAGL.Modeling.Color
 import RSAGL.Math.Curve
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Control.Parallel.Strategies
-import Graphics.Rendering.OpenGL.GL.Colors
-import Graphics.Rendering.OpenGL.GL.StateVar
-import Graphics.Rendering.OpenGL.GL.VertexSpec
-import Graphics.Rendering.OpenGL.GL.BasicTypes
-import Graphics.Rendering.OpenGL.GL.PerFragment
+import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
 
 -- | A 'MaterialSurface' is parameterized either on RGB or RGBA, depending
 -- on whether or not the 'MaterialLayer' is capable of transparency.
@@ -52,8 +48,8 @@ instance NFData MaterialLayer where
     rnf (DiffuseLayer msrgb) = rnf msrgb
     rnf (TransparentLayer msrgba) = rnf msrgba
     rnf (EmissiveLayer msrgb) = rnf msrgb
-    rnf (SpecularLayer msrgb shininess) = rnf (msrgb,shininess)
-    rnf (CompoundLayer msrgb spec emis shininess) = rnf (msrgb,spec,emis,shininess)
+    rnf (SpecularLayer msrgb shininess) = shininess `seq` rnf msrgb
+    rnf (CompoundLayer msrgb spec emis shininess) = shininess `seq` rnf (msrgb,spec,emis)
     rnf (FilterLayer msrgb) = rnf msrgb
 
 -- | A stack of 'MaterialLayer's.  'Material' is smart about compressing multiple layers into the least of number of equivalent layers.

@@ -27,7 +27,7 @@ module RSAGL.Modeling.Color
     where
 
 import Control.Parallel.Strategies
-import Graphics.Rendering.OpenGL.GL.VertexSpec
+import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Interpolation
 \end{code}
@@ -58,7 +58,7 @@ class (AbstractVector c) => ColorClass c where
     zipRGB :: (Double -> Double -> Double) -> RGB -> c -> c
     zipColor :: (Double -> Double -> Double) -> c -> c -> c
     toPremultipliedRGB :: c -> RGB
-    colorToOpenGL :: c -> Color4 Float
+    colorToOpenGL :: c -> Color4 GLfloat
     toRGBA :: c -> RGBA
     fromRGB :: RGB -> c
 
@@ -160,10 +160,10 @@ scaleRGBA :: Double -> RGBA -> RGBA
 scaleRGBA x c = c { rgba_a = x * rgba_a c,
                     rgba_rgb = scaleRGB x (rgba_rgb c) }
 
-rgbToOpenGL :: RGB -> Color4 Float
-rgbToOpenGL (RGB r g b) = Color4 (realToFrac r :: Float) (realToFrac g :: Float) (realToFrac b :: Float) 1
+rgbToOpenGL :: RGB -> Color4 GLfloat
+rgbToOpenGL (RGB r g b) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1
 
-rgbaToOpenGL :: RGBA -> Color4 Float
+rgbaToOpenGL :: RGBA -> Color4 GLfloat
 rgbaToOpenGL (RGBA a (RGB r g b)) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) (realToFrac a)
 
 instance AbstractZero RGB where
