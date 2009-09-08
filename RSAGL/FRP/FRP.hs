@@ -29,7 +29,8 @@ module RSAGL.FRP.FRP
      whenJust,
      sticky,
      initial,
-     ioAction)
+     ioAction,
+     arrHashed)
     where
 
 import Prelude hiding ((.),id)
@@ -48,6 +49,7 @@ import Data.List
 import Data.Maybe
 import Control.Exception
 import RSAGL.Auxiliary.RecombinantState
+import System.Mem.StableName
 
 {--------------------------------------------------------------------------------}
 --    FRP Data Structures
@@ -410,3 +412,14 @@ initial = accumulate Nothing (\new_x m_old_x -> Just $ fromMaybe new_x m_old_x) 
 -- | Perform an arbitrary IO action.
 ioAction :: (j -> IO p) -> FRPX k s t i o j p
 ioAction action = frpxOf $ \_ j -> lift $ action j
+
+-- | Exactly like 'arr', but uses 'StableName's to optimize away reduntant calls.  Use trace on the function to
+-- get an idea of how often it is being evaluated in practice.
+arrHashed :: (j -> p) -> FRPX k s t i o j p
+arrHashed f = proc j ->
+    do j_stable <- ioAction makeStableName -< j
+       (_,p) <- accumulate (Nothing,error "arrHashed: impossible")
+                           (\(j_stable,j) (p_stable,p) -> if Just j_stable == p_stable
+                                                          then (p_stable,p)
+                                                          else (Just j_stable,f j)) -< (j_stable,j)
+       returnA -< p
