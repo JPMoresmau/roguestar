@@ -22,5 +22,5 @@ Executable _rsagl_modelview
 Executable _rsagl_tests
     main-is:             Tests.hs
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
-    build-depends:       base>=4, old-time, random, arrows, containers, parallel, QuickCheck<2, rsagl>=0.3
+    build-depends:       base>=4, old-time, random, arrows, containers, parallel, QuickCheck, rsagl>=0.3
 

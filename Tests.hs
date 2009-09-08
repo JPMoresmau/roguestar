@@ -8,166 +8,111 @@ module Main
     (main)
     where
 
-import RSAGL.FRP.StatefulArrow as StatefulArrow
-import RSAGL.FRP.SwitchedArrow as SwitchedArrow
-import RSAGL.FRP.ThreadedArrow as ThreadedArrow
 import RSAGL.FRP.FRP as FRP
-import RSAGL.FRP.Edge as Edge
 import RSAGL.FRP.Time
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Scene.LODCache
-import Control.Arrow.Operations
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
-import Test.QuickCheck hiding (test)
+import Test.QuickCheck
 import Control.Concurrent
 import RSAGL.Math.RK4
 import RSAGL.Bottleneck
 import RSAGL.Animation.Joint
 import Data.Maybe
+import Control.Monad
 
 --
 -- State machine that adds its input to its state
 --
-countingArrow :: Integer -> StatefulFunction Integer Integer
-countingArrow = stateContext $ 
-                    proc x -> do y <- fetch -< ()
-                                 store -< x + y
-                                 fetch -< ()
+countingArrow :: Integer -> FRPX k s t i o Integer Integer
+countingArrow x = summation x
 
 --
 -- State machine that is true iff the number of False inputs it has recieved is even
+-- Could do this with 'accumulate' but using as a test 'switchTerminate' and 'switchContinue'.
 --
-evenZeroesArrow :: SwitchedFunction Bool Bool Bool Bool
+evenZeroesArrow :: FRPX k () () Bool Bool Bool Bool
 evenZeroesArrow = proc x ->
-     do case x of
-               False -> SwitchedArrow.switchTerminate -< (Just evenZeroesArrow_oddZeroes,False)
-               True -> returnA -< True
+     do switchTerminate -< (if x then Nothing else Just evenZeroesArrow_oddZeroes,False)
+        returnA -< True
 
-evenZeroesArrow_oddZeroes :: SwitchedFunction Bool Bool Bool Bool
+evenZeroesArrow_oddZeroes :: FRPX k () () Bool Bool Bool Bool
 evenZeroesArrow_oddZeroes = proc x ->
-    do case x of
-              False -> SwitchedArrow.switchTerminate -< (Just evenZeroesArrow,True)
-              True -> returnA -< False
+    do switchContinue -< (if x then Nothing else Just evenZeroesArrow,True)
+       returnA -< False
 
 --
 -- A cellular automata that spawns the two adjacent cells (represented by Integers) on each iteration.
 -- Cells at non-zero integers divisible by 3 are "sticky;" once reached they persist forever.
 -- All other integers die out after spawning.
 --
-spawnPlusAndMinusAndDie :: ThreadedArrow Integer () (Set Integer) (->) () (Set Integer)
-spawnPlusAndMinusAndDie = step1
-    where step1 = proc () ->
-              do i <- ThreadedArrow.threadIdentity -< ()
-	         ThreadedArrow.switchTerminate -< (Just $ step2,Set.singleton i)
+spawnPlusAndMinusAndDie :: FRPX k () () () (Set Integer) () (Set Integer)
+spawnPlusAndMinusAndDie = frpContext forbidDuplicates [(0,step1)] >>> arr (List.map snd >>> mconcat)
+    where step1, step2 :: FRPX Threaded () Integer () (Set Integer) () (Set Integer)
+          step1 = proc () ->
+              do i <- threadIdentity -< ()
+	         switchTerminate -< (Just $ step2,Set.singleton i)
           step2 = proc () ->
-              do i <- ThreadedArrow.threadIdentity -< ()
-	         ThreadedArrow.spawnThreads -< [(i + 1,spawnPlusAndMinusAndDie),(i - 1,spawnPlusAndMinusAndDie)]
-		 ThreadedArrow.killThreadIf -< not $ i `mod` 3 == 0 && i /= 0
+              do i <- threadIdentity -< ()
+	         spawnThreads -< [(i + 1,step1),(i - 1,step1)]
+		 killThreadIf -< not $ i `mod` 3 == 0 && i /= 0
                  returnA -< Set.singleton i
 
 --
--- Sanity test of the StatefulArrow.
+-- Sanity test of ArrowState instance of FRPX.
 --
-addFive :: Integer -> Integer
-addFive x = let (_,sf1) = runStatefulArrow (countingArrow x) 1
-                (_,sf2) = runStatefulArrow sf1 3
-                (_,sf3) = runStatefulArrow sf2 (-1)
-                (_,sf4) = runStatefulArrow sf3 1
-                in fst $ runStatefulArrow sf4 1
+addFive :: Integer -> IO Integer
+addFive x = 
+    do p <- newFRP1Program (countingArrow x)
+       updateFRPProgram Nothing (1,()) p
+       updateFRPProgram Nothing (3,()) p
+       updateFRPProgram Nothing (-1,()) p
+       updateFRPProgram Nothing (1,()) p
+       liftM fst $ updateFRPProgram Nothing (1,()) p
 
 --
---Sanity test of the SwitchedArrow.
+--Sanity test of the switchTerminate and switchContinue functions.
 --
-evenZeroes :: [Bool] -> Bool
-evenZeroes = last . runStateMachine (SwitchedArrow.statefulForm evenZeroesArrow)
+evenZeroes :: [Bool] -> IO Bool
+evenZeroes = liftM (head . last) . frpTest [evenZeroesArrow]
 
 --
 -- Sanity test of the ThreadedArrow
 --
-spawnPMD :: Int -> Set Integer
-spawnPMD n = mconcat $ List.map snd $ (!! n) $ runStateMachine (ThreadedArrow.statefulForm (unionThreadIdentity (==)) $ [(0,spawnPlusAndMinusAndDie)]) $ replicate (n+1) ()
-
+spawnPMD :: Int -> IO (Set Integer)
+spawnPMD n = liftM (head . last) $ frpTest [spawnPlusAndMinusAndDie] $ replicate (n+1) ()
 
 testIntegral :: IO ()
-testIntegral = testClose "testIntegral"
-                  (frpTest [threadTime] (replicate 16 ()))
-                  (List.map (List.map fromSeconds) [[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]])
-                  (listEqualClose $ listEqualClose timeEqualClose)
+testIntegral = testCloseIO "testIntegral"
+                  (frpTest [proc () -> integral (0 :: Double) -< perSecond 1.0] (replicate 16 ()))
+                  ([[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]])
+                  (listEqualClose $ listEqualClose $ equalClose)
 
 testDerivative :: IO ()
-testDerivative = test "testDerivative"
+testDerivative = testCloseIO "testDerivative"
                     (frpTest [derivative]
                              [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0 :: Double])
                     (List.map (List.map perSecond) [[0],[10],[20],[30],[40],[50],[60],[70]])
+                    (==)
 
 testInitial :: IO ()
-testInitial = test "testInitial"
+testInitial = testCloseIO "testInitial"
                  (frpTest [initial]
                           [5,7,2,1,6,3,4])
                  [[5],[5],[5],[5],[5],[5],[5]]
-
-testEdgeFold :: IO ()
-testEdgeFold = test "testEdgeFold"
-                  (frpTest [edgeFold id (+)]
-                           [3,2,2,2,2,4,4,3,8,7,6,6])
-                  [[3],[5],[5],[5],[5],[9],[9],[12],[20],[27],[33],[33]]
-
-testEdgeMap :: IO ()
-testEdgeMap = test "testEdgeMap"
-                 (frpTest [edgeMap (*2)]
-                          [2,2,2,4,1,3,9,5,5,5,3])
-                 [[4],[4],[4],[8],[2],[6],[18],[10],[10],[10],[6]]
-
-testHistory :: IO ()
-testHistory = testClose "testHistory"
-                 (frpTest [history (fromSeconds 0.31)]
-                          [2,3,1,1,2,2,2,7,7,7,7,7])
-                 [[[edge0]],
-                  [[edge1,edge0]],
-                  [[edge2,edge1,edge0]],
-                  [[edge2,edge1,edge0]],
-                  [[edge3,edge2,edge1]],
-                  [[edge3,edge2,edge1]],
-                  [[edge3,edge2,edge1]],
-                  [[edge4,edge3]],
-                  [[edge4,edge3]],
-                  [[edge4,edge3]],
-                  [[edge4,edge3]],
-                  [[edge4,edge3]]]
-                 (listEqualClose $ listEqualClose $ listEqualClose $ edgeEqualClose (==))
-    where edge0 = Edge { edge_previous = 2,
-                         edge_next = 2,
-                         edge_changed = fromSeconds 0.0 }
-          edge1 = Edge { edge_previous = 2,
-                         edge_next = 3,
-                         edge_changed = fromSeconds 0.1 }
-          edge2 = Edge { edge_previous = 3,
-                         edge_next = 1,
-                         edge_changed = fromSeconds 0.2 }
-          edge3 = Edge { edge_previous = 1,
-                         edge_next = 2,
-                         edge_changed = fromSeconds 0.4 }
-          edge4 = Edge { edge_previous = 2,
-                         edge_next = 7,
-                         edge_changed = fromSeconds 0.7 }
-
-testEdgep :: IO ()
-testEdgep = test "testEdgep"
-                 (frpTest [edgep]
-                          [2,2,2,3,2,3,3,3,4,4,4,4,5,4,5,5])
-                 [[False],[False],[False],[True],[True],[True],[False],[False],[True],[False],[False],[False],
-                  [True],[True],[True],[False]]
+                 (==)
 
 testSticky :: IO ()
-testSticky = test "testSticky"
+testSticky = testCloseIO "testSticky"
                   (frpTest [sticky odd 1]
 		           [0,1,2,3,4,5,6,7,8,9,10,11])
 		  [[1],[1],[1],[3],[3],[5],[5],[7],[7],[9],[9],[11]]
+                  (==)
 
 testRadiansToDegrees :: IO ()
 testRadiansToDegrees = testClose "testRadiansToDegrees"
@@ -247,53 +192,11 @@ testNewell =
        testClose "testNewell(y)" y (-0.57735) equalClose
        testClose "testNewell(z)" z 0.57735 equalClose
 
-testMatrixMultiply :: IO ()
-testMatrixMultiply =
-    do testClose "testMatrixMultiply-1" (matrix [[1,2,3]] `matrixMultiply` matrix [[7],[8],[9]])
-                                        (matrix [[50]])
-                                        matrixEqualClose
-       testClose "testMatrixMultiply-2" (matrix [[1],[2],[3]] `matrixMultiply` matrix [[7,8,9]])
-                                        (matrix [[7,8,9],[14,16,18],[21,24,27]])
-					matrixEqualClose
-
-type Double2 = (Double,Double)
-type Double22 = (Double2,Double2)
-type Double3 = (Double,Double,Double)
-type Double33 = (Double3,Double3,Double3)
 type Double4 = (Double,Double,Double,Double)
 type Double44 = (Double4,Double4,Double4,Double4)
 
-d2ToMatrix :: Double22 -> Matrix
-d2ToMatrix ((a,b),(c,d)) = matrix $ [[a,b],[c,d]]
-
-d3ToMatrix :: Double33 -> Matrix
-d3ToMatrix ((a,b,c),(d,e,f),(g,h,i)) = matrix $ [[a,b,c],[d,e,f],[g,h,i]]
-
 d4ToMatrix :: Double44 -> Matrix
 d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
-
-testDeterminant2 :: IO ()
-testDeterminant2 =
-   do test "testDeterminant2-1"
-           (determinant $ matrix [[1,5],[3,0]])
-           (-15)
-      test "testDeterminant2-2"
-           (determinant $ matrix [[-2,0],[0.5,1]])
-           (-2)
-      test "testDeterminant2-3"
-           (determinant $ matrix [[0,0.5],[0.5,0.5]])
-           (-0.25)
-
-testDeterminant3 :: IO ()
-testDeterminant3 =
-   do test "testDeterminant3-1"
-           (determinant $ matrix [[5,-1,0.5],[-3,4,2],[0,0,-1]])
-           (-17)
-      testClose "testDeterminant3-2" 3.5
-           (determinant $ matrix [[0.5,-0.5,-2.0/3.0],
-                                  [-2.5,-1.0,-3.0],
-                                  [-0.5,0.5,-4.0/3.0]])
-           equalClose
 
 testDeterminant4 :: IO ()
 testDeterminant4 =
@@ -307,47 +210,13 @@ testJoint = testClose "testJoint"
     (Point3D 0 1.43541 1.43541)
     xyzEqualClose
 
-quickCheckMatrixIdentity2 :: IO ()
-quickCheckMatrixIdentity2 =
-    do putStr "quickCheckMatrixIdentity2: "
-       quickCheck _qcmi
-           where _qcmi :: Double22 -> Bool
-	         _qcmi m = (identityMatrix 2 `matrixMultiply` mat) `matrixEqualClose` mat
-		     where mat = d2ToMatrix m
-
-quickCheckMatrixIdentity3 :: IO ()
-quickCheckMatrixIdentity3 =
-    do putStr "quickCheckMatrixIdentity3: "
-       quickCheck _qcmi
-           where _qcmi :: Double33 -> Bool
-	         _qcmi m = (identityMatrix 3 `matrixMultiply` mat) `matrixEqualClose` mat
-		     where mat = d3ToMatrix m
-
 quickCheckMatrixIdentity4 :: IO ()
 quickCheckMatrixIdentity4 =
     do putStr "quickCheckMatrixIdentity4: "
        quickCheck _qcmi
            where _qcmi :: Double44 -> Bool
-	         _qcmi m = (identityMatrix 4 `matrixMultiply` mat) `matrixEqualClose` mat
+	         _qcmi m = (identity_matrix `matrixMultiply` mat) `matrixEqualClose` mat
 		     where mat = d4ToMatrix m
-
-quickCheckMatrixDeterminant2 :: IO ()
-quickCheckMatrixDeterminant2 =
-    do putStr "quickCheckMatrixDeterminant2: "
-       quickCheck _qcmi
-           where _qcmi :: Double22 -> Bool
-                 _qcmi m = 
-                     determinant (matrixTransposePrim mat) `equalClose` determinant mat
-                         where mat = d2ToMatrix m
-
-quickCheckMatrixDeterminant3 :: IO ()
-quickCheckMatrixDeterminant3 =
-    do putStr "quickCheckMatrixDeterminant3: "
-       quickCheck _qcmi
-           where _qcmi :: Double33 -> Bool
-                 _qcmi m = 
-                     determinant (matrixTransposePrim mat) `equalClose` determinant mat
-                         where mat = d3ToMatrix m
 
 quickCheckMatrixDeterminant4 :: IO ()
 quickCheckMatrixDeterminant4 =
@@ -358,26 +227,6 @@ quickCheckMatrixDeterminant4 =
                      determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d4ToMatrix m
 
-quickCheckMatrixMultiplyDeterminant2 :: IO ()
-quickCheckMatrixMultiplyDeterminant2 =
-    do putStr "quickCheckMatrixMultiplyDeterminant2: "
-       quickCheck _qcmmd 
-            where _qcmmd :: (Double22,Double22) -> Bool
-                  _qcmmd (m1,m2) =
-                       (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
-                           where mat1 = d2ToMatrix m1
-                                 mat2 = d2ToMatrix m2
-
-quickCheckMatrixMultiplyDeterminant3 :: IO ()
-quickCheckMatrixMultiplyDeterminant3 =
-    do putStr "quickCheckMatrixMultiplyDeterminant3: "
-       quickCheck _qcmmd 
-            where _qcmmd :: (Double33,Double33) -> Bool
-                  _qcmmd (m1,m2) =
-                       (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
-                           where mat1 = d3ToMatrix m1
-                                 mat2 = d3ToMatrix m2
-
 quickCheckMatrixMultiplyDeterminant4 :: IO ()
 quickCheckMatrixMultiplyDeterminant4 =
     do putStr "quickCheckMatrixMultiplyDeterminant4: "
@@ -387,28 +236,6 @@ quickCheckMatrixMultiplyDeterminant4 =
                        (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d4ToMatrix m1
                                  mat2 = d4ToMatrix m2
-
-quickCheckMatrixInverse2 :: IO ()
-quickCheckMatrixInverse2 =
-    do putStr "quickCheckMatrixInverse2: "
-       quickCheck _qcmi
-           where _qcmi :: Double22 -> Bool
-                 _qcmi ((a,b),(e,f)) = 
-                     if determinant mat `equalClose` 0
-                     then True
-                     else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
-                         where mat = matrix [[a,b],[e,f]]
-
-quickCheckMatrixInverse3 :: IO ()
-quickCheckMatrixInverse3 =
-    do putStr "quickCheckMatrixInverse3: "
-       quickCheck _qcmi
-           where _qcmi :: Double33 -> Bool
-                 _qcmi ((a,b,c),(e,f,g),(i,j,k)) = 
-                     if determinant mat `equalClose` 0
-                     then True
-                     else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
-                         where mat = matrix [[a,b,c],[e,f,g],[i,j,k]]
 
 quickCheckMatrixInverse4 :: IO ()
 quickCheckMatrixInverse4 =
@@ -446,9 +273,19 @@ test name actual expected =
                           putStrLn $ "actual:   " ++ show actual
                           putStrLn ""
 
-equalClose :: (Eq a,Num a,Ord a,Fractional a) => a -> a -> Bool
-equalClose actual expected | abs (actual * expected) > 0.01 = abs ((expected - actual) / expected) < 0.01
-equalClose actual expected = abs (actual - expected) < 0.01
+testIO :: (Eq a,Show a) => String -> IO a -> a -> IO ()
+testIO name actualIO expected =
+    do putStrLn $ "Running IO: " ++ name
+       actual <- actualIO
+       test name actual expected
+
+equalClose :: (Eq a,Num a,Ord a,Fractional a,Floating a) => a -> a -> Bool
+equalClose actual expected | actual == expected = True
+equalClose actual expected | signum actual /= signum expected = False
+equalClose 0 0 = True
+equalClose _ 0 = False
+equalClose 0 _ = False
+equalClose actual expected = abs (log (abs actual) - log (abs expected)) < 0.01
 
 listEqualClose :: (a -> a -> Bool) -> [a] -> [a] -> Bool
 listEqualClose f xs ys | length xs == length ys = and $ zipWith f xs ys
@@ -457,15 +294,6 @@ listEqualClose _ _ _ = False
 matrixEqualClose :: Matrix -> Matrix -> Bool
 matrixEqualClose m n = and $ List.map and $ zipWith (zipWith equalClose)
     (rowMajorForm m) (rowMajorForm n)
-
-timeEqualClose :: Time -> Time -> Bool
-timeEqualClose t1 t2 = equalClose (toSeconds t1) (toSeconds t2)
-
-edgeEqualClose :: (a -> a -> Bool) -> Edge a -> Edge a -> Bool
-edgeEqualClose f x y =
-    (edge_previous x `f` edge_previous y) &&
-    (edge_next x `f` edge_next y) &&
-    (edge_changed x `timeEqualClose` edge_changed y)
 
 xyzEqualClose :: (Xyz xyz) => xyz -> xyz -> Bool
 xyzEqualClose a b = equalClose ax bx && equalClose ay by && equalClose az bz
@@ -481,6 +309,12 @@ testClose name actual expected _ =
        putStrLn $ "expected: " ++ show expected
        putStrLn $ "actual: " ++ show actual
        putStrLn ""
+
+testCloseIO :: (Show a) => String -> IO a -> a -> (a -> a -> Bool) -> IO ()
+testCloseIO name actualIO expected f =
+    do putStrLn $ "Running IO: " ++ name
+       actual <- actualIO
+       testClose name actual expected f
 
 testLODCache :: IO ()
 testLODCache =
@@ -516,29 +350,25 @@ testRK4 = testClose "testRK4"
                     equalClose
 
 main :: IO ()
-main = do test "add five test (sanity test of StatefulArrow)" 
+main = do testIO "add five test (sanity test of accumulation)" 
                (addFive 2) 7
-          test "even zeroes test (sanity test of SwitchedArrow)" 
+          testIO "even zeroes test (sanity test of switching)" 
                (evenZeroes [True,True,False,True,False]) True
-          test "odd zeroes test (sanity test of SwitchedArrow)" 
+          testIO "odd zeroes test (sanity test of switching)" 
                (evenZeroes [True,True,True,False,False,True,False,True]) False
-          test "spawning test 1 (sanity test of ThreadedArrow)"
+          testIO "spawning test 1 (sanity test of threading)"
                (spawnPMD 0) (Set.fromList [0])
-          test "spawning test 2 (sanity test of ThreadedArrow)"
+          testIO "spawning test 2 (sanity test of threading)"
                (spawnPMD 1) (Set.fromList [-1,1])
-          test "spawning test 3 (sanity test of ThreadedArrow)"
+          testIO "spawning test 3 (sanity test of threading)"
                (spawnPMD 2) (Set.fromList [0,-2,2])
-          test "spawning test 4 (sanity test of ThreadedArrow)"
+          testIO "spawning test 4 (sanity test of threading)"
                (spawnPMD 3) (Set.fromList [-3,-1,1,3])
-          test "spawning test 5 (does killThreadIf work conditionally?)"
+          testIO "spawning test 5 (does killThreadIf work conditionally?)"
                (spawnPMD 4) (Set.fromList [-4,-3,-2,0,2,3,4])
           testIntegral
           testDerivative
           testInitial
-          testEdgeFold
-          testEdgeMap
-          testHistory
-          testEdgep
 	  testSticky
           testRadiansToDegrees
           testDegreesToRadians
@@ -551,21 +381,10 @@ main = do test "add five test (sanity test of StatefulArrow)"
           quickCheckOrthos
           testVectorAverage
           testNewell
-          testDeterminant2
-          testDeterminant3
           testDeterminant4
-	  testMatrixMultiply
-	  quickCheckMatrixIdentity2
-	  quickCheckMatrixIdentity3
 	  quickCheckMatrixIdentity4
-          quickCheckMatrixDeterminant2
-          quickCheckMatrixDeterminant3
           quickCheckMatrixDeterminant4
-          quickCheckMatrixMultiplyDeterminant2
-          quickCheckMatrixMultiplyDeterminant3
           quickCheckMatrixMultiplyDeterminant4
-          quickCheckMatrixInverse2
-          quickCheckMatrixInverse3
           quickCheckMatrixInverse4
           quickCheckCachedMatrixValues
           testJoint

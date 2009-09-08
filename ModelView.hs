@@ -29,7 +29,12 @@ test_quality :: Integer
 test_quality = 2^14
 --test_quality = 64
 
-moon_orbital_animation :: AniA () i o (IO BakedModel) (CSN Point3D)
+{- Until program termination. -}
+number_of_frames :: Integer
+number_of_frames = 6000
+--number_of_frames = 60
+
+moon_orbital_animation :: AniA k () i o (IO BakedModel) (CSN Point3D)
 moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
@@ -39,11 +44,11 @@ moon_orbital_animation =
 
 walking_orb_animation :: LODCache Integer BakedModel -> LODCache Integer BakedModel ->
                          LODCache Integer BakedModel -> LODCache Integer BakedModel ->
-                         IO (AniA () i o () ())
+                         IO (AniA k () i o () ())
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
     do let upper_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb_upper_leg 50)
        let lower_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb_lower_leg 50)
-       let orb_legs = legs $ rotationGroup (Vector3D 0 1 0) 7 $
+       let orb_legs = legs $ rotationGroup (Vector3D 0 1 0) 25 $
                              leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ jointAnimation upper_leg_anim lower_leg_anim
        return $ proc () ->
            do accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb test_quality)
@@ -154,7 +159,7 @@ rsaglReshapeCallback (Size width height) = do matrixMode $= Projection
 rsaglDisplayCallback :: (IORef Integer) -> AniM ((),Camera) -> IO ()
 rsaglDisplayCallback counter aniM =
     do loadIdentity
-       color (Color4 0.0 0.0 0.0 0.0 :: Color4 Double)
+       color (Color4 0.0 0.0 0.0 0.0 :: Color4 GLdouble)
        clear [ColorBuffer]
        the_scene <- liftM snd $ runAniM (liftM (second stdSceneLayerInfo) aniM)
        (Size w h) <- GLUT.get windowSize
@@ -165,14 +170,12 @@ rsaglDisplayCallback counter aniM =
        when (not $ null errs) $ print $ show errs
        frames <- readIORef counter
        when (frames `mod` 200 == 0) $ putStrLn $ "frames: " ++ show frames
-       when (frames >= 4000) $ exitWith ExitSuccess
+       when (frames >= number_of_frames) $ exitWith ExitSuccess
 
 rsaglTimerCallback :: Window -> IO ()
 rsaglTimerCallback window = 
     do addTimerCallback timer_callback_millis (rsaglTimerCallback window)
        postRedisplay $ Just window
-
-
 
 ring :: Modeling ()
 ring = model $ do openDisc origin_point_3d (Vector3D 0 1 0) 0.75 1.0
