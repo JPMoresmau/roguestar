@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, Arrows, EmptyDataDecls, RecursiveDo, ScopedTypeVariables, Rank2Types, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification, Arrows, EmptyDataDecls, ScopedTypeVariables, Rank2Types, FlexibleInstances, MultiParamTypeClasses #-}
 
 module RSAGL.FRP.FRP
     (FRPX,
@@ -189,11 +189,11 @@ frpxOf action = FRPX $ \frpinit -> FactoryArrow $ return $ Kleisli $ action frpi
 accumulate :: p -> (j -> p -> p) -> FRPX k s t i o j p
 accumulate initial_value accumF = FRPX $ \_ -> FactoryArrow $
     do prev_o_ref <- newIORef initial_value
-       evaluate prev_o_ref
        return $ Kleisli $ \i -> lift $
            do prev_o <- readIORef prev_o_ref
               let o = accumF i prev_o
               writeIORef prev_o_ref o
+              evaluate o
               return o
 
 -- | Delay a piece of data for one frame.
@@ -353,7 +353,9 @@ threadResults = map (\t -> (frp_thread_identity $ thread_object t,thread_output 
 -- * A list of seed threads with their associated thread identities.
 unsafeThreadGroup :: forall t s ss u j p k l i o. (Eq t) => (s -> ss) -> (s -> ss -> s) -> ThreadIdentityRule t -> ([IO ()] -> IO ()) -> [(t,FRPX k ss t j p j p)] -> FRPX l s u i o j (ThreadGroup ss t j p)
 unsafeThreadGroup sclone sappend rule multithread seed_threads = FRPX $ \frp_init -> FactoryArrow $
-   mdo threads <- newMVar =<< mapM (uncurry $ unsafeFRPProgram threads) seed_threads
+    do threads <- newEmptyMVar
+       constructed_seed_threads <- mapM (uncurry $ unsafeFRPProgram threads) seed_threads
+       putMVar threads constructed_seed_threads
        let runThreads :: [t] -> j -> IO [ThreadResult ss t j p]
            runThreads already_running_threads j =
                do threads_this_pass <- liftM (accumulateThreads rule already_running_threads) $ takeMVar threads
