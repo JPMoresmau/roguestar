@@ -125,7 +125,7 @@ instance CoordinateSystemClass (SceneAccumulator m) where
 
 instance RecombinantState (SceneAccumulator m) where
     type SubState (SceneAccumulator m) = SceneAccumulator m
-    clone = id
+    clone orig = orig { sceneaccum_objs = [] }
     recombine orig new = orig {
         sceneaccum_objs = sceneaccum_objs new ++ sceneaccum_objs orig }
 

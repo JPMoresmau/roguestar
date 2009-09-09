@@ -238,7 +238,7 @@ summation initial_value = accumulate initial_value (\v p -> p `add` v)
 
 -- | Elapsed time since the instantiation of this switch or thread.  Reset when a thread switches.
 threadTime :: FRPX k s t i o () Time
-threadTime = summation zero <<< threadTime
+threadTime = summation zero <<< deltaTime
 
 -- | Get the current absolute time.  This value is transferable across different
 -- instances of an application and even between different computers and operating
@@ -372,7 +372,7 @@ unsafeThreadGroup sclone sappend rule multithread seed_threads = FRPX $ \frp_ini
                                 return $ ThreadResult o t
                   results <- liftM (results_this_pass++) (if null threads_this_pass 
                                                           then return [] 
-                                                          else runThreads (map frp_thread_identity threads_this_pass ++ already_running_threads) j)
+                                                          else runThreads (nub $ map frp_thread_identity threads_this_pass ++ already_running_threads) j)
                   modifyMVar_ threads (return . ((map thread_object results_this_pass)++))
                   return results
        return $ Kleisli $ \j ->
