@@ -10,24 +10,24 @@ import Control.Arrow
 import AnimationExtras
 import PrintTextData
 
-eventStateHeader :: (String -> Bool) -> RSAnimA1 () () () ()
+eventStateHeader :: (String -> Bool) -> RSAnimAX () () () () () ()
 eventStateHeader = genericStateHeader switchTo
     where switchTo s = fromMaybe eventMessager $ lookup s messages
 
 -- | Print messages about game events.
-eventMessager :: RSAnimA1 () () () ()
+eventMessager :: RSAnimAX () () () () () ()
 eventMessager = proc () -> 
     do eventStateHeader (isNothing . flip lookup messages) -< () 
        blockContinue -< True 
 
 -- | A handler for messages from a specific event state, such as \"attack-event\".
-messageState :: String -> RSAnimA1 () () () (Maybe String) -> (String,RSAnimA1 () () () ())
+messageState :: String -> RSAnimAX () () () () () (Maybe String) -> (String,RSAnimAX () () () () () ())
 messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
     do m_string <- actionA -< ()
        blockContinue -< isNothing m_string
        printTextOnce -< fmap ((,) Event) m_string))
 
-messages :: [(String,RSAnimA1 () () () ())]
+messages :: [(String,RSAnimAX () () () () () ())]
 messages = [
     messageState "attack-event" $ proc () -> 
         do m_weapon <- driverGetAnswerA -< "weapon-used"

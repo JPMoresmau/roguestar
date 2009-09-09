@@ -33,7 +33,7 @@ import AnimationEvents
 \end{code}
 
 \begin{code}
-mainAnimationLoop :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+mainAnimationLoop :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 mainAnimationLoop = proc () ->
     do m_state <- driverGetAnswerA -< "state"
        switchContinue -< (fmap (const $ mainWelcome >>> mainDispatch) m_state,())
@@ -54,17 +54,17 @@ states dispatch to \texttt{menuDispatch} which manages the menu gui.
 Whenever the state changes, the header switches to \texttt{mainDispatch}.
 
 \begin{code}
-mainStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () ()
+mainStateHeader :: (String -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo menu_state | menu_state `elem` menu_states = menuManager
         switchTo planar_state | planar_state `elem` planar_states = planarGameplayDispatch
 	switchTo "game-over" = gameOver
 	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ unknown_state
 
-mainDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 mainDispatch = mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 
-menuManager :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
        frp1Context menuDispatch -< ()
@@ -73,7 +73,7 @@ menuManager = proc () ->
 \subsection{The Game Over State}
 
 \begin{code}
-gameOver :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+gameOver :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 gameOver = proc () ->
     do printTextOnce -< Just (Event,"You have been killed.")
        returnA -< roguestarSceneLayerInfo mempty basic_camera
@@ -85,22 +85,22 @@ gameOver = proc () ->
 planar_states :: [String]
 planar_states = ["player-turn","move","turn","jump","attack","fire","attack-event","miss-event","killed-event","weapon-overheats-event","weapon-explodes-event","disarm-event","sunder-event"]
 
-planarGameplayDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+planarGameplayDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
     do -- setup/get infos
        mainStateHeader (`elem` planar_states) -< () 
        clearPrintTextOnce -< ()
        frp1Context eventMessager -< ()
        -- terrain threads
-       frpContext (maybeThreadIdentity terrainTileThreadIdentity) [(Nothing,terrainThreadLauncher)] -< ()
+       frpContext (allowAnonymous forbidDuplicates) [(Nothing,terrainThreadLauncher)] -< ()
        -- creature threads
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
-           frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) 
-	       [(Nothing,visibleObjectThreadLauncher creatureAvatar)] -< ()
+           frpContext (allowAnonymous forbidDuplicates) 
+              [(Nothing,visibleObjectThreadLauncher creatureAvatar)] -< ()
        -- tool threads
-       frpContext (maybeThreadIdentity $ unionThreadIdentity (==)) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
+       frpContext (allowAnonymous forbidDuplicates) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
-	       tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos }
+               tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos }
        -- camera/lighting stuff, including sky sphere 
        sky_info <- getSkyInfo -< ()
        sky -< sky_info

@@ -21,6 +21,7 @@ class ProtocolType t where
 data TerrainTile = TerrainTile {
     tt_type :: String,
     tt_xy :: (Integer,Integer) }
+        deriving (Eq,Show)
 
 instance ProtocolType TerrainTile where
     formatTable = const [TDString "terrain-type",TDNumber "x",TDNumber "y"]

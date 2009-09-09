@@ -59,7 +59,7 @@ instance AbstractEmpty (Maybe a) where
 
 -- | Avatar for unrecognized objects.  Basically this is a big conspicuous warning that
 -- something is implemented in the engine but not in the client.
-questionMarkAvatar :: RSAnimA (Maybe Integer) i o i (Maybe CreatureThreadOutput)
+questionMarkAvatar :: RSAnimAX Threaded (Maybe Integer) i o i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->
     do visibleObjectHeader -< ()
        t <- threadTime -< ()
@@ -82,89 +82,89 @@ questionMarkAvatar = proc _ ->
 
 
 -- | Launch threads to represent every visible object.
-visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimA (Maybe Integer) i o i o -> RSAnimA (Maybe Integer) i o i o
+visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimAX Threaded (Maybe Integer) i o i o -> RSAnimAX Threaded (Maybe Integer) i o i o
 visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
 
 -- | Kill a thread if an object has the wrong \"object-type\" field, e.g. anything that isn't a \"creature\".
-objectTypeGuard :: (String -> Bool) -> RSAnimA (Maybe Integer) a b () ()
+objectTypeGuard :: (String -> Bool) -> RSAnimAX Threaded (Maybe Integer) a b () ()
 objectTypeGuard f = proc () ->
     do m_obj_type <- objectDetailsLookup "object-type" -< ()
        killThreadIf -< maybe False (not . f) m_obj_type
 
 -- | Header function that just kills the current thread if it isn't a visible object.
-visibleObjectHeader :: RSAnimA (Maybe Integer) i o () ()
+visibleObjectHeader :: RSAnimAX Threaded (Maybe Integer) i o () ()
 visibleObjectHeader = proc () ->
     do unique_id <- arr (fromMaybe (error "visibleObjectHeader: threadIdentity was Nothing")) <<< threadIdentity -< ()
        uids <- allObjects -< ()
        killThreadIf -< isNothing $ find (== unique_id) uids
 
 -- | List all 'VisibleObject' records.
-visibleObjects :: RSAnimAX any t i o () [VisibleObject]
+visibleObjects :: RSAnimAX k t i o () [VisibleObject]
 visibleObjects = proc () -> arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
 
 -- | List all object UIDs.
-allObjects :: RSAnimAX any a i o () [Integer]
+allObjects :: RSAnimAX k t i o () [Integer]
 allObjects = proc () ->
     do visible_object_ids <- arr (map vo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
        wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< Set.toList $ Set.fromList visible_object_ids `Set.union` Set.fromList wielded_object_ids
 
 -- | As a Tool, who is wielding you?
-wieldedParent :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
+wieldedParent :: RSAnimAX k (Maybe Integer) i o () (Maybe Integer)
 wieldedParent = proc () -> 
     do unique_id <- visibleObjectUniqueID -< ()
        wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_creature_id $ find ((== unique_id) . wo_unique_id) wielded_pairs
 
 -- | As a creature, what tool are you wielding?
-wieldedTool :: RSAnimA (Maybe Integer) i o () (Maybe Integer)
+wieldedTool :: RSAnimAX k (Maybe Integer) i o () (Maybe Integer)
 wieldedTool = proc () ->
     do unique_id <- visibleObjectUniqueID -< ()
        wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_unique_id $ find ((== unique_id) . wo_creature_id) wielded_pairs
 
 -- | As a Tool, are you currently being wielded?
-isBeingWielded :: RSAnimA (Maybe Integer) i o () Bool
+isBeingWielded :: RSAnimAX k (Maybe Integer) i o () Bool
 isBeingWielded = wieldedParent >>> arr isJust
 
-visibleObjectUniqueID :: RSAnimA (Maybe Integer) i o () Integer
+visibleObjectUniqueID :: RSAnimAX k (Maybe Integer) i o () Integer
 visibleObjectUniqueID = arr (fromMaybe (error "visibleObjectUniqueID: threadIdentity was Nothing")) <<< threadIdentity
 
 -- | Get the 'VisibleObject' record for the current object.
-visibleObject :: RSAnimA (Maybe Integer) i o () (Maybe VisibleObject)
+visibleObject :: RSAnimAX k (Maybe Integer) i o () (Maybe VisibleObject)
 visibleObject = proc () ->
     do unique_id <- visibleObjectUniqueID -< ()
        visible_objects <- visibleObjects -< ()
        returnA -< do find ((== unique_id) . vo_unique_id) visible_objects
 
 -- | Get an "object-details" field for the current visible object.
-objectDetailsLookup :: String -> RSAnimA (Maybe Integer) i o () (Maybe String)
+objectDetailsLookup :: String -> RSAnimAX k (Maybe Integer) i o () (Maybe String)
 objectDetailsLookup field = proc _ ->
     do unique_id <- visibleObjectUniqueID -< ()
        m_details_table <- driverGetTableA -< ("object-details",show unique_id)
        sticky isJust Nothing -< (\x -> tableLookup x ("property","value") field) =<< m_details_table
 
 -- | Grid position to which the current object should move.
-objectDestination :: RSAnimA (Maybe Integer) i o () (Maybe (Integer,Integer))
+objectDestination :: RSAnimAX k (Maybe Integer) i o () (Maybe (Integer,Integer))
 objectDestination = arr (fmap vo_xy) <<< visibleObject
 
 -- | Correct position of the current object, with smooth translation.
-objectIdealPosition :: RSAnimA (Maybe Integer) i o () (Maybe Point3D)
+objectIdealPosition :: RSAnimAX k (Maybe Integer) i o () (Maybe Point3D)
 objectIdealPosition = 
     whenJust (approachA 0.25 (perSecond 3)) <<< 
     arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (negate $ realToFrac y))) <<< 
     objectDestination
 
 -- | Goal direction in which the current object should be pointed.
-objectFacing :: RSAnimA (Maybe Integer) i o () (Maybe BoundAngle)
+objectFacing :: RSAnimAX k (Maybe Integer) i o () (Maybe BoundAngle)
 objectFacing = arr (fmap vo_facing) <<< visibleObject
 
 -- | Direction in which the current object should be pointed, with smooth rotation.
-objectIdealFacing :: RSAnimA (Maybe Integer) i o () (Maybe Angle)
+objectIdealFacing :: RSAnimAX k (Maybe Integer) i o () (Maybe Angle)
 objectIdealFacing = arr (fmap unboundAngle) <<< whenJust (approachA 0.1 (perSecond 1)) <<< objectFacing
 
 -- | Combine 'objectIdealPosition' and 'objectIdealFacing' to place an object.
-objectIdealOrientation :: RSAnimA (Maybe Integer) i o () (Maybe CoordinateSystem)
+objectIdealOrientation :: RSAnimAX k (Maybe Integer) i o () (Maybe CoordinateSystem)
 objectIdealOrientation = proc () ->
     do m_p <- objectIdealPosition -< ()
        m_a <- objectIdealFacing -< ()
@@ -174,7 +174,7 @@ objectIdealOrientation = proc () ->
 
 -- | 'objectIdealOrientation' implementation that is aware of wield points for wieldable objects.  If an object is being
 -- wielded, it will snap to it's wield point.
-wieldableObjectIdealOrientation :: RSAnimA (Maybe Integer) i o ToolThreadInput (Maybe CoordinateSystem)
+wieldableObjectIdealOrientation :: RSAnimAX k (Maybe Integer) i o ToolThreadInput (Maybe CoordinateSystem)
 wieldableObjectIdealOrientation = proc tti ->
     do ideal_resting <- objectIdealOrientation -< ()
        m_wielded_parent <- wieldedParent -< ()

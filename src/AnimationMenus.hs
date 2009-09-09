@@ -18,7 +18,7 @@ import Actions
 import Scene
 
 -- Header for menu states.  This will automatically switch away to an approprate menu if the provided state predicate does not match.
-menuStateHeader :: (String -> Bool) -> RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuStateHeader :: (String -> Bool) -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
   where switchTo "race-selection" = menuRaceSelection
         switchTo "class-selection" = menuClassSelection
@@ -30,25 +30,27 @@ menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarScen
         switchTo "make-finished" = makeFinishedMenuSelection
         switchTo unknown_state = menuStateHeader (== unknown_state)
 
-menuDispatch :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuDispatch = menuStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 
-menuRaceSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuRaceSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuRaceSelection = proc s -> 
     do result <- menuStateHeader (== "race-selection") -< s
        requestPrintTextMode -< Unlimited
-       clearPrintTextA -< ()
+       clearPrintTextA -< Just ()
        printMenuA select_race_action_names -< ()
        printTextA -< Just (Query,"Select a Race:")
        returnA -< result
 
-menuClassSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+menuClassSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuClassSelection = proc () -> 
     do result <- menuStateHeader (== "class-selection") -< ()
-       changed <- edgep <<< sticky isJust Nothing <<< arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
+       stats <- sticky isJust Nothing <<< arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
+       initial_stats <- initial -< stats
+       let changed = stats /= initial_stats
        switchContinue -< (if changed then Just menuClassSelection else Nothing,())
        requestPrintTextMode -< Unlimited
-       clearPrintTextA -< ()
+       clearPrintTextA -< Just ()
        printCharacterStats 0 -< ()
        printMenuA select_base_class_action_names -< ()
        printMenuItemA "reroll" -< ()
@@ -71,26 +73,26 @@ print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
        printTextA -< fmap (\x -> (Event,hrstring stat_str ++ ": " ++ show x)) m_stat_int
 
-makeWhatMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+makeWhatMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 makeWhatMenuSelection = proc () ->
     do result <- menuStateHeader (== "make-what") -< ()
        requestPrintTextMode -< Unlimited
-       clearPrintTextA -< ()
+       clearPrintTextA -< Just ()
        printMenuA make_what_action_names -< ()
        printTextA -< Just (Query,"Build what?")
        returnA -< result
 
-makeFinishedMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+makeFinishedMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 makeFinishedMenuSelection = proc () ->
     do menuStateHeader (== "make-finished") -< ()
 
-toolMenuSelection :: RSAnimA1 () SceneLayerInfo () SceneLayerInfo
+toolMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 toolMenuSelection = proc () ->
     do menuStateHeader (`elem` ["pickup","drop","wield","make"]) -< ()
        state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
        m_menu_data <- sticky isJust Nothing <<< driverGetTableA -< ("menu","7")
        menu_state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
-       clearPrintTextA -< ()
+       clearPrintTextA -< Just ()
        requestPrintTextMode -< Unlimited
        printTextA -< Just (Query, unlines $ flip (maybe []) m_menu_data $ \menu_data -> flip map (tableSelect menu_data ["n","name"]) $ \[n,name] ->
            case Just n == menu_state of

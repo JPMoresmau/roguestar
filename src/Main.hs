@@ -74,7 +74,7 @@ roguestarReshapeCallback (Size width height) =
 roguestarDisplayCallback :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
 roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object =
   do result <- timeout 20000000 $
-         do color (Color4 0 0 0 0 :: Color4 Float)
+         do color (Color4 0 0 0 0 :: Color4 GLfloat)
             clear [ColorBuffer]
             scene <- runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
             (Size width height) <- get windowSize

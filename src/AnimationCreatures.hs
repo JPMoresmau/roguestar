@@ -18,7 +18,7 @@ import Scene
 import AnimationExtras
 
 -- | Avatar for any creature that automatically switches to the appropriate species-specific avatar thread.
-creatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+creatureAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 creatureAvatar = proc () ->
     do objectTypeGuard (== "creature") -< ()
        m_species <- objectDetailsLookup "species" -< ()
@@ -32,15 +32,15 @@ creatureAvatar = proc () ->
 	switchTo "reptilian" = reptilianAvatar
         switchTo _ = questionMarkAvatar
 
-genericCreatureAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
-                         RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+genericCreatureAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () CreatureThreadOutput ->
+                         RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 genericCreatureAvatar creatureA = proc () ->
     do visibleObjectHeader -< ()
        m_orientation <- objectIdealOrientation -< ()
        switchTerminate -< if isNothing m_orientation then (Just $ genericCreatureAvatar creatureA,Nothing) else (Nothing,Nothing)
        arr Just <<< transformA creatureA -< (fromMaybe (error "genericCreatureAvatar: fromMaybe") m_orientation,())
 
-encephalonAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+encephalonAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 encephalonAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Encephalon)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<< 
@@ -48,7 +48,7 @@ encephalonAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-recreantAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+recreantAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
     do libraryA -< (scene_layer_local,Recreant)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
@@ -56,7 +56,7 @@ recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-androsynthAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+androsynthAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 androsynthAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Androsynth)
        bothLegs ThinLimb ThinLimb (Vector3D 0 0 1) (Point3D (0.07) 0.5 (-0.08)) 0.7 (Point3D 0.07 0 0.0) -< ()
@@ -65,7 +65,7 @@ androsynthAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-glower :: Point3D -> Vector3D -> RSAnimA (Maybe Integer) i o () ()
+glower :: Point3D -> Vector3D -> RSAnimAX Threaded (Maybe Integer) i o () ()
 glower p_init v_init = proc () ->
     do local_origin <- exportToA root_coordinate_system -< origin_point_3d
        transformA
@@ -81,7 +81,7 @@ glower p_init v_init = proc () ->
 	         (proc (_,()) -> libraryPointAtCamera -< (scene_layer_local,AscendantGlow))) -< 
 	             (translateToFrom local_origin origin_point_3d $ root_coordinate_system,())
 
-ascendantAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+ascendantAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 ascendantAvatar = genericCreatureAvatar $ proc () ->
     do glower (Point3D 0 0.5 0) zero -< ()
        glower (Point3D 0 0.5 0.35) (Vector3D 0 0 (-1)) -< ()
@@ -98,7 +98,7 @@ ascendantAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-caduceatorAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+caduceatorAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 caduceatorAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Caduceator)
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
@@ -106,7 +106,7 @@ caduceatorAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-reptilianAvatar :: RSAnimA (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
+reptilianAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 reptilianAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Reptilian)
        bothLegs ReptilianLegUpper ReptilianLegLower (Vector3D 0 0 1) (Point3D (0.05) 0.25 (-0.1)) 0.29 (Point3D 0.07 0 0.0) -< ()

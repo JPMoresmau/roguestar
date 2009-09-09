@@ -51,7 +51,7 @@ sky = proc sky_info ->
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
        let nightlight_intensity = lighting_nightlight lighting_configuration
        let skylight_intensity = lighting_skylight lighting_configuration
-       skylight_color <- edgeMap ambientSkyRadiation -< sky_info
+       skylight_color <- arrHashed ambientSkyRadiation -< sky_info
        accumulateSceneA -< (scene_layer_local,lightSource $ if nightlight_intensity > 0.05
            then mapLightSource (mapBoth $ scaleRGB $ nightlight_intensity) $ DirectionalLight {
                     lightsource_direction = Vector3D 0 1 0,
