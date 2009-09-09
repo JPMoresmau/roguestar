@@ -10,7 +10,7 @@ DEPENDS_OPTS=${CONFIGURE_OPTS} --enable-library-profiling --enable-executable-pr
 GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
 GIT_ORIGIN_SUFFIX=.git
 
-make : roguestar-gl roguestar-engine rsagl-doc rsagl-demos
+make : roguestar-gl roguestar-engine rsagl-demos
 
 depends-setup :
 	-rm -rf roguestar-local
@@ -21,11 +21,12 @@ depends-setup :
 	cabal install MonadRandom ${DEPENDS_OPTS}
 	cabal install parsec ${DEPENDS_OPTS} --preference='parsec >= 3'
 	cabal install QuickCheck ${DEPENDS_OPTS} --preference='QuickCheck < 2'
-	cabal install Arrows ${DEPENDS_OPTS}
+	cabal install Arrows ${DEPENDS_OPTS} --preference='QuickCheck < 2'
 	cabal install OpenGL ${DEPENDS_OPTS}
 	cabal install GLUT ${DEPENDS_OPTS}
 	cabal install heap ${DEPENDS_OPTS}
 	cabal install stm ${DEPENDS_OPTS}
+	cabal install data-memocombinators ${DEPENDS_OPTS}
 
 setup :
 	(cd priority-sync && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
@@ -34,6 +35,9 @@ setup :
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
 	(cd roguestar-gl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
 	(cd rsagl-demos && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
+
+setup-profile :
+	${MAKE} setup -e OPTS="--enable-library-profiling --enable-executable-profiling"
 
 rsagl :
 	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
@@ -104,4 +108,4 @@ dist-snapshot :
 dist-local :
 	${MAKE} dist-snapshot -e GIT_ORIGIN_PATH=. -e GIT_ORIGIN_SUFFIX=/.git
 
-.PHONY: default download make setup-clean dist dist-snapshot roguestar-engine roguestar-gl rsagl from-scratch rsagl-doc
+.PHONY: default download make setup setup-clean dist dist-snapshot dist-local roguestar-engine roguestar-gl rsagl from-scratch rsagl-doc rsagl-demos
