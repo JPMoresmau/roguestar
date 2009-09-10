@@ -178,14 +178,12 @@ onceA actionA = frp1Context onceA_
 libraryA :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
-       debugA -< Just $ show lm
        accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Poor)
 
 -- | Display a library model that remains oriented toward the camera.
 libraryPointAtCamera :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
 libraryPointAtCamera = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
-       debugA -< Just $ show lm
        pointAtCameraA -< (layer,lookupModel lib lm Poor)
 
 -- | Prevent the engine from auto-continuing.  When the engine is in a snapshot state, 

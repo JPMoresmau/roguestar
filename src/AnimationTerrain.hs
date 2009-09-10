@@ -26,18 +26,18 @@ terrainTile terrain_tile = proc () ->
        
 terrainTile_Descending :: ProtocolTypes.TerrainTile -> RSAnimAX Threaded (Maybe ProtocolTypes.TerrainTile) () () () ()
 terrainTile_Descending terrain_tile = proc () ->
-    do t <- threadTime -< ()
-       killThreadIf -< t >= fromSeconds 1
-       renderTerrainTile terrain_tile -< t
+    do t <- arr ((subtract 1) . toSeconds) <<< threadTime -< ()
+       killThreadIf -< t >= 1
+       renderTerrainTile terrain_tile -< fromSeconds $ max 0 $ t
        returnA -< ()
 
 renderTerrainTile :: ProtocolTypes.TerrainTile -> RSAnimAX Threaded t i o Time Bool
-renderTerrainTile (ProtocolTypes.TerrainTile terrain_type (x,y)) = proc t ->
+renderTerrainTile (terrain_id@(ProtocolTypes.TerrainTile terrain_type (x,y))) = proc t ->
     do let awayness = max 0 $ min 0.99 $ (toSeconds t)^2
        terrain_elements <- terrainElements -< ()
        transformA libraryA -< (Affine $ translate (Vector3D (realToFrac x) 0 (negate $ realToFrac y)) . scale' (1 - awayness),
                                (scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
-       returnA -< isJust $ find (\a -> tt_xy a == (x,y)) terrain_elements
+       returnA -< isJust $ find (== terrain_id) terrain_elements
 
 terrainElements :: RSAnimAX Threaded t i o () [ProtocolTypes.TerrainTile]
 terrainElements = arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA <<< arr (const ("visible-terrain","0"))

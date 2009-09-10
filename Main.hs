@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification, FlexibleInstances #-}
+
 module Main (main) where
 
 import System.Process
@@ -9,6 +11,7 @@ import System.IO
 import Control.Monad
 import Paths_roguestar_gl
 import GHC.Environment
+import Control.Concurrent.Chan
 
 known_args :: [String]
 known_args = [arg_echo_protocol,arg_single_threaded]
@@ -37,10 +40,12 @@ main =
        (e_in,e_out,e_err,roguestar_engine) <- runInteractiveProcess (bin_dir `combine` "roguestar-engine") engine_args Nothing Nothing
        when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_gl_bin ++ " " ++ unwords gl_args
        (gl_in,gl_out,gl_err,roguestar_gl) <- runInteractiveProcess (bin_dir `combine` "roguestar-gl") gl_args Nothing Nothing
-       forkIO $ pump e_out  $ [("",gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",stdout)] else [])
-       forkIO $ pump gl_out $ [("",e_in)] ++ (if should_echo_protocol then [("gl <<< engine *** ",stdout)] else [])
-       forkIO $ pump e_err  $ [("roguestar-engine *** ",stderr)]
-       forkIO $ pump gl_err $ [("roguestar-gl     *** ",stderr)]
+       stdout_chan <- newChan
+       forkIO $ pump e_out  $ [("",DHandle gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",DChan stdout_chan)] else [])
+       forkIO $ pump gl_out $ [("",DHandle e_in)] ++ (if should_echo_protocol then [("engine <<< gl *** ",DChan stdout_chan)] else [])
+       forkIO $ pump e_err  $ [("roguestar-engine *** ",DChan stdout_chan)]
+       forkIO $ pump gl_err $ [("roguestar-gl     *** ",DChan stdout_chan)]
+       forkIO $ printChan stdout stdout_chan
        forkIO $
            do roguestar_engine_exit <- waitForProcess roguestar_engine
               case roguestar_engine_exit of
@@ -52,15 +57,30 @@ main =
            ExitFailure x -> putStrLn $ "roguestar-gl terminated unexpectedly (" ++ show x ++ ")"
            _ -> return ()       
 
-pump :: Handle -> [(String,Handle)] -> IO ()
+data Destination = DHandle Handle | DChan (Chan String)
+
+send :: Destination -> String -> IO ()
+send (DHandle h) str = hPutStrLn h str >> hFlush h
+send (DChan c) str = writeChan c str
+
+setup :: Destination -> IO ()
+setup (DHandle h) = hSetBuffering h NoBuffering
+setup _ = return ()
+
+pump :: Handle -> [(String,Destination)] -> IO ()
 pump from tos =
-    do mapM_ (flip hSetBuffering NoBuffering . snd) tos
+    do mapM_ (setup . snd) tos
        hSetBuffering from NoBuffering
        forever $
            do l <- hGetLine from
-	      flip mapM_ tos $ \(name,to) -> 
-	          do hPutStrLn to $ name ++ l
-	             hFlush to
+	      flip mapM_ tos $ \(name,to) -> send to $ name ++ l
+
+printChan :: Handle -> Chan String -> IO ()
+printChan h c =
+    do s <- readChan c
+       hPutStrLn h s
+       hFlush h
+       printChan h c
 
 getNumberOfCPUCores :: IO Int
 getNumberOfCPUCores =

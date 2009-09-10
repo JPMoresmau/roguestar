@@ -125,7 +125,7 @@ alwaysAction action_name actionIO =
  ----------------------------------------------------------}
 
 player_turn_states :: [String]
-player_turn_states = ["player-turn","move","attack","fire","jump","turn"]
+player_turn_states = ["player-turn","move","attack","fire","jump","turn","clear-terrain"]
 
 menu_states :: [String]
 menu_states = ["race-selection","class-selection","pickup","drop","wield","make","make-finished","make-what"]
@@ -173,6 +173,9 @@ fire_action = stateLinkedAction player_turn_states "fire"
 
 attack_action :: (String,Action)
 attack_action = stateLinkedAction player_turn_states "attack"
+
+clear_terrain_action :: (String,Action)
+clear_terrain_action = stateLinkedAction player_turn_states "clear-terrain"
 
 reroll_action :: (String,Action)
 reroll_action = stateLinkedAction ["class-selection"] "reroll"
@@ -287,7 +290,7 @@ all_actions = [continue_action,quit_action,reroll_action,
 	      select_base_class_actions ++
               direction_actions ++
               make_what_actions ++
-	      [move_action,turn_action,fire_action,jump_action,attack_action,activate_action,
+	      [move_action,turn_action,fire_action,jump_action,attack_action,clear_terrain_action,activate_action,
                make_begin_action,make_end_action]
 
 -- | Find an action with the given name.
