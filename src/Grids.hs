@@ -3,7 +3,8 @@ module Grids
     (Grid,
      gridAt,
      generateGrid,
-     arbitraryReplaceGrid)
+     arbitraryReplaceGrid,
+     specificReplaceGrid)
     where
 
 import RNG
@@ -44,7 +45,7 @@ fromPersistant (InterpolatedGrid_Persistant x prob_map grid) =
 fromPersistant (ArbitraryReplacementGrid_Persistant x sources replacements grid) =
     cachedGridOf $ ArbitraryReplacementGrid x (randomIntegerGrid x) sources replacements (fromPersistant grid)
 fromPersistant (SpecificPlacementGrid_Persistant placement_map grid) =
-    cachedGridOf $ SpecificPlacementGrid (fromList placement_map) (fromPersistant grid)
+    SpecificPlacementGrid (fromList placement_map) (fromPersistant grid)
 
 fromPersistant_tupled :: (Ord a) => (Grid_Persistant a,String) -> (Grid a,String)
 fromPersistant_tupled (x,y) = (fromPersistant x,y)
@@ -103,3 +104,11 @@ generateGrid weights interps n seeds = let seed = head seeds
 arbitraryReplaceGrid :: (Ord a) => [(Rational,a)] -> [(Integer,a)] -> Integer -> Grid a -> Grid a
 arbitraryReplaceGrid sources replacements seed grid = cachedGridOf $
     ArbitraryReplacementGrid seed (randomIntegerGrid seed) sources replacements grid
+
+-- |
+-- Replace a specific element of a grid.
+--
+specificReplaceGrid :: (Ord a) => (Integer,Integer) -> a -> Grid a -> Grid a
+specificReplaceGrid position x (SpecificPlacementGrid m grid) =
+    SpecificPlacementGrid (Map.insert position x m) grid
+specificReplaceGrid position x grid = specificReplaceGrid position x $ SpecificPlacementGrid (Map.empty) grid

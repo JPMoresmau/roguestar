@@ -72,4 +72,3 @@ executeTeleportJump :: TeleportJumpOutcome -> DB ()
 executeTeleportJump TeleportJumpFailed = return ()
 executeTeleportJump (TeleportJumpGood creature_ref standing_location) = dbMove (return . toStanding standing_location) creature_ref >> return ()
 
-

@@ -31,6 +31,7 @@ data CreatureTurnMode =
   | FireMode
   | JumpMode
   | TurnMode
+  | ClearTerrainMode
       deriving (Read,Show)
 
 data SnapshotEvent = 

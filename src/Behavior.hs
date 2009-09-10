@@ -25,6 +25,8 @@ import Data.Maybe
 import Control.Monad.Maybe
 import TerrainData
 import Make
+import Construction
+import Control.Monad.Error
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -43,6 +45,7 @@ data Behavior =
   | Vanish
   | Activate
   | Make PrepareMake
+  | ClearTerrain Facing
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but
@@ -140,6 +143,13 @@ dbBehave Activate creature_ref =
 
 dbBehave (Make make_prep) creature_ref =
     do atomic $ liftM executeMake $ resolveMake creature_ref make_prep
+       dbAdvanceTime creature_ref =<< fullActionTime creature_ref
+       return ()
+
+dbBehave (ClearTerrain face) creature_ref =
+    do dbMove (turnCreature face) creature_ref
+       ok <- modifyFacingTerrain clearTerrain face creature_ref
+       when (not ok) $ throwError $ DBErrorFlag "unable"
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
        return ()
 

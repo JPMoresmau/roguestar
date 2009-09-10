@@ -188,6 +188,7 @@ dbDispatchQuery ["state"] =
                            PlayerCreatureTurn _ (MakeMode _ make_prep) | isFinished make_prep -> "answer: state make-finished"
                            PlayerCreatureTurn _ (MakeMode _ make_prep) | needsKind make_prep -> "answer: state make-what"
                            PlayerCreatureTurn _ (MakeMode {}) -> "answer: state make"
+                           PlayerCreatureTurn _ ClearTerrainMode -> "answer: state clear-terrain"
                            SnapshotEvent (AttackEvent {}) -> "answer: state attack-event"
                            SnapshotEvent (MissEvent {}) -> "answer: state miss-event"
                            SnapshotEvent (KilledEvent {}) -> "answer: state killed-event"
@@ -355,6 +356,7 @@ dbDispatchAction [direction] | isJust $ stringToFacing direction =
                AttackMode -> dbDispatchAction ["attack",direction]
                FireMode ->   dbDispatchAction ["fire",direction]
                MoveMode ->   dbDispatchAction ["move",direction]
+               ClearTerrainMode ->  dbDispatchAction ["clear-terrain",direction]
                _ ->          dbDispatchAction ["normal",direction]
            _ -> return "protocol-error: not in player turn state"
 
@@ -383,7 +385,13 @@ dbDispatchAction ["turn"] =
     dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref TurnMode) >> done
 
 dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done
+
+dbDispatchAction ["clear-terrain"] =
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref ClearTerrainMode) >> done
+
+dbDispatchAction ["clear-terrain",direction] | isJust $ stringToFacing direction =
+    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (ClearTerrain $ fromJust $ stringToFacing direction) creature_ref >> done
 
 dbDispatchAction ["next"] = modifyMenuState (+1) >> done
 

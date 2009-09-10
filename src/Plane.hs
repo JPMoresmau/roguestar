@@ -6,6 +6,7 @@ module Plane
      pickRandomClearSite,
      getPlanarLocation,
      terrainAt,
+     setTerrainAt,
      whatIsOccupying,
      isTerrainPassable,
      getBiome)
@@ -96,6 +97,9 @@ terrainAt :: (DBReadable db) => PlaneRef -> Position -> db TerrainPatch
 terrainAt plane_ref (Position (x,y)) =
     do terrain <- liftM plane_terrain $ dbGetPlane plane_ref
        return $ gridAt terrain (x,y)
+
+setTerrainAt :: PlaneRef -> Position -> TerrainPatch -> DB ()
+setTerrainAt plane_ref (Position pos) patch = dbModPlane (\p -> p { plane_terrain = specificReplaceGrid pos patch $ plane_terrain p }) plane_ref
 
 -- | Lists all of the entities that are on a specific spot, not including nested entities.
 -- Typically this is zero or one creatures, and zero or more tools.
