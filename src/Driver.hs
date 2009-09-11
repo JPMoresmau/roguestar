@@ -46,20 +46,23 @@ instance DriverClass RoguestarEngineState where
     getTable restate the_table_name the_table_id = return $ (find (\x -> table_name x == the_table_name && table_id x == the_table_id)) $ restate_tables restate
 
 instance DriverClass FrozenDriver where
-    getAnswer (FrozenDriver driver_object restate) query =
-        do getAnswer driver_object query
+    getAnswer (FrozenDriver driver_object restate dones) query =
+        do current_dones <- driverDones driver_object
+           when (current_dones == dones) $ getAnswer driver_object query >> return ()
            getAnswer restate query
-    getTable (FrozenDriver driver_object restate) the_table_name the_table_id =
-        do getTable driver_object the_table_name the_table_id
+    getTable (FrozenDriver driver_object restate dones) the_table_name the_table_id =
+        do current_dones <- driverDones driver_object
+           when (current_dones == dones) $ getTable driver_object the_table_name the_table_id >> return ()
            getTable restate the_table_name the_table_id
 
 freezeDriver :: (MonadIO m) => DriverObject -> m FrozenDriver
 freezeDriver driver_object =
     do restate <- liftIO $ driverGet driver_object driver_engine_state
-       return $ FrozenDriver driver_object restate
+       dones <- liftIO $ driverDones driver_object
+       return $ FrozenDriver driver_object restate dones
 
 thawDriver :: FrozenDriver -> DriverObject
-thawDriver (FrozenDriver driver_object _) = driver_object
+thawDriver (FrozenDriver driver_object _ _) = driver_object
 
 -- | Contains detailed information about character-by-character interaction with the engine.
 data DriverData = DriverData {
@@ -85,7 +88,7 @@ newtype DriverObject = DriverObject (IORef DriverData)
 
 -- | A frozen 'DriverObject'.  It has a static view of the world as seen at the time that the Driver is fozen, however, the original
 -- 'DriverObject' continues to be updated when this 'FrozenDriver' is used.
-data FrozenDriver = FrozenDriver DriverObject RoguestarEngineState
+data FrozenDriver = FrozenDriver DriverObject RoguestarEngineState Integer
 
 -- | Initialize a DriverObject.
 newDriverObject :: IO DriverObject
