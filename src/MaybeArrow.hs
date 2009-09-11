@@ -19,17 +19,22 @@ module MaybeArrow
      example)
     where
 
+import Prelude hiding (id,(.))
 import Control.Arrow
 import Control.Arrow.Transformer
 import Data.Maybe
+import Control.Category
 
 newtype MaybeArrow a b c = MaybeArrow { runMaybeArrow :: (a (Maybe b) (Maybe c)) }
 
-instance (Arrow a) => Arrow (MaybeArrow a) where
-    (>>>) (MaybeArrow x) (MaybeArrow y) = MaybeArrow $ arr splitIt >>> first x >>> arr combineIt >>> y
+instance (Category a,Arrow a) => Category (MaybeArrow a) where
+    (.) (MaybeArrow y) (MaybeArrow x) = MaybeArrow $ arr splitIt >>> first x >>> arr combineIt >>> y
         where splitIt m = (m,m)
-              combineIt (n,Just m) = n
+              combineIt (n,Just _) = n
               combineIt _ = Nothing
+    id = MaybeArrow id
+
+instance (Arrow a) => Arrow (MaybeArrow a) where
     arr f = MaybeArrow $ arr $ fmap f
     first (MaybeArrow x) = MaybeArrow $ arr splitMaybe >>> first x >>> arr combineMaybe
         where splitMaybe (Just (m,n)) = (Just m,Just n)

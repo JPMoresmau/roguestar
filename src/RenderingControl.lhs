@@ -75,7 +75,7 @@ menuManager = proc () ->
 \begin{code}
 gameOver :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 gameOver = proc () ->
-    do printTextOnce -< Just (Event,"You have been killed.")
+    do printTextOnce -< Just (Event,"Game Over")
        returnA -< roguestarSceneLayerInfo mempty basic_camera
 \end{code}
 

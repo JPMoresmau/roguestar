@@ -12,6 +12,7 @@ module Animation
      printTextOnce,
      debugA,
      debugOnce,
+     donesA,
      printMenuItemA,
      printMenuA,
      clearPrintTextA,
@@ -78,7 +79,7 @@ instance RecombinantState AnimationState where
         animstate_print_text_mode = animstate_print_text_mode old `mergePrintTextModes` animstate_print_text_mode new }
 
 -- | The FRP arrows for roguestar animations.
-type RSAnimAX k t i o j p = FRPX k AnimationState t i o j p
+type RSAnimAX k t i o = FRPX k AnimationState t i o
 
 instance (CoordinateSystemClass csc) => AffineTransformable (FRPX k csc t i o j p) where
     transform m actionA = proc x -> transformA actionA -< (Affine $ transform m,x)
@@ -129,6 +130,12 @@ printTextA = proc pt_data ->
        ioAction (\(print_text_object,x) -> case x of
             Nothing -> return ()
 	    Just (pt_type,pt_string) -> printText print_text_object pt_type pt_string) -< (print_text_object,pt_data)
+
+-- | Number of dones.  (A done is a message from the engine that an change has occured in the game world.)
+donesA :: RSAnimAX k t i o () Integer
+donesA = proc () ->
+    do driver_object <- arr animstate_driver_object <<< fetch -< ()
+       ioAction driverDones -< thawDriver driver_object
 
 -- | Print a debugging message to 'stderr'.  This will print on every frame of animation.
 debugA :: RSAnimAX k t i o (Maybe String) ()

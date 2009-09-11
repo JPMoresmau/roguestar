@@ -4,6 +4,7 @@ module Driver
      freezeDriver,thawDriver,
      DriverClass(..),
      driverNoop,
+     driverDones,
      newDriverObject,
      driverRead,
      driverAction)
@@ -111,6 +112,10 @@ modifyEngineState driver_object f = modifyDriver driver_object $ \driver -> driv
 -- | Transmit a no-op to "roguestar-engine".
 driverNoop :: DriverObject -> IO ()
 driverNoop driver_object = driverWrite driver_object "noop\n"
+
+-- | Total count of done messages received from the engine.
+driverDones :: DriverObject -> IO Integer
+driverDones driver_object = driverGet driver_object driver_dones
 
 -- | Transmits a read-only query against the state of the engine.
 driverQuery :: DriverObject -> [String] -> IO ()
