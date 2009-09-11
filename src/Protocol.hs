@@ -198,6 +198,10 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (SunderEvent {}) -> "answer: state sunder-event"
                            GameOver -> "answer: state game-over"
 
+dbDispatchQuery ["action-count"] =
+    do n <- dbActionCount
+       return $ "answer: action-count " ++ show n
+
 dbDispatchQuery ["menu-state"] =
     do m_state <- menuState
        return $ case m_state of
@@ -255,6 +259,8 @@ dbDispatchQuery ["visible-terrain","0"] =
        return ("begin-table visible-terrain 0 x y terrain-type\n" ++
 	       (unlines $ map (\(terrain_type,Position (x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
 	       "end-table")
+
+dbDispatchQuery ["who-player"] = return "answer: who-player 2"
 
 dbDispatchQuery ["visible-objects","0"] = 
     do maybe_plane_ref <- dbGetCurrentPlane

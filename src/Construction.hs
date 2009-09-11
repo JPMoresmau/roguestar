@@ -24,7 +24,6 @@ modifyFacingTerrain f face creature_ref = liftM (fromMaybe False) $ runMaybeT $
        let new_terrain = f prev_terrain
        when (new_terrain == prev_terrain) $ fail ""
        lift $ setTerrainAt plane_ref target_position new_terrain
-       check_terrain <- lift $ terrainAt plane_ref target_position
        return True
 
 clearTerrain :: TerrainPatch -> TerrainPatch

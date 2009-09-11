@@ -12,6 +12,7 @@ module DB
      ToolLocation(..),
      initial_db,
      DB_BaseType(db_error_flag),
+     dbActionCount,
      dbAddCreature,
      dbAddPlane,
      dbAddTool,
@@ -79,7 +80,8 @@ data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 				 db_hierarchy :: HierarchicalDatabase (Location S (Reference ()) ()),
 				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
 				 db_error_flag :: String,
-				 db_prior_snapshot :: Maybe DB_BaseType}
+				 db_prior_snapshot :: Maybe DB_BaseType,
+                                 db_action_count :: Integer }
     deriving (Read,Show)
 
 data DBError =
@@ -106,7 +108,7 @@ instance Monad DB where
 
 instance MonadState DB_BaseType DB where
     get = liftM db_here $ DB get
-    put s = DB $ modify (\x -> x { db_here = s })
+    put s = DB $ modify $ \x -> x { db_here = s { db_action_count = succ $ db_action_count $ db_here x } }
 
 instance MonadReader DB_BaseType DB where
     ask = liftM db_here $ DB get
@@ -114,7 +116,7 @@ instance MonadReader DB_BaseType DB where
         do s <- get
 	   modify f
            a <- catchError (liftM Right actionM) (return . Left)
-	   put s
+	   DB $ modify $ \x -> x { db_here = s }
            either throwError return a
 
 instance MonadError DBError DB where
@@ -190,7 +192,8 @@ initial_db = DB_BaseType {
     db_hierarchy = HierarchicalDatabase.fromList [],
     db_error_flag = [],
     db_time_coordinates = Map.fromList [(generalizeReference the_universe, zero_time)],
-    db_prior_snapshot = Nothing }
+    db_prior_snapshot = Nothing,
+    db_action_count = 0 }
 
 setupDBHistory :: DB_BaseType -> IO DB_History
 setupDBHistory db =
@@ -211,11 +214,14 @@ playerState = asks db_player_state
 setPlayerState :: PlayerState -> DB ()
 setPlayerState state = modify (\db -> db { db_player_state = state })
 
+dbActionCount :: (DBReadable db) => db Integer
+dbActionCount = asks db_action_count
+
 -- |
 -- Gets the next ObjectRef integer, after incrementing it.
 --
 dbNextObjectRef :: DB Integer
-dbNextObjectRef = do modify (\db -> db { db_next_object_ref = succ $ db_next_object_ref db })
+dbNextObjectRef = do modify $ \db -> db { db_next_object_ref = succ $ db_next_object_ref db }
                      gets db_next_object_ref
 
 class (LocationType l) => CreatureLocation l where

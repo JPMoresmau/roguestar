@@ -33,5 +33,5 @@ resolveDeviceActivation primary_ability secondary_ability timing_ability device 
            daoF = case () of
                       () | roll_actual primary_roll == 0 -> DeviceActivationOutcome DeviceCriticalFailed 0 (deviceOutput device * deviceSize device)
                       () | roll_actual primary_roll <= deviceSize device -> DeviceActivationOutcome DeviceFailed (roll_actual primary_roll) (deviceOutput device)
-                      () | otherwise -> DeviceActivationOutcome DeviceActivated (min (deviceSize device) $ roll_actual primary_roll * deviceSize device) (roll_actual secondary_roll)
+                      () | otherwise -> DeviceActivationOutcome DeviceActivated (roll_actual primary_roll * deviceSize device) (roll_actual secondary_roll)
        return $ daoF timing

@@ -76,6 +76,7 @@ rollCreatureAbilityScore score other_ideal creature_ref =
        actual <- linearRoll ideal
        [raw_actual, other_actual, terrain_actual] <- fixedSumLinearRoll [raw_ideal, other_ideal, terrain_ideal] actual
        logarithmic <- logRoll ideal
+       --trace (show $ (score,raw_ideal,other_ideal,terrain_ideal,raw_actual,other_actual,terrain_actual)) $ return ()
        return $ Roll ideal (if raw_actual == 0 then 0 else actual)
                 (RollComponents raw_ideal other_ideal terrain_ideal)
                 (RollComponents raw_actual other_actual terrain_actual) logarithmic
@@ -125,7 +126,7 @@ deleteCreature = dbUnsafeDeleteObject $ \l ->
            Just dropped_loc -> generalizeLocationRecord dropped_loc
 	   Nothing -> error "dbDeleteCreature: no case for this type of entity"
 
--- | Delete all dead creature from the database.
+-- | Delete all dead creatures from the database.
 sweepDead :: Reference a -> DB ()
 sweepDead ref =
     do worst_to_best_critters <- sortByRO getCreatureHealth =<< getDead ref

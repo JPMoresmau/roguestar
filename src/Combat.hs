@@ -63,7 +63,7 @@ attackModel attacker_ref =
                       _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
 
 -- | Get an appropriate melee attack model for a creature, based on whatever tool the creature is holding.
--- This will fail if the creature is holding anything other than a suitable melee weapon.
+-- This will fail if the creature is holding anything other than a suitable melee weapon (allows unarmed strike).
 meleeAttackModel :: (DBReadable db) => CreatureRef -> db AttackModel
 meleeAttackModel attacker_ref =
     do attack_model <- attackModel attacker_ref
