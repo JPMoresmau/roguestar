@@ -8,11 +8,13 @@ module RSAGL.FRP.FRP
      spawnThreads,
      killThreadIf,
      threadIdentity,
+     withThreadIdentity,
      frpTest,
      FRPProgram,
      newFRPProgram,
      newFRP1Program,
      updateFRPProgram,
+     accumulate,
      integral,
      summation,
      derivative,
@@ -30,7 +32,8 @@ module RSAGL.FRP.FRP
      sticky,
      initial,
      ioAction,
-     arrHashed)
+     arrHashed,
+     changed)
     where
 
 import Prelude hiding ((.),id)
@@ -331,6 +334,12 @@ accumulateThreads rule ts (_:xs) | otherwise = accumulateThreads rule ts xs
 threadIdentity :: FRPX k s t i o () t
 threadIdentity = frpxOf $ \frpinit () -> return $ frp_thread_identity frpinit
 
+-- | Construct an arrow from its thread identity.
+withThreadIdentity :: (t -> FRPX k s t i o j p) -> FRPX k s t i o j p
+withThreadIdentity (actionF) = FRPX $ \frp_init -> 
+    let (FRPX actionA) = actionF $ frp_thread_identity frp_init
+            in actionA frp_init
+
 data ThreadGroup s t i o = ThreadGroup {
     thread_outputs :: [ThreadResult s t i o],
     thread_group :: MVar [FRPInit s t i o] }
@@ -425,3 +434,11 @@ arrHashed f = proc j ->
                                                           then (p_stable,p)
                                                           else (Just j_stable,f j)) -< (j_stable,j)
        returnA -< p
+
+-- | Answer true during a frame in which the input changes, based on an equality predicate.
+-- Takes the same form as 'accumulate', that is, the first parameter of the predicate is the
+-- new input.
+changed :: (x -> x -> Bool) -> FRPX k s t i o x Bool
+changed f = proc x ->
+    do d_x <- delay Nothing -< Just x
+       returnA -< maybe True (not . f x) d_x
