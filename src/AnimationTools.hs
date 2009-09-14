@@ -13,6 +13,8 @@ import Control.Arrow
 import VisibleObject
 import Models.LibraryData
 import Control.Applicative
+import EventUtils
+import Control.Monad
 
 -- | Avatar for any tool that automatically switched to the correct tool-specific thread.
 toolAvatar :: RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
@@ -51,8 +53,20 @@ energySwordAvatar :: EnergyColor -> Integer -> RSAnimAX Threaded (Maybe Integer)
 energySwordAvatar energy_color sword_size = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
+       m_atk_time <- recentAttack (WieldedParent ThisObject) -< ()
+       t_now <- threadTime -< ()
        is_being_wielded <- isBeingWielded ThisObject -< ()
-       whenJust (transformA displayA) -< fmap (\o -> (o,is_being_wielded)) m_orientation
+       whenJust (transformA $ transformA displayA) -<
+           do orientation <- m_orientation
+              atk_time <- m_atk_time
+              let atk_rotate = case toSeconds (t_now `sub` atk_time) of
+                      t | t < 1 -> fromRotations $ t*1.25 -- 1 and 1-quarter revolution in one second
+                      t | t >= 1 && t <= 1.5 -> fromRotations $ 1.25 - 0.25 * (t - 1) -- then swing back
+                      _ | otherwise -> fromRotations 0
+              return $ (orientation,(Affine $ rotate (Vector3D 1 0 0) atk_rotate, is_being_wielded))
+         `mplus`
+           do orientation <- m_orientation
+              return (orientation,(Affine id,is_being_wielded))
        returnA -< ()
   where displayA :: RSAnimAX () () i o Bool ()
         displayA = scale' (1/75) $ proc is_being_wielded ->

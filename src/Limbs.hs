@@ -42,8 +42,8 @@ rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_res
        is_wielding <- isWielding ThisObject -< ()
        hand_point <- approachA 0.1 (perSecond 1.0) -< case m_time_recent_attack of
            Just t  | t_now < t `add` fromSeconds 0.5 && m_tool_type == Just "sword" -> translate (Vector3D maximum_length 0 0) shoulder_anchor
-           Just t  | t_now < t `add` fromSeconds 0.33 && m_tool_type == Nothing -> translate (Vector3D 0 0 $ maximum_length / 4) shoulder_anchor
-           Just t  | t_now < t `add` fromSeconds 0.66 && m_tool_type == Nothing -> translate (Vector3D 0 0 $ maximum_length) shoulder_anchor
+           Just t  | t_now < t `add` fromSeconds 0.3 && m_tool_type == Nothing -> translate (Vector3D 0 0 $ maximum_length / 4) shoulder_anchor
+           Just t  | t_now < t `add` fromSeconds 1.0 && m_tool_type == Nothing -> translate (Vector3D 0 0 maximum_length) shoulder_anchor
            _       | is_wielding -> translate (Vector3D 0 0 maximum_length) shoulder_anchor
 	   _       | otherwise   -> hand_rest
        arm arm_upper arm_lower bend_vector maximum_length -< (shoulder_anchor,hand_point)
