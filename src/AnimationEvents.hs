@@ -150,11 +150,11 @@ messages = [
     messageState "disarm-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
-           returnA -< sentence who_attacks who_hit X "$You disarm $him!",
+           returnA -< sentence who_attacks who_hit X "$You disarm(s) $him!",
     messageState "sunder-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
-           returnA -< sentence who_attacks who_hit X "$You sunder $his weapon!"]
+           returnA -< sentence who_attacks who_hit X "$You sunder(s) $his weapon!"]
 
 unarmedAttack :: RSAnimAX () () () () () ()
 unarmedAttack = alternateMessage "attack-event" $ proc () ->
