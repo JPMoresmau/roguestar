@@ -47,8 +47,8 @@ menuClassSelection = proc () ->
     do result <- menuStateHeader (== "class-selection") -< ()
        stats <- sticky isJust Nothing <<< arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
        initial_stats <- initial -< stats
-       let changed = stats /= initial_stats
-       switchContinue -< (if changed then Just menuClassSelection else Nothing,())
+       let change = stats /= initial_stats
+       switchContinue -< (if change then Just menuClassSelection else Nothing,())
        requestPrintTextMode -< Unlimited
        clearPrintTextA -< Just ()
        printCharacterStats 0 -< ()

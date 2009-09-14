@@ -16,6 +16,7 @@ import Control.Arrow
 import RSAGL.Scene
 import Data.Maybe
 import RSAGL.FRP
+import EventUtils
 
 -- | Animate an arbitrary articulated joint.
 libraryJointAnimation :: Double -> LibraryModel -> LibraryModel -> RSAnimAX k t i o Joint ()
@@ -35,10 +36,16 @@ arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_p
 -- while holding any tool.
 rightArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
 rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = proc () ->
-    do is_wielding <- isWielding ThisObject -< ()
-       hand_point <- approachA 0.1 (perSecond 1.0) -< if is_wielding
-           then translate (Vector3D 0 0 maximum_length) shoulder_anchor
-	   else hand_rest
+    do m_time_recent_attack <- recentAttack ThisObject -< ()
+       t_now <- threadTime -< ()
+       m_tool_type <- objectDetailsLookup (WieldedTool ThisObject) "tool-type" -< () 
+       is_wielding <- isWielding ThisObject -< ()
+       hand_point <- approachA 0.1 (perSecond 1.0) -< case m_time_recent_attack of
+           Just t  | t_now < t `add` fromSeconds 0.5 && m_tool_type == Just "sword" -> translate (Vector3D maximum_length 0 0) shoulder_anchor
+           Just t  | t_now < t `add` fromSeconds 0.33 && m_tool_type == Nothing -> translate (Vector3D 0 0 $ maximum_length / 4) shoulder_anchor
+           Just t  | t_now < t `add` fromSeconds 0.66 && m_tool_type == Nothing -> translate (Vector3D 0 0 $ maximum_length) shoulder_anchor
+           _       | is_wielding -> translate (Vector3D 0 0 maximum_length) shoulder_anchor
+	   _       | otherwise   -> hand_rest
        arm arm_upper arm_lower bend_vector maximum_length -< (shoulder_anchor,hand_point)
 
 -- | Animate a left arm, which is always held at the side.

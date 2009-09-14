@@ -4,7 +4,8 @@ module Tables
      tableSelect,
      tableSelectFormatted,
      tableLookup,
-     tableLookupInteger)
+     tableLookupInteger,
+     readInteger)
     where
 
 import Data.List

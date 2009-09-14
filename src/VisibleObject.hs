@@ -120,6 +120,7 @@ data VisibleObjectReference =
   | UniqueID Integer
   | WieldedParent VisibleObjectReference
   | WieldedTool VisibleObjectReference
+  | Attacker
 
 -- | As a Tool, who is wielding you?
 wieldedParent :: RSAnimAX k t i o (Maybe Integer) (Maybe Integer)
@@ -137,8 +138,11 @@ wieldedTool = proc m_unique_id ->
 getVisibleObject :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe Integer)
 getVisibleObject (ThisObject) = threadIdentity
 getVisibleObject (UniqueID unique_id) = proc () -> returnA -< Just unique_id
+getVisibleObject (WieldedParent (WieldedTool ref)) = getVisibleObject ref
+getVisibleObject (WieldedTool (WieldedParent ref)) = getVisibleObject ref
 getVisibleObject (WieldedParent ref) = getVisibleObject ref >>> wieldedParent
 getVisibleObject (WieldedTool ref) = getVisibleObject ref >>> wieldedTool
+getVisibleObject Attacker = arr (const "who-attacks") >>> driverGetAnswerA >>> arr (maybe Nothing readInteger)
 
 -- | As a Tool, are you currently being wielded by anyone?
 isBeingWielded :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () Bool
