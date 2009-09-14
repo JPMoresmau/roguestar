@@ -35,7 +35,7 @@ arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_p
 -- while holding any tool.
 rightArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
 rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = proc () ->
-    do is_wielding <- arr isJust <<< wieldedTool -< ()
+    do is_wielding <- isWielding ThisObject -< ()
        hand_point <- approachA 0.1 (perSecond 1.0) -< if is_wielding
            then translate (Vector3D 0 0 maximum_length) shoulder_anchor
 	   else hand_rest

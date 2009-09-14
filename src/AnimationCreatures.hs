@@ -21,7 +21,7 @@ import AnimationExtras
 creatureAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 creatureAvatar = proc () ->
     do objectTypeGuard (== "creature") -< ()
-       m_species <- objectDetailsLookup "species" -< ()
+       m_species <- objectDetailsLookup ThisObject "species" -< ()
        switchContinue -< (fmap switchTo m_species,())
        returnA -< Nothing
   where switchTo "encephalon" = encephalonAvatar
@@ -36,7 +36,7 @@ genericCreatureAvatar :: RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThr
                          RSAnimAX Threaded (Maybe Integer) () (Maybe CreatureThreadOutput) () (Maybe CreatureThreadOutput)
 genericCreatureAvatar creatureA = proc () ->
     do visibleObjectHeader -< ()
-       m_orientation <- objectIdealOrientation -< ()
+       m_orientation <- objectIdealOrientation ThisObject -< ()
        switchTerminate -< if isNothing m_orientation then (Just $ genericCreatureAvatar creatureA,Nothing) else (Nothing,Nothing)
        arr Just <<< transformA creatureA -< (fromMaybe (error "genericCreatureAvatar: fromMaybe") m_orientation,())
 

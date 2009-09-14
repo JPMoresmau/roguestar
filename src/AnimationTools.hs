@@ -18,8 +18,8 @@ import Control.Applicative
 toolAvatar :: RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 toolAvatar = proc tti ->
     do objectTypeGuard (== "tool") -< ()
-       m_tool <- objectDetailsLookup "tool" -< ()
-       m_tool_type <- objectDetailsLookup "tool-type" -< ()
+       m_tool <- objectDetailsLookup ThisObject "tool" -< ()
+       m_tool_type <- objectDetailsLookup ThisObject "tool-type" -< ()
        switchContinue -< (fmap switchTo $ (,) <$> m_tool_type <*> m_tool,tti)
        returnA -< ()
   where switchTo (_,"phase_pistol") = phaseWeaponAvatar PhasePistol
@@ -40,7 +40,7 @@ toolAvatar = proc tti ->
 simpleToolAvatar :: LibraryModel -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 simpleToolAvatar phase_weapon_model = proc tti ->
     do visibleObjectHeader -< ()
-       m_orientation <- wieldableObjectIdealOrientation -< tti
+       m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
        whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
        returnA -< ()
 
@@ -50,8 +50,8 @@ phaseWeaponAvatar = simpleToolAvatar
 energySwordAvatar :: EnergyColor -> Integer -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 energySwordAvatar energy_color sword_size = proc tti ->
     do visibleObjectHeader -< ()
-       m_orientation <- wieldableObjectIdealOrientation -< tti
-       is_being_wielded <- isBeingWielded -< ()
+       m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
+       is_being_wielded <- isBeingWielded ThisObject -< ()
        whenJust (transformA displayA) -< fmap (\o -> (o,is_being_wielded)) m_orientation
        returnA -< ()
   where displayA :: RSAnimAX () () i o Bool ()
