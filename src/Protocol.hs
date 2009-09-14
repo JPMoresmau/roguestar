@@ -223,6 +223,8 @@ dbDispatchQuery ["who-hit"] =
     do state <- playerState
        return $ case state of
            SnapshotEvent (AttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
+           SnapshotEvent (DisarmEvent { disarm_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
+           SnapshotEvent (SunderEvent { sunder_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
 	   _ -> "answer: who-hit 0"
 
 dbDispatchQuery ["weapon-used"] =
