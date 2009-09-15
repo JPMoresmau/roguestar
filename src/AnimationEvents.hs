@@ -43,6 +43,10 @@ messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
        printTextOnce -< if time_out then Just (UnexpectedEvent,"Hmmmm . . . RogueStar is puzzled. (" ++ s ++ ")") else Nothing
        blockContinue -< isNothing m_string && not time_out))
 
+-- | Message handler that just prints a fixed string.
+messagePrompt :: String -> String -> (String,RSAnimAX () () () () () ())
+messagePrompt s prompt = messageState s $ arr (const prompt)
+
 alternateMessage :: String -> MessageHandler () String -> RSAnimAX () () () () () ()
 alternateMessage s actionA = snd $ messageState s actionA
 
@@ -154,7 +158,13 @@ messages = [
     messageState "sunder-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
-           returnA -< sentence who_attacks who_hit X "$You sunder(s) $his weapon!"]
+           returnA -< sentence who_attacks who_hit X "$You sunder(s) $his weapon!",
+    messagePrompt "attack" "Attack.  Direction:",
+    messagePrompt "fire"   "Fire.  Direction:",
+    messagePrompt "move"   "Walk.  Direction:",
+    messagePrompt "jump"   "Teleport jump.  Direction:",
+    messagePrompt "clear-terrain"  "Clear terrain.  Direction:",
+    messagePrompt "turn"  "Turn.  Direction:"]
 
 unarmedAttack :: RSAnimAX () () () () () ()
 unarmedAttack = alternateMessage "attack-event" $ proc () ->

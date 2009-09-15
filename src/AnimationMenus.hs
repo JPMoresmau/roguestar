@@ -84,7 +84,10 @@ makeWhatMenuSelection = proc () ->
 
 makeFinishedMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 makeFinishedMenuSelection = proc () ->
-    do menuStateHeader (== "make-finished") -< ()
+    do result <- menuStateHeader (== "make-finished") -< ()
+       clearPrintTextA -< Just ()
+       printTextA -< Just (Query,"Confirm.")
+       returnA -< result
 
 toolMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 toolMenuSelection = proc () ->
