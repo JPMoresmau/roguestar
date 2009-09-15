@@ -9,6 +9,7 @@ import Scene
 import Animation
 import RSAGL.Animation
 import RSAGL.FRP
+import RSAGL.Modeling.Color
 import Control.Arrow
 import VisibleObject
 import Models.LibraryData
@@ -24,14 +25,14 @@ toolAvatar = proc tti ->
        m_tool_type <- objectDetailsLookup ThisObject "tool-type" -< ()
        switchContinue -< (fmap switchTo $ (,) <$> m_tool_type <*> m_tool,tti)
        returnA -< ()
-  where switchTo (_,"phase_pistol") = phaseWeaponAvatar PhasePistol
-        switchTo (_,"phaser") = phaseWeaponAvatar Phaser
-        switchTo (_,"phase_rifle") = phaseWeaponAvatar PhaseRifle
+  where switchTo (_,"phase_pistol") = phaseWeaponAvatar PhasePistol 1
+        switchTo (_,"phaser") = phaseWeaponAvatar Phaser 3
+        switchTo (_,"phase_rifle") = phaseWeaponAvatar PhaseRifle 5
         switchTo (_,"kinetic_fleuret") = energySwordAvatar Yellow 2
         switchTo (_,"kinetic_sabre") = energySwordAvatar Yellow 4
-        switchTo (_,"improvised_pistol") = phaseWeaponAvatar PhasePistol
-        switchTo (_,"improvised_carbine") = phaseWeaponAvatar Phaser
-        switchTo (_,"improvised_rifle") = phaseWeaponAvatar PhaseRifle
+        switchTo (_,"improvised_pistol") = phaseWeaponAvatar PhasePistol 1
+        switchTo (_,"improvised_carbine") = phaseWeaponAvatar Phaser 3
+        switchTo (_,"improvised_rifle") = phaseWeaponAvatar PhaseRifle 5
         switchTo (_,"improvised_fleuret") = energySwordAvatar Red 2
         switchTo (_,"improvised_sabre") = energySwordAvatar Red 4
         switchTo ("sphere-gas",gas) = gasSphereAvatar gas
@@ -46,8 +47,25 @@ simpleToolAvatar phase_weapon_model = proc tti ->
        whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
        returnA -< ()
 
-phaseWeaponAvatar :: LibraryModel -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
-phaseWeaponAvatar = simpleToolAvatar
+phaseWeaponAvatar :: LibraryModel -> Integer -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
+    do visibleObjectHeader -< ()
+       m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
+       m_atk_time <- recentAttack (WieldedParent ThisObject) -< ()
+       t_now <- threadTime -< ()
+       whenJust (transformA displayA) -< fmap (\o -> (o,(m_atk_time,t_now))) m_orientation
+       returnA -< ()
+  where displayA :: RSAnimAX () () x y (Maybe Time,Time) ()
+        displayA = proc (m_atk_time,t_now) ->
+            do libraryA -< (scene_layer_local,phase_weapon_model)
+               accumulateSceneA -< (scene_layer_local,lightSource $ case fmap (toSeconds . (t_now `sub`)) m_atk_time of
+                   Just t | t < 1.0 -> PointLight {
+                       lightsource_position = Point3D 0 0 $ 0.15 + t*t*realToFrac weapon_size,
+                       lightsource_radius = measure (Point3D 0 0 $ 0.5*realToFrac weapon_size) (Point3D 0 0 0),
+                       lightsource_color = gray $ 1.0 - t,
+                       lightsource_ambient = gray $ (1.0 - t)^2 }
+                   _ | otherwise -> NoLight)
+               returnA -< ()
 
 energySwordAvatar :: EnergyColor -> Integer -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 energySwordAvatar energy_color sword_size = proc tti ->
