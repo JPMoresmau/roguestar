@@ -13,6 +13,7 @@ module MaybeArrow
     (MaybeArrow(..),
      maybeA,
      guardA,
+     extract,
      liftJust,
      liftConst,
      liftJustConst,
@@ -52,6 +53,10 @@ maybeA = MaybeArrow $ arr (fromMaybe Nothing)
 -- | Arbitrarily fail a computation.
 guardA :: (Arrow a) => MaybeArrow a Bool ()
 guardA = maybeA <<< arr (\x -> if x then Just () else Nothing)
+
+-- | Get an explicit Maybe from a computation instead of failing.  Inverse of 'maybeA'.
+extract :: (Arrow a) => MaybeArrow a b c -> MaybeArrow a b (Maybe c)
+extract (MaybeArrow actionA) = MaybeArrow $ actionA >>> arr Just
 
 -- | Lift an action that always succeeds.
 liftJust :: (Arrow a) => a (Maybe b) c -> MaybeArrow a b c
