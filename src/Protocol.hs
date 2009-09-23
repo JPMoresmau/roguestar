@@ -285,20 +285,33 @@ dbDispatchQuery ["object-details",_] = ro $
      let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
      tools <- liftM (zip tool_refs)$ mapRO dbGetTool tool_refs
-     return $ unlines $ (map creatureToTableData creatures ++
-                         map toolToTableData tools)
-     where objectTableWrapper obj_ref table_data =
-               ("begin-table object-details " ++
-                   (show $ toUID obj_ref) ++
-                   " property value\n" ++
-                   table_data ++
-                   "end-table")
-           creatureToTableData :: (CreatureRef,Creature) -> String
-           creatureToTableData (ref,creature) = objectTableWrapper ref $
-               "object-type creature\n" ++
-               (concat $ map (\x -> fst x ++ " " ++ snd x ++ "\n") $ creatureStatsData creature)
-           toolToTableData :: (ToolRef,Tool) -> String
-           toolToTableData (ref,tool) = objectTableWrapper ref $
+     liftM unlines $ liftM2 (++) (mapM creatureToTableData creatures)
+                                 (mapM toolToTableData tools)
+   where objectTableWrapper :: (DBReadable db) => Reference a -> db String -> db String
+         objectTableWrapper obj_ref tableDataF = 
+          do table_data <- tableDataF
+             return $
+                 "begin-table object-details " ++
+                 (show $ toUID obj_ref) ++
+                 " property value\n" ++
+                 table_data ++
+                 "end-table"
+         creatureToTableData :: (DBReadable db) => (CreatureRef,Creature) -> db String
+         creatureToTableData (ref,creature) = objectTableWrapper ref $
+            do fac <- getCreatureFaction ref
+               hp <- getCreatureAbsoluteHealth ref
+               maxhp <- getCreatureMaxHealth ref
+               return $
+                   "object-type creature\n" ++
+                   "species " ++ (show $ creature_species creature) ++ "\n" ++
+                   "random-id " ++ (show $ creature_random_id creature) ++ "\n" ++
+                   "faction " ++ show fac ++ "\n" ++
+                       (if fac == Player then
+                           "hp " ++ show hp ++ "\n" ++
+                           "maxhp " ++ show maxhp ++ "\n"
+                        else "")
+         toolToTableData :: (DBReadable db) => (ToolRef,Tool) -> db String
+         toolToTableData (ref,tool) = objectTableWrapper ref $ return $
                "object-type tool\n" ++
                "tool-type " ++ toolType tool ++ "\n" ++
                "tool " ++ toolName tool ++ "\n"
@@ -577,15 +590,6 @@ playerStatsTable c =
 	       "random-id " ++ (show $ creature_random_id c) ++ "\n" ++
 	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
 	       "end-table"
-
--- |
--- Information about non-player creatures (for which there are very strict limits on what information
--- the player can have).  The result is in (Property,Value) form so that the result can easily be
--- manipulated by the caller.
---
-creatureStatsData :: Creature -> [(String,String)]
-creatureStatsData c = [("species",show $ creature_species c),
-                       ("random-id",show $ creature_random_id c)]
 
 toolName :: Tool -> String
 toolName (DeviceTool _ d) = deviceName d

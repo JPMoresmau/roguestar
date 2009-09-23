@@ -10,6 +10,8 @@ module Creature
      injureCreature,
      healCreature,
      getCreatureHealth,
+     getCreatureMaxHealth,
+     getCreatureAbsoluteHealth,
      getDead,
      deleteCreature,
      sweepDead)
