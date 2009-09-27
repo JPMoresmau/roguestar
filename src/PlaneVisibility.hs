@@ -19,6 +19,8 @@ import GridRayCaster
 import VisibilityData
 import Facing
 import Data.Ratio
+import Building
+import Position
 
 dbGetSeersForFaction :: (DBReadable db) => Faction -> PlaneRef -> db [CreatureRef]
 dbGetSeersForFaction faction plane_ref = 
@@ -71,31 +73,33 @@ dbIsPlanarVisibleTo :: (DBReadable db,ReferenceType a) => CreatureRef -> Referen
 dbIsPlanarVisibleTo creature_ref obj_ref | creature_ref =:= obj_ref = return True
 dbIsPlanarVisibleTo creature_ref obj_ref =
     do creature_loc <- liftM (fmap location) $ getPlanarLocation creature_ref
-       obj_loc <- liftM (fmap location) $ getPlanarLocation obj_ref
+       obj_loc <- liftM (fmap location) $ getPlanarOccupancy obj_ref
        spot_check <- dbGetOpposedSpotCheck creature_ref obj_ref
        case (creature_loc,obj_loc) of
 		(Nothing,_) -> return False
 		(_,Nothing) -> return False
 		(Just (c_plane,_),Just (o_plane,_)) | c_plane /= o_plane -> return False --never see objects on different planes
-		(Just (_,Position (cx,cy)),Just (_,Position (ox,oy))) | abs (cx-ox) <= 1 && abs (cy-oy) <= 1 -> return True --automatically see 8-adjacent objects
-		(Just (_,Position (cx,cy)),Just (_,Position (ox,oy))) | (ox-cx)^2+(oy-cy)^2 > (maximumRangeForSpotCheck spot_check)^2 -> return False --cull objects that are too far away to ever be seen
-		(Just (c_plane,Position (cx,cy)),Just (_,Position (ox,oy))) -> 
-                    do let delta_at = (ox-cx,oy-cy)
-		       terrain <- liftM plane_terrain $ dbGetPlane c_plane -- falling through all other tests, cast a ray for visibility
-		       return $ castRay (cx,cy) (ox,oy) (spot_check - distanceCostForSight Here delta_at) (terrainOpacity . gridAt terrain)
+		(Just (_,cp),Just (_,ops)) | distanceBetweenChessboard cp ops <= 1 -> return True --automatically see 8-adjacent objects
+		(Just (_,cp),Just (_,ops)) | distanceBetweenSquared cp ops > (maximumRangeForSpotCheck spot_check)^2 -> return False --cull objects that are too far away to ever be seen
+		(Just (c_plane,cp),Just (_,ops)) -> liftM or $ forM (positionPairs cp ops) $ 
+                    \(Position (cx,cy),Position (ox,oy)) ->
+                        do let delta_at = (ox-cx,oy-cy)
+		           terrain <- liftM plane_terrain $ dbGetPlane c_plane -- falling through all other tests, cast a ray for visibility
+		           return $ castRay (cx,cy) (ox,oy) (spot_check - distanceCostForSight Here delta_at) (terrainOpacity . gridAt terrain)
 
 dbGetOpposedSpotCheck :: (DBReadable db) => CreatureRef -> Reference a -> db Integer
 dbGetOpposedSpotCheck creature_ref object_ref =
     do spot <- dbGetSpotCheck creature_ref
        hide <- dbGetHideCheck object_ref
-       return $ spot * (round $ min 1 $ spot % hide)
+       return $ round $ (spot%1) * opposedLinearPowerRatio spot hide
 
 dbGetSpotCheck :: (DBReadable db) => CreatureRef -> db Integer
 dbGetSpotCheck creature_ref = liftM (creatureAbilityScore SpotSkill) $ dbGetCreature creature_ref
 
 dbGetHideCheck :: (DBReadable db) => Reference a -> db Integer
 dbGetHideCheck ref | Just creature_ref <- coerceReferenceTyped _creature ref = liftM (creatureAbilityScore HideSkill) $ dbGetCreature creature_ref
-dbGetHideCheck _ = return 1
+dbGetHideCheck ref | Just building_ref <- coerceReferenceTyped _building ref = liftM negate $ buildingSize building_ref
+dbGetHideCheck _   | otherwise = return 1
 
 -- |
 -- visibleTerrain (creature's location) (spot check) (the terrain map) gives

@@ -17,6 +17,8 @@ import BeginGame
 import Data.Maybe
 import Plane
 import PlaneData
+import Building
+import BuildingData
 import Tool
 import FactionData
 import PlaneVisibility
@@ -283,10 +285,14 @@ dbDispatchQuery ["object-details",_] = ro $
      let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
      let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
+     let building_refs = mapMaybe (coerceReferenceTyped _building) visibles
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
-     tools <- liftM (zip tool_refs)$ mapRO dbGetTool tool_refs
-     liftM unlines $ liftM2 (++) (mapM creatureToTableData creatures)
-                                 (mapM toolToTableData tools)
+     tools <- liftM (zip tool_refs) $ mapRO dbGetTool tool_refs
+     buildings <- liftM (zip building_refs) $ mapRO dbGetBuilding building_refs
+     liftM unlines $ liftM3 (\a b c -> a ++ b ++ c) 
+                            (mapM creatureToTableData creatures)
+                            (mapM toolToTableData tools)
+                            (mapM buildingToTableData buildings)
    where objectTableWrapper :: (DBReadable db) => Reference a -> db String -> db String
          objectTableWrapper obj_ref tableDataF = 
           do table_data <- tableDataF
@@ -315,6 +321,11 @@ dbDispatchQuery ["object-details",_] = ro $
                "object-type tool\n" ++
                "tool-type " ++ toolType tool ++ "\n" ++
                "tool " ++ toolName tool ++ "\n"
+         buildingToTableData :: (DBReadable db) => (BuildingRef,Building) -> db String
+         buildingToTableData (ref,Building) = objectTableWrapper ref $
+             do building_type <- buildingType ref
+                return $ "object-type building\n" ++
+                         "building-type " ++ show building_type ++ "\n"
 
 dbDispatchQuery ["player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 

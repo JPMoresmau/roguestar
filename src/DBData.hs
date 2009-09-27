@@ -6,6 +6,7 @@ module DBData
      CreatureRef,
      PlaneRef,
      ToolRef,
+     BuildingRef,
      TheUniverse(..),
      the_universe,
      (=:=), (=/=),
@@ -19,15 +20,19 @@ module DBData
      Dropped(..),
      Inventory(..),
      Wielded(..),
+     Constructed(..),
      _nullary,
      _creature,
      _tool,
      _plane,
+     _building,
      _standing,
      _dropped,
      _inventory,
      _wielded,
+     _constructed,
      _position,
+     _multiposition,
      _facing,
      _the_universe,
      asLocationTyped,
@@ -53,6 +58,7 @@ module DBData
      toDropped,
      toInventory,
      toWielded,
+     toConstructed,
      returnToInventory)
     where
 
@@ -61,6 +67,7 @@ import DBPrivate
 import ToolData
 import CreatureData
 import PlaneData
+import BuildingData
 import Data.Maybe
 import Control.Monad
 import Position
@@ -82,6 +89,9 @@ _tool = Type $ error "_tool: undefined"
 _plane :: Type PlaneRef
 _plane = Type $ error "_plane: undefined"
 
+_building :: Type BuildingRef
+_building = Type $ error "_building: undefined"
+
 _standing :: Type Standing
 _standing = Type $ error "_standing: undefined"
 
@@ -94,8 +104,14 @@ _inventory = Type $ error "_inventory: undefined"
 _wielded :: Type Wielded
 _wielded = Type $ error "_wielded: undefined"
 
+_constructed :: Type Constructed
+_constructed = Type $ error "_constructed: undefined"
+
 _position :: Type Position
 _position = Type $ error "_position: undefined"
+
+_multiposition :: Type MultiPosition
+_multiposition = Type $ error "_multiposition: undefined"
 
 _facing :: Type Facing
 _facing = Type $ error "_facing: undefined"
@@ -109,6 +125,13 @@ _the_universe = Type $ error "_the_universe: undefined"
 class GenericReference a m | a -> m where
     fromLocation :: (ReferenceType x) => Location m (Reference x) b -> Maybe a
     generalizeReference :: a -> Reference ()
+
+instance (GenericReference a m,GenericReference b m) => GenericReference (Either a b) m where
+    fromLocation x = case (fromLocation x,fromLocation x) of
+            (Just a,_) -> Just $ Left a
+            (_,Just b) -> Just $ Right b
+            _ | otherwise -> Nothing
+    generalizeReference = either generalizeReference generalizeReference
 
 instance (ReferenceType a) => GenericReference (Reference a) m where
     fromLocation = coerceReference . entity
@@ -161,6 +184,10 @@ instance ReferenceType Creature where
     coerceReference (CreatureRef ref) = Just $ CreatureRef ref
     coerceReference _ = Nothing
 
+instance ReferenceType Building where
+    coerceReference (BuildingRef ref) = Just $ BuildingRef ref
+    coerceReference _ = Nothing
+
 instance ReferenceType TheUniverse where
     coerceReference UniverseRef = Just UniverseRef
     coerceReference _ = Nothing
@@ -182,6 +209,7 @@ getLocation (IsStanding _ s) = unsafeReference $ standing_plane s
 getLocation (IsDropped _ d) = unsafeReference $ dropped_plane d
 getLocation (InInventory _ c) = unsafeReference $ inventory_creature c
 getLocation (IsWielded _ c) = unsafeReference $ wielded_creature c
+getLocation (IsConstructed _ c) = unsafeReference $ constructed_plane c
 getLocation (InTheUniverse _) = unsafeReference UniverseRef
 
 getEntity :: Location m e t -> Reference ()
@@ -189,6 +217,7 @@ getEntity (IsStanding r _) = unsafeReference r
 getEntity (IsDropped r _) = unsafeReference r
 getEntity (InInventory r _) = unsafeReference r
 getEntity (IsWielded r _) = unsafeReference r
+getEntity (IsConstructed r _) = unsafeReference r
 getEntity (InTheUniverse r) = unsafeReference r
 
 asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
@@ -253,6 +282,11 @@ instance LocationType Wielded where
     extractLocation _ = Nothing
     extractEntity = const Nothing
 
+instance LocationType Constructed where
+    extractLocation (IsConstructed _ i) = Just i
+    extractLocation _ = Nothing
+    extractEntity = const Nothing
+
 instance LocationType () where
     extractLocation = const $ Just ()
     extractEntity = const Nothing
@@ -262,7 +296,13 @@ instance LocationType Position where
     extractLocation (IsDropped _ d) = Just $ dropped_position d
     extractLocation (InInventory {}) = Nothing
     extractLocation (IsWielded {}) = Nothing
+    extractLocation (IsConstructed _ c) = Just $ constructed_position c
     extractLocation (InTheUniverse {}) = Nothing
+    extractEntity = const Nothing
+
+instance LocationType MultiPosition where
+    extractLocation (IsConstructed _ c) = Just $ multiPosition (constructed_position c) (buildingOccupies $ constructed_type c)
+    extractLocation x = fmap (toMultiPosition :: Position -> MultiPosition) $ extractLocation x
     extractEntity = const Nothing
 
 instance LocationType Facing where
@@ -270,6 +310,7 @@ instance LocationType Facing where
     extractLocation (IsDropped {}) = Nothing
     extractLocation (InInventory {}) = Nothing
     extractLocation (IsWielded {}) = Nothing
+    extractLocation (IsConstructed {}) = Nothing
     extractLocation (InTheUniverse {}) = Nothing
     extractEntity = const Nothing
 
@@ -299,6 +340,10 @@ toInventory _ _ = error "toInventory: type error"
 toWielded :: (LocationType t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
 toWielded i l | isEntityTyped _tool l = IsWielded (entity l) i
 toWielded _ _ = error "toWielded: type error"
+
+toConstructed :: (LocationType t) => Constructed -> Location m BuildingRef t -> Location m BuildingRef Constructed
+toConstructed i l | isEntityTyped _building l = IsConstructed (entity l) i
+toConstructed _ _ = error "toConstructed: type error"
 
 returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory
 returnToInventory l = InInventory (entity l) (Inventory c)

@@ -5,6 +5,7 @@ module Plane
      dbDistanceBetweenSquared,
      pickRandomClearSite,
      getPlanarLocation,
+     getPlanarOccupancy,
      terrainAt,
      setTerrainAt,
      whatIsOccupying,
@@ -34,9 +35,15 @@ dbNewPlane tg_data =
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
 -- returns the position of this object on that plane.
 --
-getPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,Position)))
-getPlanarLocation ref =
+getPlanarPosition :: (DBReadable db,ReferenceType a,LocationType p,PositionType p) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,p)))
+getPlanarPosition ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
+
+getPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,Position)))
+getPlanarLocation = getPlanarPosition
+
+getPlanarOccupancy :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,MultiPosition)))
+getPlanarOccupancy = getPlanarPosition
 
 -- |
 -- Distance between two entities.  If the entities are not on the same plane, or for some other reason it doesn't make
@@ -77,21 +84,20 @@ pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,
            (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
-       clutter_locations <- locationsOf $ dbGetContents plane_ref
+       (clutter_locations :: [MultiPosition]) <- locationsOf $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 
                all terrainPredicate $
                    concat [[gridAt terrain (x',y') | 
                             x' <- [x-terrain_clear..x+terrain_clear]] |
 			    y' <- [y-terrain_clear..y+terrain_clear]]
-       let clutterIsClear (Position (x,y)) = not $ any (\(Position (x',y')) -> abs (x' - x) <= object_clear && y' - y <= object_clear) clutter_locations
+       let clutterIsClear here = not $ any (\p -> distanceBetweenChessboard here p <= object_clear) clutter_locations
        maybe (pickRandomClearSite (search_radius + 1) 
                                   object_clear 
                                   (max 0 $ terrain_clear - 1) 
                                   (Position (start_x,start_y))
 				  terrainPredicate
 				  plane_ref) 
-             return $
-             find (\p -> terrainIsClear p && clutterIsClear p) xys
+             return $ find (\p -> terrainIsClear p && clutterIsClear p) xys
 
 terrainAt :: (DBReadable db) => PlaneRef -> Position -> db TerrainPatch
 terrainAt plane_ref (Position (x,y)) =
@@ -105,13 +111,13 @@ setTerrainAt plane_ref (Position pos) patch = dbModPlane (\p -> p { plane_terrai
 -- Typically this is zero or one creatures, and zero or more tools.
 whatIsOccupying :: (DBReadable db,GenericReference a S) => PlaneRef -> Position -> db [a]
 whatIsOccupying plane_ref position =
-    liftM (mapMaybe fromLocation . filter ((== position) . location) . map (asLocationTyped _nullary _position)) $ dbGetContents plane_ref
+    liftM (mapMaybe fromLocation . filter ((== 0) . (distanceBetweenChessboard position) . location) . map (asLocationTyped _nullary _multiposition)) $ dbGetContents plane_ref
 
 -- | Answers True iff a creature may walk or swim or drop objects at the position.  
 -- Lava is considered passable, but trees are not.
 isTerrainPassable :: (DBReadable db) => PlaneRef -> CreatureRef -> Position -> db Bool
 isTerrainPassable plane_ref creature_ref position = 
-    do (critters :: [CreatureRef]) <- liftM (filter (/= creature_ref)) $ whatIsOccupying plane_ref position
+    do (critters :: [Either BuildingRef CreatureRef]) <- liftM (filter (=/= creature_ref)) $ whatIsOccupying plane_ref position
        terrain <- terrainAt plane_ref position
        return $ not (terrain `elem` [RockFace,Forest,DeepForest]) && null critters
 

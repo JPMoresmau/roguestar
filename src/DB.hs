@@ -16,13 +16,16 @@ module DB
      dbAddCreature,
      dbAddPlane,
      dbAddTool,
+     dbAddBuilding,
      dbUnsafeDeleteObject,
      dbGetCreature,
      dbGetPlane,
      dbGetTool,
+     dbGetBuilding,
      dbModCreature,
      dbModPlane,
      dbModTool,
+     dbModBuilding,
      dbMove,
      dbUnwieldCreature,
      dbVerify,
@@ -49,6 +52,7 @@ import DBPrivate
 import DBData
 import CreatureData
 import PlaneData
+import BuildingData
 import RNG
 import Data.Map as Map
 import Data.List as List
@@ -77,6 +81,7 @@ data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 			         db_creatures :: Map CreatureRef Creature,
 				 db_planes :: Map PlaneRef Plane,
 				 db_tools :: Map ToolRef Tool,
+				 db_buildings :: Map BuildingRef Building,
 				 db_hierarchy :: HierarchicalDatabase (Location S (Reference ()) ()),
 				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
 				 db_error_flag :: String,
@@ -189,6 +194,7 @@ initial_db = DB_BaseType {
     db_creatures = Map.fromList [],
     db_planes = Map.fromList [],
     db_tools = Map.fromList [],
+    db_buildings = Map.fromList [],
     db_hierarchy = HierarchicalDatabase.fromList [],
     db_error_flag = [],
     db_time_coordinates = Map.fromList [(generalizeReference the_universe, zero_time)],
@@ -230,6 +236,9 @@ class (LocationType l) => CreatureLocation l where
 class (LocationType l) => ToolLocation l where
     toolLocation :: ToolRef -> l -> Location m ToolRef l
 
+class (LocationType l) => BuildingLocation l where
+    buildingLocation :: BuildingRef -> l -> Location m BuildingRef l
+
 instance CreatureLocation Standing where
     creatureLocation a l = IsStanding (unsafeReference a) l
 
@@ -241,6 +250,9 @@ instance ToolLocation Inventory where
 
 instance ToolLocation Wielded where
     toolLocation a l = IsWielded (unsafeReference a) l
+
+instance BuildingLocation Constructed where
+    buildingLocation a l = IsConstructed (unsafeReference a) l
 
 -- |
 -- Adds something to a map in the database using a new object reference.
@@ -275,6 +287,12 @@ dbAddPlane = dbAddObjectComposable PlaneRef dbPutPlane (\a () -> InTheUniverse a
 --
 dbAddTool :: (ToolLocation l) => Tool -> l -> DB ToolRef
 dbAddTool = dbAddObjectComposable ToolRef dbPutTool toolLocation
+
+-- |
+-- Adds a new Tool to the database.
+--
+dbAddBuilding :: (BuildingLocation l) => Building -> l -> DB BuildingRef
+dbAddBuilding = dbAddObjectComposable BuildingRef dbPutBuilding buildingLocation
 
 -- |
 -- This deletes an object, but leaves any of it's contents dangling.
@@ -323,6 +341,12 @@ dbPutTool :: ToolRef -> Tool -> DB ()
 dbPutTool = dbPutObjectComposable db_tools (\x db_base_type -> db_base_type { db_tools = x })
 
 -- |
+-- Puts a Building under an arbitrary BuildingRef
+--
+dbPutBuilding :: BuildingRef -> Building -> DB ()
+dbPutBuilding = dbPutObjectComposable db_buildings (\x db_base_type -> db_base_type { db_buildings = x })
+
+-- |
 -- Gets an object from the database using getter functions.
 --
 dbGetObjectComposable :: (DBReadable db,Ord a,GenericReference a x) => String -> (DB_BaseType -> Map a b) -> a -> db b
@@ -348,6 +372,12 @@ dbGetTool :: (DBReadable m) => ToolRef -> m Tool
 dbGetTool = dbGetObjectComposable "ToolRef" db_tools
 
 -- |
+-- Gets a Plane from a PlaneRef
+--
+dbGetBuilding :: (DBReadable m) => BuildingRef -> m Building
+dbGetBuilding = dbGetObjectComposable "BuildingRef" db_buildings
+
+-- |
 -- Modifies an Object based on an ObjectRef.
 --
 dbModObjectComposable :: (Reference e -> DB e) -> (Reference e -> e -> DB ()) -> 
@@ -371,6 +401,12 @@ dbModCreature = dbModObjectComposable dbGetCreature dbPutCreature
 --
 dbModTool :: (Tool -> Tool) -> ToolRef -> DB ()
 dbModTool = dbModObjectComposable dbGetTool dbPutTool
+
+-- |
+-- Modifies a Tool based on a PlaneRef.
+--
+dbModBuilding :: (Building -> Building) -> BuildingRef -> DB ()
+dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 
 -- |
 -- Set the location of an object.

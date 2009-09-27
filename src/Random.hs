@@ -7,7 +7,8 @@ module Random
      linearRoll,
      fixedSumRoll,
      fixedSumLinearRoll,
-     logRoll)
+     logRoll,
+     opposedLinearPowerRatio)
     where
 
 import Data.List
@@ -15,6 +16,7 @@ import Data.Maybe
 import System.Random ()
 import Control.Monad.Random
 import Control.Monad
+import Data.Ratio
 
 -- | Pick an element of a list at random.
 pick :: (RandomGen g) => [a] -> g -> (a,g)
@@ -64,3 +66,20 @@ logRoll n = liftM (min n) $ accumRoll 0 n
                  case x' of
                      0 -> return c
                      _ -> accumRoll (c+1) x'
+
+-- | 'opposedLinearPowerRatio' is used when a constant (non-random) power relationship needs to be
+-- determined between two parties.  (For example, this is used in the Spot/Hide contest when determining
+-- line of sight.)
+--
+-- It accepts negative values for either parameter, and is invertable, i.e., 
+-- @opposedLinearPowerRatio a b@ = @1 - opposedLinearPowerRatio b a@
+--
+-- One use is: @2 * (a%1) * opposedLinearPowerRatio a b@, whichs gives you roughly @a@ if @a@ and @b@ are equal,
+-- or less or more than @a@ otherwise.
+opposedLinearPowerRatio :: Integer -> Integer -> Rational
+opposedLinearPowerRatio a b | a < 1 = opposedLinearPowerRatio 1 (b-a+1)
+opposedLinearPowerRatio a b | b < 1 = opposedLinearPowerRatio (a-b+1) 1
+opposedLinearPowerRatio a b | a >= b = ((a-b) % a) + (b % a)/2
+opposedLinearPowerRatio a b | otherwise = 1 - opposedLinearPowerRatio b a
+
+

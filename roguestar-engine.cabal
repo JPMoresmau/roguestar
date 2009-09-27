@@ -12,11 +12,7 @@ description:         Roguestar is a science fiction themed roguelike (turn-based
                      provides the core game engine; you'll probably want to also install the
                      OpenGL client.
                      .
-                     This initial release allows you to play one of six alien races.  You begin
-                     the game stranded on an alien planet, fighting off an endless hoard of
-                     hostile robots.
-                     .
-                     The Darcs repository is available at <http://www.downstairspeople.org/darcs/roguestar-engine>.
+                     The git repository is available at <http://www.downstairspeople.org/git/roguestar-engine.git>.
 homepage:            http://roguestar.downstairspeople.org/
 
 build-depends:       base>3, containers, array, old-time, random, mtl, MaybeT, MonadRandom
@@ -35,7 +31,7 @@ other-modules:       VisibilityData, Stats, FactionData, Behavior, Alignment,
                      RNG, Species, Position, TerrainData, Combat,
                      Tests, DBData, GridRayCaster, BeginGame,
                      SpeciesData, TimeCoordinate, DB, HopList, AttributeGeneration,
-                     CreatureAttribute
+                     CreatureAttribute, Building, BuildingData, Town
 
 ghc-options:         -Wall -threaded -fno-warn-type-defaults
 ghc-prof-options:    -prof -auto-all
