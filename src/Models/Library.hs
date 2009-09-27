@@ -28,6 +28,8 @@ import Models.CyborgType4
 import Models.EnergyThings
 import Models.EnergySwords
 import Models.Spheres
+import Models.Monolith
+import Models.Stargate
 import Control.Exception
 
 -- |
@@ -69,6 +71,8 @@ toModel CyborgType4HyperspaceRotor = cyborg_type_4_hyperspace_rotor
 toModel CyborgType4HyperspaceStabilizer = cyborg_type_4_hyperspace_stabilizer
 toModel (EnergyCylinder c) = energyCylinder c
 toModel (EnergySword c n) = energySword c n
+toModel Monolith = monolith
+toModel TreatyStargate = treaty_stargate
 
 -- |
 -- Sometimes we want to constrain the quality of some models.
@@ -108,7 +112,8 @@ all_library_models =
      CyborgType4Base,
      CyborgType4HyperspaceDisc,
      CyborgType4HyperspaceRotor,
-     CyborgType4HyperspaceStabilizer]
+     CyborgType4HyperspaceStabilizer,
+     Monolith]
 
 -- |
 -- A library of named models.  Models are generated on demand, but models

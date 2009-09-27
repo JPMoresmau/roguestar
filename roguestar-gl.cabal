@@ -12,10 +12,6 @@ description:         Roguestar is a science fiction themed roguelike (turn-based
                      OpenGL for graphics.  This is still a very early release and several
                      important things don't work.
                      .
-                     This initial release allows you to play one of six alien races.  You begin
-                     the game stranded on an alien planet, fighting off an endless hoard of
-                     hostile robots.
-                     .
                      The git repository is available at <http://www.downstairspeople.org/git/roguestar-gl.git>.
 homepage:            http://roguestar.downstairspeople.org/
 
@@ -36,7 +32,8 @@ other-modules:       Quality, ProtocolTypes, VisibleObject,
                      Models.Library, Models.MachineParts, Models.LibraryData, Models.Caduceator,
                      Models.Tree, Models.Encephalon, Models.PhaseWeapons, RenderingControl,
                      Keymaps.BuiltinKeymaps, Keymaps.CommonKeymap, Keymaps.NumpadKeymap,
-                     Keymaps.Keymaps, Keymaps.VIKeymap
+                     Keymaps.Keymaps, Keymaps.VIKeymap, AnimationBuildings, Models.Monolith,
+                     Models.Stargate
 ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
 

@@ -26,6 +26,7 @@ import Scene
 import Data.Monoid
 import AnimationTerrain
 import AnimationCreatures
+import AnimationBuildings
 import AnimationTools
 import AnimationMenus
 import AnimationExtras
@@ -93,6 +94,8 @@ planarGameplayDispatch = proc () ->
        frp1Context eventMessager -< ()
        -- terrain threads
        frpContext (allowAnonymous forbidDuplicates) [(Nothing,terrainThreadLauncher)] -< ()
+       -- building threads
+       frpContext (allowAnonymous forbidDuplicates) [(Nothing,visibleObjectThreadLauncher buildingAvatar)] -< ()
        -- creature threads
        ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
            frpContext (allowAnonymous forbidDuplicates) 

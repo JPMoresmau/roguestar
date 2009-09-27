@@ -52,5 +52,8 @@ data LibraryModel =
   | CyborgType4HyperspaceDisc
   | CyborgType4HyperspaceRotor
   | CyborgType4HyperspaceStabilizer
+    -- Buildings
+  | Monolith
+  | TreatyStargate
       deriving (Eq,Ord,Show)
 \end{code}      

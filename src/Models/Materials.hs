@@ -1,6 +1,9 @@
 module Models.Materials
     (
      -- | Materials by Faction
+     treaty_metal,
+     treaty_glow,
+     treaty_energy_field,
      alliance_metal,
      concordance_metal,
      concordance_dark_glass,
@@ -25,14 +28,31 @@ import Models.LibraryData
  - Materials by Faction
  - -------------------------------------------------------}
 
--- Alliance Materials
+-- Treaty Organization Materials (cyan-teal solid colors, yellow energy colors)
+
+treaty_metal :: MaterialM attr ()
+treaty_metal = material $
+    do pigment $ pure camouflage_green
+       specular 1 $ pure $ viridian
+
+treaty_glow :: MaterialM attr ()
+treaty_glow = material $
+    do pigment $ pure black
+       emissive $ pure brass
+
+treaty_energy_field :: MaterialM attr ()
+treaty_energy_field = material $
+    do emissive $ pure brass
+       specular 1 $ pure saffron
+
+-- Alliance Materials  (yellow-gold solid colors, orange energy colors)
 
 alliance_metal :: Modeling ()
 alliance_metal = material $
     do pigment $ pure $ scaleRGB 0.6 gold
-       specular 7 $ pure $ scaleRGB 1.0 gold
+       specular 7 $ pure gold
 
--- Concordance Materials
+-- Concordance Materials  (violet solid colors, blue energy colors)
 
 concordance_metal :: Modeling ()
 concordance_metal = material $
@@ -50,7 +70,15 @@ concordance_bright_glass = material $
        emissive $ pure puce
        specular 8 $ pure eggplant
 
--- Cyborg Materials
+-- Pirates  (green solid colors, red energy colors)
+
+-- Utopiate (red solid colors, cyan-teal energy colors)
+
+-- Whispers (black solid colors, white energy colors)
+
+-- Monster (orange solid colors, violet energy colors)
+
+-- Cyborg Materials  (white solid colors, green energy colors)
 
 cyborg_metal :: MaterialM attr ()
 cyborg_metal = metallic $ pure wheat
