@@ -1,12 +1,21 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Building
     (buildingSize,
-     buildingType)
+     buildingType,
+     activateFacingBuilding)
     where
 
 import DB
 import BuildingData
 import Data.List
-import Control.Monad
+import Facing
+import Data.Maybe
+import Control.Monad.Maybe
+import Plane
+import Position
+import TerrainData
+import Control.Monad.Error
 
 -- | The total occupied surface area of a building.
 buildingSize :: (DBReadable db) => BuildingRef -> db Integer
@@ -19,4 +28,50 @@ buildingType building_ref =
            Just (Constructed _ _ building_type) -> return building_type
            _ -> error "buildingSize: impossible case"
 
+-- | Activate the facing building, returns True iff any building was actually activated.
+activateFacingBuilding :: Facing -> CreatureRef -> DB Bool
+activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
+    do (plane_ref,position) <- MaybeT $ liftM extractLocation $ dbWhere creature_ref
+       buildings <- lift $ whatIsOccupying plane_ref $ offsetPosition (facingToRelative face) position
+       liftM or $ lift $ forM buildings $ \building_ref ->
+           do building_type <- buildingType building_ref
+              activateBuilding building_type creature_ref building_ref
+
+activateBuilding :: BuildingType -> CreatureRef -> BuildingRef -> DB Bool
+activateBuilding Monolith _ _ = return False
+activateBuilding Portal creature_ref building_ref =
+    do m_creature_position :: Maybe (PlaneRef,Position) <- liftM extractLocation $ dbWhere creature_ref
+       m_portal_position :: Maybe (PlaneRef,Position) <- liftM extractLocation $ dbWhere building_ref
+       when (fmap fst m_creature_position /= fmap fst m_portal_position) $ throwError $ DBError "activateBuilding: creature and portal on different planes"
+       case (m_creature_position,m_portal_position) of
+           (Just (plane_ref,Position (_,cy)),Just (_,Position (_,py))) ->
+               case () of
+                   () | cy < py ->
+                       do m_subsequent_loc :: Maybe (Location S PlaneRef Subsequent) <- liftM listToMaybe $ dbGetContents plane_ref
+                          case m_subsequent_loc of
+                              Just loc -> (portalCreatureTo 1 creature_ref $ entity loc) >> return True
+                              _ -> throwError $ DBErrorFlag NoStargateAddress
+                   () | cy > py ->
+                       do m_previous_loc :: Maybe Subsequent <- liftM extractLocation $ dbWhere plane_ref
+                          case m_previous_loc of
+                              Just loc -> (portalCreatureTo (-1) creature_ref $ subsequent_to loc) >> return True
+                              _ -> throwError $ DBErrorFlag NoStargateAddress
+                   () | otherwise -> throwError $ DBErrorFlag BuildingApproachWrongAngle
+           _ -> throwError $ DBError "activateBuilding: can't decode building-creature relative positions"
+
+
+-- | Deposit a creature in front of (-1) or behind (+1) a random portal on the specified plane.  Returns
+-- the dbMove result from the action.
+portalCreatureTo :: Integer -> CreatureRef -> PlaneRef -> DB (Location S CreatureRef (),Location S CreatureRef Standing)
+portalCreatureTo offset creature_ref plane_ref =
+    do portals <- filterM (liftM (== Portal) . buildingType) =<< dbGetContents plane_ref
+       ideal_position <- if null portals
+           then liftM2 (\x y -> Position (x,y)) (getRandomR (-100,100)) (getRandomR (-100,100))
+           else do portal <- pickM portals
+                   m_position <- liftM (fmap (offsetPosition (0,offset)) . extractLocation) $ dbWhere portal
+                   return $ fromMaybe (Position (0,0)) m_position
+       position <- pickRandomClearSite 1 0 0 ideal_position (not . (`elem` impassable_terrains)) plane_ref
+       dbMove (return . toStanding (Standing plane_ref position Here)) creature_ref
+       
+       
 

@@ -15,6 +15,7 @@ module DBPrivate
      Wielded(..),
      Constructed(..),
      TheUniverse(..),
+     Subsequent(..),
      CreatureRef,
      ToolRef,
      PlaneRef,
@@ -42,7 +43,7 @@ import Position
 -- |
 -- Type representing the entire universe.
 --
-data TheUniverse = TheUniverse deriving (Read,Show)
+data TheUniverse = TheUniverse deriving (Read,Show,Eq,Ord)
 
 type CreatureRef = Reference Creature
 type ToolRef = Reference Tool
@@ -109,6 +110,14 @@ data Inventory =
 data Wielded =
     Wielded { wielded_creature :: CreatureRef }
     deriving (Read,Show,Eq,Ord)
+
+-- |
+-- The location of a Plane nested inside a building, such as a Stargate.
+--
+data Subsequent =
+    Subsequent { subsequent_to :: PlaneRef }
+    deriving (Read,Show,Eq,Ord)
+
 -- |
 -- A relational data structure defining the location of any entity.
 -- All of the type variables of Location are phantom types.
@@ -144,6 +153,7 @@ data Location m e t =
    | IsWielded ToolRef Wielded
    | IsConstructed BuildingRef Constructed
    | InTheUniverse PlaneRef
+   | IsSubsequent PlaneRef Subsequent
     deriving (Read,Show,Eq,Ord)
 
 unsafeLocation :: Location a b c -> Location d e f
@@ -153,6 +163,7 @@ unsafeLocation (InInventory a b) = InInventory a b
 unsafeLocation (IsWielded a b) = IsWielded a b
 unsafeLocation (IsConstructed a b) = IsConstructed a b
 unsafeLocation (InTheUniverse a) = InTheUniverse a
+unsafeLocation (IsSubsequent a b) = IsSubsequent a b
 
 instance HierarchicalRelation (Location m e t) where
     parent (IsStanding _ t) = toUID $ standing_plane t
@@ -161,9 +172,11 @@ instance HierarchicalRelation (Location m e t) where
     parent (IsWielded _ t) = toUID $ wielded_creature t
     parent (IsConstructed _ t) = toUID $ constructed_plane t
     parent (InTheUniverse _) = toUID UniverseRef
+    parent (IsSubsequent _ t) = toUID $ subsequent_to t
     child (IsStanding e _) = toUID e
     child (IsDropped e _) = toUID e
     child (InInventory e _) = toUID e
     child (IsWielded e _) = toUID e
     child (IsConstructed e _) = toUID e
     child (InTheUniverse e) = toUID e
+    child (IsSubsequent e _) = toUID e

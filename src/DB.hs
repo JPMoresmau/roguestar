@@ -10,6 +10,7 @@ module DB
      DBError(..),
      CreatureLocation(..),
      ToolLocation(..),
+     PlaneLocation(..),
      initial_db,
      DB_BaseType(db_error_flag),
      dbActionCount,
@@ -44,6 +45,7 @@ module DB
      dbPopOldestSnapshot,
      dbHasSnapshot,
      module DBData,
+     module DBErrorFlag,
      module Random,
      dbTrace)
     where
@@ -70,6 +72,7 @@ import Control.Monad.Random as Random
 import Random
 import Debug.Trace
 import PlayerState
+import DBErrorFlag
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,
@@ -91,7 +94,7 @@ data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 
 data DBError =
     DBError String
-  | DBErrorFlag String
+  | DBErrorFlag ErrorFlag
     deriving (Read,Show)
 
 instance Error DBError where
@@ -239,6 +242,9 @@ class (LocationType l) => ToolLocation l where
 class (LocationType l) => BuildingLocation l where
     buildingLocation :: BuildingRef -> l -> Location m BuildingRef l
 
+class (LocationType l) => PlaneLocation l where
+    planeLocation :: PlaneRef -> l -> Location m PlaneRef l
+
 instance CreatureLocation Standing where
     creatureLocation a l = IsStanding (unsafeReference a) l
 
@@ -253,6 +259,12 @@ instance ToolLocation Wielded where
 
 instance BuildingLocation Constructed where
     buildingLocation a l = IsConstructed (unsafeReference a) l
+
+instance PlaneLocation TheUniverse where
+    planeLocation a _ = InTheUniverse a
+
+instance PlaneLocation Subsequent where
+    planeLocation a l = IsSubsequent a l
 
 -- |
 -- Adds something to a map in the database using a new object reference.
@@ -279,8 +291,8 @@ dbAddCreature = dbAddObjectComposable CreatureRef dbPutCreature creatureLocation
 -- |
 -- Adds a new Plane to the database.
 --
-dbAddPlane :: Plane -> () -> DB PlaneRef
-dbAddPlane = dbAddObjectComposable PlaneRef dbPutPlane (\a () -> InTheUniverse a)
+dbAddPlane :: (PlaneLocation l) => Plane -> l -> DB PlaneRef
+dbAddPlane = dbAddObjectComposable PlaneRef dbPutPlane planeLocation
 
 -- |
 -- Adds a new Tool to the database.
@@ -410,12 +422,15 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 
 -- |
 -- Set the location of an object.
+-- This is where we handle making sure that a creature can only wield one tool, and a building
+-- can only point to one subsequent plane.
 --
 dbSetLocation :: (LocationType e,LocationType t) => Location S e t -> DB ()
 dbSetLocation loc = 
-    do case (fmap location $ coerceLocationTyped _wielded loc) of
-           Just (Wielded c) -> dbUnwieldCreature c
-	   Nothing -> return ()
+    do case (fmap location $ coerceLocationTyped _wielded loc,fmap location $ coerceLocationTyped _subsequent loc) of
+           (Just (Wielded c),_) -> dbUnwieldCreature c
+           (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
+	   (_,_) -> return ()
        modify (\db -> db { db_hierarchy=HierarchicalDatabase.insert (unsafeLocation loc) $ db_hierarchy db })
 
 -- |

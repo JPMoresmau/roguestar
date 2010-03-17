@@ -22,26 +22,26 @@ dbPickupTool :: (DBReadable db,LocationType a) => CreatureRef -> Location s Tool
 dbPickupTool c l = 
     do (c_where :: Maybe (Position,PlaneRef)) <- liftM extractLocation $ dbWhere c
        when ((c_where /= extractLocation l && Just c /= extractLocation l) || isNothing c_where) $ 
-	         throwError (DBErrorFlag "not-at-feet")
+	         throwError (DBErrorFlag ToolIs_NotAtFeet)
        return $ toInventory (Inventory c) l
 
 -- | Move a tool into wielded position for whatever creature is carrying it.
 dbWieldTool :: (DBReadable db,LocationType a) => Location s ToolRef a -> db (Location s ToolRef Wielded)
 dbWieldTool l =
     case () of
-        () | Just l' <- coerceLocation l -> return l'
+        () | Just l' <- coerceLocation l -> return l' -- if it coerces into our return type, then it's already wielded
         () | Just (Dropped plane_ref position) <- extractLocation l ->
             do pickupers <- liftM (map entity . filter ((== position) . location)) $ dbGetContents plane_ref
-               case pickupers of
+               case pickupers of -- the creature that is standing over the tool -- there can be only one
                    [single_pickuper] -> return $ toWielded (Wielded single_pickuper) l
-                   _ -> throwError $ DBErrorFlag "tool-is-not-wieldable"
+                   _ -> throwError $ DBError "dbWieldTool: there were multiple creatures in reach of a single tool"
         () | Just (Inventory c) <- extractLocation l -> return $ toWielded (Wielded c) l
-        () | otherwise -> throwError $ DBErrorFlag "tool-is-not-wieldable"
+        () | otherwise -> throwError $ DBErrorFlag ToolIs_NotWieldable
 
 dbDropTool :: (DBReadable db,LocationType a) => Location s ToolRef a -> db (Location s ToolRef Dropped)
 dbDropTool l =
     do lp <- liftM extractLocation $ dbWhere (getLocation l)
-       flip (maybe (throwError $ DBErrorFlag "not-standing")) lp $ \(creature_position,plane_ref) ->
+       flip (maybe (throwError $ DBErrorFlag NotStanding)) lp $ \(creature_position,plane_ref) ->
            do return $ toDropped (Dropped plane_ref creature_position) l
 
 dbAvailablePickups :: (DBReadable db) => CreatureRef -> db [ToolRef]

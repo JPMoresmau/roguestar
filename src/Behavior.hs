@@ -26,6 +26,7 @@ import Control.Monad.Maybe
 import TerrainData
 import Make
 import Construction
+import Building
 import Control.Monad.Error
 
 --
@@ -46,21 +47,24 @@ data Behavior =
   | Activate
   | Make PrepareMake
   | ClearTerrain Facing
+  | ActivateBuilding Facing
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but
 -- if occupied by a creature this is 'Attack'.
 facingBehavior :: (DBReadable db) => CreatureRef -> Facing -> db Behavior
 facingBehavior creature_ref face =
-    do m_standing <- liftM (fmap location) $ getPlanarLocation creature_ref
+    do (m_standing :: Maybe (PlaneRef,Position)) <- liftM (fmap location) $ getPlanarPosition creature_ref
        case m_standing of
            Nothing -> return Wait
            Just (plane_ref,pos) ->
                do let facing_pos = offsetPosition (facingToRelative face) pos
                   t <- terrainAt plane_ref facing_pos
                   who :: [CreatureRef] <- whatIsOccupying plane_ref facing_pos
+                  what :: [BuildingRef] <- whatIsOccupying plane_ref facing_pos
                   case t of
                       _ | not (null who) -> return $ Attack face
+                      _ | not (null what) -> return $ ActivateBuilding face
                       Forest -> return $ TurnInPlace face
                       DeepForest -> return $ TurnInPlace face
                       RockFace -> return $ TurnInPlace face
@@ -90,7 +94,7 @@ dbBehave (Pickup tool_ref) creature_ref =
 dbBehave (Wield tool_ref) creature_ref =
     do available <- availableWields creature_ref
        already_wielded <- dbGetWielded creature_ref
-       when (not $ tool_ref `elem` available) $ throwError $ DBErrorFlag "wield-not-available"
+       when (not $ tool_ref `elem` available) $ throwError $ DBErrorFlag ToolIs_Unreachable
        dbMove dbWieldTool tool_ref
        dbAdvanceTime creature_ref =<< case () of
            () | Just tool_ref == already_wielded -> return 0 -- already wielded, so this was an empty action
@@ -103,7 +107,7 @@ dbBehave (Unwield) creature_ref =
 dbBehave (Drop tool_ref) creature_ref =
     do tool_parent <- liftM extractLocation $ dbWhere tool_ref
        already_wielded <- dbGetWielded creature_ref
-       when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag "not-in-inventory"
+       when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag ToolIs_NotInInventory
        dbMove dbDropTool tool_ref
        dbAdvanceTime creature_ref =<< case () of
            () | Just tool_ref == already_wielded -> return 0  -- instantly drop a tool if it's already held in the hand
@@ -128,7 +132,7 @@ dbBehave Wait creature_ref = dbAdvanceTime creature_ref =<< quickActionTime crea
 dbBehave Vanish creature_ref = 
     do dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        runMaybeT $
-           do plane_ref <- MaybeT $ liftM (fmap $ fst . location) $ getPlanarLocation creature_ref
+           do (plane_ref :: PlaneRef) <- MaybeT $ liftM (fmap location) $ getPlanarPosition creature_ref
               lift $
                   do faction <- getCreatureFaction creature_ref
                      is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 
@@ -149,9 +153,15 @@ dbBehave (Make make_prep) creature_ref =
 dbBehave (ClearTerrain face) creature_ref =
     do dbMove (turnCreature face) creature_ref
        ok <- modifyFacingTerrain clearTerrain face creature_ref
-       when (not ok) $ throwError $ DBErrorFlag "unable"
+       when (not ok) $ throwError $ DBErrorFlag Unable
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
        return ()
+
+dbBehave (ActivateBuilding face) creature_ref =
+    do dbMove (turnCreature face) creature_ref
+       ok <- activateFacingBuilding face creature_ref
+       when (not ok) $ throwError $ DBErrorFlag Unable
+       dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 {---------------------------------------------------------------------------------------------------
 -- These are functions related to determing how long it takes for a creature to execute an action.

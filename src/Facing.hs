@@ -80,8 +80,8 @@ facingDistance a b = toInteger $ if enum_distance > 4 then 8 - enum_distance els
 -- |
 -- A test function to detect when one Position + Facing points directly at another Position.
 --
-isFacing :: (Position, Facing) -> Position -> Bool
-isFacing ((Position a),face) (Position b) = f face a b
+isFacing :: (PositionType a,PositionType b) => (a, Facing) -> b -> Bool
+isFacing (as,face) bs = or $ map (\(a,b) -> f face (fromPosition a) (fromPosition b)) $ positionPairs as bs
     where f :: Facing -> (Integer,Integer) -> (Integer,Integer) -> Bool
           f North (x,y) (u,v) = x == u && v >= y
           f NorthEast (x,y) (u,v) = x - u == y - v && u >= x

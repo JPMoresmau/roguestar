@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 
 module Contact
     (findContacts,
@@ -38,11 +38,12 @@ instance ContactModeType CreatureInteractionMode where
 -- of area contacts, which are sorted from the center of the area.  The subject is never a contact of itself.
 findContacts :: (DBReadable db,ReferenceType x,GenericReference a S,ContactModeType c) => c -> Reference x -> Facing -> db [a]
 findContacts contact_mode attacker_ref face =
-    do m_l <- liftM (fmap location) $ getPlanarLocation attacker_ref
-       let testF pos x = case contactMode contact_mode of
-               Touch -> location x == (offsetPosition (facingToRelative face) pos) || location x == pos
-               Line -> isFacing (pos,face) $ location x
-               Area -> distanceBetweenSquared (offsetPosition (facingToRelative7 face) pos) (location x) < 49
+    do (m_l :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap location) $ getPlanarPosition attacker_ref
+       let testF pos (x :: MultiPosition) = case contactMode contact_mode of
+               Touch -> min (x `distanceBetweenChessboard` (offsetPosition (facingToRelative face) pos))
+                            (x `distanceBetweenChessboard` pos) == 0
+               Line -> isFacing (pos,face) x
+               Area -> distanceBetweenSquared (offsetPosition (facingToRelative7 face) pos) x < 49
            center_pos pos = case contactMode contact_mode of
                Area -> offsetPosition (facingToRelative7 face) pos
                _ -> pos
@@ -50,6 +51,6 @@ findContacts contact_mode attacker_ref face =
            liftM (mapMaybe fromLocation .
 	          sortBy (comparing (distanceBetweenSquared (center_pos pos) . location)) .
 	          filter ((/= generalizeReference attacker_ref) . entity) . 
-	          filter (testF pos)) $ 
+	          filter (testF pos . location)) $ 
 		      dbGetContents plane_ref
 

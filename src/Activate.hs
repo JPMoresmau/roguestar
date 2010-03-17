@@ -19,10 +19,10 @@ data ActivationOutcome =
 
 resolveActivation :: (DBReadable db) => CreatureRef -> db ActivationOutcome
 resolveActivation creature_ref =
-    do tool_ref <- maybe (throwError $ DBErrorFlag "no-tool-wielded") return =<< dbGetWielded creature_ref
+    do tool_ref <- maybe (throwError $ DBErrorFlag NoToolWielded) return =<< dbGetWielded creature_ref
        tool <- dbGetTool tool_ref
        case tool of
-           DeviceTool {} -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+           DeviceTool {} -> throwError $ DBErrorFlag ToolIs_Innapropriate
            Sphere (ChromaliteSubstance c) ->
                do x <- linearRoll $ chromalitePotency c
                   return $ if x == 0 then ExpendTool tool_ref $ NoEffect

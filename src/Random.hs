@@ -8,7 +8,8 @@ module Random
      fixedSumRoll,
      fixedSumLinearRoll,
      logRoll,
-     opposedLinearPowerRatio)
+     opposedLinearPowerRatio,
+     rationalRoll)
     where
 
 import Data.List
@@ -32,6 +33,7 @@ pickM elems = weightedPickM (map (\x -> (1,x)) elems)
 
 -- | 'weightedPick' in MonadRandom
 weightedPickM :: (MonadRandom m) => [(Integer,a)] -> m a
+weightedPickM [] = error "Tried to pick from an empty list."
 weightedPickM elems = 
     do let (weights,values) = unzip elems
        let (weight_total,weight_totals) = mapAccumL (\x y -> (x+y,x+y)) 0 weights
@@ -66,6 +68,12 @@ logRoll n = liftM (min n) $ accumRoll 0 n
                  case x' of
                      0 -> return c
                      _ -> accumRoll (c+1) x'
+
+-- | Roll on a rational number that is a probability between zero and one, to generate a boolean.
+rationalRoll :: (MonadRandom m) => Rational -> m Bool
+rationalRoll r =
+    do p <- linearRoll (denominator r - 1)
+       return $ p < numerator r
 
 -- | 'opposedLinearPowerRatio' is used when a constant (non-random) power relationship needs to be
 -- determined between two parties.  (For example, this is used in the Spot/Hide contest when determining

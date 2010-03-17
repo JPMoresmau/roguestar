@@ -21,6 +21,7 @@ module DBData
      Inventory(..),
      Wielded(..),
      Constructed(..),
+     Subsequent(..),
      _nullary,
      _creature,
      _tool,
@@ -31,6 +32,7 @@ module DBData
      _inventory,
      _wielded,
      _constructed,
+     _subsequent,
      _position,
      _multiposition,
      _facing,
@@ -58,7 +60,6 @@ module DBData
      toDropped,
      toInventory,
      toWielded,
-     toConstructed,
      returnToInventory)
     where
 
@@ -106,6 +107,9 @@ _wielded = Type $ error "_wielded: undefined"
 
 _constructed :: Type Constructed
 _constructed = Type $ error "_constructed: undefined"
+
+_subsequent :: Type Subsequent
+_subsequent = Type $ error "_subsequent: undefined"
 
 _position :: Type Position
 _position = Type $ error "_position: undefined"
@@ -211,6 +215,7 @@ getLocation (InInventory _ c) = unsafeReference $ inventory_creature c
 getLocation (IsWielded _ c) = unsafeReference $ wielded_creature c
 getLocation (IsConstructed _ c) = unsafeReference $ constructed_plane c
 getLocation (InTheUniverse _) = unsafeReference UniverseRef
+getLocation (IsSubsequent _ b) = unsafeReference $ subsequent_to b
 
 getEntity :: Location m e t -> Reference ()
 getEntity (IsStanding r _) = unsafeReference r
@@ -219,6 +224,7 @@ getEntity (InInventory r _) = unsafeReference r
 getEntity (IsWielded r _) = unsafeReference r
 getEntity (IsConstructed r _) = unsafeReference r
 getEntity (InTheUniverse r) = unsafeReference r
+getEntity (IsSubsequent r _) = unsafeReference r
 
 asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
@@ -287,6 +293,16 @@ instance LocationType Constructed where
     extractLocation _ = Nothing
     extractEntity = const Nothing
 
+instance LocationType TheUniverse where
+    extractLocation (InTheUniverse {}) = Just TheUniverse
+    extractLocation _ = Nothing
+    extractEntity = const Nothing
+
+instance LocationType Subsequent where
+    extractLocation (IsSubsequent _ i) = Just i
+    extractLocation _ = Nothing
+    extractEntity = const Nothing
+
 instance LocationType () where
     extractLocation = const $ Just ()
     extractEntity = const Nothing
@@ -298,6 +314,7 @@ instance LocationType Position where
     extractLocation (IsWielded {}) = Nothing
     extractLocation (IsConstructed _ c) = Just $ constructed_position c
     extractLocation (InTheUniverse {}) = Nothing
+    extractLocation (IsSubsequent {}) = Nothing
     extractEntity = const Nothing
 
 instance LocationType MultiPosition where
@@ -312,6 +329,7 @@ instance LocationType Facing where
     extractLocation (IsWielded {}) = Nothing
     extractLocation (IsConstructed {}) = Nothing
     extractLocation (InTheUniverse {}) = Nothing
+    extractLocation (IsSubsequent {}) = Nothing
     extractEntity = const Nothing
 
 instance ReferenceType a => LocationType (Reference a) where
@@ -340,10 +358,6 @@ toInventory _ _ = error "toInventory: type error"
 toWielded :: (LocationType t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
 toWielded i l | isEntityTyped _tool l = IsWielded (entity l) i
 toWielded _ _ = error "toWielded: type error"
-
-toConstructed :: (LocationType t) => Constructed -> Location m BuildingRef t -> Location m BuildingRef Constructed
-toConstructed i l | isEntityTyped _building l = IsConstructed (entity l) i
-toConstructed _ _ = error "toConstructed: type error"
 
 returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory
 returnToInventory l = InInventory (entity l) (Inventory c)

@@ -4,8 +4,7 @@ module Plane
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
      pickRandomClearSite,
-     getPlanarLocation,
-     getPlanarOccupancy,
+     getPlanarPosition,
      terrainAt,
      setTerrainAt,
      whatIsOccupying,
@@ -25,25 +24,19 @@ import Position
 import Control.Monad.Random
 import PlayerState
 
-dbNewPlane :: TerrainGenerationData -> DB PlaneRef
-dbNewPlane tg_data = 
+dbNewPlane :: (PlaneLocation l) => TerrainGenerationData -> l -> DB PlaneRef
+dbNewPlane tg_data l = 
     do rns <- getRandoms
        dbAddPlane (Plane { plane_biome = tg_biome tg_data,
-                           plane_terrain = generateTerrain tg_data rns }) ()
+                           plane_terrain = generateTerrain tg_data rns }) l
 
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
 -- returns the position of this object on that plane.
 --
-getPlanarPosition :: (DBReadable db,ReferenceType a,LocationType p,PositionType p) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,p)))
+getPlanarPosition :: (DBReadable db,ReferenceType a,LocationType p) => Reference a -> db (Maybe (Location S (Reference ()) p))
 getPlanarPosition ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
-
-getPlanarLocation :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,Position)))
-getPlanarLocation = getPlanarPosition
-
-getPlanarOccupancy :: (DBReadable db,ReferenceType a) => Reference a -> db (Maybe (Location S (Reference ()) (PlaneRef,MultiPosition)))
-getPlanarOccupancy = getPlanarPosition
 
 -- |
 -- Distance between two entities.  If the entities are not on the same plane, or for some other reason it doesn't make
@@ -51,11 +44,11 @@ getPlanarOccupancy = getPlanarPosition
 --
 dbDistanceBetweenSquared :: (DBReadable db,ReferenceType a,ReferenceType b) => Reference a -> Reference b -> db (Maybe Integer)
 dbDistanceBetweenSquared a_ref b_ref =
-    do m_a <- liftM (fmap location) $ getPlanarLocation a_ref
-       m_b <- liftM (fmap location) $ getPlanarLocation b_ref
+    do m_a <- liftM (fmap location) $ getPlanarPosition a_ref
+       m_b <- liftM (fmap location) $ getPlanarPosition b_ref
        return $
-           do (p_a,a) <- m_a
-	      (p_b,b) <- m_b
+           do (p_a :: PlaneRef,a :: MultiPosition) <- m_a
+	      (p_b,b :: MultiPosition) <- m_b
 	      guard $ p_a == p_b
 	      return $ distanceBetweenSquared a b
 
@@ -63,7 +56,7 @@ dbDistanceBetweenSquared a_ref b_ref =
 -- Gets the current plane of interest based on whose turn it is.
 --
 dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
-dbGetCurrentPlane = liftM (fmap $ fst . location) $ maybe (return Nothing) getPlanarLocation . creatureOf =<< playerState
+dbGetCurrentPlane = liftM (fmap location) $ maybe (return Nothing) getPlanarPosition . creatureOf =<< playerState
 
 -- |
 -- Selects sites at random until one seems reasonably clear.  It begins at
@@ -74,9 +67,9 @@ dbGetCurrentPlane = liftM (fmap $ fst . location) $ maybe (return Nothing) getPl
 -- only appropriate terrain (as defined by a predicate) within terrain_clear squares.
 --
 -- This function will return an unsuitable site if it can't find a suitable one.
--- Such a site may have unsuitable terrain around it or it may be outside of
--- the search_radius (it is never impossible to find an area free of objects, since
--- terrain is infinite and objects are not).
+-- Such a site may have unsuitable terrain around it (unlikely) or it may be outside of
+-- the search_radius (likely).  It is never impossible to find an area free of objects, since
+-- terrain is infinite and objects are not.
 --
 pickRandomClearSite :: (DBReadable db) => Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> db Position
 pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =

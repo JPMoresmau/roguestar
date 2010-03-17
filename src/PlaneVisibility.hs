@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, FlexibleContexts #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts, ScopedTypeVariables #-}
 
 module PlaneVisibility
     (dbGetVisibleTerrainForFaction,
@@ -41,7 +41,7 @@ dbGetVisibleTerrainForFaction faction plane_ref =
 --
 dbGetVisibleTerrainForCreature :: (DBReadable db) => CreatureRef -> db [(TerrainPatch,Position)]
 dbGetVisibleTerrainForCreature creature_ref =
-    do loc <- liftM (fmap location) $ getPlanarLocation creature_ref
+    do loc <- liftM (fmap location) $ getPlanarPosition creature_ref
        spot_check <- dbGetSpotCheck creature_ref
        case loc of
 		Just (plane_ref,creature_at) -> liftM (visibleTerrain creature_at spot_check . plane_terrain) $ dbGetPlane plane_ref
@@ -61,9 +61,9 @@ dbGetVisibleObjectsForFaction faction plane_ref =
 --
 dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a S) => CreatureRef -> db [a]
 dbGetVisibleObjectsForCreature creature_ref =
-    do loc <- liftM (fmap location) $ getPlanarLocation creature_ref
+    do (loc :: Maybe PlaneRef) <- liftM (fmap location) $ getPlanarPosition creature_ref
        case loc of
-		Just (plane_ref,_) -> filterRO (dbIsPlanarVisibleTo creature_ref . generalizeReference) =<< dbGetContents plane_ref
+		Just plane_ref -> filterRO (dbIsPlanarVisibleTo creature_ref . generalizeReference) =<< dbGetContents plane_ref
 		Nothing -> return []
 
 -- |
@@ -72,8 +72,8 @@ dbGetVisibleObjectsForCreature creature_ref =
 dbIsPlanarVisibleTo :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Bool
 dbIsPlanarVisibleTo creature_ref obj_ref | creature_ref =:= obj_ref = return True
 dbIsPlanarVisibleTo creature_ref obj_ref =
-    do creature_loc <- liftM (fmap location) $ getPlanarLocation creature_ref
-       obj_loc <- liftM (fmap location) $ getPlanarOccupancy obj_ref
+    do (creature_loc :: Maybe (PlaneRef,Position)) <- liftM (fmap location) $ getPlanarPosition creature_ref
+       (obj_loc :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap location) $ getPlanarPosition obj_ref
        spot_check <- dbGetOpposedSpotCheck creature_ref obj_ref
        case (creature_loc,obj_loc) of
 		(Nothing,_) -> return False

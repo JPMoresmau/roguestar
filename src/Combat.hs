@@ -60,7 +60,7 @@ attackModel attacker_ref =
                   case tool of
                       DeviceTool Gun device -> return $ RangedAttackModel attacker_ref tool_ref device
                       DeviceTool Sword device -> return $ MeleeAttackModel attacker_ref tool_ref device
-                      _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+                      _ -> throwError $ DBErrorFlag ToolIs_Innapropriate
 
 -- | Get an appropriate melee attack model for a creature, based on whatever tool the creature is holding.
 -- This will fail if the creature is holding anything other than a suitable melee weapon (allows unarmed strike).
@@ -69,7 +69,7 @@ meleeAttackModel attacker_ref =
     do attack_model <- attackModel attacker_ref
        case interactionMode attack_model `elem` [Melee,Unarmed] of
            True -> return attack_model
-           _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+           _ -> throwError $ DBErrorFlag ToolIs_Innapropriate
 
 -- | Get an appropriate ranged attack model for a creature, based on whatever tool the creature is holding.
 -- This will fail if the creature is holding anything other than a suitable ranged or splash weapon.
@@ -78,7 +78,7 @@ rangedAttackModel attacker_ref =
     do attack_model <- attackModel attacker_ref
        case interactionMode attack_model `elem` [Ranged,Splash] of
            True -> return attack_model
-           _ -> throwError $ DBErrorFlag "innapropriate-tool-wielded"
+           _ -> throwError $ DBErrorFlag ToolIs_Innapropriate
 
 data AttackOutcome =
     AttackMiss CreatureRef (Maybe ToolRef)

@@ -154,11 +154,13 @@ ioDispatch ("game":game) db0 =
            Right (outstr,db1) -> 
 	       do putStrLn (map toLower outstr)
 	          return db1
-           Left (DBErrorFlag errstr) -> 
+           Left (DBErrorFlag errtype) -> 
 	       do putStrLn "done"
-	          return $ db0 { db_error_flag = errstr }
+                  hPutStrLn stderr $ "DBErrorFlag: " ++ show errtype
+	          return $ db0 { db_error_flag = show errtype }
   	   Left (DBError errstr) -> 
 	       do putStrLn (map toLower errstr ++ "\n")
+                  hPutStrLn stderr $ "DBError: " ++ errstr
 	          return db0
 
 ioDispatch ("save":_) db0 = do putStrLn "engine-error: save not implemented"
@@ -475,7 +477,7 @@ dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
        case pickups of
            [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-there"
+	   [] -> throwError $ DBErrorFlag NothingAtFeet
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (PickupMode 0))
        done
 
@@ -488,7 +490,7 @@ dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do inventory <- dbGetContents creature_ref
        case inventory of
            [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   [] -> throwError $ DBErrorFlag NothingInInventory
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (DropMode 0))
        done
 
@@ -501,7 +503,7 @@ dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do available <- availableWields creature_ref
        case available of
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
-	   [] -> throwError $ DBErrorFlag "nothing-in-inventory"
+	   [] -> throwError $ DBErrorFlag NothingInInventory
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (WieldMode 0))
        done
 
