@@ -18,7 +18,7 @@ buildingAvatar = proc () ->
        switchContinue -< (fmap switchTo m_building_type,())
        returnA -< ()
   where switchTo "monolith" = simpleBuildingAvatar Monolith
-        switchTo "stargate" = simpleBuildingAvatar TreatyStargate
+        switchTo "portal" = simpleBuildingAvatar Portal
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
 simpleBuildingAvatar :: LibraryModel -> RSAnimAX Threaded (Maybe Integer) () () () ()

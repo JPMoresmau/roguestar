@@ -1,5 +1,5 @@
 module Models.Stargate
-    (treaty_stargate)
+    (portal)
     where
 
 import RSAGL.Math
@@ -7,8 +7,8 @@ import RSAGL.Modeling
 import Models.Materials
 import Quality
 
-treaty_stargate :: Quality -> Modeling ()
-treaty_stargate q =
+portal :: Quality -> Modeling ()
+portal q =
     do model $ 
            do model $
                   do box (Point3D (-0.6) 0 (-0.05)) (Point3D (-0.5) 1.618 0.05)

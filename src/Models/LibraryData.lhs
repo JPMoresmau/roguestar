@@ -54,6 +54,6 @@ data LibraryModel =
   | CyborgType4HyperspaceStabilizer
     -- Buildings
   | Monolith
-  | TreatyStargate
+  | Portal
       deriving (Eq,Ord,Show)
 \end{code}      

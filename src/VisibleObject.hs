@@ -65,10 +65,11 @@ questionMarkAvatar = proc _ ->
        t <- threadTime -< ()
        m_object_type <- objectDetailsLookup ThisObject "object-type" -< ()
        m_species <- objectDetailsLookup ThisObject "species" -< ()
-       m_tool <- objectDetailsLookup ThisObject "tool" -< ()                
-       debugOnce -< if any (isJust) [m_object_type,m_species,m_tool] 
+       m_tool <- objectDetailsLookup ThisObject "tool" -< ()
+       m_building <- objectDetailsLookup ThisObject "building" -< ()
+       debugOnce -< if any (isJust) [m_object_type,m_species,m_tool]
                     then (Just $ "questionMarkAvatar: apparently didn't recognize object: " ++ 
-		                 show m_object_type ++ ", " ++ show m_species ++ ", " ++ show m_tool)
+		                 show m_object_type ++ ", " ++ show m_species ++ ", " ++ show m_tool ++ ", " ++ show m_building) 
 		    else Nothing
        m_position <- objectIdealPosition ThisObject -< ()
        let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)

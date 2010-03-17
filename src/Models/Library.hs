@@ -72,7 +72,7 @@ toModel CyborgType4HyperspaceStabilizer = cyborg_type_4_hyperspace_stabilizer
 toModel (EnergyCylinder c) = energyCylinder c
 toModel (EnergySword c n) = energySword c n
 toModel Monolith = monolith
-toModel TreatyStargate = treaty_stargate
+toModel Portal = portal
 
 -- |
 -- Sometimes we want to constrain the quality of some models.
