@@ -112,7 +112,7 @@ data Wielded =
     deriving (Read,Show,Eq,Ord)
 
 -- |
--- The location of a Plane nested inside a building, such as a Stargate.
+-- The location of a Plane linked to from another Plane, such as with a Stargate.
 --
 data Subsequent =
     Subsequent { subsequent_to :: PlaneRef }
@@ -122,16 +122,14 @@ data Subsequent =
 -- A relational data structure defining the location of any entity.
 -- All of the type variables of Location are phantom types.
 --
--- m represents the modification domain of the Location.  For example,
--- a Location M is the location of a moving entity.  The goal of m
--- is to ensure that the entity can not be changed when moving an entity,
--- e.g. Robert can not turn into Susan by walking across the street.
+-- m represents the modification domain of the Location.  Location M is
+-- a location of an moving entity, while Location S is the location of
+-- a static entity.
+--
+-- The M parameter ensures that the entity's identity can not be changed 
+-- when moving an entity, e.g. Robert can not turn into Susan by walking across the street.
 -- No function Location M e t -> Location M e t can be written that
 -- changes the what entity the location references.
---
--- A Location S is the location of an still (unmoving) entity and may be
--- mutilated at will, but the type checker ensures that no such
--- mutilated Location may be used to move an entity.
 --
 -- Thus, we accept functions of the type 
 -- (Location M e a -> Location M e b) -> DB (),

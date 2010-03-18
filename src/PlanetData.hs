@@ -28,6 +28,11 @@ data PlanetInfo = PlanetInfo {
         deriving (Read,Show)
 
 pgto :: String -> Biome -> PlanetInfo
+pgto "" biome = PlanetInfo {
+    planet_info_priority = 0.25,
+    planet_info_name = Nothing,
+    planet_info_biome = biome,
+    planet_info_town = [(1,Portal),(1%2,Monolith),(1%2,Monolith)] }
 pgto name biome = PlanetInfo {
     planet_info_priority = 0.0,
     planet_info_name = Just name,
@@ -45,6 +50,11 @@ all_planets = concat [pgto_planets]
 
 pgto_planets :: [PlanetInfo]
 pgto_planets = [
+    pgto "" RockBiome,
+    pgto "" IcyRockBiome,
+    pgto "" TundraBiome,
+    pgto "" DesertBiome,
+    pgto "" MountainBiome,
     pgto "roanoke" SwampBiome,
     pgto "pamlico" SwampBiome,
     pgto "pungo" ForestBiome,

@@ -200,6 +200,7 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (WeaponExplodesEvent {}) -> "answer: state weapon-explodes-event"
                            SnapshotEvent (DisarmEvent {}) -> "answer: state disarm-event"
                            SnapshotEvent (SunderEvent {}) -> "answer: state sunder-event"
+                           SnapshotEvent (TeleportEvent {}) -> "answer: state teleport-event"
                            GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["action-count"] =
@@ -366,6 +367,18 @@ dbDispatchQuery ["biome"] =
            Nothing -> return "nothing"
 	   Just plane_ref -> liftM (show . plane_biome) $ dbGetPlane plane_ref
        return $ "answer: biome " ++ biome_name
+
+dbDispatchQuery ["current-plane"] =
+    do m_plane_ref <- dbGetCurrentPlane
+       return $ case m_plane_ref of
+           Nothing -> "answer: current-plane 0"
+           Just plane_ref -> "answer: current-plane " ++ show (toUID plane_ref)
+
+dbDispatchQuery ["planet-name"] =
+    do m_plane_ref <- dbGetCurrentPlane
+       case m_plane_ref of
+         Nothing -> return "answer: planet-name nothing"
+         Just plane_ref -> liftM ("answer: planet-name " ++) $ planetName plane_ref
 
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
 

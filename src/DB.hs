@@ -533,7 +533,7 @@ dbSetStartingRace :: Species -> DB ()
 dbSetStartingRace the_species = modify (\db -> db { db_starting_race = Just the_species })
 
 -- |
--- Takes a snapshot of a DBEvent in progress.
+-- Takes a snapshot of a SnapshotEvent in progress.
 --
 dbPushSnapshot :: SnapshotEvent -> DB ()
 dbPushSnapshot e = modify $ \db -> db {

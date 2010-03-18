@@ -1,6 +1,5 @@
-
 module FactionData
-    (Faction(..))
+    (Faction(..),factionPrefix)
     where
 
 data Faction = Player
@@ -10,8 +9,21 @@ data Faction = Player
 	     | Monsters                       -- nonsentient monsters (indifferent "government")
 	     | Pirates                        -- pirates (tactical "government")
 	     | Cyborgs                        -- cyborgs (strategic "government")
-	     | SocialUtopiate                 -- an economic quasi-alliance or super-clan (diplomatic "government")
+	     | SocialUtopiate                 -- an economic super-alliance (diplomatic "government")
 	     | Whispers                       -- the dark indifferent destroyers of worlds
 	     | Proselytes                     -- evil entities that possess others' minds
-	     | Civilian                       -- merchants, children -- don't kill these
+	     | Civilian                       -- merchants, children -- killing these antagonizes all factions
 	       deriving (Eq,Read,Show,Enum,Bounded)
+
+factionPrefix :: Faction -> String
+factionPrefix Player = "Z"
+factionPrefix InterstellarConcordance = "C"
+factionPrefix PanGalacticTreatyOrganization = "P"
+factionPrefix ImperialAlliance = "A"
+factionPrefix Monsters = "M"
+factionPrefix Pirates = "R"
+factionPrefix Cyborgs = "Y"
+factionPrefix SocialUtopiate = "U"
+factionPrefix Whispers = "X"
+factionPrefix Proselytes = "K"
+factionPrefix Civilian = "Q"

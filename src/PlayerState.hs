@@ -59,6 +59,8 @@ data SnapshotEvent =
         sunder_event_source_weapon :: ToolRef,
         sunder_event_target_creature :: CreatureRef,
         sunder_event_target_tool :: ToolRef }
+  | TeleportEvent {
+        teleport_event_creature :: CreatureRef }
             deriving (Read,Show)
 
 -- | Get the 'Creature' acting in the given 'PlayerState'.
@@ -80,6 +82,7 @@ subjectOf event = case event of
     KilledEvent killed_ref -> Just killed_ref
     DisarmEvent { disarm_event_source_creature = attacker_ref } -> Just attacker_ref
     SunderEvent { sunder_event_source_creature = attacker_ref } -> Just attacker_ref
+    TeleportEvent { teleport_event_creature = creature_ref } -> Just creature_ref
 
 -- | Current index into the menu, if there is one. 
 menuIndex :: PlayerState -> Maybe Integer

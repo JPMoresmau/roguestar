@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
 module Plane
     (dbNewPlane,
+     planetName,
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
      pickRandomClearSite,
@@ -23,12 +24,24 @@ import Data.List
 import Position
 import Control.Monad.Random
 import PlayerState
+import Data.Char
+import FactionData
 
-dbNewPlane :: (PlaneLocation l) => TerrainGenerationData -> l -> DB PlaneRef
-dbNewPlane tg_data l = 
+dbNewPlane :: (PlaneLocation l) => Maybe String -> TerrainGenerationData -> l -> DB PlaneRef
+dbNewPlane name tg_data l = 
     do rns <- getRandoms
+       random_name <- randomPlanetName PanGalacticTreatyOrganization
        dbAddPlane (Plane { plane_biome = tg_biome tg_data,
-                           plane_terrain = generateTerrain tg_data rns }) l
+                           plane_terrain = generateTerrain tg_data rns,
+                           plane_planet_name = fromMaybe random_name name}) l
+
+planetName :: (DBReadable db) => PlaneRef -> db String
+planetName = liftM plane_planet_name . dbGetPlane
+
+randomPlanetName :: (DBReadable db) => Faction -> db String
+randomPlanetName faction = 
+    do planet_number <- getRandomR (1000 :: Integer,9999)
+       return $ factionPrefix faction ++ "-" ++ show planet_number
 
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),

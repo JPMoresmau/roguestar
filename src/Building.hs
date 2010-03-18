@@ -71,6 +71,7 @@ portalCreatureTo offset creature_ref plane_ref =
                    m_position <- liftM (fmap (offsetPosition (0,offset)) . extractLocation) $ dbWhere portal
                    return $ fromMaybe (Position (0,0)) m_position
        position <- pickRandomClearSite 1 0 0 ideal_position (not . (`elem` impassable_terrains)) plane_ref
+       dbPushSnapshot $ TeleportEvent creature_ref
        dbMove (return . toStanding (Standing plane_ref position Here)) creature_ref
        
        

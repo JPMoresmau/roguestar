@@ -66,7 +66,7 @@ startingEquipmentBySpecies Reptilian = [sphere Oxygen]
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
     do seed <- getRandom
-       dbNewPlane (TerrainGenerationData {
+       dbNewPlane (Just "belhaven") (TerrainGenerationData {
            tg_smootheness = 3,
 	   tg_biome = homeBiome $ creature_species creature,
 	   tg_placements = [recreantFactories seed] }) TheUniverse
