@@ -31,6 +31,7 @@ import AnimationTools
 import AnimationMenus
 import AnimationExtras
 import AnimationEvents
+import Strings
 \end{code}
 
 \begin{code}
@@ -57,18 +58,34 @@ Whenever the state changes, the header switches to \texttt{mainDispatch}.
 \begin{code}
 mainStateHeader :: (String -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
 mainStateHeader = genericStateHeader switchTo
-  where switchTo menu_state | menu_state `elem` menu_states = menuManager
+  where switchTo blanking_state | blanking_state `elem` blanking_states = blankingDispatch blanking_state
+        switchTo menu_state | menu_state `elem` menu_states = menuManager
         switchTo planar_state | planar_state `elem` planar_states = planarGameplayDispatch
 	switchTo "game-over" = gameOver
 	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ unknown_state
 
 mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
-mainDispatch = mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
+mainDispatch = proc () ->
+    do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
+       monitorPlanetName -< ()
+       returnA -< result
 
 menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
        frp1Context menuDispatch -< ()
+
+-- | Print a "Welcome to P-XXXX" message whenever we arrive on a new planet.
+monitorPlanetName :: RSAnimAX k t i o () ()
+monitorPlanetName = proc () ->
+    do m_planet_name <- driverGetAnswerA -< "planet-name"
+       p <- changed (==) <<< sticky isJust Nothing -< m_planet_name
+       printTextA -< case m_planet_name of
+           _ | not p ->      Nothing
+           Nothing ->        Nothing
+           Just "nothing" -> Nothing
+           Just somewhere -> Just (Event,"Welcome to " ++ capitalize somewhere ++ ".")
+       returnA -< ()
 \end{code}
 
 \subsection{The Game Over State}
@@ -137,3 +154,18 @@ centerCoordinates = proc () ->
 		     return (x,y)
 \end{code}
 
+\begin{code}
+blanking_states :: [String]
+blanking_states = ["teleport-event"]
+
+blankingDispatch :: String -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+blankingDispatch "teleport-event" = proc () ->
+    do mainStateHeader (`elem` blanking_states) -< () 
+       clearPrintTextOnce -< ()
+       printTextOnce -< Just (Event,"Whoosh!")
+       blockContinue <<< arr ((< 0.5) . toSeconds) <<< threadTime -< ()
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
+blankingDispatch blanking_state = proc () ->
+    do debugOnce -< Just $ "blankingDispatch: unrecognized blanking_state `" ++ blanking_state ++ "`"
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
+\end{code}

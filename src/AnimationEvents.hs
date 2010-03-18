@@ -16,6 +16,7 @@ import Data.Monoid
 import Tables
 import RSAGL.FRP.FRP
 import RSAGL.FRP.Time
+import Strings
 
 eventStateHeader :: (String -> Bool) -> RSAnimAX () () () () () ()
 eventStateHeader stateP = proc () ->
@@ -116,16 +117,6 @@ isPlural :: Noun -> Bool
 isPlural You = True
 isPlural (Singular {}) = False
 isPlural X = False
-
-replace :: String -> String -> String -> String
-replace _ _ [] = []
-replace a b s = case stripPrefix a s of
-    Nothing -> head s : replace a b (tail s)
-    Just s' -> b ++ replace a b s'
-
-capitalize :: String -> String
-capitalize [] = []
-capitalize (s:ss) = toUpper s : ss
 
 sentence :: Noun -> Noun -> Noun -> String -> String
 sentence subject he1 he2 = appEndo $ mconcat $ map Endo $
