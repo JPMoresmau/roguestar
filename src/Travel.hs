@@ -70,5 +70,8 @@ resolveTeleportJump creature_ref face = liftM (fromMaybe TeleportJumpFailed) $ r
 -- | Execute a resolved teleport jump.
 executeTeleportJump :: TeleportJumpOutcome -> DB ()
 executeTeleportJump TeleportJumpFailed = return ()
-executeTeleportJump (TeleportJumpGood creature_ref standing_location) = dbMove (return . toStanding standing_location) creature_ref >> return ()
+executeTeleportJump (TeleportJumpGood creature_ref standing_location) = 
+    do dbMove (return . toStanding standing_location) creature_ref
+       dbPushSnapshot $ TeleportEvent creature_ref
+       return ()
 
