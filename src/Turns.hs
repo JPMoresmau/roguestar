@@ -67,9 +67,10 @@ dbPerform1PlanarAITurn plane_ref =
        should_randomly_generate_monster <- liftM (<= 10) $ linearRoll planar_turn_frequency
        when (length native_locations < length player_locations * 2 && should_randomly_generate_monster) $
            do p <- pickM $ map location player_locations
-	      spawn_position <- pickRandomClearSite 5 0 0 p (== RecreantFactory) plane_ref
-	      newCreature Pirates Recreant (Standing plane_ref spawn_position Here)
-	      return ()
+	      m_spawn_position <- pickRandomClearSite_withTimeout (Just 25) 25 0 0 p (== RecreantFactory) plane_ref
+	      maybe (return () )
+                    (\spawn_position -> newCreature Pirates Recreant (Standing plane_ref spawn_position Here) >> return ()) $ 
+                    m_spawn_position
        dbAdvanceTime plane_ref (1%planar_turn_frequency)
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()

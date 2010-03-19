@@ -4,6 +4,7 @@ module Plane
      planetName,
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
+     pickRandomClearSite_withTimeout,
      pickRandomClearSite,
      getPlanarPosition,
      terrainAt,
@@ -80,14 +81,28 @@ dbGetCurrentPlane = liftM (fmap location) $ maybe (return Nothing) getPlanarPosi
 --
 -- A site is considered clear if there are no objects at all within object_clear squares, and
 -- only appropriate terrain (as defined by a predicate) within terrain_clear squares.
+-- Distance is chessboard distance.
 --
--- This function will return an unsuitable site if it can't find a suitable one.
--- Such a site may have unsuitable terrain around it (unlikely) or it may be outside of
--- the search_radius (likely).  It is never impossible to find an area free of objects, since
--- terrain is infinite and objects are not.
+-- This function will expand the search radius liberally if encounters the slightest
+-- difficulty finding an qualifying position.  The search radius parameter is strictly advisory.
 --
-pickRandomClearSite :: (DBReadable db) => Integer -> Integer -> Integer -> Position -> (TerrainPatch -> Bool) -> PlaneRef -> db Position
-pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
+-- This function can take an optional timeout parameter (pickRandomClearSite_withTimeout).  When used
+-- without a timeout parameter, it may not terminate.  The only possible cause of non-termination is that no
+-- site satisfies the terrain predicate.
+--
+pickRandomClearSite :: (DBReadable db) =>
+    Integer -> Integer -> Integer -> 
+    Position -> (TerrainPatch -> Bool) -> PlaneRef -> 
+    db Position
+pickRandomClearSite search_radius object_clear terrain_clear p terrainPredicate plane_ref = liftM (fromMaybe $ error "pickRandomClearSite: impossible") $
+    pickRandomClearSite_withTimeout Nothing search_radius object_clear terrain_clear p terrainPredicate plane_ref
+
+pickRandomClearSite_withTimeout :: (DBReadable db) => 
+    Maybe Integer -> Integer -> Integer -> Integer -> 
+    Position -> (TerrainPatch -> Bool) -> PlaneRef -> 
+    db (Maybe Position)
+pickRandomClearSite_withTimeout (Just x) _ _ _ _ _ _ | x <= 0 = return Nothing
+pickRandomClearSite_withTimeout timeout search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
     do xys <- liftM2 (\a b -> map Position $ zip a b)
            (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
@@ -99,13 +114,17 @@ pickRandomClearSite search_radius object_clear terrain_clear (Position (start_x,
                             x' <- [x-terrain_clear..x+terrain_clear]] |
 			    y' <- [y-terrain_clear..y+terrain_clear]]
        let clutterIsClear here = not $ any (\p -> distanceBetweenChessboard here p <= object_clear) clutter_locations
-       maybe (pickRandomClearSite (search_radius + 1) 
-                                  object_clear 
-                                  (max 0 $ terrain_clear - 1) 
-                                  (Position (start_x,start_y))
-				  terrainPredicate
-				  plane_ref) 
-             return $ find (\p -> terrainIsClear p && clutterIsClear p) xys
+       let m_result = find (\p -> terrainIsClear p && clutterIsClear p) xys
+       case m_result of
+           Just result -> return $ Just result
+           Nothing -> pickRandomClearSite_withTimeout
+                          (fmap (subtract 1) timeout)
+                          (search_radius + 1) 
+                          object_clear 
+                          (max 0 $ terrain_clear - 1) 
+                          (Position (start_x,start_y))
+			  terrainPredicate
+			  plane_ref
 
 terrainAt :: (DBReadable db) => PlaneRef -> Position -> db TerrainPatch
 terrainAt plane_ref (Position (x,y)) =

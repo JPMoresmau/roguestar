@@ -14,7 +14,6 @@ import Facing
 import TerrainData
 import ToolData
 import Control.Monad
-import Control.Monad.Random
 import SpeciesData
 import Substances
 import PlayerState
@@ -65,11 +64,10 @@ startingEquipmentBySpecies Reptilian = [sphere Oxygen]
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
-    do seed <- getRandom
-       dbNewPlane (Just "belhaven") (TerrainGenerationData {
+    do dbNewPlane (Just "belhaven") (TerrainGenerationData {
            tg_smootheness = 3,
 	   tg_biome = homeBiome $ creature_species creature,
-	   tg_placements = [recreantFactories seed] }) TheUniverse
+	   tg_placements = [] }) TheUniverse
 
 -- |
 -- Begins the game with the specified starting player creature and the specified starting character class.
