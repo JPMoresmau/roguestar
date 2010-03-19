@@ -13,6 +13,7 @@ module Sky
 
 import Models.Sky
 import Animation
+import Tables
 import Scene
 import Models.LibraryData
 import RSAGL.Math
@@ -22,23 +23,26 @@ import Data.Maybe
 import Control.Arrow
 import RSAGL.Modeling
 import RSAGL.Animation
+import System.Random ()
+import Control.Monad.Random
 
 -- | Get the current SkyInfo data for the current planet.
--- REVISIT: this randomly generates solar information, eventually it needs to be generated in the engine
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
 getSkyInfo = proc () ->
-    do temperature <- initial <<< randomA -< (10000,2000)
-       degrees_after_midnight <- initial <<< randomA -< (0,360)
-       degrees_latitude <- initial <<< randomA -< (-90,90)
-       degrees_axial_tilt <- initial <<< randomA -< (0,90)
-       degrees_orbital <- initial <<< randomA -< (0,360)
+    do random_id <- sticky isJust Nothing <<< driverGetAnswerA -< "plane-random-id"
        m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
-       returnA -< default_sky { sky_info_biome = fromMaybe "" m_biome,
-                                sky_info_solar_kelvins = temperature,
-                                sky_info_degrees_after_midnight = degrees_after_midnight,
-                                sky_info_degrees_latitude = degrees_latitude,
-                                sky_info_degrees_axial_tilt = degrees_axial_tilt,
-                                sky_info_degrees_orbital = degrees_orbital }
+       returnA -< fst $ flip runRand (mkStdGen $ fromInteger $ fromMaybe 0 $ random_id >>= readInteger) $
+           do temperature <- getRandomR (10000,2000)
+              degrees_after_midnight <- getRandomR (0,360)
+              degrees_latitude <- getRandomR(-90,90)
+              degrees_axial_tilt <- getRandomR (0,90)
+              degrees_orbital <- getRandomR (0,360)
+              return $ default_sky { sky_info_biome = fromMaybe "" m_biome,
+                                     sky_info_solar_kelvins = temperature,
+                                     sky_info_degrees_after_midnight = degrees_after_midnight,
+                                     sky_info_degrees_latitude = degrees_latitude,
+                                     sky_info_degrees_axial_tilt = degrees_axial_tilt,
+                                     sky_info_degrees_orbital = degrees_orbital }
 
 sky :: RSAnimAX k t i o SkyInfo ()
 sky = proc sky_info ->
