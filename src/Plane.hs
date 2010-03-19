@@ -30,9 +30,11 @@ import FactionData
 dbNewPlane :: (PlaneLocation l) => Maybe String -> TerrainGenerationData -> l -> DB PlaneRef
 dbNewPlane name tg_data l = 
     do rns <- getRandoms
+       random_id <- getRandomR (1,1000000)
        random_name <- randomPlanetName PanGalacticTreatyOrganization
        dbAddPlane (Plane { plane_biome = tg_biome tg_data,
                            plane_terrain = generateTerrain tg_data rns,
+                           plane_random_id = random_id,
                            plane_planet_name = fromMaybe random_name name}) l
 
 planetName :: (DBReadable db) => PlaneRef -> db String

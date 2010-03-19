@@ -374,6 +374,12 @@ dbDispatchQuery ["current-plane"] =
            Nothing -> "answer: current-plane 0"
            Just plane_ref -> "answer: current-plane " ++ show (toUID plane_ref)
 
+dbDispatchQuery ["plane-random-id"] =
+    do m_plane_ref <- dbGetCurrentPlane
+       case m_plane_ref of
+           Nothing -> return "answer: plane-random-id 0"
+           Just plane_ref -> liftM (("answer: plane-random-id " ++) . show . plane_random_id) $ dbGetPlane plane_ref
+
 dbDispatchQuery ["planet-name"] =
     do m_plane_ref <- dbGetCurrentPlane
        case m_plane_ref of
