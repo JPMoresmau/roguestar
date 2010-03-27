@@ -37,8 +37,11 @@ resolveActivation creature_ref =
 
 executeActivation :: ActivationOutcome -> DB ()
 executeActivation (NoEffect) = return ()
-executeActivation (Heal creature_ref x) = healCreature x creature_ref
+executeActivation (Heal creature_ref x) = 
+    do healCreature x creature_ref
+       dbPushSnapshot $ HealEvent creature_ref
 executeActivation (ExpendTool tool_ref activation_outcome) =
     do executeActivation activation_outcome
+       dbPushSnapshot $ ExpendToolEvent tool_ref
        deleteTool tool_ref
                       

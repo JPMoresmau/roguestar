@@ -201,6 +201,8 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (DisarmEvent {}) -> "answer: state disarm-event"
                            SnapshotEvent (SunderEvent {}) -> "answer: state sunder-event"
                            SnapshotEvent (TeleportEvent {}) -> "answer: state teleport-event"
+                           SnapshotEvent (HealEvent {}) -> "answer: state heal-event"
+                           SnapshotEvent (ExpendToolEvent {}) -> "answer: state expend-tool-event"
                            GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["action-count"] =
@@ -232,6 +234,12 @@ dbDispatchQuery ["who-hit"] =
            SnapshotEvent (SunderEvent { sunder_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
 	   _ -> "answer: who-hit 0"
 
+dbDispatchQuery ["tool-used"] =
+    do state <- playerState
+       return $ case state of
+           SnapshotEvent (ExpendToolEvent { expend_tool_event_tool = tool_ref }) -> "answer: tool-used " ++ (show $ toUID tool_ref)
+           _ -> "answer: tool-used 0"
+
 dbDispatchQuery ["weapon-used"] =
     do state <- playerState
        return $ case state of
@@ -254,6 +262,12 @@ dbDispatchQuery ["who-killed"] =
        return $ case state of
            SnapshotEvent (KilledEvent killed_ref) -> "answer: who-killed " ++ (show $ toUID killed_ref)
 	   _ -> "answer: who-killed 0"
+
+dbDispatchQuery ["who-event"] =
+    do state <- playerState
+       return $ case state of
+           SnapshotEvent event -> "answer: who-event " ++ fromMaybe "0" (fmap (show . toUID) $ subjectOf event)
+           _ -> "answer: who-event 0"
 
 dbDispatchQuery ["player-races","0"] =
     return ("begin-table player-races 0 name\n" ++
