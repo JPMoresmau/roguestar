@@ -6,12 +6,14 @@ module Driver
      driverNoop,
      driverDones,
      newDriverObject,
-     driverRead,
      driverAction)
     where
 
 import Data.Maybe
 import Data.IORef
+import Control.Concurrent.MVar
+import Control.Concurrent
+import Control.Exception
 import Data.List
 import System.IO
 import Tables
@@ -57,9 +59,8 @@ instance DriverClass FrozenDriver where
 
 freezeDriver :: (MonadIO m) => DriverObject -> m FrozenDriver
 freezeDriver driver_object =
-    do restate <- liftIO $ driverGet driver_object driver_engine_state
-       dones <- liftIO $ driverDones driver_object
-       return $ FrozenDriver driver_object restate dones
+    do d <- liftIO $ driverGet driver_object id
+       return $ FrozenDriver driver_object (driver_engine_state d) (driver_dones d)
 
 thawDriver :: FrozenDriver -> DriverObject
 thawDriver (FrozenDriver driver_object _ _) = driver_object
@@ -69,9 +70,6 @@ data DriverData = DriverData {
         -- | Unparsed incomming information from the engine, previous lines, separated by line
 	-- These lines are stores in reverse order from how they are recieved.
 	driver_engine_input_lines :: [String],
-	-- | Unparsed incomming information from the engine, current line fragment
-	-- This is cleared when the current line is completed, and moved into driver_engine_input_lines
-	driver_engine_input_line_fragment :: String,
 	-- | Lines already sent to the engine.  This is cleared whenever we send a
 	-- "game action" line.  We retain this because it's wasteful to repeat queries
 	-- when nothing has been committed back to the engine.
@@ -79,12 +77,18 @@ data DriverData = DriverData {
 	-- | Parsed information about the game state.  This is cleared whenever we send a
 	-- "game action" line.
 	driver_engine_state :: RoguestarEngineState,
-	-- | Count of the number of time we've recieved "done" from the engine.
-	driver_dones :: Integer }
+	-- | Count of the number of times we've recieved "done" from the engine.
+	driver_dones :: Integer,
+        -- | Count of the number of times we've sent "driver action" to the engine.
+        driver_actions :: Integer,
+        -- | Writer mutex
+        driver_writing :: MVar (),
+        -- | Reader mutex
+        driver_reading :: MVar() }
 
 -- | An object that contains the state of the interaction between the driver and "roguestar-engine".
 -- Since the Driver interacts on 'stdin'/'stdout', there should probably only be one instance of this in any running program.
-newtype DriverObject = DriverObject (IORef DriverData)
+newtype DriverObject = DriverObject (MVar DriverData)
 
 -- | A frozen 'DriverObject'.  It has a static view of the world as seen at the time that the Driver is fozen, however, the original
 -- 'DriverObject' continues to be updated when this 'FrozenDriver' is used.
@@ -92,21 +96,29 @@ data FrozenDriver = FrozenDriver DriverObject RoguestarEngineState Integer
 
 -- | Initialize a DriverObject.
 newDriverObject :: IO DriverObject
-newDriverObject = liftM DriverObject $ newIORef initial_driver_data
+newDriverObject = 
+    do driver_object <- liftM DriverObject . newMVar =<< initialDriverData
+       forkIO $ forever $ driverRead driver_object
+       return driver_object
 
-initial_driver_data :: DriverData
-initial_driver_data = DriverData {
-    driver_engine_input_lines = [],
-    driver_engine_input_line_fragment = [],
-    driver_engine_output_lines = [],
-    driver_engine_state = RoguestarEngineState [] [],
-    driver_dones = 0 }
+initialDriverData :: IO DriverData
+initialDriverData = 
+    do w <- newMVar ()
+       r <- newMVar ()
+       return $ DriverData {
+           driver_engine_input_lines = [],
+           driver_engine_output_lines = [],
+           driver_engine_state = RoguestarEngineState [] [],
+           driver_actions = 0,
+           driver_dones = 0,
+           driver_writing = w,
+           driver_reading = r }
 
 driverGet :: DriverObject -> (DriverData -> a) -> IO a
-driverGet (DriverObject ioref) f = liftM f $ readIORef ioref
+driverGet (DriverObject mvar) f = liftM f $ readMVar mvar
 
 modifyDriver :: DriverObject -> (DriverData -> DriverData) -> IO () 
-modifyDriver (DriverObject ioref) f = modifyIORef ioref f
+modifyDriver (DriverObject mvar) f = modifyMVar_ mvar (return . f) >> return ()
 
 -- | Specialized 'modifyDriver'.
 modifyEngineState :: DriverObject -> (RoguestarEngineState -> RoguestarEngineState) -> IO ()
@@ -127,56 +139,33 @@ driverQuery driver_object query = driverWrite driver_object $ "game query " ++ u
 -- | Commit an action to the engine.
 driverAction :: DriverObject -> [String] -> IO ()
 driverAction driver_object strs = 
-    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState [] []}
+    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState [] [],
+                                                        driver_actions = succ $ driver_actions driver }
        driverWrite driver_object $ "game action " ++ unwords strs ++ "\n"
 
--- | Writes the specified command to standard output, automatically interleaving calls to read.
--- will never write the same string twice between calls to 'driverReset'.
+-- | Writes the specified command to standard output, will never write the same string twice between calls to 'driverReset'.
 driverWrite :: DriverObject -> String -> IO ()
-driverWrite driver_object str = 
-    do already_sent <- driverGet driver_object (elem str . driver_engine_output_lines)
-       unless already_sent $
-           do modifyDriver driver_object $ \driver -> driver { driver_engine_output_lines=str:driver_engine_output_lines driver }
-              driverWrite_ driver_object str
-       driverRead driver_object
-
-driverWrite_ :: DriverObject -> String -> IO ()
-driverWrite_ driver_object "" = 
-    do hFlush stdout
-       driverRead driver_object
-driverWrite_ driver_object str = 
-    do driverRead driver_object
-       putChar $ head str
-       --hPutChar stderr $ head str -- uncomment to see everything we write in stderr
-       driverWrite_ driver_object $ tail str
-
--- | Reads one character if it is available.
-maybeRead :: IO (Maybe Char)
-maybeRead = do ready <- hReady stdin
-	       case ready of
-			  False -> return Nothing
-			  True -> do char <- getChar
-				     return $ Just char
+driverWrite (DriverObject driver_mvar) str =
+    do already_sent <- modifyMVar driver_mvar $ \driver ->
+           do let already_sent = elem str $ driver_engine_output_lines driver
+              return (if already_sent then driver else driver { driver_engine_output_lines = str:driver_engine_output_lines driver },already_sent)
+       unless already_sent $ 
+           do forkIO $ writing (DriverObject driver_mvar) $ putStr str >> hFlush stdout
+              return ()
 
 -- | Just read from the engine.  Whenever 'driverRead' reads an "over", it automatically
 -- fires off 'interpretText' to parse the newly read information.
 driverRead :: DriverObject -> IO ()
-driverRead driver_object = 
-    do maybe_next_char <- maybeRead
-       case maybe_next_char of
-           Nothing -> return ()
-           Just '\n' -> 
-	       do modifyDriver driver_object (\driver -> driver { driver_engine_input_lines= 
-                                                 (reverse $ driver_engine_input_line_fragment driver) : driver_engine_input_lines driver,
-                                                 driver_engine_input_line_fragment=""})
-                  input_lines <- driverGet driver_object driver_engine_input_lines
-                  case input_lines of
-                      ("over":_) -> interpretText driver_object
-                      _ -> return ()
-           Just next_char -> modifyDriver driver_object (\driver -> driver { 
-	       driver_engine_input_line_fragment=(next_char : driver_engine_input_line_fragment driver) })
-       when (isJust maybe_next_char) $ do --hPutChar stderr $ fromJust maybe_next_char -- uncomment to see everything we read in stderr
-                                          driverRead driver_object
+driverRead driver_object = reading driver_object $
+    do str <- getLine
+       modifyDriver driver_object (\driver -> driver { driver_engine_input_lines= str : driver_engine_input_lines driver })
+       when (str == "over") $ interpretText driver_object
+
+reading :: DriverObject -> IO a -> IO a
+reading driver_object actionM = bracket (driverGet driver_object driver_reading >>= takeMVar) (const $ driverGet driver_object driver_reading >>= flip putMVar ()) (const actionM)
+
+writing :: DriverObject -> IO a -> IO a
+writing driver_object = bracket (driverGet driver_object driver_writing >>= takeMVar) (const $ driverGet driver_object driver_writing >>= flip putMVar ()) . const
 
 {--------------------------------------------------------------------------------------------------
  -  This is the parser.
@@ -193,9 +182,9 @@ interpretText driver_object =
     do final_state <- foldM (interpretLine driver_object) DINeutral =<< driverGet driver_object (reverse . driver_engine_input_lines)
        when (final_state /= DINeutral) $ do hPutStr stderr "interpretText concluded in a non-neutral state, which was:"
 					    hPutStr stderr (show final_state)
-					    modifyDriver driver_object $ \driver -> initial_driver_data { 
-					        driver_dones = driver_dones driver,
-						driver_engine_state = driver_engine_state driver }
+					    modifyDriver driver_object $ \driver -> driver { 
+                                                driver_engine_input_lines = [],
+                                                driver_engine_output_lines = [] }
        modifyDriver driver_object $ \driver -> driver { driver_engine_input_lines = [] }
 
 -- | 'interpretLine' is a simple line-by-line parser invoked using 'foldM'.
@@ -262,7 +251,7 @@ interpretLine _ (DIScanningTable table) str =
 	else do hPutStr stderr "Driver raised protocol error: malformed table row"
 		return DIError )
 
--- If we don't know what else to do, just print crap to stderr.
+-- If we don't know what else to do, just print to stderr.
 interpretLine _ _ str = 
     do hPutStr stderr str
        return DINeutral

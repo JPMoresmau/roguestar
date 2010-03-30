@@ -90,7 +90,6 @@ roguestarTimerCallback :: IORef Globals -> DriverObject -> PrintTextObject -> Ke
 roguestarTimerCallback globals_ref driver_object print_text_object keymap window =
     do result <- timeout 20000000 $
         do addTimerCallback timer_callback_millis $ roguestarTimerCallback globals_ref driver_object print_text_object keymap window
-           driverRead driver_object
            postRedisplay $ Just window
            maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap
        if isNothing result
