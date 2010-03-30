@@ -101,7 +101,7 @@ gameOver = proc () ->
 
 \begin{code}
 planar_states :: [String]
-planar_states = ["player-turn","move","turn","jump","attack","fire","attack-event","miss-event","killed-event","weapon-overheats-event","weapon-explodes-event","disarm-event","sunder-event","clear-terrain"]
+planar_states = ["player-turn","move","turn","jump","attack","fire","clear-terrain"] ++ recognized_events
 
 planarGameplayDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->

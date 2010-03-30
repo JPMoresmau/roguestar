@@ -1,7 +1,7 @@
 {-# LANGUAGE Arrows #-}
 
 module AnimationEvents
-    (eventMessager)
+    (eventMessager,recognized_events)
     where
 
 import Animation
@@ -140,6 +140,9 @@ sentence subject he1 he2 = appEndo $ mconcat $ map Endo $
                    replace "$(his)" $ possessivePronounToString obj,
                    replace "$(His)" $ capitalize $ possessivePronounToString obj]
 
+recognized_events :: [String]
+recognized_events = map fst messages
+
 messages :: [(String,RSAnimAX () () () () () ())]
 messages = [
     messageState "attack-event" $ proc () -> 
@@ -177,6 +180,12 @@ messages = [
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
            returnA -< sentence who_attacks who_hit X "$You sunder(s) $his weapon!",
+    messageState "heal-event" $ proc () ->
+        do who_healed <- nameOf "who-event" -< ()
+           player_hp_string <- playerHPString -< who_healed
+           returnA -< sentence who_healed X X "$You $have been healed!" ++ player_hp_string,
+    messageState "expend-tool-event" $ proc () ->
+        do returnA -< "That object has been used up.",
     messagePrompt "attack" "Attack.  Direction:",
     messagePrompt "fire"   "Fire.  Direction:",
     messagePrompt "move"   "Walk.  Direction:",
