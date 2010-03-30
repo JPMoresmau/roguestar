@@ -8,14 +8,10 @@
 module RNG
     (mkRNG,
      RNG,
-     randomIntegerLine,
-     randomIntegerGrid,
      Random(..),
      RandomGen(..))
     where
 
-import Data.List
-import ListUtils
 import System.Random
 import Control.Arrow (first)
 
@@ -30,25 +26,12 @@ instance RandomGen RNG where
     genRange _ = (0,2^24)
 
 instance Random RNG where
-    random = first mkRNG . random
+    random = first (mkRNG :: Integer -> RNG) . random
     randomR _ = random 
 
 -- |
 -- Construct an RNG from a seed.
 --
-mkRNG :: Integer -> RNG
-mkRNG = RNG . fromIntegral . fst . next . RNG
+mkRNG :: (Integral i) => i -> RNG
+mkRNG = RNG . fromIntegral . fst . next . RNG . toInteger
 
--- |
--- An infinite (in both directions) sequence of random Integers, based
--- on a seed.
---
-randomIntegerLine :: Integer -> (Integer -> Integer)
-randomIntegerLine = bidirectionalAccessor1D . randoms . mkRNG
-
--- |
--- An infinite (in all directions) grid of random Integers, based
--- on a seed.
---
-randomIntegerGrid :: Integer -> ((Integer,Integer) -> Integer)
-randomIntegerGrid = bidirectionalAccessor2D . map (randoms :: RNG -> [Integer]) . randoms . mkRNG

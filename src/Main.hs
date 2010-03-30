@@ -10,7 +10,6 @@ import Tests
 import HierarchicalDatabase
 import Control.Monad
 import TerrainData
-import HopList
 import Protocol
 import GridRayCaster
 
@@ -30,7 +29,6 @@ runByArgs :: String -> IO ()
 
 runByArgs "tests" = do testsPassed <- runAllTests ([sampleTestCase] ++
 						   insidenessTests ++
-						   hopListTests ++
 						   gridRayCasterTests)
 		       if testsPassed
 			  then putStrLn "All tests passed."

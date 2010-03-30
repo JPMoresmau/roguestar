@@ -15,7 +15,7 @@ description:         Roguestar is a science fiction themed roguelike (turn-based
                      The git repository is available at <http://www.downstairspeople.org/git/roguestar-engine.git>.
 homepage:            http://roguestar.downstairspeople.org/
 
-build-depends:       base>3, containers, array, old-time, random, mtl, MaybeT, MonadRandom
+build-depends:       base>3, containers, array, old-time, random, mtl, MaybeT, MonadRandom, data-memocombinators
 build-type:          Simple
 tested-with:         GHC==6.8.2
 
@@ -23,14 +23,14 @@ executable:          roguestar-engine
 main-is:             Main.hs
 hs-source-dirs:      src
 other-modules:       VisibilityData, Stats, FactionData, Behavior, Alignment,
-                     PlaneData, Grids, Perception, SegHopList, PlaneVisibility,
-                     SegmentList, Turns, Plane, CreatureData,
+                     PlaneData, Grids, Perception, PlaneVisibility,
+                     Turns, Plane, CreatureData,
                      StatsData, Protocol, Character, Tool,
-                     ListUtils, Substances, HierarchicalDatabase, Travel, ToolData,
+                     Substances, HierarchicalDatabase, Travel, ToolData,
                      CharacterData, Creature, Facing, DBPrivate,
                      RNG, Species, Position, TerrainData, Combat,
                      Tests, DBData, GridRayCaster, BeginGame,
-                     SpeciesData, TimeCoordinate, DB, HopList, AttributeGeneration,
+                     SpeciesData, TimeCoordinate, DB, AttributeGeneration,
                      CreatureAttribute, Building, BuildingData, Town
 
 ghc-options:         -Wall -threaded -fno-warn-type-defaults

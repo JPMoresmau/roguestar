@@ -1,4 +1,3 @@
-
 module Grids
     (Grid,
      gridAt,
@@ -8,83 +7,79 @@ module Grids
     where
 
 import RNG
-import ListUtils
 import Data.Map as Map
 import Data.Ratio
-import Data.List
+import Data.List as List
 import Random
+import Data.MemoCombinators
+import Control.Arrow
 
-data Grid a = CompletelyRandomGrid Integer ((Integer,Integer) -> Integer) [(Integer,a)]
-            | InterpolatedGrid Integer ((Integer,Integer) -> Integer) (Map (a,a) [(Integer,a)]) (Grid a)
-            | ArbitraryReplacementGrid Integer ((Integer,Integer) -> Integer) [(Rational,a)] [(Integer,a)] (Grid a)
-            | SpecificPlacementGrid (Map (Integer,Integer) a) (Grid a)
-	    | CachedGrid ((Integer,Integer) -> a) (Grid a)
+newtype SeededGrid = SeededGrid Integer deriving (Read,Show)
+data StorableCachedGrid a = StorableCachedGrid (Grid a) ((Integer,Integer) -> a)
 
-data Grid_Persistant a = CompletelyRandomGrid_Persistant Integer [(Integer,a)]
-		       | InterpolatedGrid_Persistant Integer [((a,a),[(Integer,a)])] (Grid_Persistant a)
-		       | ArbitraryReplacementGrid_Persistant Integer [(Rational,a)] [(Integer,a)] (Grid_Persistant a)
-		       | SpecificPlacementGrid_Persistant [((Integer,Integer),a)] (Grid_Persistant a)
-		       deriving (Read,Show)
+instance (Show a) => Show (StorableCachedGrid a) where
+    show (StorableCachedGrid g f) = show g
 
-toPersistant :: (Grid a) -> (Grid_Persistant a)
-toPersistant (CompletelyRandomGrid x _ prob_list) = 
-    CompletelyRandomGrid_Persistant x prob_list
-toPersistant (InterpolatedGrid x _ prob_map grid) = 
-    InterpolatedGrid_Persistant x (toList prob_map) (toPersistant grid)
-toPersistant (ArbitraryReplacementGrid x _ sources replacements grid) = 
-    ArbitraryReplacementGrid_Persistant x sources replacements $ toPersistant grid
-toPersistant (SpecificPlacementGrid placement_map grid) = 
-    SpecificPlacementGrid_Persistant (toList placement_map) (toPersistant grid)
-toPersistant (CachedGrid _ grid) = toPersistant grid
+instance (Read a,Ord a) => Read (StorableCachedGrid a) where
+    readsPrec = (List.map (first storableCachedGrid) .) . readsPrec
 
-fromPersistant :: (Ord a) => (Grid_Persistant a) -> (Grid a)
-fromPersistant (CompletelyRandomGrid_Persistant x prob_list) = 
-    cachedGridOf $ CompletelyRandomGrid x (randomIntegerGrid x) prob_list
-fromPersistant (InterpolatedGrid_Persistant x prob_map grid) =
-    cachedGridOf $ InterpolatedGrid x (randomIntegerGrid x) (fromList prob_map) (fromPersistant grid)
-fromPersistant (ArbitraryReplacementGrid_Persistant x sources replacements grid) =
-    cachedGridOf $ ArbitraryReplacementGrid x (randomIntegerGrid x) sources replacements (fromPersistant grid)
-fromPersistant (SpecificPlacementGrid_Persistant placement_map grid) =
-    SpecificPlacementGrid (fromList placement_map) (fromPersistant grid)
+storableCachedGrid :: (Ord a) => Grid a -> StorableCachedGrid a
+storableCachedGrid g = StorableCachedGrid g $ pair integral integral $ gridAt g
 
-fromPersistant_tupled :: (Ord a) => (Grid_Persistant a,String) -> (Grid a,String)
-fromPersistant_tupled (x,y) = (fromPersistant x,y)
+seededGrid :: Integer -> SeededGrid
+seededGrid n = SeededGrid n 
 
-instance (Show a) => Show (Grid a) where
-    show grid = show $ toPersistant grid
+seededLookup :: SeededGrid -> (Integer,Integer) -> Integer
+seededLookup (SeededGrid n) (x,y) = toInteger $ fst $ next $ mkRNG $ (fst $ next $ mkRNG (fromInteger $ x `mod` max_int)) + (fromInteger $ y `mod` max_int)
+    where max_int = toInteger (maxBound :: Int)
 
-instance (Ord a, Read a) => Read (Grid a) where
-    readsPrec n = \x -> Prelude.map fromPersistant_tupled (readsPrec n x)
+data Grid a = CompletelyRandomGrid {
+                grid_seed :: SeededGrid,
+                grid_weights :: [(Integer,a)] }
+            | InterpolatedGrid {
+                grid_seed :: SeededGrid,
+                grid_interpolation_weights :: Map (a,a) [(Integer,a)],
+                grid_next :: Grid a }
+            | ArbitraryReplacementGrid {
+                grid_seed :: SeededGrid,
+                grid_sources :: [(Rational,a)],
+                grid_replacement_weights :: [(Integer,a)],
+                grid_next :: Grid a }
+            | SpecificPlacementGrid {
+                grid_replacements :: Map (Integer,Integer) a,
+                grid_next :: Grid a }
+	    | CachedGrid (StorableCachedGrid a)
+    deriving (Read,Show)
 
-gridAt :: Ord a => Grid a -> (Integer,Integer) -> a
-gridAt (CompletelyRandomGrid _ seedfn weights) at = fst $ weightedPick weights (mkRNG $ seedfn at)
-gridAt (InterpolatedGrid _ seedfn interpolation_map grid) at@(x,y) = 
+gridAt :: (Ord a) => Grid a -> (Integer,Integer) -> a
+gridAt (CompletelyRandomGrid seeded weights) at = fst $ weightedPick weights (mkRNG $ seededLookup seeded at)
+gridAt (InterpolatedGrid seeded interpolation_map grid) at@(x,y) = 
     let here = gridAt grid (x `div` 2,y `div` 2)
 	there = gridAt grid (x `div` 2 + 1,y `div` 2 + 1)
 	there_x = gridAt grid (x `div` 2 + 1,y `div` 2)
 	there_y = gridAt grid (x `div` 2,y `div` 2 + 1)
-	interpolate a1 a2 = fst $ weightedPick (interpolation_map ! (a1,a2)) (mkRNG $ seedfn at)
+	interpolate a1 a2 = fst $ weightedPick (interpolation_map ! (a1,a2)) (mkRNG $ seededLookup seeded at)
 	in case (even x,even y) of
 				(True,True) -> here
 				(True,False) -> (interpolate here there_y)
 				(False,True) -> (interpolate here there_x)
 				(False,False) -> (interpolate here there)
 
-gridAt (ArbitraryReplacementGrid _ seedfn sources replacements grid) at = 
+gridAt (ArbitraryReplacementGrid seeded sources replacements grid) at = 
     case fmap fst $ find ((== here) . snd) sources of
-         Just frequency | ((seedfn at) `mod` (denominator frequency) < (numerator frequency)) ->
-	     fst $ weightedPick replacements (mkRNG $ seedfn at)
+         Just frequency | (seededLookup seeded at `mod` denominator frequency < numerator frequency) ->
+	     fst $ weightedPick replacements (mkRNG $ seededLookup seeded at)
 	 _ -> here
   where here = gridAt grid at
 
 gridAt (SpecificPlacementGrid rep_map grid) at =
     findWithDefault (gridAt grid at) at rep_map
 
-gridAt (CachedGrid map_fn _) at = map_fn at
+gridAt (CachedGrid (StorableCachedGrid _ f)) at = f at
 
-cachedGridOf :: Ord a => Grid a -> Grid a
-cachedGridOf already_cached_grid@(CachedGrid _ _) = already_cached_grid
-cachedGridOf any_other_grid = CachedGrid (cachedAccessor2D (gridAt any_other_grid)) any_other_grid
+cachedGridOf :: (Ord a) => Grid a -> Grid a
+cachedGridOf already_cached_grid@(CachedGrid {}) = already_cached_grid
+cachedGridOf any_other_grid = CachedGrid $ storableCachedGrid any_other_grid
 
 -- |
 -- Generates a random grid.  The first Integer, smoothness,
@@ -93,22 +88,32 @@ cachedGridOf any_other_grid = CachedGrid (cachedAccessor2D (gridAt any_other_gri
 -- the map.
 generateGrid :: (Ord a) => [(Integer,a)] -> Map (a,a) [(Integer,a)] -> Integer -> [Integer] -> Grid a
 generateGrid weights _ 0 seeds = let seed = head seeds
-				      in CompletelyRandomGrid seed (randomIntegerGrid seed) weights
+				      in CompletelyRandomGrid (seededGrid seed) weights
 generateGrid weights interps n seeds = let seed = head seeds
-					    in cachedGridOf $ InterpolatedGrid seed (randomIntegerGrid seed) interps $ 
-					       generateGrid weights interps (n-1) (tail seeds)
+					    in optimizeGrid $ InterpolatedGrid (seededGrid seed) interps $ 
+					                      generateGrid weights interps (n-1) (tail seeds)
 
 -- |
 -- Arbitrarily (randomly) replaces some elements of a grid with another.
 --
 arbitraryReplaceGrid :: (Ord a) => [(Rational,a)] -> [(Integer,a)] -> Integer -> Grid a -> Grid a
-arbitraryReplaceGrid sources replacements seed grid = cachedGridOf $
-    ArbitraryReplacementGrid seed (randomIntegerGrid seed) sources replacements grid
+arbitraryReplaceGrid sources replacements seed grid = optimizeGrid $
+    ArbitraryReplacementGrid (seededGrid seed) sources replacements grid
 
 -- |
 -- Replace a specific element of a grid.
 --
-specificReplaceGrid :: (Ord a) => (Integer,Integer) -> a -> Grid a -> Grid a
+specificReplaceGrid :: (Integer,Integer) -> a -> Grid a -> Grid a
 specificReplaceGrid position x (SpecificPlacementGrid m grid) =
     SpecificPlacementGrid (Map.insert position x m) grid
 specificReplaceGrid position x grid = specificReplaceGrid position x $ SpecificPlacementGrid (Map.empty) grid
+
+-- |
+-- Strip the cache out of lower layers of the grid, but apply a cache to the top layer.
+--
+optimizeGrid :: (Ord a) => Grid a -> Grid a
+optimizeGrid = cachedGridOf . stripCache
+    where stripCache (CachedGrid (StorableCachedGrid g _)) = g
+          stripCache g@(CompletelyRandomGrid {}) = g
+          stripCache grid = grid { grid_next = stripCache $ grid_next grid }
+
