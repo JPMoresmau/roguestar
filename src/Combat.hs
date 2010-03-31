@@ -147,16 +147,16 @@ executeAttack :: AttackOutcome -> DB ()
 executeAttack (AttackMiss attacker_ref m_tool_ref) =
     do dbPushSnapshot $ MissEvent attacker_ref m_tool_ref
 executeAttack (AttackHit attacker_ref m_tool_ref defender_ref damage) =
-    do dbPushSnapshot $ AttackEvent attacker_ref m_tool_ref defender_ref
-       injureCreature damage defender_ref
+    do injureCreature damage defender_ref
+       dbPushSnapshot $ AttackEvent attacker_ref m_tool_ref defender_ref
 executeAttack (AttackMalfunction attacker_ref tool_ref damage) =
-    do dbPushSnapshot $ WeaponOverheatsEvent attacker_ref tool_ref
-       injureCreature damage attacker_ref
+    do injureCreature damage attacker_ref
        dbMove dbDropTool tool_ref
+       dbPushSnapshot $ WeaponOverheatsEvent attacker_ref tool_ref
        return ()
 executeAttack (AttackExplodes attacker_ref tool_ref damage) =
-    do dbPushSnapshot $ WeaponExplodesEvent attacker_ref tool_ref
-       injureCreature damage attacker_ref
+    do injureCreature damage attacker_ref
+       dbPushSnapshot $ WeaponExplodesEvent attacker_ref tool_ref
        deleteTool tool_ref
 executeAttack (AttackDisarm attacker_ref defender_ref dropped_tool) =
     do dbPushSnapshot $ DisarmEvent attacker_ref defender_ref dropped_tool

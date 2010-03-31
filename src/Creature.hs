@@ -112,7 +112,7 @@ getCreatureInjury = liftM creature_damage . dbGetCreature
 
 -- | Health as an integer count of hit points.
 getCreatureAbsoluteHealth :: (DBReadable db) => CreatureRef -> db Integer
-getCreatureAbsoluteHealth creature_ref = liftM2 (-) (getCreatureMaxHealth creature_ref) (getCreatureInjury creature_ref)
+getCreatureAbsoluteHealth creature_ref = liftM (max 0) $ liftM2 (-) (getCreatureMaxHealth creature_ref) (getCreatureInjury creature_ref)
 
 -- | Health as a fraction of 1.
 getCreatureHealth :: (DBReadable db) => CreatureRef -> db Rational
