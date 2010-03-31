@@ -63,11 +63,15 @@ printCharacterStats unique_id = proc () ->
        print1CharacterStat -< (m_player_stats,"str")
        print1CharacterStat -< (m_player_stats,"spd")
        print1CharacterStat -< (m_player_stats,"con")
-       print1CharacterStat -< (m_player_stats,"int")
+       printTextA -< Just (Event,"-")
        print1CharacterStat -< (m_player_stats,"per")
+       printTextA -< Just (Event,"-")
+       print1CharacterStat -< (m_player_stats,"int")
        print1CharacterStat -< (m_player_stats,"cha")
        print1CharacterStat -< (m_player_stats,"mind")
-
+       printTextA -< Just (Event,"-")
+       print1CharacterStat -< (m_player_stats,"maxhp")
+  
 print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,String) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats

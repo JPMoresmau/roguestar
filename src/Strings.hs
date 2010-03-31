@@ -20,13 +20,14 @@ capitalize (s:ss) = toUpper s : ss
 
 -- | Human readable strings, when we can't just rip the plaintext from the protocol.
 hrstring :: String -> String
-hrstring "str" =  "Strength     "
-hrstring "spd" =  "Speed        "
-hrstring "con" =  "Constitution "
-hrstring "int" =  "Intellect    "
-hrstring "per" =  "Perception   "
-hrstring "cha" =  "Charisma     "
-hrstring "mind" = "Mindfulness  "
+hrstring "str" =   "Strength     "
+hrstring "spd" =   "Speed        "
+hrstring "con" =   "Endurance    "
+hrstring "int" =   "Intellect    "
+hrstring "per" =   "Perception   "
+hrstring "cha" =   "Charisma     "
+hrstring "mind" =  "Mindfulness  "
+hrstring "maxhp" = "Health       "
 hrstring "forceadept" = "force adept"
 hrstring x = map (\c -> if c == '_' then ' ' else c) x
 
