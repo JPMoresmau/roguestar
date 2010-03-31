@@ -132,14 +132,14 @@ instance AffineTransformable SurfaceVertex3D where
 -- | The IO monad itself is AffineTransformable.  This is done by wrapping the IO action in an OpenGL transformation.
 instance AffineTransformable (IO a) where
     transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ map realToFrac $ concat $ rowMajorForm mat
-                                               multMatrix (mat' :: GLmatrix CDouble)
+                                               multMatrix (mat' :: GLmatrix Double)
                                                iofn
     translate (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.translate $ Vector3 (realToFrac x) (realToFrac y) (realToFrac z :: CDouble)
+        do GL.translate $ Vector3 x y z
            iofn
     scale (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.scale (realToFrac x) (realToFrac y) (realToFrac z :: CDouble)
+        do GL.scale x y z
            iofn
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
-        do GL.rotate (realToFrac (toDegrees_ angle) :: CDouble) (Vector3 (realToFrac x) (realToFrac y) (realToFrac z))
+        do GL.rotate (toDegrees_ angle) (Vector3 (realToFrac x) (realToFrac y) (realToFrac z))
            iofn
