@@ -97,6 +97,8 @@ common_keymap = [
  ("\n","make-end"),
  ("\r","make-end"),
  ("#quit","quit"),
+ ("#sky-on","sky-on"),
+ ("#sky-off","sky-off"),
  (",","pickup"),
  (":pickup","pickup"),
  ("d","drop"),

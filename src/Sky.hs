@@ -25,6 +25,7 @@ import RSAGL.Modeling
 import RSAGL.Animation
 import System.Random ()
 import Control.Monad.Random
+import Globals
 
 -- | Get the current SkyInfo data for the current planet.
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
@@ -46,9 +47,10 @@ getSkyInfo = proc () ->
 
 sky :: RSAnimAX k t i o SkyInfo ()
 sky = proc sky_info ->
-    do libraryA -< (scene_layer_sky_sphere,SkySphere sky_info)
+    do sky_on <- readGlobal global_sky_on -< ()
+       libraryA -< (scene_layer_sky_sphere,if sky_on then SkySphere sky_info else NullModel)
        let sun_vector = sunVector sky_info
-       whenJust (transformA sun) -< if angleBetween sun_vector (Vector3D 0 1 0) < fromDegrees 135
+       whenJust (transformA sun) -< if angleBetween sun_vector (Vector3D 0 1 0) < fromDegrees 135 && sky_on
            then Just (affineOf $ rotateToFrom (sunVector sky_info) (Vector3D 0 (-1) 0),sky_info)
 	   else Nothing
        returnA -< ()

@@ -243,6 +243,16 @@ zoom_out_action = alwaysAction "zoom-out" $ \action_input ->
            g { global_planar_camera_distance = min 25.0 $ zoomOut $ global_planar_camera_distance g }
        return ()
 
+sky_on_action :: (String,Action)
+sky_on_action = alwaysAction "sky-on" $ \action_input ->
+    do modifyIORef (action_globals action_input) $ \g -> g { global_sky_on = True }
+       return ()
+
+sky_off_action :: (String,Action)
+sky_off_action = alwaysAction "sky-off" $ \action_input ->
+    do modifyIORef (action_globals action_input) $ \g -> g { global_sky_on = False }
+       return ()
+
 {----------------------------------------------------------
     Lists of Known Actions
  ----------------------------------------------------------}
@@ -285,7 +295,7 @@ all_actions :: [(String,Action)]
 all_actions = [continue_action,quit_action,reroll_action,
                pickup_action,drop_action,wield_action,unwield_action,
                next_action,prev_action,normal_action,select_menu_action,
-               zoom_in_action,zoom_out_action] ++
+               zoom_in_action,zoom_out_action,sky_on_action,sky_off_action] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
               direction_actions ++
