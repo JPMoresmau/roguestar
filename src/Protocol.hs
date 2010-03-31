@@ -34,20 +34,85 @@ import Combat
 import Substances
 import PlayerState
 import Make
+import Control.Concurrent
+import Control.Concurrent.MVar
+import Control.Concurrent.Chan
+import Control.Monad.STM
+import Control.Concurrent.STM.TVar
+import Control.Exception
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
 import DBPrivate (Reference(ToolRef))
 
 mainLoop :: DB_BaseType -> IO ()
-mainLoop db0 = do next_command <- getLine
-		  db1 <- ioDispatch (words $ map toLower next_command) db0
-		  putStrLn "over"
-		  hFlush stdout
-		  mainLoop db1
+mainLoop db_init = 
+    do db_var <- newMVar db_init
+       input_chan <- newChan
+       output_chan <- newChan
+       query_count <- newTVarIO (Just 0) -- Just (the number of running queries) or Nothing (a non-query action is in progress)
+       forkIO $ forever $ writeChan input_chan =<< getLine
+       forkIO $ forever $
+           do next_line <- liftM (map toLower . unlines . lines) (readChan output_chan)
+              when (not $ null next_line ) $
+                  do putStrLn next_line
+                     putStrLn "over"
+              hFlush stdout
+       forever $
+           do next_command <- readChan input_chan
+              case (words $ map toLower next_command) of
+                  ["quit"] -> exitWith ExitSuccess
+                  ["reset"] -> stopping query_count $ modifyMVar_ db_var (const $ return initial_db)
+                  ["game","query","snapshot"] ->
+                      do result <- (runDB $ ro $ liftM (\b -> "answer: snapshot " ++ if b then "yes" else "no") dbHasSnapshot) =<< readMVar db_var
+                         querrying query_count $ complete Nothing output_chan result
+                  ("game":"query":args) -> querrying query_count $
+                      do result <- (runDB $ ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) =<< readMVar db_var
+                         querrying query_count $ complete Nothing output_chan result
+                  ("game":"action":args) ->
+                      do result <- runDB (liftM (const "") $ dbDispatchAction args) =<< readMVar db_var
+                         stopping query_count $ complete (Just db_var) output_chan result
+                         querrying query_count $ complete Nothing output_chan result -- print the result as a query
+                  ("noop":_) -> return ()
+                  failed -> 
+                      do forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords failed ++ "`"
+                         return ()
 
-done :: DB String
-done = return "done"
+-- | Wait for currently running queries to finish, and stop processing incomming queries while we mutate the database.
+stopping :: TVar (Maybe Integer) -> IO () -> IO ()
+stopping query_count actionM = bracket
+    (atomically $ do maybe retry (\x -> when (x /= 0) retry) =<< readTVar query_count
+                     writeTVar query_count $ Nothing)
+    (const $ atomically $ writeTVar query_count (Just 0))
+    (const actionM)
+
+-- | Process a querry concurrently with other queries.
+querrying :: TVar (Maybe Integer) -> IO () -> IO ()
+querrying query_count actionM =
+    do atomically $ writeTVar query_count =<< liftM Just . (maybe retry $ return . (+1)) =<< readTVar query_count
+       forkIO $ finally (atomically $ do writeTVar query_count =<< liftM (fmap (subtract 1)) (readTVar query_count)) actionM
+       return ()
+
+-- | Complete a querry or action.  If a database variable is provided, it will be modified according to the result of the action.
+-- The result of the action will be printed to the output_chan.
+complete :: Maybe (MVar DB_BaseType) -> Chan String -> Either DBError (String,DB_BaseType) -> IO ()
+complete m_db_var output_chan result =
+    do case m_db_var of
+           Just db_var -> 
+               do modifyMVar_ db_var $ \db0 -> return $ case result of
+                      Right (_,db1) -> db1
+                      Left (DBErrorFlag errflag) -> db0 { db_error_flag = show errflag }
+                      Left (DBError errstr) -> db0
+                  writeChan output_chan "done"
+           Nothing ->
+               do case result of
+                      Right (outstr,_) ->
+                          do mapM_ evaluate outstr
+                             writeChan output_chan outstr
+                      Left (DBErrorFlag errflag) -> return () -- client will query this explicitly (if it cares)
+                      Left (DBError errstr) ->
+                          do writeChan output_chan $ "error: " ++ errstr
+                             hPutStrLn stderr $ "DBError: " ++ errstr
 
 dbOldestSnapshotOnly :: (DBReadable db) => db ()
 dbOldestSnapshotOnly = 
@@ -58,25 +123,25 @@ dbOldestSnapshotOnly =
 -- Perform an action assuming the database is in the DBRaceSelectionState,
 -- otherwise returns an error message.
 --
-dbRequiresRaceSelectionState :: (DBReadable db) => db String -> db String
+dbRequiresRaceSelectionState :: (DBReadable db) => db a -> db a
 dbRequiresRaceSelectionState action = 
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
            RaceSelectionState -> action
-           _ -> return $ "protocol-error: not in race selection state (" ++ show state ++ ")"
+           _ -> throwError $ DBError $ "protocol-error: not in race selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action assuming the database is in the DBClassSelectionState,
 -- otherwise returns an error message.
 --
-dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db String) -> db String
+dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db a) -> db a
 dbRequiresClassSelectionState action = 
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
            ClassSelectionState creature -> action creature
-           _ -> return $ "protocol-error: not in class selection state (" ++ show state ++ ")"
+           _ -> throwError $ DBError $ "protocol-error: not in class selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that operates on the player creature (not in any context).
@@ -85,14 +150,14 @@ dbRequiresClassSelectionState action =
 -- * ClassSelectionState
 -- * PlayerCreatureTurn
 --
-dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db String) -> db String
+dbRequiresPlayerCenteredState :: (DBReadable db) => (Creature -> db a) -> db a
 dbRequiresPlayerCenteredState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
 		  ClassSelectionState creature -> action creature
 		  PlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
-		  _ -> return $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
+		  _ -> throwError $ DBError $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that works during any creature's turn in a planar environment.
@@ -101,11 +166,11 @@ dbRequiresPlayerCenteredState action =
 -- * PlayerCreatureTurn
 -- * SnapshotEvent
 --
-dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
+dbRequiresPlanarTurnState :: (DBReadable db) => (CreatureRef -> db a) -> db a
 dbRequiresPlanarTurnState action =
     do dbOldestSnapshotOnly
        state <- playerState
-       maybe (return $ "protocol-error: not in planar turn state (" ++ show state ++ ")") action $ creatureOf state
+       maybe (throwError $ DBError $ "protocol-error: not in planar turn state (" ++ show state ++ ")") action $ creatureOf state
 
 -- |
 -- Perform an action that works only during a player-character's turn.
@@ -113,13 +178,13 @@ dbRequiresPlanarTurnState action =
 --
 -- PlayerCreatureTurn
 --
-dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db String) -> db String
+dbRequiresPlayerTurnState :: (DBReadable db) => (CreatureRef -> db a) -> db a
 dbRequiresPlayerTurnState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
                   PlayerCreatureTurn creature_ref _ -> action creature_ref
-                  _ -> return $ "protocol-error: not in player turn state (" ++ show state ++ ")"
+                  _ -> throwError $ DBError $ "protocol-error: not in player turn state (" ++ show state ++ ")"
 
 -- |
 -- For arbitrary-length menu selections, get the current index into the menu, if any.
@@ -136,43 +201,6 @@ modifyMenuState f_ =
     do number_of_tools <- liftM genericLength toolMenuElements
        let f = (\x -> if number_of_tools == 0 then 0 else x `mod` number_of_tools) . f_
        setPlayerState . modifyMenuIndex f =<< playerState
-
-ioDispatch :: [String] -> DB_BaseType -> IO DB_BaseType
-
-ioDispatch ["quit"] _ = exitWith ExitSuccess
-
-ioDispatch ["reset"] _ = do putStrLn "done"
-			    return initial_db
-
-ioDispatch ("game":game) db0 = 
-    do a <- case game of
-                ["query","snapshot"] -> runDB (ro $ liftM (\b -> "answer: snapshot " ++ if b then "yes" else "no") $ dbHasSnapshot) db0
-                ("query":args) -> runDB (ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) db0
-		("action":args) -> runDB (dbDispatchAction args) db0
-                _ -> return $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords game ++ "`"
-       case a of
-           Right (outstr,db1) -> 
-	       do putStrLn (map toLower outstr)
-	          return db1
-           Left (DBErrorFlag errtype) -> 
-	       do putStrLn "done"
-                  hPutStrLn stderr $ "DBErrorFlag: " ++ show errtype
-	          return $ db0 { db_error_flag = show errtype }
-  	   Left (DBError errstr) -> 
-	       do putStrLn (map toLower errstr ++ "\n")
-                  hPutStrLn stderr $ "DBError: " ++ errstr
-	          return db0
-
-ioDispatch ("save":_) db0 = do putStrLn "engine-error: save not implemented"
-			       return db0
-
-ioDispatch ("load":_) db0 = do putStrLn "engine-error: load not implemented"
-			       return db0
-
-ioDispatch ("noop":_) db0 = return db0
-
-ioDispatch unknown_command db0 = do putStrLn ("protocol-error: unknown command " ++ (unwords unknown_command))
-				    return db0
 
 dbDispatchQuery :: (DBReadable db) => [String] -> db String
 dbDispatchQuery ["state"] = 
@@ -402,8 +430,8 @@ dbDispatchQuery ["planet-name"] =
 
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
 
-dbDispatchAction :: [String] -> DB String
-dbDispatchAction ["continue"] = dbPopOldestSnapshot >> done
+dbDispatchAction :: [String] -> DB ()
+dbDispatchAction ["continue"] = dbPopOldestSnapshot
 
 dbDispatchAction ["select-race",race_name] = 
     dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
@@ -425,44 +453,43 @@ dbDispatchAction [direction] | isJust $ stringToFacing direction =
                MoveMode ->   dbDispatchAction ["move",direction]
                ClearTerrainMode ->  dbDispatchAction ["clear-terrain",direction]
                _ ->          dbDispatchAction ["normal",direction]
-           _ -> return "protocol-error: not in player turn state"
+           _ -> throwError $ DBError $ "protocol-error: not in player turn state"
 
 dbDispatchAction ["normal"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref NormalMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref NormalMode)
 
 dbDispatchAction ["normal",direction] | Just face <- stringToFacing direction =
     dbRequiresPlayerTurnState $ \creature_ref -> 
         do behavior <- facingBehavior creature_ref face
            dbPerformPlayerTurn behavior creature_ref
-           done
 
 dbDispatchAction ["move"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref MoveMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref MoveMode)
 
 dbDispatchAction ["move",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Step $ fromJust $ stringToFacing direction) creature_ref)
 
 dbDispatchAction ["jump"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref JumpMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref JumpMode)
 
 dbDispatchAction ["jump",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Behavior.Jump $ fromJust $ stringToFacing direction) creature_ref >> done)
+    dbRequiresPlayerTurnState (\creature_ref -> dbPerformPlayerTurn (Behavior.Jump $ fromJust $ stringToFacing direction) creature_ref)
 
 dbDispatchAction ["turn"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref TurnMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref TurnMode)
 
 dbDispatchAction ["turn",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (TurnInPlace $ fromJust $ stringToFacing direction) creature_ref
 
 dbDispatchAction ["clear-terrain"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref ClearTerrainMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref ClearTerrainMode)
 
 dbDispatchAction ["clear-terrain",direction] | isJust $ stringToFacing direction =
-    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (ClearTerrain $ fromJust $ stringToFacing direction) creature_ref >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (ClearTerrain $ fromJust $ stringToFacing direction) creature_ref
 
-dbDispatchAction ["next"] = modifyMenuState (+1) >> done
+dbDispatchAction ["next"] = modifyMenuState (+1)
 
-dbDispatchAction ["prev"] = modifyMenuState (subtract 1) >> done
+dbDispatchAction ["prev"] = modifyMenuState (subtract 1)
 
 dbDispatchAction ["select-menu"] =
     do state <- playerState
@@ -475,17 +502,17 @@ dbDispatchAction ["select-menu"] =
                DropMode {}   -> dbDispatchAction ["drop",selection]
                WieldMode {}  -> dbDispatchAction ["wield",selection]
                MakeMode {}   -> dbDispatchAction ["make-with",selection]
-               _ -> return "protocol-error: not in menu selection state"
-           _ -> return "protocol-error: not in player turn state"
+               _ -> throwError $ DBError $ "protocol-error: not in menu selection state"
+           _ -> throwError $ DBError $ "protocol-error: not in player turn state"
 
 dbDispatchAction ["make-begin"] = dbRequiresPlayerTurnState $ \creature_ref ->
-    setPlayerState (PlayerCreatureTurn creature_ref (MakeMode 0 prepare_make)) >> done
+    setPlayerState (PlayerCreatureTurn creature_ref (MakeMode 0 prepare_make))
 
 dbDispatchAction ["make-what",what] | (Just device_kind) <- readDeviceKind what =
     do state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode n make_prep) -> (setPlayerState $ PlayerCreatureTurn c $ MakeMode n (make_prep `makeWith` device_kind)) >> done
-           _ -> return "protocol-error: not in make or make-what state"
+           PlayerCreatureTurn c (MakeMode n make_prep) -> (setPlayerState $ PlayerCreatureTurn c $ MakeMode n (make_prep `makeWith` device_kind))
+           _ -> throwError $ DBError $ "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-with",tool_uid] =
     do tool_ref <- readUID ToolRef tool_uid
@@ -493,18 +520,18 @@ dbDispatchAction ["make-with",tool_uid] =
        state <- playerState
        case state of
            PlayerCreatureTurn c (MakeMode _ make_prep) -> case (hasChromalite tool, hasMaterial tool, hasGas tool) of
-               (Just ch,_,_) | needsChromalite make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (ch,tool_ref)) >> done
-               (_,Just m,_) | needsMaterial make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (m,tool_ref)) >> done
-               (_,_,Just g) | needsGas make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (g,tool_ref)) >> done
-               _ | otherwise -> return "error: tool doesn't have needed substance"
-           _ -> return "protocol-error: not in make or make-what state"
+               (Just ch,_,_) | needsChromalite make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (ch,tool_ref))
+               (_,Just m,_) | needsMaterial make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (m,tool_ref))
+               (_,_,Just g) | needsGas make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (g,tool_ref))
+               _ | otherwise -> throwError $ DBError $ "error: tool doesn't have needed substance"
+           _ -> throwError $ DBError $ "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-end"] =
     do state <- playerState
        case state of
-           PlayerCreatureTurn c (MakeMode _ make_prep) | isFinished make_prep -> dbPerformPlayerTurn (Make make_prep) c >> done
-           PlayerCreatureTurn _ (MakeMode {}) -> return "protocol-error: make isn't complete"
-           _ -> return "protocol-error: not in make or make-what state"
+           PlayerCreatureTurn c (MakeMode _ make_prep) | isFinished make_prep -> dbPerformPlayerTurn (Make make_prep) c
+           PlayerCreatureTurn _ (MakeMode {}) -> throwError $ DBError $ "protocol-error: make isn't complete"
+           _ -> throwError $ DBError $ "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
@@ -512,12 +539,10 @@ dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
            [tool_ref] -> dbPerformPlayerTurn (Pickup tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag NothingAtFeet
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (PickupMode 0))
-       done
 
 dbDispatchAction ["pickup",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
        dbPerformPlayerTurn (Pickup tool_ref) creature_ref
-       done
 
 dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do inventory <- dbGetContents creature_ref
@@ -525,12 +550,10 @@ dbDispatchAction ["drop"] = dbRequiresPlayerTurnState $ \creature_ref ->
            [tool_ref] -> dbPerformPlayerTurn (Drop tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag NothingInInventory
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (DropMode 0))
-       done
 
 dbDispatchAction ["drop",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
        dbPerformPlayerTurn (Drop tool_ref) creature_ref
-       done
 
 dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do available <- availableWields creature_ref
@@ -538,47 +561,42 @@ dbDispatchAction ["wield"] = dbRequiresPlayerTurnState $ \creature_ref ->
            [tool_ref] -> dbPerformPlayerTurn (Wield tool_ref) creature_ref >> return ()
 	   [] -> throwError $ DBErrorFlag NothingInInventory
 	   _ -> setPlayerState (PlayerCreatureTurn creature_ref (WieldMode 0))
-       done
 
 dbDispatchAction ["wield",tool_uid] = dbRequiresPlayerTurnState $ \creature_ref ->
     do tool_ref <- readUID ToolRef tool_uid
        dbPerformPlayerTurn (Wield tool_ref) creature_ref
-       done
 
-dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref >> done 
+dbDispatchAction ["unwield"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Unwield creature_ref
 
 dbDispatchAction ["fire"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> rangedAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref FireMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> rangedAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref FireMode)
 
-dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref >> done
+dbDispatchAction ["fire",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Fire $ fromJust $ stringToFacing direction) creature_ref
 
 dbDispatchAction ["attack"] =
-    dbRequiresPlayerTurnState $ \creature_ref -> meleeAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref AttackMode) >> done
+    dbRequiresPlayerTurnState $ \creature_ref -> meleeAttackModel creature_ref >> setPlayerState (PlayerCreatureTurn creature_ref AttackMode)
 
-dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Attack $ fromJust $ stringToFacing direction) creature_ref >> done
+dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Attack $ fromJust $ stringToFacing direction) creature_ref
 
-dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Activate creature_ref >> done
+dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Activate creature_ref
 
-dbDispatchAction unrecognized = return ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
+dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
 
-dbSelectPlayerRace :: String -> DB String
+dbSelectPlayerRace :: String -> DB ()
 dbSelectPlayerRace race_name = case find (\s -> map toLower (show s) == race_name) player_species of
-			       Nothing -> return ("protocol-error: unrecognized race '" ++ race_name ++ "'")
-			       Just species -> do generateInitialPlayerCreature species
-						  done
+			       Nothing -> throwError $ DBError $ "protocol-error: unrecognized race '" ++ race_name ++ "'"
+			       Just species -> generateInitialPlayerCreature species
 
-dbSelectPlayerClass :: String -> Creature -> DB String
+dbSelectPlayerClass :: String -> Creature -> DB ()
 dbSelectPlayerClass class_name creature = 
     let eligable_base_classes = getEligableBaseCharacterClasses creature
 	in case find (\x -> (map toLower . show) x == class_name) eligable_base_classes of
-	   Nothing -> return ("protocol-error: unrecognized or invalid class '" ++ class_name ++ "'")
-	   Just the_class -> do dbBeginGame creature the_class
-			        done
+	   Nothing -> throwError $ DBError $ "protocol-error: unrecognized or invalid class '" ++ class_name ++ "'"
+	   Just the_class -> dbBeginGame creature the_class
 
-dbRerollRace :: Creature -> DB String
+dbRerollRace :: Creature -> DB ()
 dbRerollRace _ = do starting_race <- dbGetStartingRace
 		    generateInitialPlayerCreature $ fromJust starting_race
-		    done
 
 dbQueryPlayerStats :: (DBReadable db) => Creature -> db String
 dbQueryPlayerStats creature = return $ playerStatsTable creature
