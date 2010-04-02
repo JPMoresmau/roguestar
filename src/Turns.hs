@@ -84,6 +84,6 @@ dbPerform1CreatureAITurn creature_ref =
                _ | rand_x < 5 -> Wait -- if AI gets stuck, this will make sure they waste time so the game doesn't hang
                _ | rand_x < 20 -> Step rand_face
 	       1 -> Attack face_to_player
-               x | x >= 10 -> Jump face_to_player
+               -- x | x >= 10 -> Jump face_to_player  -- disable this until we can handle non-player teleporting sanely
 	       _ -> Step face_to_player
 
