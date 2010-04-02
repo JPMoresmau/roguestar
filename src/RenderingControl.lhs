@@ -68,6 +68,7 @@ mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 mainDispatch = proc () ->
     do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
        monitorPlanetName -< ()
+       monitorCompassReading -< ()
        returnA -< result
 
 menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
@@ -85,6 +86,18 @@ monitorPlanetName = proc () ->
            Nothing ->        Nothing
            Just "nothing" -> Nothing
            Just somewhere -> Just (Event,"Welcome to " ++ capitalize somewhere ++ ".")
+       returnA -< ()
+
+monitorCompassReading :: RSAnimAX k t i o () ()
+monitorCompassReading = proc () ->
+    do m_compass <- driverGetAnswerA -< "compass"
+       p <- changed (==) <<< sticky isJust Nothing -< m_compass
+       printTextA -< case m_compass of
+           _ | not p ->      Nothing
+           Nothing ->        Nothing
+           Just "nothing" -> Nothing
+           Just "here" ->    Nothing
+           Just compass ->   Just (Event,"Compass reading: " ++ hrstring compass ++ ".")
        returnA -< ()
 \end{code}
 
