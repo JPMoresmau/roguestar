@@ -1,6 +1,3 @@
-\section{Library Models}
-
-\begin{code}
 module Models.LibraryData
     (LibraryModel(..),EnergyColor(..))
     where
@@ -56,4 +53,3 @@ data LibraryModel =
   | Monolith
   | Portal
       deriving (Eq,Ord,Show)
-\end{code}      
