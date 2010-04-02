@@ -1,6 +1,3 @@
-\section{The Top-Level Animation Loop}
-
-\begin{code}
 {-# LANGUAGE Arrows #-}
 
 module RenderingControl
@@ -8,7 +5,6 @@ module RenderingControl
     where
 
 import Globals
-import Data.List
 import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Modeling
@@ -19,7 +15,6 @@ import PrintText
 import Tables
 import VisibleObject
 import RSAGL.Animation
-import Control.Applicative
 import qualified Data.Map as Map
 import Sky
 import Scene
@@ -32,9 +27,9 @@ import AnimationMenus
 import AnimationExtras
 import AnimationEvents
 import Strings
-\end{code}
 
-\begin{code}
+
+-- | Enters the top-level animation loop.
 mainAnimationLoop :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 mainAnimationLoop = proc () ->
     do m_state <- driverGetAnswerA -< "state"
@@ -44,18 +39,17 @@ mainAnimationLoop = proc () ->
   where mainWelcome = proc () ->
             do printTextOnce -< Just (Event,"Welcome to Roguestar-GL.")
 	       returnA -< ()
-\end{code}
 
-\subsection{The Main Dispatch}
+-- | This is the actual to-level animation loop.
+mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+mainDispatch = proc () ->
+    do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
+       monitorPlanetName -< ()
+       monitorCompassReading -< ()
+       returnA -< result
 
-\texttt{mainDispatch} transfers control of the main thread to a
-subprogram based on the state of the engine.  For example, menu-related
-states dispatch to \texttt{menuDispatch} which manages the menu gui.
-
-\texttt{mainHeader} guards against changes in the engine state.
-Whenever the state changes, the header switches to \texttt{mainDispatch}.
-
-\begin{code}
+-- | Forces the current RSAnim thread to switch whenever the current state does not match the specified predicate.
+-- Any switch that wants to surrender control whenever the state changes should call this first.
 mainStateHeader :: (String -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo blanking_state | blanking_state `elem` blanking_states = blankingDispatch blanking_state
@@ -64,13 +58,7 @@ mainStateHeader = genericStateHeader switchTo
 	switchTo "game-over" = gameOver
 	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ unknown_state
 
-mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
-mainDispatch = proc () ->
-    do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
-       monitorPlanetName -< ()
-       monitorCompassReading -< ()
-       returnA -< result
-
+-- | Displays all menus with a black background.
 menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
@@ -88,6 +76,7 @@ monitorPlanetName = proc () ->
            Just somewhere -> Just (Event,"Welcome to " ++ capitalize somewhere ++ ".")
        returnA -< ()
 
+-- | Print a compass heading message whenever it changes.
 monitorCompassReading :: RSAnimAX k t i o () ()
 monitorCompassReading = proc () ->
     do m_compass <- driverGetAnswerA -< "compass"
@@ -99,23 +88,19 @@ monitorCompassReading = proc () ->
            Just "here" ->    Nothing
            Just compass ->   Just (Event,"Compass reading: " ++ hrstring compass ++ ".")
        returnA -< ()
-\end{code}
 
-\subsection{The Game Over State}
 
-\begin{code}
+-- | Print the game over message and retain control of the rendering loop forever.
 gameOver :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 gameOver = proc () ->
     do printTextOnce -< Just (Event,"Game Over")
        returnA -< roguestarSceneLayerInfo mempty basic_camera
-\end{code}
 
-\subsection{The Planar Gameplay Dispatch}
-
-\begin{code}
+-- | List of all states that require the display of the planar environment (terrain, characters, tools, and sky)
 planar_states :: [String]
 planar_states = ["player-turn","move","turn","jump","attack","fire","clear-terrain"] ++ recognized_events
 
+-- | Captures all planar visuals: terrain, characters, tools, and sky.
 planarGameplayDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 planarGameplayDispatch = proc () ->
     do -- setup/get infos
@@ -151,6 +136,8 @@ planarGameplayDispatch = proc () ->
 	   else NoLight)
        returnA -< roguestarSceneLayerInfo (skyAbsorbtionFilter sky_info) planar_camera
 
+-- | Sets up a Camera, based on a camera distance parameter (probably tied to the global_planar_camera_distance variable)
+-- and the look-at point.
 planarCamera :: Double -> Point3D -> Camera
 planarCamera camera_distance look_at = PerspectiveCamera {
     camera_position = translate (vectorScaleTo camera_distance $ Vector3D 0 (7*(camera_distance/10)**2) camera_distance) look_at,
@@ -158,6 +145,7 @@ planarCamera camera_distance look_at = PerspectiveCamera {
     camera_up = Vector3D 0 1 0,
     camera_fov = fromDegrees $ 40 + 30 / camera_distance }
 
+-- | Retrieve the look-at point from the engine.
 centerCoordinates :: RSAnimAX any t i o () (Maybe (Integer,Integer))
 centerCoordinates = proc () ->
     do m_center_coordinates_table <- sticky isJust Nothing <<< driverGetTableA -< ("center-coordinates","0")
@@ -165,12 +153,12 @@ centerCoordinates = proc () ->
                      x <- tableLookupInteger center_coordinates_table ("axis","coordinate") "x" -- Maybe monad
                      y <- tableLookupInteger center_coordinates_table ("axis","coordinate") "y" 
 		     return (x,y)
-\end{code}
 
-\begin{code}
+-- | A list of the states that require the screen to be blanked (made black), interrupting the planar visuals.
 blanking_states :: [String]
 blanking_states = ["teleport-event"]
 
+-- | Display the blanked screen and print any blanking events.
 blankingDispatch :: String -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 blankingDispatch "teleport-event" = proc () ->
     do mainStateHeader (`elem` blanking_states) -< () 
@@ -181,4 +169,3 @@ blankingDispatch "teleport-event" = proc () ->
 blankingDispatch blanking_state = proc () ->
     do debugOnce -< Just $ "blankingDispatch: unrecognized blanking_state `" ++ blanking_state ++ "`"
        returnA -< roguestarSceneLayerInfo mempty basic_camera
-\end{code}
