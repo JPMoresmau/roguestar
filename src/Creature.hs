@@ -6,6 +6,7 @@ module Creature
      Roll(..),
      RollComponents(..),
      rollCreatureAbilityScore,
+     getCurrentCreature,
      getCreatureFaction,
      injureCreature,
      healCreature,
@@ -93,6 +94,13 @@ getTerrainAffinity creature_ref =
                do t <- terrainAt plane_ref $ offsetPosition (facingToRelative face) pos
                   liftM (creatureAbilityScore $ TerrainAffinity t) $ dbGetCreature creature_ref
        return $ terrain_affinity_points `div` 4
+
+-- | Get the current creature, if it belongs to the specified faction, based on the current playerState.
+getCurrentCreature :: (DBReadable db) => Faction -> db (Maybe CreatureRef)
+getCurrentCreature faction =
+    do m_who <- liftM creatureOf $ playerState
+       is_one_of_us <- maybe (return False) (liftM (== faction) . getCreatureFaction) m_who
+       return $ if is_one_of_us then m_who else Nothing
 
 getCreatureFaction :: (DBReadable db) => CreatureRef -> db Faction
 getCreatureFaction = liftM creature_faction . dbGetCreature

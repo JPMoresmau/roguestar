@@ -40,6 +40,7 @@ import Control.Concurrent.Chan
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
 import Control.Exception
+import qualified Perception
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
 -- We need to construct References based on UIDs, so we cheat a little:
@@ -427,6 +428,12 @@ dbDispatchQuery ["planet-name"] =
        case m_plane_ref of
          Nothing -> return "answer: planet-name nothing"
          Just plane_ref -> liftM ("answer: planet-name " ++) $ planetName plane_ref
+
+dbDispatchQuery ["compass"] =
+    do m_player_ref <- getCurrentCreature Player
+       case m_player_ref of
+         Nothing -> return "answer: compass nothing"
+         Just player_ref -> Perception.runPerception player_ref $ liftM (("answer: compass " ++) . show) Perception.compass
 
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
 

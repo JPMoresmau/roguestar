@@ -14,19 +14,24 @@ module Perception
      myFaction,
      Perception.getCreatureFaction,
      whereAmI,
-     localBiome)
+     localBiome,
+     compass)
     where
 
 import Control.Monad.Reader
-import Control.Monad
+import Data.Ord
 import DB
 import FactionData
 import Creature
 import PlaneVisibility
 import PlaneData
 import Data.Maybe
+import Data.List
 import Facing
+import Position
 import TerrainData
+import BuildingData
+import Building
 
 newtype (DBReadable db) => DBPerception db a = DBPerception { fromPerception :: (ReaderT CreatureRef db a) }
 
@@ -87,3 +92,14 @@ localBiome :: (DBReadable db) => DBPerception db Biome
 localBiome = 
     do plane_ref <- whatPlaneAmIOn
        liftDB $ liftM plane_biome $ dbGetPlane plane_ref
+
+compass :: (DBReadable db) => DBPerception db Facing
+compass =
+    do let signalling_building_types = [Portal,Monolith]
+       (_,pos) <- whereAmI
+       plane <- whatPlaneAmIOn
+       liftDB $
+           do buildings <- liftM (sortBy $ comparing $ distanceBetweenSquared pos . location) $ filterM (liftM (`elem` signalling_building_types) . buildingType . entity) =<< 
+                               dbGetContents plane
+              return $ maybe Here (faceAt pos . location) $ listToMaybe buildings
+       

@@ -7,7 +7,6 @@ module Turns
 import Control.Monad.Maybe
 import Control.Monad.Trans
 import DB
-import DBData
 import FactionData
 import SpeciesData
 import Plane
