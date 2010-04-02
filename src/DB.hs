@@ -422,8 +422,8 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 
 -- |
 -- Set the location of an object.
--- This is where we handle making sure that a creature can only wield one tool, and a building
--- can only point to one subsequent plane.
+-- This is where we handle making sure that a creature can only wield one tool, and
+-- a Plane can point to only one subsequent Plane.
 --
 dbSetLocation :: (LocationType e,LocationType t) => Location S e t -> DB ()
 dbSetLocation loc = 
@@ -443,7 +443,7 @@ dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<< dbGetContent
 -- Moves an object, returning the location of the object before and after
 -- the move.
 --
-dbMove :: (LocationType (Reference e),LocationType b) =>
+dbMove :: (ReferenceType e, LocationType (Reference e),LocationType b) =>
           (forall m. DBReadable m => Location M (Reference e) () -> m (Location M (Reference e) b)) -> 
           (Reference e) ->
           DB (Location S (Reference e) (),Location S (Reference e) b)
@@ -451,6 +451,8 @@ dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
        dbSetLocation $ generalizeLocationRecord $ unsafeLocation new
+       when (getLocation old =/= getLocation new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
+           dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (getLocation new)
        return (unsafeLocation old, unsafeLocation new)
 
 dbMoveAllWithin :: (forall m. DBReadable m => 
