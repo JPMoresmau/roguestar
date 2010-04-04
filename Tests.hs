@@ -25,6 +25,15 @@ import RSAGL.Bottleneck
 import RSAGL.Animation.Joint
 import Data.Maybe
 import Control.Monad
+import RSAGL.Types
+
+instance Arbitrary GLdouble where
+    arbitrary = fmap f2f (arbitrary :: Gen Double)
+    shrink = List.map f2f . (shrink :: Double -> [Double]) . f2f
+
+instance Arbitrary GLfloat where
+    arbitrary = fmap f2f (arbitrary :: Gen Float)
+    shrink = List.map f2f . (shrink :: Float -> [Float]) . f2f
 
 --
 -- State machine that adds its input to its state
@@ -89,14 +98,14 @@ spawnPMD n = liftM (head . last) $ frpTest [spawnPlusAndMinusAndDie] $ replicate
 
 testIntegral :: IO ()
 testIntegral = testCloseIO "testIntegral"
-                  (frpTest [proc () -> integral (0 :: Double) -< perSecond 1.0] (replicate 16 ()))
+                  (frpTest [proc () -> integral (0 :: RSdouble) -< perSecond 1.0] (replicate 16 ()))
                   ([[0.0],[0.1],[0.2],[0.3],[0.4],[0.5],[0.6],[0.7],[0.8],[0.9],[1.0],[1.1],[1.2],[1.3],[1.4],[1.5]])
                   (listEqualClose $ listEqualClose $ equalClose)
 
 testDerivative :: IO ()
 testDerivative = testCloseIO "testDerivative"
                     (frpTest [derivative]
-                             [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0 :: Double])
+                             [5.0,6.0,8.0,11.0,15.0,20.0,26.0,33.0 :: RSdouble])
                     (List.map (List.map perSecond) [[0],[10],[20],[30],[40],[50],[60],[70]])
                     (==)
 
@@ -192,10 +201,10 @@ testNewell =
        testClose "testNewell(y)" y (-0.57735) equalClose
        testClose "testNewell(z)" z 0.57735 equalClose
 
-type Double4 = (Double,Double,Double,Double)
-type Double44 = (Double4,Double4,Double4,Double4)
+type RSdouble4 = (RSdouble,RSdouble,RSdouble,RSdouble)
+type RSdouble44 = (RSdouble4,RSdouble4,RSdouble4,RSdouble4)
 
-d4ToMatrix :: Double44 -> Matrix
+d4ToMatrix :: RSdouble44 -> Matrix
 d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
 testDeterminant4 :: IO ()
@@ -214,7 +223,7 @@ quickCheckMatrixIdentity4 :: IO ()
 quickCheckMatrixIdentity4 =
     do putStr "quickCheckMatrixIdentity4: "
        quickCheck _qcmi
-           where _qcmi :: Double44 -> Bool
+           where _qcmi :: RSdouble44 -> Bool
 	         _qcmi m = (identity_matrix `matrixMultiply` mat) `matrixEqualClose` mat
 		     where mat = d4ToMatrix m
 
@@ -222,7 +231,7 @@ quickCheckMatrixDeterminant4 :: IO ()
 quickCheckMatrixDeterminant4 =
     do putStr "quickCheckMatrixDeterminant4: "
        quickCheck _qcmi
-           where _qcmi :: Double44 -> Bool
+           where _qcmi :: RSdouble44 -> Bool
                  _qcmi m = 
                      determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d4ToMatrix m
@@ -231,7 +240,7 @@ quickCheckMatrixMultiplyDeterminant4 :: IO ()
 quickCheckMatrixMultiplyDeterminant4 =
     do putStr "quickCheckMatrixMultiplyDeterminant4: "
        quickCheck _qcmmd 
-            where _qcmmd :: (Double44,Double44) -> Bool
+            where _qcmmd :: (RSdouble44,RSdouble44) -> Bool
                   _qcmmd (m1,m2) =
                        (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d4ToMatrix m1
@@ -241,7 +250,7 @@ quickCheckMatrixInverse4 :: IO ()
 quickCheckMatrixInverse4 =
     do putStr "quickCheckMatrixInverse4: "
        quickCheck _qcmi
-           where _qcmi :: Double44 -> Bool
+           where _qcmi :: RSdouble44 -> Bool
                  _qcmi ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = 
                      if determinant mat `equalClose` 0
                      then True
@@ -252,7 +261,7 @@ quickCheckCachedMatrixValues :: IO ()
 quickCheckCachedMatrixValues =
     do putStr "quickCheckCachedMatrixValues: "
        quickCheck _qccmv
-           where _qccmv :: Double44 -> Bool
+           where _qccmv :: RSdouble44 -> Bool
                  _qccmv ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) =
                      let mat = matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
                          matrixAndDeterminantEqualClose x y = determinant x `equalClose` determinant y && x `matrixEqualClose` y
@@ -346,7 +355,7 @@ testLODCache =
 testRK4 :: IO ()
 testRK4 = testClose "testRK4" 
                     (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0 (fromSeconds 0) (fromSeconds 1) 100)
-                    (sin 1.0 :: Double)
+                    (sin 1.0 :: RSdouble)
                     equalClose
 
 main :: IO ()
