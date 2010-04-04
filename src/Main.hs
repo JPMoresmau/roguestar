@@ -7,7 +7,6 @@ module Main
 import System.IO
 import PrintText
 import Data.Maybe
-import Data.List
 import Graphics.UI.GLUT
 import Control.Monad
 import Actions

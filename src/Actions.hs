@@ -23,7 +23,7 @@ import Data.Maybe
 import System.IO
 import Globals
 import Data.IORef
-import Control.Arrow
+import RSAGL.Types
 
 -- |
 -- Input to an action.
@@ -239,15 +239,15 @@ selectBaseClassAction :: String -> (String,Action)
 selectBaseClassAction s = 
     (s,selectTableAction ("base-classes","0","class") "class-selection" "select-class" s)
 
-zoomSize :: Double -> Double
+zoomSize :: RSdouble -> RSdouble
 zoomSize x | x < 3 = 0.2
 zoomSize x | x < 10 = 1.0
 zoomSize _ | otherwise = 5.0
 
-zoomIn :: Double -> Double
+zoomIn :: RSdouble -> RSdouble
 zoomIn x = x - (zoomSize $ x - zoomSize x)
 
-zoomOut :: Double -> Double
+zoomOut :: RSdouble -> RSdouble
 zoomOut x = x + (zoomSize x)
 
 zoom_in_action :: (String,Action)

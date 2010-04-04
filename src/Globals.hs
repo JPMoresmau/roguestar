@@ -3,8 +3,10 @@ module Globals
      default_globals)
     where
 
+import RSAGL.Types
+
 data Globals = Globals {
-    global_planar_camera_distance :: Double,
+    global_planar_camera_distance :: RSdouble,
     global_sky_on :: Bool }
 
 default_globals :: Globals

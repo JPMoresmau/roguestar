@@ -29,7 +29,7 @@ phaseWeaponEmitter guide_length _ = model $
                           (0,-10)]
        let guide_length_y = fromInteger guide_length * 3 + 6
        when (guide_length > 0) $ openCone (Point3D 0 0 8,1) (Point3D 0 guide_length_y 8,0)
-       flip mapM [2..guide_length] $ \i ->
+       _ <- flip mapM [2..guide_length] $ \i ->
            do let y = fromInteger i * 3
               translate (Vector3D 0 y 0) $ torus 8 (lerpBetween (0,y,guide_length_y) (1,0))
        deform dfn_squish

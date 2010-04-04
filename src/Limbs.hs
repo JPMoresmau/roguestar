@@ -14,19 +14,19 @@ import RSAGL.Math
 import Models.LibraryData
 import Control.Arrow
 import RSAGL.Scene
-import Data.Maybe
 import RSAGL.FRP
 import EventUtils
+import RSAGL.Types
 
 -- | Animate an arbitrary articulated joint.
-libraryJointAnimation :: Double -> LibraryModel -> LibraryModel -> RSAnimAX k t i o Joint ()
+libraryJointAnimation :: RSdouble -> LibraryModel -> LibraryModel -> RSAnimAX k t i o Joint ()
 libraryJointAnimation maximum_length upper lower = proc joint_info ->
     jointAnimation (proc () -> transformA libraryA -< (Affine $ scale' (maximum_length/2),(std_scene_layer_local,upper)))
                    (proc () -> transformA libraryA -< (Affine $ scale' (maximum_length/2),(std_scene_layer_local,lower))) -< 
 		       joint_info
 
 -- | Animate an articulated joint holding constant the bend vector and arm length.
-arm :: LibraryModel -> LibraryModel -> Vector3D -> Double -> RSAnimAX k t i o (Point3D,Point3D) Joint
+arm :: LibraryModel -> LibraryModel -> Vector3D -> RSdouble -> RSAnimAX k t i o (Point3D,Point3D) Joint
 arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_point) ->
     do let joint_info = joint bend_vector shoulder_point maximum_length hand_point
        libraryJointAnimation maximum_length arm_upper arm_lower -< joint_info 
@@ -34,7 +34,7 @@ arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_p
 
 -- | Animate a right arm.  This animation is aware of what tool the current creature (based on thread ID) is holding and raises the arm forward
 -- while holding any tool.
-rightArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
+rightArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
 rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = proc () ->
     do m_time_recent_attack <- recentAttack ThisObject -< ()
        t_now <- threadTime -< ()
@@ -49,19 +49,19 @@ rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_res
        arm arm_upper arm_lower bend_vector maximum_length -< (shoulder_anchor,hand_point)
 
 -- | Animate a left arm, which is always held at the side.
-leftArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
+leftArm :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () Joint
 leftArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = 
     proc () -> arm arm_upper arm_lower bend_vector maximum_length -< (shoulder_anchor,hand_rest)
 
 -- | Animate two arms.  The parameters describe the right arm, and are swapped across the yz plane to produce left arm parameters.
-bothArms :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () (Joint,Joint)
+bothArms :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> RSAnimAX Threaded (Maybe Integer) i o () (Joint,Joint)
 bothArms arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = proc () ->
     do left_joint <- leftArm arm_upper arm_lower (swapX bend_vector) (swapX shoulder_anchor) maximum_length (swapX hand_rest) -< ()
        right_joint <- rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest -< ()
        returnA -< (left_joint,right_joint)
 
 -- | Animate legs, which automatically know how to take steps when moved.
-bothLegs :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> Double -> Point3D -> RSAnimAX Threaded t i o () ()
+bothLegs :: LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> RSAnimAX Threaded t i o () ()
 bothLegs leg_upper leg_lower bend_vector hip_anchor maximum_length foot_rest = proc () ->
     do legs [leg bend_vector hip_anchor maximum_length foot_rest (libraryJointAnimation maximum_length leg_upper leg_lower),
              leg bend_vector (swapX hip_anchor) maximum_length (swapX foot_rest) (libraryJointAnimation maximum_length leg_upper leg_lower)]

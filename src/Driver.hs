@@ -9,8 +9,6 @@ module Driver
      driverAction)
     where
 
-import Data.Maybe
-import Data.IORef
 import Control.Concurrent.MVar
 import Control.Concurrent
 import Control.Exception
@@ -98,7 +96,7 @@ data FrozenDriver = FrozenDriver DriverObject RoguestarEngineState Integer
 newDriverObject :: IO DriverObject
 newDriverObject = 
     do driver_object <- liftM DriverObject . newMVar =<< initialDriverData
-       forkIO $ forever $ driverRead driver_object
+       _ <- forkIO $ forever $ driverRead driver_object
        return driver_object
 
 initialDriverData :: IO DriverData
@@ -150,7 +148,7 @@ driverWrite (DriverObject driver_mvar) str =
            do let already_sent = elem str $ driver_engine_output_lines driver
               return (if already_sent then driver else driver { driver_engine_output_lines = str:driver_engine_output_lines driver },already_sent)
        unless already_sent $ 
-           do forkIO $ writing (DriverObject driver_mvar) $ putStr str >> hFlush stdout
+           do _ <- forkIO $ writing (DriverObject driver_mvar) $ putStr str >> hFlush stdout
               return ()
 
 -- | Just read from the engine.  Whenever 'driverRead' reads an "over", it automatically

@@ -11,7 +11,6 @@ import System.IO
 import Control.Monad
 import Paths_roguestar_gl
 import GHC.Environment
-import Control.Concurrent.Chan
 
 known_args :: [String]
 known_args = [arg_echo_protocol,arg_single_threaded]
@@ -41,12 +40,12 @@ main =
        when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_gl_bin ++ " " ++ unwords gl_args
        (gl_in,gl_out,gl_err,roguestar_gl) <- runInteractiveProcess (bin_dir `combine` "roguestar-gl") gl_args Nothing Nothing
        stdout_chan <- newChan
-       forkIO $ pump e_out  $ [("",DHandle gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",DChan stdout_chan)] else [])
-       forkIO $ pump gl_out $ [("",DHandle e_in)] ++ (if should_echo_protocol then [("engine <<< gl *** ",DChan stdout_chan)] else [])
-       forkIO $ pump e_err  $ [("roguestar-engine *** ",DChan stdout_chan)]
-       forkIO $ pump gl_err $ [("roguestar-gl     *** ",DChan stdout_chan)]
-       forkIO $ printChan stdout stdout_chan
-       forkIO $
+       _ <- forkIO $ pump e_out  $ [("",DHandle gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",DChan stdout_chan)] else [])
+       _ <- forkIO $ pump gl_out $ [("",DHandle e_in)] ++ (if should_echo_protocol then [("engine <<< gl *** ",DChan stdout_chan)] else [])
+       _ <- forkIO $ pump e_err  $ [("roguestar-engine *** ",DChan stdout_chan)]
+       _ <- forkIO $ pump gl_err $ [("roguestar-gl     *** ",DChan stdout_chan)]
+       _ <- forkIO $ printChan stdout stdout_chan
+       _ <- forkIO $
            do roguestar_engine_exit <- waitForProcess roguestar_engine
               case roguestar_engine_exit of
                   ExitFailure x -> putStrLn $ "roguestar-engine terminated unexpectedly (" ++ show x ++  ")"

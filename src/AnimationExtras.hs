@@ -11,6 +11,7 @@ import RSAGL.Math
 import RSAGL.FRP
 import RSAGL.Scene
 import Control.Arrow
+import RSAGL.Types
 
 -- | Switch out if the driver \"state\" does match the specified predicate.
 genericStateHeader :: (String -> RSAnimAX () () i o i o) -> (String -> Bool) -> RSAnimAX () () i o i ()
@@ -20,7 +21,7 @@ genericStateHeader switchTo f = proc i ->
        returnA -< ()
 
 -- | Animate something bobbing up and down.
-floatBobbing :: Double -> Double -> RSAnimAX k t i o j p -> RSAnimAX k t i o j p
+floatBobbing :: RSdouble -> RSdouble -> RSAnimAX k t i o j p -> RSAnimAX k t i o j p
 floatBobbing ay by animationA = proc j ->
     do t <- threadTime -< ()
        let float_y = lerpBetween (-1,sine $ fromRotations $ t `cyclical'` (fromSeconds 5),1) (ay,by)

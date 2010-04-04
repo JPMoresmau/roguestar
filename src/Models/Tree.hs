@@ -7,6 +7,7 @@ import RSAGL.Math
 import Control.Monad.Random
 import Quality
 import Control.Monad.State
+import RSAGL.Types
 
 leafy_tree :: Quality -> Modeling ()
 leafy_tree Bad = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 0.1 2) (mkStdGen 45)
@@ -14,7 +15,7 @@ leafy_tree Poor = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 
 leafy_tree Good = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 0.1 4) (mkStdGen 45)
 leafy_tree Super = evalRandT (leafyTreeBranch origin_point_3d (Vector3D 0 0.5 0) 0.1 5) (mkStdGen 45)
 
-leafyTreeBranch :: Point3D -> Vector3D -> Double -> Int -> RandT StdGen (ModelingM ()) ()
+leafyTreeBranch :: Point3D -> Vector3D -> RSdouble -> Int -> RandT StdGen (ModelingM ()) ()
 leafyTreeBranch point vector thickness recursion | recursion <= 0 = 
      do b <- getRandom
         when b $ lift $ model $
@@ -30,7 +31,7 @@ leafyTreeBranch point vector thickness recursion =
        us <- liftM (take recursion) $ getRandomRs (0.0,1.0)
        mapM leafyTreeBranchFrom us
        leafyTreeBranchFrom 1.0
-  where leafyTreeBranchFrom :: Double -> RandT StdGen (ModelingM ()) ()
+  where leafyTreeBranchFrom :: RSdouble -> RandT StdGen (ModelingM ()) ()
         leafyTreeBranchFrom u =
 	    do let new_vector_constraint = vectorLength vector / 1.5
 	       (x:y:z:_) <- getRandomRs (-new_vector_constraint,new_vector_constraint)

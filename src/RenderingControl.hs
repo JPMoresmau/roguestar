@@ -27,7 +27,7 @@ import AnimationMenus
 import AnimationExtras
 import AnimationEvents
 import Strings
-
+import RSAGL.Types
 
 -- | Enters the top-level animation loop.
 mainAnimationLoop :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
@@ -138,7 +138,7 @@ planarGameplayDispatch = proc () ->
 
 -- | Sets up a Camera, based on a camera distance parameter (probably tied to the global_planar_camera_distance variable)
 -- and the look-at point.
-planarCamera :: Double -> Point3D -> Camera
+planarCamera :: RSdouble -> Point3D -> Camera
 planarCamera camera_distance look_at = PerspectiveCamera {
     camera_position = translate (vectorScaleTo camera_distance $ Vector3D 0 (7*(camera_distance/10)**2) camera_distance) look_at,
     camera_lookat = translate (Vector3D 0 (1/camera_distance) 0) look_at,

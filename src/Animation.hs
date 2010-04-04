@@ -48,7 +48,6 @@ import Actions
 import Data.List
 import Data.Ord
 import Strings
-import Actions
 import Globals
 import Data.IORef
 

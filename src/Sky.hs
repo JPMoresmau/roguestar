@@ -17,7 +17,6 @@ import Tables
 import Scene
 import Models.LibraryData
 import RSAGL.Math
-import RSAGL.Scene
 import RSAGL.FRP
 import Data.Maybe
 import Control.Arrow

@@ -19,6 +19,7 @@ import RSAGL.Modeling
 import RSAGL.Modeling.Noise
 import Scene
 import Data.Monoid
+import RSAGL.Types
 
 data SkyInfo = SkyInfo {
     sky_info_biome :: String,
@@ -107,11 +108,11 @@ sunColor :: SunInfo -> RGB
 sunColor sun_info = temperatureColor (sun_info_kelvins sun_info)
 
 -- | The size of a very ordinary sun-like star as seen from a very temperate climate.
-base_star_size :: Double
+base_star_size :: RSdouble
 base_star_size = 0.1
 
 -- | Radius of the sun at a standard distance eye-to-center of 10 units.
-sunSize :: SunInfo -> Double
+sunSize :: SunInfo -> RSdouble
 sunSize sun_info = base_star_size * (5800^2 / (realToFrac $ sun_info_kelvins sun_info ^2)) * 1.01 ** (realToFrac $ sun_info_size_adjustment sun_info)
 
 -- | 'makeSky' generates a sky sphere.
@@ -145,7 +146,7 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
 	sunFade tolerance v = mapLightSource (mapBoth (absorbtion v) `mappend` mapBoth (scaleRGB $ sunlightFadeFactor tolerance v))
 
 -- | The amount of fade of the sun based on falling below the horizon.
-sunlightFadeFactor :: Angle -> Vector3D -> Double
+sunlightFadeFactor :: Angle -> Vector3D -> RSdouble
 sunlightFadeFactor tolerance v = max 0 $ lerpBetweenClamped (85,toDegrees $ angleBetween v (Vector3D 0 1 0),95+toDegrees tolerance) (1.0,0.0)
 
 -- | Information about the lighting environment.  All values are between 0 and 1, indicating a relative scale compared to the normal, full brightness.
@@ -157,7 +158,7 @@ data LightingConfiguration = LightingConfiguration {
     -- | Apparent brightness of the nightlight.  This is a blue light with heavy ambient component that simulates human night vision.
     lighting_nightlight, 
     -- | Brightness of artificial lights.  Typically all artificial lights intended for nighttime illumination should be scaled based on this value.
-    lighting_artificial :: Double }
+    lighting_artificial :: RSdouble }
 
 lightingConfiguration :: SkyInfo -> LightingConfiguration
 lightingConfiguration sky_info = result

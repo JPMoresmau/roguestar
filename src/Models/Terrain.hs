@@ -8,6 +8,7 @@ import Models.RecreantFactory
 import RSAGL.Modeling
 import Models.Tree
 import RSAGL.Math
+import RSAGL.Types
 
 -- |
 -- A list of all terrain type names known to roguestar-gl.
@@ -40,7 +41,7 @@ known_terrain_types =
 --
 -- This is just the shape, without any material.
 --
-terrainTileShape :: Double -> Double -> Quality -> Modeling ()
+terrainTileShape :: RSdouble -> RSdouble -> Quality -> Modeling ()
 terrainTileShape physical_height aesthetic_height q = model $
     do heightField (-0.5,-0.5) (0.5,0.5) $ \(x,z) -> let y = 1 - max (abs x) (abs z) * 2 in min (max 0 $ sqrt y) (2*y)
        affine $ scale (Vector3D 1 aesthetic_height 1)
@@ -81,7 +82,7 @@ terrainTile s q = basicTerrainTile s q
 -- sharper contrast in its normal vectors than others (see 'terrainTileShape').
 -- Unrecognized terrain types will appear very tall, so they can be easily noticed and corrected.
 --
-terrainHeight :: String -> Double
+terrainHeight :: String -> RSdouble
 terrainHeight "water" = 0.01
 terrainHeight "deepwater" = 0.005
 terrainHeight "sand" = 0.1

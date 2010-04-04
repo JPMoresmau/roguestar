@@ -10,8 +10,6 @@ import Control.Arrow
 import AnimationExtras
 import PrintTextData
 import MaybeArrow
-import Data.Char
-import Data.List
 import Data.Monoid
 import Tables
 import RSAGL.FRP.FRP
