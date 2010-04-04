@@ -1,6 +1,6 @@
 module RSAGL.Auxiliary.Auxiliary
     (doubles,
-     loopedDoubles,
+     loopedRSdoubles,
      consecutives,
      loopedConsecutives,
      dropRandomElements,
@@ -18,6 +18,7 @@ import System.CPUTime
 import Control.Parallel
 import Control.Parallel.Strategies
 import Debug.Trace
+import RSAGL.Types
 
 -- doubles transforms a list to a list of adjacent elements.
 
@@ -28,15 +29,15 @@ doubles [] = []
 doubles [_] = []
 doubles (x:y:zs) = (x,y) : doubles (y:zs)
 
--- loopedDoubles transforms a list to a list of adjacent elements, looping back to the beginning of the list.
+-- loopedRSdoubles transforms a list to a list of adjacent elements, looping back to the beginning of the list.
 
--- loopedDoubles [1,2,3,4,5] = [(1,2),(2,3),(3,4),(4,5),(5,1)]
+-- loopedRSdoubles [1,2,3,4,5] = [(1,2),(2,3),(3,4),(4,5),(5,1)]
 
-loopedDoubles :: [a] -> [(a,a)]
-loopedDoubles as = loopedDoubles_ (head as) as
-    where loopedDoubles_ _ [] = []
-          loopedDoubles_ a [x] = [(x,a)]
-          loopedDoubles_ a (x:y:zs) = (x,y) : loopedDoubles_ a (y:zs)
+loopedRSdoubles :: [a] -> [(a,a)]
+loopedRSdoubles as = loopedRSdoubles_ (head as) as
+    where loopedRSdoubles_ _ [] = []
+          loopedRSdoubles_ a [x] = [(x,a)]
+          loopedRSdoubles_ a (x:y:zs) = (x,y) : loopedRSdoubles_ a (y:zs)
 
 -- consecutives answers a list containing every sequence of n consecutive
 -- elements in the parameter.
@@ -83,16 +84,16 @@ shiftR ps = last ps : init ps
 
 -- zeroToOne creates a list of numbers from 0.0 to 1.0, using n steps.
 
-zeroToOne :: Integer -> [Double]
+zeroToOne :: Integer -> [RSdouble]
 zeroToOne n | n > 100000 = trace ("Warning: zeroToOne was asked for " ++ show n ++ " subdivisions, which seems high.  Using 100,000 instead.") zeroToOne 100000
 zeroToOne n | n <= 1000 = ztos ! n
 zeroToOne n = zeroToOnePrim n
 
-zeroToOnePrim :: Integer -> [Double]
+zeroToOnePrim :: Integer -> [RSdouble]
 zeroToOnePrim n = map (*x) [0..(fromInteger $ n-1)]
     where x = recip (fromInteger $ n - 1)
 
-ztos :: Array Integer [Double]
+ztos :: Array Integer [RSdouble]
 ztos = listArray (0,1000) $ map (zeroToOnePrim) [0 .. 1000]
 
 -- constrain restricts the effective domain of a function.  Outside of the restricted domain, the function is id

@@ -20,6 +20,7 @@ import RSAGL.Math.Curve
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
+import RSAGL.Types
 
 -- | A 'MaterialSurface' is parameterized either on RGB or RGBA, depending
 -- on whether or not the 'MaterialLayer' is capable of transparency.
@@ -210,9 +211,9 @@ materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io =
 materialLayerToOpenGLWrapper (CompoundLayer ms specular_rgb emissive_rgb shininess) io =
     do cm <- get colorMaterial
        lmlv <- get lightModelLocalViewer
-       materialSpecular FrontAndBack $= (\(RGB r g b) -> Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1) specular_rgb
+       materialSpecular FrontAndBack $= (\(RGB r g b) -> Color4 (f2f r) (f2f g) (f2f b) 1) specular_rgb
        materialShininess FrontAndBack $= shininess
-       materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1) emissive_rgb
+       materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 (f2f r) (f2f g) (f2f b) 1) emissive_rgb
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
        lightModelLocalViewer $= Enabled
        maybe (return ()) (color . rgbToOpenGL) $ fromPure ms

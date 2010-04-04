@@ -30,15 +30,16 @@ import Data.List as List
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import Data.Vec as Vec
+import RSAGL.Types
 \end{code}
 
 A 4-by-4 matrix with cached inverse, transpose, inverse transpose, and determinant.
 
 \begin{code}
-data Matrix = Matrix { matrix_data :: !(Mat44 Double),
+data Matrix = Matrix { matrix_data :: !(Mat44 RSdouble),
                        matrix_inverse :: Matrix,
                        matrix_transpose :: Matrix,
-                       matrix_determinant :: Double }
+                       matrix_determinant :: RSdouble }
 
 instance Eq Matrix where
     x == y = matrix_data x == matrix_data y
@@ -46,24 +47,24 @@ instance Eq Matrix where
 instance Show Matrix where
     show m = show $ rowMajorForm m
 
-rowMajorForm :: Matrix -> [[Double]]
+rowMajorForm :: Matrix -> [[RSdouble]]
 rowMajorForm = matToLists . matrix_data
 
-colMajorForm :: Matrix -> [[Double]]
+colMajorForm :: Matrix -> [[RSdouble]]
 colMajorForm = List.transpose . rowMajorForm
 \end{code}
 
 rowAt answers the nth row of a matrix.
 
 \begin{code}
-rowAt :: Matrix -> Int -> [Double]
+rowAt :: Matrix -> Int -> [RSdouble]
 rowAt m n = (rowMajorForm m) !! n
 \end{code}
 
 matrixAt answers the (i'th,j'th) element of a matrix.
 
 \begin{code}
-matrixAt :: Matrix -> (Int,Int) -> Double
+matrixAt :: Matrix -> (Int,Int) -> RSdouble
 matrixAt m (i,j) = rowAt m i !! j
 \end{code}
 
@@ -73,16 +74,16 @@ matrix constructs a matrix from row major list form.  (Such a list form can be f
 monospaced font and haskell syntax, so that it looks like a matrix as it would be normally written.)
 
 \begin{code}
-matrix :: [[Double]] -> Matrix
+matrix :: [[RSdouble]] -> Matrix
 matrix = uncheckedMatrix . matFromLists
 
 -- | Generate a column matrix of length 4, perform an affine transformation on it, and produce the resulting value.
 {-# INLINE transformHomogenous #-}
-transformHomogenous :: Double -> Double -> Double -> Double -> (Double -> Double -> Double -> a) -> Matrix -> a
+transformHomogenous :: RSdouble -> RSdouble -> RSdouble -> RSdouble -> (RSdouble -> RSdouble -> RSdouble -> a) -> Matrix -> a
 transformHomogenous x y z w f m = f x' y' z'
     where (x':.y':.z':._) = multmv (matrix_data m) (x:.y:.z:.w:.())
 
-uncheckedMatrix :: Mat44 Double -> Matrix
+uncheckedMatrix :: Mat44 RSdouble -> Matrix
 uncheckedMatrix dats = m
     where m_inverse = (matrixInversePrim m) { matrix_inverse = m, matrix_transpose = m_inverse_transpose, matrix_determinant = recip m_det }
           m_transpose = (matrixTransposePrim m) { matrix_inverse = m_inverse_transpose, matrix_transpose = m, matrix_determinant = m_det }
@@ -170,7 +171,7 @@ matrixInverse = matrix_inverse
 \end{code}
 
 \begin{code}
-determinant :: Matrix -> Double
+determinant :: Matrix -> RSdouble
 determinant = matrix_determinant
 \end{code}
 
@@ -181,7 +182,7 @@ matrixInverseTransposePrim = uncheckedMatrix . Vec.transpose . fst . invertAndDe
 matrixInversePrim :: Matrix -> Matrix
 matrixInversePrim = uncheckedMatrix . fst . invertAndDet . matrix_data
 
-determinantPrim :: Matrix -> Double
+determinantPrim :: Matrix -> RSdouble
 determinantPrim = det . matrix_data
 
 matrixTransposePrim :: Matrix -> Matrix

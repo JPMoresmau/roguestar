@@ -40,24 +40,24 @@ module RSAGL.Math.Vector
      orthos)
     where
 
-import Data.Maybe
 import Control.Parallel.Strategies
 import RSAGL.Math.Angle
 import RSAGL.Auxiliary.Auxiliary
 import System.Random
 import RSAGL.Math.AbstractVector
+import RSAGL.Types
 \end{code}
 
 \subsection{Generic 3-dimensional types and operations}
 
 \begin{code}
-type XYZ = (Double,Double,Double)
+type XYZ = (RSdouble,RSdouble,RSdouble)
 
 class Xyz a where
     toXYZ :: a -> XYZ
     fromXYZ :: XYZ -> a
 
-instance Xyz (Double,Double,Double) where
+instance Xyz (RSdouble,RSdouble,RSdouble) where
     toXYZ = id
     fromXYZ = id
 
@@ -65,29 +65,29 @@ vectorString :: Xyz a => a -> String
 vectorString xyz = let (x,y,z) = toXYZ xyz
 		       in (show x) ++ "," ++ (show y) ++ "," ++ (show z)
 
-uncurry3d :: (Double -> Double -> Double -> a) -> XYZ -> a
+uncurry3d :: (RSdouble -> RSdouble -> RSdouble -> a) -> XYZ -> a
 uncurry3d fn (x,y,z) = fn x y z
 \end{code}
 
 \subsection{Points in 3-space}
 
 \begin{code}
-data Point3D = Point3D {-# UNPACK #-} !Double {-# UNPACK #-} !Double {-# UNPACK #-} !Double
+data Point3D = Point3D {-# UNPACK #-} !RSdouble {-# UNPACK #-} !RSdouble {-# UNPACK #-} !RSdouble
 	     deriving (Read,Show,Eq)
 
 origin_point_3d :: Point3D
 origin_point_3d = Point3D 0 0 0
 
-point3d :: (Double,Double,Double) -> Point3D
+point3d :: (RSdouble,RSdouble,RSdouble) -> Point3D
 point3d = uncurry3d Point3D
 
-point2d :: (Double,Double) -> Point3D
+point2d :: (RSdouble,RSdouble) -> Point3D
 point2d (x,y) = point3d (x,y,0)
 
-points3d :: [(Double,Double,Double)] -> [Point3D]
+points3d :: [(RSdouble,RSdouble,RSdouble)] -> [Point3D]
 points3d = map point3d
 
-points2d :: [(Double,Double)] -> [Point3D]
+points2d :: [(RSdouble,RSdouble)] -> [Point3D]
 points2d = map point2d
 
 instance Xyz Point3D where
@@ -109,13 +109,13 @@ instance NFData Point3D
 \subsection{Vectors in 3-space}
 
 \begin{code}
-data Vector3D = Vector3D {-# UNPACK #-} !Double {-# UNPACK #-} !Double {-# UNPACK #-} !Double
+data Vector3D = Vector3D {-# UNPACK #-} !RSdouble {-# UNPACK #-} !RSdouble {-# UNPACK #-} !RSdouble
 	      deriving (Read,Show,Eq)
 
 zero_vector :: Vector3D
 zero_vector = Vector3D 0 0 0
 
-vector3d :: (Double,Double,Double) -> Vector3D
+vector3d :: (RSdouble,RSdouble,RSdouble) -> Vector3D
 vector3d = uncurry3d Vector3D
 
 instance Xyz Vector3D where
@@ -166,13 +166,13 @@ aNonZeroVector v = case vectorLength v of
     x | isInfinite x -> Nothing
     _ | otherwise -> Just v
 
-aLargeVector :: Double -> Vector3D -> Maybe Vector3D
+aLargeVector :: RSdouble -> Vector3D -> Maybe Vector3D
 aLargeVector x v_ =
     case aNonZeroVector v_ of
         Just v | vectorLength v > x -> Just v
         _ | otherwise -> Nothing
 
-dotProduct :: Vector3D -> Vector3D -> Double
+dotProduct :: Vector3D -> Vector3D -> RSdouble
 dotProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
     (ax*bx) + (ay*by) + (az*bz)
 
@@ -183,10 +183,10 @@ crossProduct :: Vector3D -> Vector3D -> Vector3D
 crossProduct (Vector3D ax ay az) (Vector3D bx by bz) = 
     Vector3D (ay*bz - az*by) (az*bx - ax*bz) (ax*by - ay*bx)
 
-distanceBetween :: (Xyz xyz) => xyz -> xyz -> Double
+distanceBetween :: (Xyz xyz) => xyz -> xyz -> RSdouble
 distanceBetween a b = vectorLength $ vectorToFrom a b
 
-distanceBetweenSquared :: (Xyz xyz) => xyz -> xyz -> Double
+distanceBetweenSquared :: (Xyz xyz) => xyz -> xyz -> RSdouble
 distanceBetweenSquared a b = vectorLengthSquared $ vectorToFrom a b
 
 displace :: (Xyz xyz) => xyz -> Vector3D -> xyz
@@ -206,20 +206,20 @@ vectorToFrom a b =
         (bx,by,bz) = toXYZ b
         in Vector3D (ax - bx) (ay - by) (az - bz)
 
-vectorLength :: Vector3D -> Double
+vectorLength :: Vector3D -> RSdouble
 vectorLength = sqrt . vectorLengthSquared
 
-vectorLengthSquared :: Vector3D -> Double
+vectorLengthSquared :: Vector3D -> RSdouble
 vectorLengthSquared (Vector3D x y z) = (x*x + y*y + z*z)
 
-vectorScale :: Double -> Vector3D -> Vector3D
+vectorScale :: RSdouble -> Vector3D -> Vector3D
 vectorScale s (Vector3D x y z) = Vector3D (x*s) (y*s) (z*s)
 \end{code}
 
 vectorScaleTo forces the length of a vector to a certain value, without changing the vector's direction.
 
 \begin{code}
-vectorScaleTo :: Double -> Vector3D -> Vector3D
+vectorScaleTo :: RSdouble -> Vector3D -> Vector3D
 vectorScaleTo new_length vector = vectorScale new_length $ vectorNormalize vector
 \end{code}
 
@@ -249,7 +249,7 @@ The result is a normalized vector.
 
 \begin{code}
 newell :: [Point3D] -> Maybe Vector3D
-newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ $ loopedDoubles points
+newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ $ loopedRSdoubles points
     where newell_ (Point3D x0 y0 z0,Point3D x1 y1 z1) =
               (Vector3D 
                ((y0 - y1)*(z0 + z1))
@@ -262,10 +262,10 @@ newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ 
 \texttt{randomXYZ} can generate random coordinates within the cube where x, y, and z are each in the range (lo,hi).
 
 \begin{code}
-randomXYZ :: (RandomGen g,Xyz p) => (Double,Double) -> g -> (p,g)
-randomXYZ lohi g = (fromXYZ (x,y,z),g')
+randomXYZ :: (RandomGen g,Xyz p) => (RSdouble,RSdouble) -> g -> (p,g)
+randomXYZ (lo,hi) g = (fromXYZ (f2f x,f2f y,f2f z),g')
     where (g_,g') = split g
-          (x:y:z:_) = randomRs lohi g_
+          (x:y:z:_) = randomRs (f2f lo,f2f hi) g_ :: [Double]
 \end{code}
 
 \subsection{Orthagonal Vectors}

@@ -19,12 +19,12 @@ import RSAGL.FRP.FRP
 import RSAGL.Math.Affine
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Animation.KinematicSensors
-import RSAGL.Math.Vector
 import RSAGL.Animation.Joint
 import RSAGL.FRP.Time
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Angle
 import RSAGL.Math.FMod
+import RSAGL.Types
 \end{code}
 
 \subsection{The Foot}
@@ -44,7 +44,7 @@ where a value greater than 1 indicates that the foot is down.
 FIXME: this could be done better.
 
 \begin{code}
-foot :: (CoordinateSystemClass s) => Double -> Double -> Double -> FRPX k s t i o Bool (CSN Point3D,Bool)
+foot :: (CoordinateSystemClass s) => RSdouble -> RSdouble -> RSdouble -> FRPX k s t i o Bool (CSN Point3D,Bool)
 foot forward_radius side_radius lift_radius = proc emergency_footdown ->
     do fwd_total_stepage <- arr (* recip forward_radius) <<< odometer root_coordinate_system (Vector3D 0 0 1) -< ()
        side_total_stepage <- arr (* recip side_radius) <<< odometer root_coordinate_system (Vector3D 1 0 0) -< ()
@@ -70,7 +70,7 @@ newtype Leg threaded s t i o = Leg (FRPX threaded s t i o [Bool] [Bool])
 instance (CoordinateSystemClass s) => AffineTransformable (Leg threaded s t i o ) where
     transform m (Leg l) = Leg (proc x -> transformA l -< (Affine $ transform m,x))
 
-leg :: (CoordinateSystemClass s) => Vector3D -> Point3D -> Double -> Point3D -> (FRPX k s t i o Joint ()) -> Leg k s t i o
+leg :: (CoordinateSystemClass s) => Vector3D -> Point3D -> RSdouble -> Point3D -> (FRPX k s t i o Joint ()) -> Leg k s t i o
 leg bend base len end animation = Leg $ proc feet_that_are_down ->
     do let declare_emergency_foot_down = length (filter id feet_that_are_down) < length (filter not feet_that_are_down) &&
                                          not (and $ take 1 feet_that_are_down)
@@ -100,16 +100,16 @@ the goal radius, and otherwise travels at a fixed speed toward the goal.  The go
 \texttt{magnitude} of the vector type.
 
 \begin{code}
-approach :: (AbstractVector v,AbstractSubtract p v,AbstractMagnitude v) => p -> Double -> Rate Double -> (Time -> p -> Rate v)
+approach :: (AbstractVector v,AbstractSubtract p v,AbstractMagnitude v) => p -> RSdouble -> Rate RSdouble -> (Time -> p -> Rate v)
 approach goal_point goal_radius max_speed _ position = withTime (fromSeconds 1) (\x -> abstractScaleTo (x * speed_ratio) goal_vector) max_speed
     where goal_vector = goal_point `sub` position
           speed_ratio = min 1 $ magnitude goal_vector / goal_radius
 
-approachFrom :: (AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> p -> FRPX any t i o a p p
+approachFrom :: (AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => RSdouble -> Rate RSdouble -> p -> FRPX any t i o a p p
 approachFrom goal_radius max_speed initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
     where frequency = 1 `per` time goal_radius max_speed 
 
-approachA :: (AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v) => Double -> Rate Double -> FRPX any t i o a p p
+approachA :: (AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v) => RSdouble -> Rate RSdouble -> FRPX any t i o a p p
 approachA goal_radius max_speed = frp1Context $ proc p -> switchContinue -< (Just $ approachFrom goal_radius max_speed p,p)
 \end{code}
 

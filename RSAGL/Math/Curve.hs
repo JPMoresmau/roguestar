@@ -54,9 +54,10 @@ import Debug.Trace
 import RSAGL.Modeling.BoundingBox
 import RSAGL.Math.Interpolation
 import RSAGL.Math.FMod
+import RSAGL.Types
 
 -- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
-type CurveF a = (Double,Double) -> a
+type CurveF a = (RSdouble,RSdouble) -> a
 -- | A surface is a curve of curves.
 type SurfaceF a = CurveF (CurveF a)
 -- | A 'Curve' is a parametric function from a one-dimensional space into a space of an arbitrary datatype.  The key feature of a 'Curve' is that it is aware of it's own
@@ -83,7 +84,7 @@ instance NFData (Curve a) where
     rnf (Curve f) = seq f ()
 
 -- | Sample a specific point on a curve given the sampling interval (first parameter) and the point on the curve (second parameter).
-sampleCurve :: Curve a -> Double -> Double -> a
+sampleCurve :: Curve a -> RSdouble -> RSdouble -> a
 sampleCurve (Curve f) = curry f
 
 -- | Sample a curve at regular intervals in the range 0..1 inclusive.
@@ -104,26 +105,26 @@ mapCurve2 :: (SurfaceF a -> SurfaceF a) -> Curve (Curve a) -> Curve (Curve a)
 mapCurve2 f = Curve . (Curve .) . f . (fromCurve .) . fromCurve
 
 -- | Translate a curve along the axis of the input parameter.
-translateCurve :: Double -> Curve a -> Curve a
+translateCurve :: RSdouble -> Curve a -> Curve a
 translateCurve x = mapCurve $ \f (h,u) -> f (h,u-x)
 
 -- | Scale a curve along the axis of the input parameter.  Factors greater than one have a "zoom in" effect, while
 -- factors less than one have a "zoom out" effect.
-scaleCurve :: Double -> Curve a -> Curve a
+scaleCurve :: RSdouble -> Curve a -> Curve a
 scaleCurve s = mapCurve (\f (h,u) -> f (h/s,u/s))
 
 -- | Clamp lower and upper bounds of a curve along the axis of the input parameter.
-clampCurve :: (Double,Double) -> Curve a -> Curve a
+clampCurve :: (RSdouble,RSdouble) -> Curve a -> Curve a
 clampCurve (a,b) | b < a = clampCurve (b,a)
 clampCurve (a,b) = mapCurve $ \f (h,u) -> f (h,min b $ max a u)
 
 -- | Loop a curve onto itself at the specified bounds.
-loopCurve :: (Double,Double) -> Curve a -> Curve a
+loopCurve :: (RSdouble,RSdouble) -> Curve a -> Curve a
 loopCurve (a,b) | b < a = loopCurve (b,a)
 loopCurve (a,b) = mapCurve $ \f (h,u) -> f (h,(u-a) `fmod` (b-a) + a)
 
 -- | Transform a curve by manipulating control points.
-controlCurve :: (Double,Double) -> (Double,Double) -> Curve a -> Curve a
+controlCurve :: (RSdouble,RSdouble) -> (RSdouble,RSdouble) -> Curve a -> Curve a
 controlCurve (u,v) (u',v') = translateCurve u' . scaleCurve ((u'-v') / (u-v)) . translateCurve (negate u)
 
 -- | Transpose the inner and outer components of a curve.
@@ -135,14 +136,14 @@ transformCurve2 :: (forall u. Curve u -> Curve u) -> (forall v. Curve v -> Curve
 transformCurve2 fu fv = transposeCurve . fu . transposeCurve . fv
 
 -- | Define a simple curve.
-curve :: (Double -> a) -> Curve a
+curve :: (RSdouble -> a) -> Curve a
 curve = Curve . uncurry . const
 
 -- | A 'Surface' is a based on a 'Curve' with an output of another 'Curve'.
 newtype Surface a = Surface (Curve (Curve a)) deriving (NFData,AffineTransformable)
 
 -- | Define a simple surface.
-surface :: (Double -> Double -> a) -> Surface a
+surface :: (RSdouble -> RSdouble -> a) -> Surface a
 surface f = Surface $ curve (\u -> curve $ flip f u)
 
 wrapSurface :: Curve (Curve a) -> Surface a
@@ -183,11 +184,11 @@ transformSurface2 :: (forall u. Curve u -> Curve u) -> (forall v. Curve v -> Cur
 transformSurface2 fu fv = transformSurface (transformCurve2 fu fv)
 
 -- | Translate a surface over each of its input parameter axes, as translateCurve.
-translateSurface :: (Double,Double) -> Surface a -> Surface a
+translateSurface :: (RSdouble,RSdouble) -> Surface a -> Surface a
 translateSurface (u,v) = transformSurface2 (translateCurve u) (translateCurve v)
 
 -- | Scale a surface along each of its input parameter axes, as scaleCurve.
-scaleSurface :: (Double,Double) -> Surface a -> Surface a
+scaleSurface :: (RSdouble,RSdouble) -> Surface a -> Surface a
 scaleSurface (u,v) = transformSurface2 (scaleCurve u) (scaleCurve v)
 
 -- | Transpose a surface while flipping the inner curve, so that that orientable surfaces retain their original orientation.
@@ -195,7 +196,7 @@ flipTransposeSurface :: Surface a -> Surface a
 flipTransposeSurface = transformSurface (mapCurve2 $ \f (hu,u) (hv,v) -> f (hu,u) (hv,1-v)) . transposeSurface
 
 -- | An identity 'Surface'.
-uv_identity :: Surface (Double,Double)
+uv_identity :: Surface (RSdouble,RSdouble)
 uv_identity = surface (curry id)
 
 -- | Take the derivative of a 'Curve'.
@@ -250,17 +251,17 @@ surfaceNormals3D s = (\p by_pd by_newell -> case by_pd of
                      s <*> (surfaceNormals3DByPartialDerivatives s) <*> (surfaceNormals3DByOrientationLoops s)
 
 -- | An interval of a curve, including the curve, lower and upper bounds of the interval, and an instantaneous sample value for that interval.
-data IntervalSample a = IntervalSample (Curve a) Double Double a
+data IntervalSample a = IntervalSample (Curve a) RSdouble RSdouble a
 
-intervalSample :: Curve a -> Double -> Double -> IntervalSample a
+intervalSample :: Curve a -> RSdouble -> RSdouble -> IntervalSample a
 intervalSample c l h = IntervalSample c l h $ sampleCurve c ((abs $ l - h) / 2) ((l+h) / 2) 
 
 -- | Lower and upper bounds of an 'IntervalSample'.
-intervalRange :: IntervalSample a -> (Double,Double)
+intervalRange :: IntervalSample a -> (RSdouble,RSdouble)
 intervalRange (IntervalSample _ l h _) = (l,h)
 
 -- | Size of the range of an 'IntervalSample'.
-intervalSize :: IntervalSample a -> Double
+intervalSize :: IntervalSample a -> RSdouble
 intervalSize (IntervalSample _ l h _) = abs $ h - l
 
 -- | Instantaneous sample value of an 'Interval'.
@@ -292,7 +293,7 @@ adaptiveMagnitudeSamples :: (AbstractMagnitude a) => Integer -> SamplingAlgorith
 adaptiveMagnitudeSamples n c = resampleLoop (\xs -> if genericLength xs > n then Nothing else Just $ newSamples xs) $ linearSamples (max 1 $ n `div` 10) c
     where newSamples xs = let a = abstractAverage $ map intervalMagnitude xs
                               in flip concatMap xs $ \x -> if intervalMagnitude x >= a then splitInterval x else [x]
-          intervalMagnitude :: (AbstractMagnitude a) => IntervalSample a -> Double
+          intervalMagnitude :: (AbstractMagnitude a) => IntervalSample a -> RSdouble
           intervalMagnitude (IntervalSample _ l h a) = magnitude a * (abs $ h-l)
 
 -- | Loop to keep generating samples until finished.

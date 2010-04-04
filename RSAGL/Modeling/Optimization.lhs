@@ -11,6 +11,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Curve
 import Data.List as List
 import RSAGL.Modeling.Tesselation
+import RSAGL.Types
 \end{code}
 
 \subsection{Surface Configurations}
@@ -32,14 +33,14 @@ The goal of \texttt{optimizeSurface} is to allocate points so they are spread ro
 To measure the distance between points, we use an abstract function called the ''ruler``, which nominally measures pythagorean distance but may measure some kind of percieved distance.
 
 \begin{code}
-optimizeSurface :: (a -> a -> Double) -> Surface a -> Integer -> TesselatedSurface a
+optimizeSurface :: (a -> a -> RSdouble) -> Surface a -> Integer -> TesselatedSurface a
 optimizeSurface ruler s max_vertices =
               if score ordinary >= score transposed
               then tesselateSurfaceConfiguration s ordinary
               else tesselateSurfaceConfiguration (flipTransposeSurface s) transposed
     where ordinary = lengthProportional ruler s max_vertices
           transposed = lengthProportional ruler (flipTransposeSurface s) max_vertices
-          score :: SurfaceConfiguration -> Double
+          score :: SurfaceConfiguration -> RSdouble
           score (SurfaceConfiguration ielems) = 
               let elems = map fromIntegral ielems
                   in (sum (map (abs . subtract (sum elems / fromIntegral (length elems))) elems) + 1) / sum elems
@@ -55,16 +56,16 @@ tesselateSurfaceConfiguration s (SurfaceConfiguration elems) =
 \subsection{Estimating Surface Area and Curve Length}
 
 \begin{code}
-estimateCurveLength :: (a -> a -> Double) -> Curve a -> Double
+estimateCurveLength :: (a -> a -> RSdouble) -> Curve a -> RSdouble
 estimateCurveLength ruler c = case sum $ map (uncurry ruler) $ doubles $ iterateCurve 16 c of -- 16 is arbitrary
     x | isNaN x || isInfinite x -> error "estimateCurveLength: NaN"
     x -> x
 
-estimateSurfaceArea :: (a -> a -> Double) -> Surface a -> Double
+estimateSurfaceArea :: (a -> a -> RSdouble) -> Surface a -> RSdouble
 estimateSurfaceArea ruler s = snd $ head $ dropWhile (\(x,y) -> y > x*1.125) $ doubles surface_areas_at_increasing_levels_of_detail
     where surface_areas_at_increasing_levels_of_detail = map (\d -> estimateTesselatedSurfaceArea ruler $ tesselateSurface s (d,d)) $ iterate (*2) 4
 
-estimateTesselatedSurfaceArea :: (a -> a -> Double) -> TesselatedSurface a -> Double
+estimateTesselatedSurfaceArea :: (a -> a -> RSdouble) -> TesselatedSurface a -> RSdouble
 estimateTesselatedSurfaceArea ruler pieces = sum $ map measurePiece pieces
    where measurePiece (TesselatedTriangleFan (v0:v1:v2:vs)) = heronsFormula ruler v0 v1 v2 +
                                                               measurePiece (TesselatedTriangleFan (v0:v2:vs))
@@ -76,7 +77,7 @@ estimateTesselatedSurfaceArea ruler pieces = sum $ map measurePiece pieces
                                                             measurePiece (TesselatedTriangles vs)
          measurePiece (TesselatedTriangles _) = 0.0
 
-heronsFormula :: (a -> a -> Double) -> a -> a -> a -> Double
+heronsFormula :: (a -> a -> RSdouble) -> a -> a -> a -> RSdouble
 heronsFormula ruler v0 v1 v2 = max 0 $ (/ 4) $ sqrt $ (a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c))
     where a_ = ruler v0 v1
           b_ = ruler v1 v2
@@ -92,14 +93,14 @@ Estimate the relative size of a collection of surfaces and allocate complexity t
 \texttt{allocatedComplexity} allocates vertices to surfaces, with half of all vertices being distributed equally among all surfaces and half of all vertices being distributed in proportion to their surface areas.  Surfaces (such as surfaces that have many layers) may be weighted to carry disproportionately more vertices.
 
 \begin{code}
-allocateComplexity :: (p -> p -> Double) -> [(Surface p,Double)] -> Integer -> [Integer]
+allocateComplexity :: (p -> p -> RSdouble) -> [(Surface p,RSdouble)] -> Integer -> [Integer]
 allocateComplexity ruler surfaces n = 
     let surface_areas = map (\s -> estimateSurfaceArea ruler (fst s) * snd s) surfaces
         half_alloc = n `div` 2
         constant_alloc = half_alloc `div` genericLength surfaces
         in map ((+ constant_alloc) . round) $ proportional (fromInteger half_alloc) surface_areas
 
-lengthProportional :: (p -> p -> Double) -> Surface p -> Integer -> SurfaceConfiguration
+lengthProportional :: (p -> p -> RSdouble) -> Surface p -> Integer -> SurfaceConfiguration
 lengthProportional ruler s n =
     let curve_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width s
         transpose_lengths = map (estimateCurveLength ruler) $ halfIterateSurface base_width $ flipTransposeSurface s
@@ -111,6 +112,6 @@ lengthProportional ruler s n =
         in SurfaceConfiguration $ map (max 5 . roundOdd) $ proportional (fromInteger n) $ 
                map (estimateCurveLength ruler) $ halfIterateSurface improved_width s
 
-proportional :: Double -> [Double] -> [Double]
+proportional :: RSdouble -> [RSdouble] -> [RSdouble]
 proportional total xs = map (* (total / sum xs)) xs
 \end{code}

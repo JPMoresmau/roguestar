@@ -47,7 +47,7 @@ import Data.Monoid
 import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Angle
 import RSAGL.Math.Ray
-import RSAGL.Modeling.RSAGLColors
+import RSAGL.Types
 \end{code}
 
 \subsection{Colors}
@@ -61,7 +61,7 @@ With the exception of \texttt{blackbody}, all of the colors contain non-zero val
 \texttt{smoothbox} is a box that takes an extra smoothing parameter between 0 and 1.  This box doesn't have perfectly flat normals, and may therefore be a little easier on the eye.
 
 \begin{code}
-smoothbox :: (Monoid attr) => Double -> Point3D -> Point3D -> Modeling attr
+smoothbox :: (Monoid attr) => RSdouble -> Point3D -> Point3D -> Modeling attr
 smoothbox u p q = model $
     do box p q
        deform $ \(SurfaceVertex3D point vector) -> SurfaceVertex3D point $ vectorNormalize $ lerp u (vector,vectorNormalize $ vectorToFrom point midpoint)
@@ -71,7 +71,7 @@ smoothbox u p q = model $
 \texttt{regularPrism} constructs a regular n-sided prism or pyramid.
 
 \begin{code}
-regularPrism ::(Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Integer -> Modeling attr
+regularPrism ::(Monoid attr) => (Point3D,RSdouble) -> (Point3D,RSdouble) -> Integer -> Modeling attr
 regularPrism (a,ra) (b,rb) n = 
     model $ translate (vectorToFrom a origin_point_3d) $ 
         rotateToFrom (Vector3D 0 1 0) (vectorToFrom b a) $ sequence_ $ rotationGroup (Vector3D 0 1 0) n $ quad
@@ -84,7 +84,7 @@ regularPrism (a,ra) (b,rb) n =
 
 \begin{code}
 -- | A rectangular height field rising off of the x-z plane.
-heightField :: (Monoid attr) => (Double,Double) -> (Double,Double) -> ((Double,Double) -> Double) -> Modeling attr
+heightField :: (Monoid attr) => (RSdouble,RSdouble) -> (RSdouble,RSdouble) -> ((RSdouble,RSdouble) -> RSdouble) -> Modeling attr
 heightField (x1,z1) (x2,z2) f = model $
     do quadralateral (Point3D x1 0 z1) (Point3D x1 0 z2) (Point3D x2 0 z2) (Point3D x2 0 z1)
        heightMap f
@@ -93,7 +93,7 @@ heightField (x1,z1) (x2,z2) f = model $
 
 \begin{code}
 -- | A circular height field rising off of the x-z plane.
-heightDisc :: (Monoid attr) => (Double,Double) -> Double -> ((Double,Double) -> Double) -> Modeling attr
+heightDisc :: (Monoid attr) => (RSdouble,RSdouble) -> RSdouble -> ((RSdouble,RSdouble) -> RSdouble) -> Modeling attr
 heightDisc (x,y) r f = model $
     do closedDisc (Point3D x 0 y) (Vector3D 0 1 0) r
        heightMap f
@@ -113,25 +113,25 @@ rotationGroup v n m = map (flip (rotate v) m . fromRotations) $ tail $ zeroToOne
 \begin{code}
 type ColorFunction a = ApplicativeWrapper ((->) SurfaceVertex3D) a
 
-type Pattern = SurfaceVertex3D -> Double
+type Pattern = SurfaceVertex3D -> RSdouble
 
 pattern :: (ColorClass a) => Pattern -> [(GLfloat,ColorFunction a)] -> ColorFunction a
 pattern _ [(_,constant_pattern)] = constant_pattern
-pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpMap color_map $ realToFrac $ f sv3d) $ sv3d)
+pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpMap color_map $ f2f $ f sv3d) $ sv3d)
 
-cloudy :: Int -> Double -> Pattern
+cloudy :: Int -> RSdouble -> Pattern
 cloudy seed wave_length (SurfaceVertex3D p _) = perlinNoise (translate offset $ scale' frequency p) + 0.5
     where frequency = recip wave_length
           offset = vectorNormalize $ fst $ randomXYZ (-1000.0*wave_length,1000.0*wave_length) (mkStdGen seed)
 
-blinkBoxes :: Int -> Double -> Double -> Double -> Pattern
+blinkBoxes :: Int -> RSdouble -> RSdouble -> RSdouble -> Pattern
 blinkBoxes seed box_size chaos threshold = thresholdF . cloudy seed (recip chaos) . toLatticeCoordinates
     where thresholdF u = if u > threshold then 1.0 else 0.0
           toLatticeCoordinates (SurfaceVertex3D (Point3D x y z) v) = 
               SurfaceVertex3D (Point3D (to1LatticeCoordinate x) (to1LatticeCoordinate y) (to1LatticeCoordinate z)) v
-          to1LatticeCoordinate u = realToFrac $ round $ u/box_size
+          to1LatticeCoordinate u = fromInteger $ round $ u/box_size
 
-spherical :: Point3D -> Double -> Pattern
+spherical :: Point3D -> RSdouble -> Pattern
 spherical center radius (SurfaceVertex3D p _) = distanceBetween center p / radius
 
 directional :: Vector3D -> Pattern
@@ -171,14 +171,14 @@ metallic rgbf =
 bumps :: Pattern -> Modeling attr
 bumps f = deform $ \(sv3d@(SurfaceVertex3D p v)) -> translate (vectorScale (f sv3d) v) p
 
-waves :: Double -> Double -> Pattern
+waves :: RSdouble -> RSdouble -> Pattern
 waves wave_length amplitude (SurfaceVertex3D (Point3D x y z) _) = (wave_f x + wave_f y + wave_f z) * amplitude / 3
     where wave_f u = sin (u / wave_length * 2*pi)
 
 -- | Raises or lowers each point in a model along the y-axis according to its (x,z) coordinate.
 -- Typically this is used to construct height fields.
 --
-heightMap :: ((Double,Double) -> Double) -> Modeling attr
+heightMap :: ((RSdouble,RSdouble) -> RSdouble) -> Modeling attr
 heightMap f = deform $ \(Point3D x y z) -> Point3D x (y + f (x,z)) z
 
 -- | For models where we are certain surface normals don't matter, then don't calculate them.

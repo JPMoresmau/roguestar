@@ -10,8 +10,9 @@ import RSAGL.Math.Interpolation
 import RSAGL.Math.Vector
 import Data.Array.Unboxed
 import Data.Fixed
+import RSAGL.Types
 
-perlinTurbulence :: Double -> Point3D -> Point3D
+perlinTurbulence :: RSdouble -> Point3D -> Point3D
 perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perlinNoise y') (z + s*perlinNoise z')
     where x' = Point3D (x+100) y z
           y' = Point3D x (y+100) z
@@ -25,11 +26,11 @@ perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perli
 -- of the term "reference implementation" that it was intended to be
 -- the basis of derivative code such as this.
 --
-perlinNoise :: Point3D -> Double
+perlinNoise :: Point3D -> RSdouble
 perlinNoise (Point3D x0 y0 z0) =
-   let (x,x') = divMod' x0 1 :: (Int,Double)
-       (y,y') = divMod' y0 1 :: (Int,Double)
-       (z,z') = divMod' z0 1 :: (Int,Double)
+   let (x,x') = divMod' x0 1 :: (Int,RSdouble)
+       (y,y') = divMod' y0 1 :: (Int,RSdouble)
+       (z,z') = divMod' z0 1 :: (Int,RSdouble)
        (u,v,w) = (fade x',fade y',fade z')
        a = pRandom x + y
        aa = pRandom a + z
@@ -56,10 +57,10 @@ ps = listArray (0,255) [226,110,184,248,226,248,61,22,185,81,167,22,54,100,244,7
   20,72,55,74,241,165,118,67,56,118,70,82,22,159,177,126,242,102,97,213,63,22,69,68,248,247,46,148,202,228,200,242,4,29,251,71,46,222,57,33,179,226,147,203,166,38,29,96,
   224,246,11,32,94,205,108,128,63,138,252,166,62,24,215,109,165,135,53,166,5,139,185,25,68]
 
-fade :: Double -> Double
+fade :: RSdouble -> RSdouble
 fade t = t ^ 3 * (t * (t * 6 - 15) + 10)
 
-grad :: Int -> Double -> Double -> Double -> Double
+grad :: Int -> RSdouble -> RSdouble -> RSdouble -> RSdouble
 grad hash x y z = 
     case hash `mod` 12 of
                        0 -> x + y

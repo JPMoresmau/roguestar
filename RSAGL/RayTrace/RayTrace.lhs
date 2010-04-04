@@ -22,6 +22,7 @@ import RSAGL.Math.Ray
 import Data.Ord
 import Data.List
 import Data.Maybe
+import RSAGL.Types
 \end{code}
 
 \subsection{Geometry}
@@ -30,7 +31,7 @@ import Data.Maybe
 
 \begin{code}
 class Geometry g where
-    testRay :: Ray3D -> g -> [(Double,SurfaceVertex3D)]
+    testRay :: Ray3D -> g -> [(RSdouble,SurfaceVertex3D)]
 
 instance (Geometry g) => Geometry [g] where
     testRay ray gs = concatMap (testRay ray) gs
@@ -75,7 +76,7 @@ instance Geometry UnitSphere where
 		Just (Right (x,y)) -> [(x,p2s $ projectRay x ray),(y,p2s $ projectRay y ray)]
 		_ -> []
 
-highSchoolAlgebra :: Double -> Double -> Double -> Maybe (Either Double (Double,Double))
+highSchoolAlgebra :: RSdouble -> RSdouble -> RSdouble -> Maybe (Either RSdouble (RSdouble,RSdouble))
 highSchoolAlgebra a b c =
     let d = b*b - 4*a*c
         sqrtd = sqrt d
@@ -85,7 +86,7 @@ highSchoolAlgebra a b c =
 	    () | d > 0 -> Just $ Right ((negate b + sqrtd) / ta,(negate b - sqrtd) / ta)
 	    () -> Nothing
 
-sphere :: Point3D -> Double -> Sphere
+sphere :: Point3D -> RSdouble -> Sphere
 sphere p r = translateToFrom p origin_point_3d $ scale' r $ wrapAffine UnitSphere
 \end{code}
 
@@ -103,7 +104,7 @@ instance Geometry g => Geometry (WrappedAffine g) where
 \texttt{testRay1st} is the special case of testRay that returns only the nearest point of intersection, if any.
 
 \begin{code}
-testRay1st :: (Geometry g) => Ray3D -> g -> Maybe (Double,SurfaceVertex3D)
+testRay1st :: (Geometry g) => Ray3D -> g -> Maybe (RSdouble,SurfaceVertex3D)
 testRay1st r g = listToMaybe $ sortBy (comparing fst) $ filter ((>0) . fst) $ testRay r g
 \end{code}
 

@@ -1,7 +1,7 @@
 \section{RSAGL.Time}
 
 RSAGL.Time provides a fixed-point (as opposed to a floating-point number) representation of time.
-This is necessary because the Float and Double types are inadequate to precisely represent large
+This is necessary because the Float and RSdouble types are inadequate to precisely represent large
 quantities of time.
 
 This time library is designed to support real-time animation.
@@ -37,8 +37,8 @@ module RSAGL.FRP.Time
 
 import RSAGL.Math.AbstractVector
 import System.Time
-import Control.Monad
 import RSAGL.Math.Affine
+import RSAGL.Types
 
 {-# INLINE time_resolution #-}
 time_resolution :: (Num n) => n
@@ -47,7 +47,7 @@ time_resolution = 1000000
 newtype Time = Time Integer deriving (Show,Eq,Ord)
 newtype Rate a = Rate a deriving (Show,Eq,Ord,AffineTransformable)
 type Acceleration a = Rate (Rate a)
-type Frequency = Rate Double
+type Frequency = Rate RSdouble
 
 instance AbstractZero Time where
     zero = Time 0
@@ -107,10 +107,10 @@ fps60 = perSecond 60
 fps120 :: Frequency
 fps120 = perSecond 120
 
-fromSeconds :: Double -> Time
+fromSeconds :: RSdouble -> Time
 fromSeconds = Time . round . (* time_resolution)
 
-toSeconds :: Time -> Double
+toSeconds :: Time -> RSdouble
 toSeconds (Time t) = fromInteger t / time_resolution
 
 getTime :: IO Time
@@ -128,7 +128,7 @@ in the range \texttt{0 <= x <= 1}.
 cyclical :: Time -> Time -> Time
 cyclical (Time t) (Time k) = Time $ t `mod` k
 
-cyclical' :: Time -> Time -> Double
+cyclical' :: Time -> Time -> RSdouble
 cyclical' t k = (toSeconds $ t `cyclical` k) / toSeconds k
 \end{code}
 
@@ -153,7 +153,7 @@ per a (Time t) = Rate $ (recip $ fromInteger t / time_resolution) `scalarMultipl
 interval :: Frequency -> Time
 interval (Rate x) = fromSeconds $ recip x
 
-time :: Double -> Rate Double -> Time
+time :: RSdouble -> Rate RSdouble -> Time
 time d r = interval $ withTime (fromSeconds 1) (/d) r
 
 {-# INLINE withTime #-}

@@ -30,6 +30,7 @@ import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Interpolation
+import RSAGL.Types
 \end{code}
 
 \texttt{addColor} paints a color on top of another color using the additive color system.  For example, \texttt{red `addColor` green == yellow}.
@@ -39,10 +40,10 @@ import RSAGL.Math.Interpolation
 \texttt{rgb256} works for colors specified in hexadecimal.  For example, X11 ForestGreen is \texttt{rgb256 0x22 0x8B 0x22}.
 
 \begin{code}
-data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !Double }
+data RGB = RGB { rgb_red, rgb_green, rgb_blue :: !RSdouble }
     deriving (Eq,Show)
 
-data RGBA = RGBA { rgba_a :: !Double, rgba_rgb :: !RGB }
+data RGBA = RGBA { rgba_a :: !RSdouble, rgba_rgb :: !RGB }
     deriving (Eq,Show)
 
 instance NFData RGB where
@@ -50,15 +51,15 @@ instance NFData RGB where
 instance NFData RGBA where
 
 class (AbstractVector c) => ColorClass c where
-    rgb :: Double -> Double -> Double -> c
+    rgb :: RSdouble -> RSdouble -> RSdouble -> c
     rgb256 :: (Integral i) => i -> i -> i -> c
-    alpha :: Double -> c -> RGBA
+    alpha :: RSdouble -> c -> RGBA
     alpha256 :: (Integral i) => i -> c -> RGBA
     clampColor :: c -> c
-    zipRGB :: (Double -> Double -> Double) -> RGB -> c -> c
-    zipColor :: (Double -> Double -> Double) -> c -> c -> c
+    zipRGB :: (RSdouble -> RSdouble -> RSdouble) -> RGB -> c -> c
+    zipColor :: (RSdouble -> RSdouble -> RSdouble) -> c -> c -> c
     toPremultipliedRGB :: c -> RGB
-    colorToOpenGL :: c -> Color4 GLfloat
+    colorToOpenGL :: c -> Color4 RSdouble
     toRGBA :: c -> RGBA
     fromRGB :: RGB -> c
 
@@ -88,36 +89,36 @@ instance ColorClass RGBA where
     toRGBA = id
     fromRGB = alpha 1.0
 
-i2f256 :: (Integral i) => i -> Double
+i2f256 :: (Integral i) => i -> RSdouble
 i2f256 = (/ 255) . fromIntegral
 
-rgba :: Double -> Double -> Double -> Double -> RGBA
+rgba :: RSdouble -> RSdouble -> RSdouble -> RSdouble -> RGBA
 rgba r g b a = alpha a $ (rgb r g b :: RGB)
 
 rgba256 :: (Integral i) => i -> i -> i -> i -> RGBA
 rgba256 r g b a = alpha256 a $ (rgb256 r g b :: RGB)
 
-gray :: Double -> RGB
+gray :: RSdouble -> RGB
 gray x = rgb x x x
 
 gray256 :: (Integral i) => i -> RGB
 gray256 x = rgb256 x x x
 
-brightness :: (ColorClass c) => c -> Double
+brightness :: (ColorClass c) => c -> RSdouble
 brightness c = 0.2126 * r + 0.7152 * g + 0.0722 * b
     where RGB r g b = toPremultipliedRGB c
 
-meanBrightness :: (ColorClass c) => c -> Double
+meanBrightness :: (ColorClass c) => c -> RSdouble
 meanBrightness c = (r + g + b) / 3
     where RGB r g b = toPremultipliedRGB c
 
-zipRGB3 :: (Double -> Double -> Double -> Double) -> RGB -> RGB -> RGB -> RGB
+zipRGB3 :: (RSdouble -> RSdouble -> RSdouble -> RSdouble) -> RGB -> RGB -> RGB -> RGB
 zipRGB3 f (RGB ar ag ab) (RGB br bg bb) (RGB cr cg cb) = RGB (f ar br cr) (f ag bg cg) (f ab bb cb)
 
-maxRGB :: RGB -> Double
+maxRGB :: RGB -> RSdouble
 maxRGB (RGB r g b) = max r (max g b)
 
-minRGB :: RGB -> Double
+minRGB :: RGB -> RSdouble
 minRGB (RGB r g b) = min r (min g b)
 
 maximizeRGB :: RGB -> RGB
@@ -134,7 +135,7 @@ subColor :: (ColorClass c) => c -> c -> c
 subColor = zipColor (-)
 
 {-# INLINE mapRGB #-}
-mapRGB :: (Double -> Double) -> RGB -> RGB
+mapRGB :: (RSdouble -> RSdouble) -> RGB -> RGB
 mapRGB f (RGB r g b) = RGB (f r) (f g) (f b)
 
 {-# INLINE filterRGB #-}
@@ -142,7 +143,7 @@ filterRGB :: RGB -> RGB -> RGB
 filterRGB = zipRGB (*)
 
 {-# INLINE scaleRGB #-}
-scaleRGB :: Double -> RGB -> RGB
+scaleRGB :: RSdouble -> RGB -> RGB
 scaleRGB x = mapRGB (*x)
 
 invertRGB :: RGB -> RGB
@@ -156,15 +157,15 @@ the white point will map to RGB 1 1 1.
 filterRGBLinear :: RGB -> RGB -> RGB -> RGB
 filterRGBLinear black_point white_point = zipRGB3 (\b w c -> lerpBetweenClamped (b,c,w) (0,1)) black_point white_point
 
-scaleRGBA :: Double -> RGBA -> RGBA
+scaleRGBA :: RSdouble -> RGBA -> RGBA
 scaleRGBA x c = c { rgba_a = x * rgba_a c,
                     rgba_rgb = scaleRGB x (rgba_rgb c) }
 
-rgbToOpenGL :: RGB -> Color4 GLfloat
-rgbToOpenGL (RGB r g b) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) 1
+rgbToOpenGL :: RGB -> Color4 RSdouble
+rgbToOpenGL (RGB r g b) = Color4 r g b 1
 
-rgbaToOpenGL :: RGBA -> Color4 GLfloat
-rgbaToOpenGL (RGBA a (RGB r g b)) = Color4 (realToFrac r) (realToFrac g) (realToFrac b) (realToFrac a)
+rgbaToOpenGL :: RGBA -> Color4 GLdouble
+rgbaToOpenGL (RGBA a (RGB r g b)) = Color4 r g b a
 
 instance AbstractZero RGB where
     zero = rgb 0 0 0
@@ -176,7 +177,7 @@ instance AbstractSubtract RGB RGB where
     sub = subColor
 
 instance AbstractScale RGB where
-    scalarMultiply d = scaleRGB d
+    scalarMultiply d = scaleRGB $ f2f d
 
 instance AbstractVector RGB
 
@@ -190,7 +191,7 @@ instance AbstractSubtract RGBA RGBA where
     sub = subColor
 
 instance AbstractScale RGBA where
-    scalarMultiply d = scaleRGBA (realToFrac d)
+    scalarMultiply d = scaleRGBA $ f2f d
 
 instance AbstractVector RGBA
 \end{code}

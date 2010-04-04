@@ -12,6 +12,7 @@ module RSAGL.Math.Ray
 import RSAGL.Math.Vector
 import RSAGL.Math.Angle
 import RSAGL.Math.Affine
+import RSAGL.Types
 \end{code}
 
 \subsection{Rays in 3-space}
@@ -26,10 +27,10 @@ data Ray3D = Ray3D { ray_endpoint :: Point3D,
 instance AffineTransformable Ray3D where
     transform m (Ray3D p v) = Ray3D (transform m p) (transform m v)
 
-projectRay :: Double -> Ray3D -> Point3D
+projectRay :: RSdouble -> Ray3D -> Point3D
 projectRay t (Ray3D (Point3D x y z) (Vector3D u v w)) = Point3D (x+u*t) (y+v*t) (z+w*t)
 
-distanceAlong :: Ray3D -> Point3D -> Double
+distanceAlong :: Ray3D -> Point3D -> RSdouble
 distanceAlong (Ray3D p v) p' = dotProduct (vectorToFrom p' p) v / vectorLengthSquared v
 
 angleFrom :: Ray3D -> Point3D -> Angle

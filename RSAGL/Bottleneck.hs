@@ -6,8 +6,6 @@ module RSAGL.Bottleneck
 import Prelude hiding (catch)
 import Control.Monad
 import Control.Concurrent
-import Control.Concurrent.MVar
-import Control.Concurrent.Chan
 import Control.Exception
 import System.IO
 
@@ -19,7 +17,7 @@ newtype Bottleneck = Bottleneck {
 simpleBottleneck :: IO (Bottleneck)
 simpleBottleneck = 
     do bottleneck <- liftM Bottleneck newChan
-       forkIO $ work bottleneck
+       _ <- forkIO $ work bottleneck
        return bottleneck
 
 work :: Bottleneck -> IO ()

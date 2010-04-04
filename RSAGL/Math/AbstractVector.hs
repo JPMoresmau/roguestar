@@ -15,9 +15,10 @@ module RSAGL.Math.AbstractVector
     where
 
 import Data.Fixed
-import Data.List
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
+import Graphics.UI.GLUT as GLUT
+import RSAGL.Types
 
 class AbstractZero a where
     zero :: a
@@ -29,10 +30,10 @@ class AbstractSubtract p v | p -> v where
     sub :: p -> p -> v
 
 class AbstractScale v where
-    scalarMultiply :: Double -> v -> v
+    scalarMultiply :: RSdouble -> v -> v
 
 class AbstractMagnitude v where
-    magnitude :: v -> Double
+    magnitude :: v -> RSdouble
 
 class (AbstractZero v,AbstractAdd v v,AbstractSubtract v v,AbstractScale v) => AbstractVector v where
 
@@ -48,7 +49,7 @@ instance AbstractSubtract Integer Integer where
     sub = (-)
 
 instance AbstractMagnitude Integer where
-    magnitude = abs . realToFrac
+    magnitude = abs . fromInteger
 
 -- Float
 
@@ -62,15 +63,12 @@ instance AbstractSubtract Float Float where
     sub = (-)
 
 instance AbstractScale Float where
-    scalarMultiply d = (realToFrac d *)
+    scalarMultiply d = (f2f d *)
 
 instance AbstractMagnitude Float where
-    magnitude = abs . realToFrac
+    magnitude = abs . f2f
 
 instance AbstractVector Float
-
-instance AbstractZero Double where
-    zero = 0
 
 -- Double
 
@@ -81,12 +79,15 @@ instance AbstractSubtract Double Double where
     sub = (-)
 
 instance AbstractScale Double where
-    scalarMultiply d = (realToFrac d *)
+    scalarMultiply d = (f2f d *)
 
 instance AbstractMagnitude Double where
-    magnitude = abs
+    magnitude = abs . f2f
 
 instance AbstractVector Double
+
+instance AbstractZero Double where
+    zero = 0
 
 -- Fixed
 
@@ -103,7 +104,7 @@ instance (HasResolution a) => AbstractScale (Fixed a) where
     scalarMultiply d = (realToFrac d *)
 
 instance (HasResolution a) => AbstractMagnitude (Fixed a) where
-    magnitude = realToFrac
+    magnitude = abs . realToFrac
 
 instance (HasResolution a) => AbstractVector (Fixed a)
 
@@ -142,6 +143,44 @@ instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) wh
 
 instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
 
+-- GLfloat
+
+instance AbstractAdd GLfloat GLfloat where
+    add = (+)
+
+instance AbstractSubtract GLfloat GLfloat where
+    sub = (-)
+
+instance AbstractScale GLfloat where
+    scalarMultiply d = (f2f d *)
+
+instance AbstractMagnitude GLfloat where
+    magnitude = abs . f2f
+
+instance AbstractVector GLfloat
+
+instance AbstractZero GLfloat where
+    zero = 0
+
+-- GLdouble
+
+instance AbstractAdd GLdouble GLdouble where
+    add = (+)
+
+instance AbstractSubtract GLdouble GLdouble where
+    sub = (-)
+
+instance AbstractScale GLdouble where
+    scalarMultiply = (*)
+
+instance AbstractMagnitude GLdouble where
+    magnitude = abs . f2f
+
+instance AbstractVector GLdouble
+
+instance AbstractZero GLdouble where
+    zero = 0
+
 -- Lists
 
 instance (AbstractScale a) => AbstractScale [a] where
@@ -149,7 +188,7 @@ instance (AbstractScale a) => AbstractScale [a] where
 
 -- Generic functions.
 
-abstractScaleTo :: (AbstractScale v,AbstractMagnitude v) => Double -> v -> v
+abstractScaleTo :: (AbstractScale v,AbstractMagnitude v) => RSdouble -> v -> v
 abstractScaleTo _ v | magnitude v == 0 = v
 abstractScaleTo x v = scalarMultiply (x / magnitude v) v
 
@@ -161,5 +200,5 @@ abstractAverage vs = zero `add` scalarMultiply (recip $ fromInteger total_count)
     where f y (i,x) = i `seq` x `seq` (i+1,y `add` x)
           (total_count,total_sum) = foldr f (0,zero) $ map (`sub` zero) vs
 
-abstractDistance :: (AbstractMagnitude v,AbstractSubtract p v) => p -> p -> Double
+abstractDistance :: (AbstractMagnitude v,AbstractSubtract p v) => p -> p -> RSdouble
 abstractDistance x y = magnitude $ x `sub` y

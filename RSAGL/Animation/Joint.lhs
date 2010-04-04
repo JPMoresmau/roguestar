@@ -12,6 +12,7 @@ import RSAGL.Math.Affine
 import RSAGL.Math.Interpolation
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Orthagonal
+import RSAGL.Types
 \end{code}
 
 \texttt{Joint} is the result of computing a joint.  It provides AffineTransformations that describe the orientations of the bases of the components of the joint.
@@ -33,7 +34,7 @@ data Joint = Joint { joint_shoulder :: Point3D,
 Compute a joint where given a bend vector, two end points, and the total length of them limb.  
 
 \begin{code}
-joint :: Vector3D -> Point3D -> Double -> Point3D -> Joint
+joint :: Vector3D -> Point3D -> RSdouble -> Point3D -> Joint
 joint bend shoulder joint_length hand | distanceBetween shoulder hand > joint_length = -- if the end is out of range, constrict it to within range
     joint bend shoulder joint_length (translate (vectorScaleTo (0.99 * joint_length) $ vectorToFrom hand shoulder) shoulder)
 joint bend shoulder joint_length hand = Joint {

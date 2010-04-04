@@ -13,10 +13,10 @@ module RSAGL.Modeling.BoundingBox
 import RSAGL.Math.Vector
 import RSAGL.Math.Interpolation
 import RSAGL.Math.Affine
-import Data.List
+import RSAGL.Types
 
 data BoundingBox = BoundingBox {
-    bbox_bottom, bbox_top, bbox_left, bbox_right, bbox_far, bbox_near :: !Double }
+    bbox_bottom, bbox_top, bbox_left, bbox_right, bbox_far, bbox_near :: !RSdouble }
         deriving (Show)
 
 class Bound3D a where
@@ -67,12 +67,12 @@ boundingBoxToPointCloud bbox =
      Point3D (bbox_left bbox)  (bbox_top bbox)    (bbox_far bbox),
      Point3D (bbox_right bbox) (bbox_top bbox)    (bbox_far bbox)]
 
-boundingCenterRadius :: BoundingBox -> (Point3D,Double)
+boundingCenterRadius :: BoundingBox -> (Point3D,RSdouble)
 boundingCenterRadius bbox = (lerp 0.5 (nlb,frt),distanceBetween nlb frt / 2)
     where nlb = Point3D (bbox_near bbox) (bbox_left bbox) (bbox_bottom bbox)
           frt = Point3D (bbox_far bbox) (bbox_right bbox) (bbox_top bbox)
 
-minimalDistanceToBoundingBox :: Point3D -> BoundingBox -> Double
+minimalDistanceToBoundingBox :: Point3D -> BoundingBox -> RSdouble
 minimalDistanceToBoundingBox p bbox = distanceBetween p c - r
     where (c,r) = boundingCenterRadius bbox
 \end{code}

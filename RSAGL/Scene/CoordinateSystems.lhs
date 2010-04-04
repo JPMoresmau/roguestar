@@ -46,6 +46,7 @@ import Control.Arrow.Operations
 import RSAGL.Math.Matrix
 import RSAGL.Math.Affine
 import RSAGL.Math.Vector
+import RSAGL.Types
 \end{code}
 
 \subsection{Coordinate Systems}
@@ -218,10 +219,10 @@ data Distance = forall p. (AffineTransformable p,Xyz p) => Distance p p
 measure :: (AffineTransformable p,Xyz p) => p -> p -> Distance
 measure = Distance
 
-distance :: Distance -> Double
+distance :: Distance -> RSdouble
 distance (Distance p1 p2) = distanceBetween p1 p2
 
-distanceSquared :: Distance -> Double
+distanceSquared :: Distance -> RSdouble
 distanceSquared (Distance p1 p2) = distanceBetweenSquared p1 p2
 
 instance AffineTransformable Distance where

@@ -17,7 +17,7 @@ data BakedFragment = BakedFragment {
     baked_model_length :: GLsizei,
     baked_model_vertex_ptr :: Ptr (Vertex3 GLdouble),
     baked_model_normal_ptr :: Ptr (Normal3 GLdouble),
-    baked_model_color_ptr :: Maybe (Ptr (Color4 GLfloat)) }
+    baked_model_color_ptr :: Maybe (Ptr (Color4 GLdouble)) }
 
 data BakedSurface = BakedSurface {
     baked_model_action :: IO () -> IO (),
@@ -48,7 +48,7 @@ fragmentToOpenGL :: BakedFragment -> IO ()
 fragmentToOpenGL baked_fragment =
     do arrayPointer VertexArray $= VertexArrayDescriptor 3 Double 0 (baked_model_vertex_ptr baked_fragment)
        arrayPointer NormalArray $= VertexArrayDescriptor 3 Double 0 (baked_model_normal_ptr baked_fragment)
-       flip (maybe $ return ()) (baked_model_color_ptr baked_fragment) $ \color_ptr -> arrayPointer ColorArray $= VertexArrayDescriptor 4 Float 0 color_ptr
+       flip (maybe $ return ()) (baked_model_color_ptr baked_fragment) $ \color_ptr -> arrayPointer ColorArray $= VertexArrayDescriptor 4 Double 0 color_ptr
        drawArrays (baked_model_primitive_mode baked_fragment) 0 (baked_model_length baked_fragment)
 
 bakeSurface :: (OpenGLPrimitive a) => (IO () -> IO ()) -> Bool -> [(PrimitiveMode,[a])] -> IO BakedSurface

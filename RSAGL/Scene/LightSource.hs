@@ -17,9 +17,9 @@ import RSAGL.Modeling.Color as Color
 import RSAGL.Math.Affine
 import RSAGL.Scene.CoordinateSystems
 import Graphics.UI.GLUT as GLUT
+import RSAGL.Types
 import Data.List as List
 import Data.Monoid
-import Foreign.C.Types
 
 -- | A light source.  In addition to position information, each type of 
 -- light source (except 'NoLight') has a "color" term, indicating the color of direct lighting,
@@ -93,7 +93,7 @@ infiniteLightSourceOf (p@PointLight {}) = DirectionalLight {
     lightsource_direction = vectorToFrom (lightsource_position p) origin_point_3d,
     lightsource_color = scaleRGB scale_factor $ lightsource_color p,
     lightsource_ambient = scaleRGB scale_factor $ lightsource_ambient p }
-        where scale_factor = realToFrac $ (distanceSquared $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
+        where scale_factor = f2f $ (distanceSquared $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
 
 instance AffineTransformable LightSource where
     transform _ NoLight = NoLight
@@ -115,17 +115,17 @@ setLightSourceToOpenGL (l,dl@DirectionalLight { lightsource_color = Color.RGB cr
                                         lightsource_ambient = Color.RGB ar ag ab }) =
     do let Vector3D vx vy vz = vectorNormalize $ lightsource_direction dl
        light l $= Enabled
-       ambient l $= (Color4 (realToFrac ar) (realToFrac ag) (realToFrac ab) 1.0 :: Color4 Float)
-       GLUT.specular l $= (Color4 (realToFrac cr) (realToFrac cg) (realToFrac cb) 1.0 :: Color4 Float)
-       diffuse l $= (Color4 (realToFrac cr) (realToFrac cg) (realToFrac cb) 1.0 :: Color4 Float)
-       position l $= (Vertex4 (realToFrac vx) (realToFrac vy) (realToFrac vz) 0 :: Vertex4 Float)
+       ambient l $= Color4 (f2f ar) (f2f ag) (f2f ab) 1.0
+       GLUT.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       diffuse l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       position l $= Vertex4 (f2f vx) (f2f vy) (f2f vz) 0
        attenuation l $= (1,0,0)
 setLightSourceToOpenGL (l,pl@(PointLight { lightsource_position = (Point3D px py pz),
-                                   lightsource_color = Color.RGB cr cg cb,
-                                   lightsource_ambient = Color.RGB ar ag ab })) =
+                                           lightsource_color = Color.RGB cr cg cb,
+                                           lightsource_ambient = Color.RGB ar ag ab })) =
     do light l $= Enabled
-       ambient l $= (Color4 (realToFrac ar) (realToFrac ag) (realToFrac ab) 1.0 :: Color4 Float)
-       GLUT.specular l $= (Color4 (realToFrac cr) (realToFrac cg) (realToFrac cb) 1.0 :: Color4 Float)
-       diffuse l $= (Color4 (realToFrac cr) (realToFrac cg) (realToFrac cb) 1.0 :: Color4 Float)
-       position l $= (Vertex4 (realToFrac px) (realToFrac py) (realToFrac pz) 1 :: Vertex4 Float)
-       attenuation l $= (0.01,0,recip $ realToFrac $ distanceSquared $ lightsource_radius pl)
+       ambient l $= Color4 (f2f ar) (f2f ag) (f2f ab) 1.0
+       GLUT.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       diffuse l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       position l $= Vertex4 (f2f px) (f2f py) (f2f pz) 1
+       attenuation l $= (0.01,0,f2f $ recip $ distanceSquared $ lightsource_radius pl)

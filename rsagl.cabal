@@ -40,7 +40,8 @@ Library
                          RSAGL.Math.AbstractVector,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
-                         RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState
+                         RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
+                         RSAGL.Types
 
     other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 

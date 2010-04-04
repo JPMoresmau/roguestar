@@ -22,13 +22,11 @@ import RSAGL.Modeling.Color
 import RSAGL.Math.Angle
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Data.Monoid
-import Data.Maybe as Maybe
 import Data.List as List
 import Data.Ord
-import qualified RSAGL.Modeling.Model as Model
-import Control.Monad
 import System.Random
 import RSAGL.Modeling.Model hiding (sphere)
+import RSAGL.Types
 
 -- | An atmosphere that is fairly typical of the earth.
 earth_atmosphere :: Atmosphere
@@ -63,11 +61,11 @@ data AtmosphereLayer = AtmosphereLayer {
     -- | Represents the optical thickness of this layer looking straight up.  That is,
     -- if you reduce the altitude but hold the thickness constant, the layer will be
     -- essentially unchanged in the vertical direction.  A typical value is 1.0.
-    atmosphere_thickness :: Double,
+    atmosphere_thickness :: RSdouble,
     -- | The altitude to the edge of this atmosphere layer, where 1.0 is the diameter of the planet.  
     -- Lowering the altitude actually increases the density, and vice-versa, so double or halve the thickness
     -- and altitude at the same time.  A typical value is 1e-4.
-    atmosphere_altitude :: Double }
+    atmosphere_altitude :: RSdouble }
 
 -- | A 'SkyFilter' that just passes through the raw RGB values, essentially, 'Prelude.id'.
 rawSkyFilter :: SkyFilter
@@ -78,13 +76,13 @@ rawSkyFilter = const $ Just id
 -- linear filter based on those points.  For well chosen parameters this will hopefully 
 -- produce an appealing sky at any time of day or twilight.
 --
-dynamicSkyFilter :: Double -> Double -> SkyFilter
+dynamicSkyFilter :: RSdouble -> RSdouble -> SkyFilter
 dynamicSkyFilter max_black min_white origF = case () of
                                 () | min_color > 0 -> Just $ filterRGBLinear (gray min_color) (gray max_color)
                                 () | otherwise -> Nothing
     where max_color = foldr (\(RGB r g b) x -> max (max r g) (max b x)) min_white cs
 	  min_color = foldr (\(RGB r g b) x -> minimum $ filter (/= 0) [r,g,b,x]) max_black cs
-          randomCoordinates i = (map $ \x -> 2 * (if x >= 0.5 then 0.5 - x else x)) $ randoms (mkStdGen i)
+          randomCoordinates i = (map $ \x -> 2 * (if x >= 0.5 then 0.5 - x else x)) $ map f2f $ (randoms (mkStdGen i) :: [Double])
           cs = take 200 $ map origF $ filter ((\x -> x > 0 && x <= 1) . vectorLength) $ zipWith3 Vector3D
 		   (randomCoordinates 1305) (randomCoordinates 2543) (randomCoordinates 6037)
 
@@ -96,9 +94,9 @@ atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = V
     elasticOmnidirectionalScatter (atmosphere_altitude l / atmosphere_thickness l) (gray $ meanBrightness rayleigh_sky),
     elasticForwardScatter (atmosphere_altitude l / atmosphere_thickness l) (fromDegrees 30) (gray $ meanBrightness rayleigh_sky)]
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Dust c }) = 
-    dust (realToFrac $ atmosphere_altitude l / atmosphere_thickness l) c
+    dust (f2f $ atmosphere_altitude l / atmosphere_thickness l) c
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Fog c }) = 
-    fog (realToFrac $ atmosphere_altitude l / atmosphere_thickness l) c
+    fog (f2f $ atmosphere_altitude l / atmosphere_thickness l) c
 
 -- | Cast a ray that can intersect a geometry at exactly two or zero points, given a default value
 -- for the zero-intersection case and a function to determine a value for the
@@ -131,7 +129,7 @@ atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin
               (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) adaptiveSamples p_near p_far $
                   round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
           scattering_model = achromaticAbsorbtion $ atmosphereLayerToScatteringModel l
-	  lightingF p = realToFrac $ castSkyRay UnitSphere 1 
+	  lightingF p = f2f $ castSkyRay UnitSphere 1 
 	                                        (\p_near p_far -> max 0 $ sqrt (atmosphere_altitude l) - 1 + sqrt (4 - distanceBetween p_near p_far ** 2) / 2)
 				                (Ray3D p sun_vector)
 

@@ -30,6 +30,7 @@ import RSAGL.Modeling.Model
 import RSAGL.Math.Affine
 import RSAGL.Math.WrappedAffine
 import Control.Monad
+import RSAGL.Types
 \end{code}
 
 \subsection{Simple Animators}
@@ -74,7 +75,7 @@ type ForceFunction = Time -> Point3D -> Rate Vector3D -> Acceleration Vector3D
 a gravitational singularity.
 
 \begin{code}
-inverseSquareLaw :: Double -> Point3D -> ForceFunction
+inverseSquareLaw :: RSdouble -> Point3D -> ForceFunction
 inverseSquareLaw g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * (recip $ vectorLengthSquared v)) v
     where v = vectorToFrom attractor p
 \end{code}
@@ -83,7 +84,7 @@ inverseSquareLaw g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * 
 distance, all particles are trapped (there is no escape velocity).
 
 \begin{code}
-quadraticTrap :: Double -> Point3D -> ForceFunction
+quadraticTrap :: RSdouble -> Point3D -> ForceFunction
 quadraticTrap g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * vectorLengthSquared v) v
     where v = vectorToFrom attractor p
 \end{code}
@@ -91,7 +92,7 @@ quadraticTrap g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * vec
 \texttt{drag} behaves like simple aerodynamic drag.
 
 \begin{code}
-drag :: Double -> ForceFunction
+drag :: RSdouble -> ForceFunction
 drag x _ _ v' = perSecond $ perSecond $ vectorScaleTo (negate $ x * vectorLengthSquared v) v
     where v = v' `over` fromSeconds 1
 \end{code}

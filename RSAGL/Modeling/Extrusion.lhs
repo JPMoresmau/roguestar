@@ -15,6 +15,7 @@ import Control.Applicative
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Orthagonal
 import Data.Maybe
+import RSAGL.Types
 \end{code}
 
 \subsection{The General Extrusion}
@@ -31,10 +32,10 @@ extrude upish spine loop = wrapSurface $ transformation <$> (modelLookAt <$> spi
 \subsection{Specific Extrusions}
 
 \begin{code}
-extrudeTube :: Curve Double -> Curve Point3D -> Surface Point3D
+extrudeTube :: Curve RSdouble -> Curve Point3D -> Surface Point3D
 extrudeTube radius spine = extrude upish spine (scale' <$> radius <*> pure circleXY)
     where upish = pure $ Right $ fromMaybe (let [a,b] = iterateCurve 2 spine in fst $ orthos $ vectorToFrom a b) $ newellCurve spine
 
-extrudePrism :: Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Surface Point3D
+extrudePrism :: Vector3D -> (Point3D,RSdouble) -> (Point3D,RSdouble) -> Curve Point3D -> Surface Point3D
 extrudePrism upish (a,ra) (b,rb) c = extrude (pure $ Right $ upish) (linearInterpolation [a,b]) (flip scale' c <$> linearInterpolation [ra,rb])
 \end{code}

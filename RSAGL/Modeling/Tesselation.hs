@@ -24,6 +24,7 @@ import Text.Parsec.Prim
 import Text.Parsec.String ()
 import Data.Ord
 import Control.Monad
+import RSAGL.Types
 
 type TesselatedSurface a = [TesselatedElement a]
 
@@ -59,7 +60,7 @@ tesselateSurface :: Surface a -> (Integer,Integer) -> TesselatedSurface a
 tesselateSurface s uv = stripTriangles $ tesselateGrid $ iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)
 
 -- | Tesselate polylines of possibly differing number of elements.
-tesselateGrid :: [[(Double,a)]] -> TesselatedSurface a
+tesselateGrid :: [[(RSdouble,a)]] -> TesselatedSurface a
 tesselateGrid = stripTriangles . concatMap (uncurry tesselateStrip) . doubles
 
 -- | Strip out all single-triangle elements and stuff them in a single 'TesselatedTriangles' entry.
@@ -74,7 +75,7 @@ isTriangles :: TesselatedElement a -> Bool
 isTriangles (TesselatedTriangles _) = True
 isTriangles _ = False        
 
-tesselateStrip :: [(Double,a)] -> [(Double,a)] -> TesselatedSurface a
+tesselateStrip :: [(RSdouble,a)] -> [(RSdouble,a)] -> TesselatedSurface a
 tesselateStrip lefts rights = tesselate $ tesselateSteps lefts rights
 
 data LR = L | R deriving (Eq)
@@ -83,9 +84,9 @@ otherLR :: LR -> LR
 otherLR L = R
 otherLR R = L
 
-tesselateSteps :: [(Double,a)] -> [(Double,a)] -> [(LR,a)]
+tesselateSteps :: [(RSdouble,a)] -> [(RSdouble,a)] -> [(LR,a)]
 tesselateSteps lefts rights = map (second snd) $ sortBy (comparing $ fst . snd) $ map ((,) L) (reorder lefts) ++ map ((,) R) (reorder rights)
-    where reorder :: [(Double,a)] -> [(Double,a)]
+    where reorder :: [(RSdouble,a)] -> [(RSdouble,a)]
           reorder [] = []
           reorder [a] = [a]
           reorder (a:as) = a : map (\((x,_),(y,b)) -> ((x+y)/2,b)) (doubles (a:as))

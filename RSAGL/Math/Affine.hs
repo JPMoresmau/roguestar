@@ -14,8 +14,8 @@ import Graphics.Rendering.OpenGL.GL as GL hiding (R)
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Math.Angle
+import RSAGL.Types
 import Data.Maybe
-import Foreign.C.Types
 
 -- | 'AffineTransformable' objects are subject to affine transformations using matrix multiplication.
 class AffineTransformable a where
@@ -49,7 +49,7 @@ inverseTransform m = transform (matrixInverse m)
 
 -- | Specific scale preserving proportions.
 {-# INLINE scale' #-}
-scale' :: (AffineTransformable a) => Double -> a -> a
+scale' :: (AffineTransformable a) => RSdouble -> a -> a
 scale' x = RSAGL.Math.Affine.scale (Vector3D x x x)
 
 -- | Apply a function under an affine transformation.  @withTransformation m id@ is an identity if @m@ is invertable.
@@ -79,7 +79,7 @@ rotateToFrom u v = RSAGL.Math.Affine.rotate c a
 
 -- | Specific scale along an arbitary axis.
 {-# INLINE scaleAlong #-}
-scaleAlong :: (AffineTransformable a) => Vector3D -> Double -> a -> a
+scaleAlong :: (AffineTransformable a) => Vector3D -> RSdouble -> a -> a
 scaleAlong v u = withTransformation (rotateToFrom (Vector3D 0 1 0) v identity_matrix) (RSAGL.Math.Affine.scale (Vector3D 1 u 1))
 
 instance AffineTransformable a => AffineTransformable (Maybe a) where
@@ -131,15 +131,15 @@ instance AffineTransformable SurfaceVertex3D where
 
 -- | The IO monad itself is AffineTransformable.  This is done by wrapping the IO action in an OpenGL transformation.
 instance AffineTransformable (IO a) where
-    transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ map realToFrac $ concat $ rowMajorForm mat
-                                               multMatrix (mat' :: GLmatrix Double)
+    transform mat iofn = preservingMatrix $ do mat' <- newMatrix RowMajor $ map f2f $ concat $ rowMajorForm mat
+                                               multMatrix (mat' :: GLmatrix GLdouble)
                                                iofn
     translate (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.translate $ Vector3 x y z
+        do GL.translate $ Vector3 (f2f x) (f2f y) (f2f z :: GLdouble)
            iofn
     scale (Vector3D x y z) iofn = preservingMatrix $ 
-        do GL.scale x y z
+        do GL.scale (f2f x) (f2f y) (f2f z :: GLdouble)
            iofn
     rotate (Vector3D x y z) angle iofn = preservingMatrix $ 
-        do GL.rotate (toDegrees_ angle) (Vector3 (realToFrac x) (realToFrac y) (realToFrac z))
+        do GL.rotate (f2f $ toDegrees_ angle) (Vector3 (f2f x) (f2f y) (f2f z :: GLdouble))
            iofn

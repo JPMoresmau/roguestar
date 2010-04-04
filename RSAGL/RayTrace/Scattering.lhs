@@ -32,6 +32,7 @@ import RSAGL.Math.Interpolation
 import RSAGL.Auxiliary.Auxiliary
 import Data.Monoid
 import Data.List
+import RSAGL.Types
 \end{code}
 
 \section{Scattering}
@@ -47,7 +48,7 @@ For example, if medium \texttt{x} absorbs 50% of light passing through 3 units o
 will absorb 50% of light passing through 6 units of distance.
 
 \begin{code}
-adjustDistance :: Double -> Scattering -> Scattering
+adjustDistance :: RSdouble -> Scattering -> Scattering
 adjustDistance d s = Scattering {
     scattering_absorb = mapRGB (** (recip d)) $ scattering_absorb s,
     scattering_scatter = scaleRGB (recip d) . scattering_scatter s }
@@ -86,7 +87,7 @@ withoutScattering = mapScattering (const $ gray 0)
 through a distance of 1, and answers the resulting filter color of the media through that distance.
 
 \begin{code}
-absorbtionOverDistance :: Double -> RGB -> RGB
+absorbtionOverDistance :: RSdouble -> RGB -> RGB
 absorbtionOverDistance trace_distance absorb_rgb = mapRGB (** trace_distance) absorb_rgb
 \end{code}
 
@@ -94,7 +95,7 @@ absorbtionOverDistance trace_distance absorb_rgb = mapRGB (** trace_distance) ab
 through a distance of 1, and answers the resulting light being emitted through that distance.
 
 \begin{code}
-emissionOverDistance :: Double -> RGB -> RGB
+emissionOverDistance :: RSdouble -> RGB -> RGB
 emissionOverDistance trace_distance emit_rgb = scaleRGB trace_distance emit_rgb
 \end{code}
 
@@ -146,10 +147,10 @@ traceAbsorbtion scatteringF samplingF source destination number_of_samples =
 
 \begin{code}
 type Samples x = Integer -> x
-type SamplingAlgorithm a = (Double -> Point3D -> a) -> Point3D -> Point3D -> Samples [a]
+type SamplingAlgorithm a = (RSdouble -> Point3D -> a) -> Point3D -> Point3D -> Samples [a]
 
 class AdaptiveSample a where
-    conspicuous :: a -> Double
+    conspicuous :: a -> RSdouble
 
 instance AdaptiveSample RGB where
     conspicuous = recip . minRGB
@@ -158,7 +159,7 @@ instance AdaptiveSample (RGB,RGB) where
     conspicuous (scattering_color,absorbtion_color) = maxRGB scattering_color / minRGB absorbtion_color
 
 data Sample a = Sample {
-    sample_conspic :: Double,
+    sample_conspic :: RSdouble,
     sample_value :: a,
     sample_source :: Point3D,
     sample_midpoint :: Point3D,
@@ -186,7 +187,7 @@ adaptiveSamples sampleF source destination number_of_samples = map sample_value 
 	            s = sampleF (distanceBetween a b) p
 	  medianSamples samples = head $ drop (length conspics `div` 2) conspics
 	      where conspics = sort $ map sample_conspic samples
-	  recursive_limit = max 1 $ floor $ log (realToFrac number_of_samples) / log 4
+	  recursive_limit = max 1 $ floor $ log (fromInteger number_of_samples) / log 4
 	  resampleRecursive limit _ sample | limit > recursive_limit = [sample]
 	  resampleRecursive _ threshold sample | sample_conspic sample < threshold = [sample]
           resampleRecursive limit threshold sample = first_samples ++ second_samples
@@ -212,10 +213,10 @@ of the medium.
 This is an inelastic medium that always features achromatic absorbtion.
 
 \begin{code}
-dust :: Double -> RGB -> Scattering
+dust :: RSdouble -> RGB -> Scattering
 dust d c = adjustDistance d $ Scattering {
     scattering_absorb = gray 0.5,
-    scattering_scatter = flip scaleRGB c . (*0.5) . (1-) . (*2) . realToFrac . toRotations_ }
+    scattering_scatter = flip scaleRGB c . (*0.5) . (1-) . (*2) . f2f . toRotations_ }
 \end{code}
 
 \texttt{fog} is a colored media that scatters and absorbs the same color.  \texttt{fog}
@@ -223,7 +224,7 @@ might also be appropriate colored media for a solid translucent object.  This is
 See \texttt{elasticOmnidirectionalScatter} for an elastic version of \texttt{fog}.
 
 \begin{code}
-fog :: Double -> RGB -> Scattering
+fog :: RSdouble -> RGB -> Scattering
 fog d c = adjustDistance d $ Scattering {
     scattering_absorb = c,
     scattering_scatter = const c }
@@ -236,10 +237,10 @@ of light by very fine dust or even thin air.
 rayleigh_sky :: RGB
 rayleigh_sky = rgb 0.06 0.10 0.23 
 
-rayleigh :: Double -> RGB -> Scattering
+rayleigh :: RSdouble -> RGB -> Scattering
 rayleigh d c = adjustDistance d $ Scattering {
     scattering_absorb = invertRGB c,
-    scattering_scatter = \theta -> scaleRGB ((1 + realToFrac (cosine theta)^2)*0.75 ) c }
+    scattering_scatter = \theta -> scaleRGB ((1 + f2f (cosine theta)^2)*0.75 ) c }
 \end{code}
 
 \texttt{elasticBackScatter} throws light back at the light source within a spcified cone.
@@ -248,21 +249,21 @@ because while the scattered light may be very bright, being focused it doesn't r
 as much energy as other \texttt{Scattering} media.
 
 \begin{code}
-elasticBackScatter :: Double -> Angle -> RGB -> Scattering
+elasticBackScatter :: RSdouble -> Angle -> RGB -> Scattering
 elasticBackScatter d a c_ = adjustDistance d $ Scattering {
     scattering_absorb = invertRGB c,
-    scattering_scatter = \theta -> scaleRGB (realToFrac $ max 0 $ n*(r - (toRadians_ theta)^2)) c }
+    scattering_scatter = \theta -> scaleRGB (f2f $ max 0 $ n*(r - (toRadians_ theta)^2)) c }
         where r_ = toRadians a
               r = r_^2
 	      n = recip $ (1 + r/2 - sin(r_)*r_ - cos(r_))
-	      c = scaleRGB (realToFrac $ (toRotations a * 4)^2) c_
+	      c = scaleRGB (f2f $ (toRotations a * 4)^2) c_
 \end{code}
 
 \texttt{elasticForwardScatter} is the reverse of \texttt{elasticBackScatter}.  Use this
 to immitate Mie scattering.
 
 \begin{code}
-elasticForwardScatter :: Double -> Angle -> RGB -> Scattering
+elasticForwardScatter :: RSdouble -> Angle -> RGB -> Scattering
 elasticForwardScatter d a c = s {
     scattering_scatter = scattering_scatter s . supplementaryAngle }
         where s = elasticBackScatter d a c
@@ -271,7 +272,7 @@ elasticForwardScatter d a c = s {
 \texttt{elasticOmnidirectionScatter} is like an elastic \texttt{fog}, scattering equally in every direction.
 
 \begin{code}
-elasticOmnidirectionalScatter :: Double -> RGB -> Scattering
+elasticOmnidirectionalScatter :: RSdouble -> RGB -> Scattering
 elasticOmnidirectionalScatter d c = adjustDistance d $ Scattering {
     scattering_absorb = invertRGB c,
     scattering_scatter = const c }

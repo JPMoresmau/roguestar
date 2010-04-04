@@ -25,6 +25,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Affine
 import Control.Arrow
+import RSAGL.Types
 \end{code}
 
 \subsection{Alternate Coordinate Systems for Models}
@@ -33,23 +34,23 @@ import Control.Arrow
 sphericalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 sphericalCoordinates f = transformSurface2 id (clampCurve (0,1)) $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ ((pi/2) - v*pi))))
 
-cylindricalCoordinates :: ((Angle,Double) -> a) -> Surface a
+cylindricalCoordinates :: ((Angle,RSdouble) -> a) -> Surface a
 cylindricalCoordinates f = transformSurface2 id (clampCurve (0,1)) $ surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,v)))
 
 toroidalCoordinates :: ((Angle,Angle) -> a) -> Surface a
 toroidalCoordinates f = surface $ curry (f . (\(u,v) -> (fromRadians $ u*2*pi,fromRadians $ negate $ v*2*pi)))
 
-circularCoordinates :: ((Double,Double) -> a) -> Surface a
+circularCoordinates :: ((RSdouble,RSdouble) -> a) -> Surface a
 circularCoordinates f = surface $ curry $ (f . second negate . transformUnitSquareToUnitCircle)
 
-polarCoordinates :: ((Angle,Double) -> a) -> Surface a
+polarCoordinates :: ((Angle,RSdouble) -> a) -> Surface a
 polarCoordinates f = circularCoordinates (f . cartesianToPolar)
 \end{code}
 
 \subsection{Transformations Between Unit Volumes}
 
 \begin{code}
-transformUnitSquareToUnitCircle :: (Double,Double) -> (Double,Double)
+transformUnitSquareToUnitCircle :: (RSdouble,RSdouble) -> (RSdouble,RSdouble)
 transformUnitSquareToUnitCircle (u,v) = (x,z)
     where (Point3D x _ z) = transformUnitCubeToUnitSphere (Point3D u 0.5 v)
 
@@ -81,7 +82,7 @@ regularPolygon n = loopedLinearInterpolation $ map (flip rotateZ (Point3D 0 1 0)
 \subsection{Piecewise Length Normalization}
 
 \begin{code}
-normalizePolyline :: (AbstractSubtract p v,AbstractMagnitude v) => [p] -> [(Double,p)]
+normalizePolyline :: (AbstractSubtract p v,AbstractMagnitude v) => [p] -> [(RSdouble,p)]
 normalizePolyline pts = zip (map (/ total_dist) accumulated_dists) pts
     where dists = map (uncurry abstractDistance) $ doubles pts
           total_dist = last accumulated_dists
@@ -104,6 +105,6 @@ loopedLinearInterpolation = loopCurve (0,1) . linearInterpolation . (\a -> last 
 toward their center of gravity.
 
 \begin{code}
-smoothCurve :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => Integer -> Double -> Curve p -> Curve p
+smoothCurve :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => Integer -> RSdouble -> Curve p -> Curve p
 smoothCurve i h c = curve $ \u -> abstractAverage $ iterateCurve i $ controlCurve (u-h/2,u+h/2) (0,1) c
 \end{code}

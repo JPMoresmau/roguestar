@@ -66,7 +66,6 @@ import RSAGL.Modeling.Material
 import RSAGL.Modeling.Tesselation
 import RSAGL.Modeling.Optimization
 import RSAGL.Scene.CoordinateSystems
-import RSAGL.Modeling.Color
 import RSAGL.Modeling.Extrusion
 import RSAGL.Modeling.BoundingBox
 import Data.List as List
@@ -80,6 +79,7 @@ import RSAGL.Modeling.BakedModel hiding (tesselatedElementToOpenGL)
 import Data.IORef
 import Control.Monad
 import Control.Exception
+import RSAGL.Types
 \end{code}
 
 \subsection{Modeling Monad}
@@ -275,7 +275,7 @@ finishModeling = State.modify (map $ \m -> if isNothing (ms_affine_transform m) 
 \subsection{Simple Geometric Shapes}
 
 \begin{code}
-sphere :: (Monoid attr) => Point3D -> Double -> Modeling attr
+sphere :: (Monoid attr) => Point3D -> RSdouble -> Modeling attr
 sphere (Point3D x y z) radius = model $ do
     generalSurface $ Right $
         sphericalCoordinates $ (\(u,v) -> 
@@ -291,10 +291,10 @@ sphere (Point3D x y z) radius = model $ do
                                   (signum radius * cosinev * sineu)
                 in (point,vector))
 
-skySphere :: (Monoid attr) => Point3D -> Double -> Modeling attr
+skySphere :: (Monoid attr) => Point3D -> RSdouble -> Modeling attr
 skySphere p r = sphere p (negate r)
 
-hemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+hemisphere :: (Monoid attr) => Point3D -> Vector3D -> RSdouble -> Modeling attr
 hemisphere p v r = model $
     do generalSurface $ Right $ polarCoordinates $ \(a,d) -> let d_ = sqrt d
                                                                  x = cosine a*d_
@@ -303,7 +303,7 @@ hemisphere p v r = model $
                                                                  in (Point3D x y z,Vector3D x y z)
        affine $ translateToFrom p origin_point_3d . rotateToFrom v (Vector3D 0 1 0) . scale' r
 
-skyHemisphere :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+skyHemisphere :: (Monoid attr) => Point3D -> Vector3D -> RSdouble -> Modeling attr
 skyHemisphere p v r = hemisphere p (vectorScale (-1) v) (negate r)
 
 -- |
@@ -312,7 +312,7 @@ skyHemisphere p v r = hemisphere p (vectorScale (-1) v) (negate r)
 -- rendered, and otherwise the sphere seems clipped.
 --
 -- This is the appropriate geometry to model the curvature of a planet from 200 kilometers altitude, for example.
-perspectiveSphere :: (Monoid attr) => Point3D -> Double -> Point3D -> Modeling attr
+perspectiveSphere :: (Monoid attr) => Point3D -> RSdouble -> Point3D -> Modeling attr
 perspectiveSphere center_point radius eye_point = model $
     do let d = distanceBetween center_point eye_point
        let  x = sqrt $ d**2 - radius**2
@@ -321,7 +321,7 @@ perspectiveSphere center_point radius eye_point = model $
        openCone (lerpBetween (0,d',d) (eye_point,center_point),h) (lerpBetween (0,d-radius,d) (eye_point,center_point),0)
        deform $ \(p :: Point3D) -> translate (vectorScaleTo radius $ vectorToFrom p center_point) center_point
 
-torus :: (Monoid attr) => Double -> Double -> Modeling attr
+torus :: (Monoid attr) => RSdouble -> RSdouble -> Modeling attr
 torus major minor = model $
     do generalSurface $ Right $
         toroidalCoordinates $ \(u,v) ->
@@ -333,7 +333,7 @@ torus major minor = model $
                       (cosine v * sine u))
        tesselationHintComplexity $ round $ major / minor
 
-openCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
+openCone :: (Monoid attr) => (Point3D,RSdouble) -> (Point3D,RSdouble) -> Modeling attr
 openCone (a,a_radius) (b,b_radius) = model $
     do generalSurface $ Right $
            cylindricalCoordinates $ \(u,v) ->
@@ -345,7 +345,7 @@ openCone (a,a_radius) (b,b_radius) = model $
                  slope = (b_radius - a_radius) / distanceBetween a b
 
 -- | A flat disc with a hole in the middle, defined in terms of it's center, normal vector, inner (hole) radius and outer radius.
-openDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Double -> Modeling attr
+openDisc :: (Monoid attr) => Point3D -> Vector3D -> RSdouble -> RSdouble -> Modeling attr
 openDisc p up_vector inner_radius outer_radius = model $ 
     do generalSurface $ Right $
            cylindricalCoordinates $ \(u,v) -> 
@@ -356,12 +356,12 @@ openDisc p up_vector inner_radius outer_radius = model $
        tesselationHintComplexity $ round $ (max outer_radius inner_radius / (abs $ outer_radius - inner_radius))
        affine $ translateToFrom p origin_point_3d . rotateToFrom up_vector (Vector3D 0 1 0)
  
-closedDisc :: (Monoid attr) => Point3D -> Vector3D -> Double -> Modeling attr
+closedDisc :: (Monoid attr) => Point3D -> Vector3D -> RSdouble -> Modeling attr
 closedDisc center up_vector radius = model $
     do generalSurface $ Right $ circularCoordinates (\(x,z) -> (Point3D x 0 z,Vector3D 0 1 0))
        affine $ translateToFrom center origin_point_3d . rotateToFrom up_vector (Vector3D 0 1 0) . scale' radius
 
-closedCone :: (Monoid attr) => (Point3D,Double) -> (Point3D,Double) -> Modeling attr
+closedCone :: (Monoid attr) => (Point3D,RSdouble) -> (Point3D,RSdouble) -> Modeling attr
 closedCone a b = model $
     do openCone a b
        openDisc (fst a) (vectorToFrom (fst a) (fst b)) 0 (snd a * (1 + recip (2^8)))
@@ -395,12 +395,12 @@ box (Point3D x1 y1 z1) (Point3D x2 y2 z2) = model $
 sor :: (Monoid attr) => Curve Point3D -> Modeling attr
 sor c = model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ transposeSurface $ wrapSurface $ curve (flip rotateY c . fromRotations)
 
-tube :: (Monoid attr) => Curve (Double,Point3D) -> Modeling attr
+tube :: (Monoid attr) => Curve (RSdouble,Point3D) -> Modeling attr
 tube c | radius <- fmap fst c 
        , spine <- fmap snd c = 
     model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ extrudeTube radius spine
 
-prism :: (Monoid attr) => Vector3D -> (Point3D,Double) -> (Point3D,Double) -> Curve Point3D -> Modeling attr
+prism :: (Monoid attr) => Vector3D -> (Point3D,RSdouble) -> (Point3D,RSdouble) -> Curve Point3D -> Modeling attr
 prism upish ara brb c = model $ generalSurface $ Left $ transformSurface2 id (clampCurve (0,1)) $ extrudePrism upish ara brb c
 \end{code}
 
@@ -421,8 +421,8 @@ data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
 
 instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
-    getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 (realToFrac x) (realToFrac y) (realToFrac z)
-    getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 (realToFrac x) (realToFrac y) (realToFrac z)
+    getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 (f2f x) (f2f y) (f2f z)
+    getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 (f2f x) (f2f y) (f2f z)
     getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = rgbaToOpenGL c
 
 class ModelType m where
@@ -536,18 +536,18 @@ instance Bound3D IMSurface where
 \subsubsection{Rulers}
 
 \begin{code}
-sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> RSdouble
 sv3d_ruler a b = sv3d_distance_ruler a b * (1.0 + sv3d_normal_ruler a b)
 
-sv3d_distance_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_distance_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> RSdouble
 sv3d_distance_ruler (SurfaceVertex3D p1 _) (SurfaceVertex3D p2 _) =
     distanceBetween p1 p2
 
-sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> Double
+sv3d_normal_ruler :: SurfaceVertex3D -> SurfaceVertex3D -> RSdouble
 sv3d_normal_ruler (SurfaceVertex3D _ v1) (SurfaceVertex3D _ v2) =
     abs $ (1-) $ dotProduct v1 v2
 
-msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> Double
+msv3d_ruler :: MultiMaterialSurfaceVertex3D -> MultiMaterialSurfaceVertex3D -> RSdouble
 msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2 _) =
     sv3d_ruler p1 p2
 \end{code}

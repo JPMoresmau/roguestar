@@ -1,4 +1,4 @@
- cs\section{Scenes and Animation}
+\section{Scenes and Animation}
 
 A \texttt{Scene} is a complete description of an image to be rendered, consisting of a camera position, light sources, and models.
 
@@ -54,6 +54,7 @@ import qualified Data.Set as Set
 import Data.Monoid
 import RSAGL.Auxiliary.RecombinantState
 import Data.MemoCombinators
+import RSAGL.Types
 \end{code}
 
 \subsection{Cameras}
@@ -70,7 +71,7 @@ instance AffineTransformable Camera where
              camera_lookat = transform m $ camera_lookat pc,
              camera_up = transform m $ camera_up pc }
 
-cameraToOpenGL :: Double -> (Double,Double) -> Camera -> IO ()
+cameraToOpenGL :: RSdouble -> (RSdouble,RSdouble) -> Camera -> IO ()
 cameraToOpenGL aspect_ratio (near,far)
         (PerspectiveCamera { camera_position = (Point3D px py pz),
                              camera_lookat = (Point3D lx ly lz),
@@ -78,14 +79,14 @@ cameraToOpenGL aspect_ratio (near,far)
                              camera_fov = fov }) =
     do matrixMode $= Projection
        loadIdentity
-       perspective (realToFrac $ toDegrees fov)
-                   (realToFrac aspect_ratio)
-                   (realToFrac near)
-                   (realToFrac far)
+       perspective (f2f $ toDegrees fov)
+                   (f2f aspect_ratio)
+                   (f2f near)
+                   (f2f far)
        matrixMode $= Modelview 0
-       lookAt (Vertex3 (realToFrac px) (realToFrac py) (realToFrac pz)) 
-              (Vertex3 (realToFrac lx) (realToFrac ly) (realToFrac lz)) 
-              (Vector3 (realToFrac ux) (realToFrac uy) (realToFrac uz))
+       lookAt (Vertex3 (f2f px) (f2f py) (f2f pz)) 
+              (Vertex3 (f2f lx) (f2f ly) (f2f lz)) 
+              (Vector3 (f2f ux) (f2f uy) (f2f uz))
 
 infiniteCameraOf :: Camera -> Camera
 infiniteCameraOf pc = translateToFrom origin_point_3d (camera_position pc) pc
@@ -211,12 +212,12 @@ assembleScene (SceneLayerInfo layerToCamera light_source_layer_transform) scene_
 		                                                   scene_elem_opaque = False }) transparents
           toElement _ = return []
 
-sceneToOpenGL :: Double -> (Double,Double) -> Scene -> IO ()
+sceneToOpenGL :: RSdouble -> (RSdouble,RSdouble) -> Scene -> IO ()
 sceneToOpenGL aspect_ratio nearfar s =
     do let ns = reverse $ Set.toList $ Set.map fst $ Map.keysSet $ scene_elements s
        mapM_ (render1Layer aspect_ratio nearfar s) ns
 
-render1Layer :: Double -> (Double,Double) -> Scene -> SceneLayer -> IO ()
+render1Layer :: RSdouble -> (RSdouble,RSdouble) -> Scene -> SceneLayer -> IO ()
 render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
     do save_rescale_normal <- GLUT.get rescaleNormal
        save_cull_face <- GLUT.get cullFace

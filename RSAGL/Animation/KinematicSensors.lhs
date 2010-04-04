@@ -12,6 +12,7 @@ import RSAGL.Math.Vector
 import RSAGL.FRP.FRP
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.FRP.Time
+import RSAGL.Types
 \end{code}
 
 \subsection{Odometer}
@@ -20,7 +21,7 @@ The \texttt{odometer} indicates the distance traveled in a remote coordinate sys
 It does not measure side-to-side motion, only motion in the direction of the vector.
 
 \begin{code}
-odometer :: (CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX k s t i o () Double
+odometer :: (CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX k s t i o () RSdouble
 odometer cs measurement_vector_ =
        arr (const origin_point_3d) >>> exportToA cs >>> derivative >>> importFromA cs >>>
        arr (withTime (fromSeconds 1) (dotProduct measurement_vector)) >>>
