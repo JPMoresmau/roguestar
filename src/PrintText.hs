@@ -8,6 +8,7 @@ module PrintText
      PrintTextMode(..),
      TextType(..),
      getInputBuffer,
+     pullInputBuffer,
      setInputBuffer,
      setPrintTextMode,
      clearOutputBuffer,
@@ -19,13 +20,15 @@ import Data.IORef
 import Graphics.UI.GLUT as GLUT
 import PrintTextData
 import Control.Monad
+import Control.Concurrent.Chan
+import System.IO
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,String)],
     text_input_buffer :: String,
     text_output_mode :: PrintTextMode }
 
-newtype PrintTextObject = PrintTextObject (IORef PrintTextData)
+data PrintTextObject = PrintTextObject (IORef PrintTextData) (Chan String)
 
 font_width_pixels :: Int
 font_width_pixels = 9
@@ -40,43 +43,52 @@ font :: BitmapFont
 font = Fixed9By15
 
 newPrintTextObject :: IO PrintTextObject
-newPrintTextObject = liftM PrintTextObject $ newIORef $ PrintTextData {
-    text_output_buffer = [],
-    text_input_buffer = [],
-    text_output_mode = Unlimited } 
+newPrintTextObject = 
+    do pt_data <- newIORef $ PrintTextData {
+           text_output_buffer = [],
+           text_input_buffer = [],
+           text_output_mode = Unlimited } 
+       pt_chan <- newChan
+       return $ PrintTextObject pt_data pt_chan
 
 printText :: PrintTextObject -> TextType -> String -> IO ()
-printText (PrintTextObject pto) text_type str =
+printText (PrintTextObject pto _) text_type str =
     modifyIORef pto $ 
         \print_text -> print_text { text_output_buffer = text_output_buffer print_text ++ map (\l -> (text_type,l)) (lines str) } 
 
 keyCallback :: PrintTextObject -> KeyboardMouseCallback
-keyCallback _ _ Up _ _ = return ()
-keyCallback _ (MouseButton {}) _ _ _ = return ()
-keyCallback (PrintTextObject pto) (Char char) _ _ _ = modifyIORef pto $ 
-    \ptd -> ptd { text_input_buffer = text_input_buffer ptd ++ [char] }
-keyCallback (PrintTextObject pto) (SpecialKey special) _ _ _ = modifyIORef pto $
-    \ptd -> ptd { text_input_buffer = text_input_buffer ptd ++ ":::" ++ show special }
+keyCallback (PrintTextObject _ chan) (Char char) Up _ _ = writeChan chan [char]
+keyCallback (PrintTextObject _ chan) (SpecialKey special) Up _ _ = writeChan chan $ ":::" ++ show special
+keyCallback _ _ _ _ _ = return ()
 
 getInputBuffer :: PrintTextObject -> IO String
-getInputBuffer (PrintTextObject pto) = liftM text_input_buffer $ readIORef pto
+getInputBuffer (PrintTextObject pto _) = liftM text_input_buffer $ readIORef pto
+
+-- | Pull one keypress into the input buffer, if it exists.
+pullInputBuffer :: PrintTextObject -> IO ()
+pullInputBuffer (PrintTextObject pto chan) =
+    do e <- isEmptyChan chan
+       when (not e) $
+           do r <- readChan chan
+              modifyIORef pto $ \print_text -> print_text { text_input_buffer = text_input_buffer print_text ++ r }
+              return ()
 
 setInputBuffer :: PrintTextObject -> String -> IO ()
-setInputBuffer (PrintTextObject pto) new_input_buffer = modifyIORef pto $
+setInputBuffer (PrintTextObject pto _) new_input_buffer = modifyIORef pto $
     \print_text -> print_text { text_input_buffer = new_input_buffer }
 
 clearOutputBuffer :: PrintTextObject -> IO ()
-clearOutputBuffer (PrintTextObject pto) = modifyIORef pto $ \ptd -> ptd { text_output_buffer = [] }
+clearOutputBuffer (PrintTextObject pto _) = modifyIORef pto $ \ptd -> ptd { text_output_buffer = [] }
 
 setPrintTextMode :: PrintTextObject -> PrintTextMode -> IO ()
-setPrintTextMode (PrintTextObject pto) pt_mode =
+setPrintTextMode (PrintTextObject pto _) pt_mode =
     do modifyIORef pto $ \print_text -> print_text { text_output_mode = pt_mode }
 
 clearInputBuffer :: PrintTextObject -> IO ()
-clearInputBuffer (PrintTextObject pto) = modifyIORef pto $ \ptd -> ptd { text_input_buffer = [] }
+clearInputBuffer (PrintTextObject pto _) = modifyIORef pto $ \ptd -> ptd { text_input_buffer = [] }
 
 renderText :: PrintTextObject -> IO ()
-renderText (PrintTextObject pto) = 
+renderText (PrintTextObject pto _) = 
     do ptd <- readIORef pto
        (Size width height) <- get windowSize
        save_depth_func <- get depthFunc

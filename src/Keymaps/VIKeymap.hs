@@ -12,6 +12,7 @@ vi_keymap = common_keymap ++
      ("h","w"),
      ("l","e"),
      ("y","nw"),
+     ("u","ne"),
      ("b","sw"),
      ("n","se"),
      ("j","next"),

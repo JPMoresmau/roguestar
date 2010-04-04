@@ -23,6 +23,7 @@ import Data.Maybe
 import System.IO
 import Globals
 import Data.IORef
+import Control.Arrow
 
 -- |
 -- Input to an action.
@@ -32,21 +33,39 @@ data ActionInput = ActionInput {
     action_driver_object :: DriverObject,
     action_print_text_object :: PrintTextObject }
 
-type Action = ActionInput -> ErrorT String IO (IO ())
+type Action = ActionInput -> ErrorT ActionValidityReason IO (IO ())
+
+data ActionValidity = Go | Hold ActionValidityReason deriving (Read, Show)
+data ActionValidityReason = Invalid | Undecided String deriving (Read,Show)
+
+instance Error ActionValidityReason where
+    noMsg = strMsg ""
+    strMsg = Undecided
+
+invalid :: ErrorT ActionValidityReason IO ()
+invalid = throwError Invalid
+
+isUndecided :: ActionValidity -> Bool
+isUndecided (Hold (Undecided _)) = True
+isUndecided _ = False
+
+isGo :: ActionValidity -> Bool
+isGo Go = True
+isGo _ = False
 
 {----------------------------------------------------------
  --  Support functions for Actions
  ----------------------------------------------------------}
 
-actionValid :: ActionInput -> Action -> IO Bool
+actionValid :: ActionInput -> Action -> IO ActionValidity
 actionValid action_input action = 
     do result <- runErrorT $ action action_input
-       return $ either (const False) (const True) result
+       return $ either Hold (const Go) result
 
 executeAction :: ActionInput -> Action -> IO ()
 executeAction action_input action =
     do result <- runErrorT $ action action_input
-       either (\s -> printText (action_print_text_object action_input) UnexpectedEvent ("unable to execute action: " ++ s))
+       either (\failure -> printText (action_print_text_object action_input) UnexpectedEvent ("unable to execute action: " ++ show failure))
               (id)
               result
        return ()
@@ -86,12 +105,10 @@ executeContinueAction action_input =
 -- table from the engine. 
 --
 selectTableAction :: (String,String,String) -> String -> String -> String -> Action
-selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = 
+selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = stateGuard [allowed_state] $
     \action_input ->
-        do state <- maybe (fail "") return =<< (lift $ getAnswer (action_driver_object action_input) "state")
-           guard $ state == allowed_state
-           table <- maybe (fail "") return =<< (lift $ getTable (action_driver_object action_input) the_table_name the_table_id)
-           guard $ [action_param] `elem` tableSelect table [the_table_header]
+        do table <- maybe (fail $ "need table " ++ the_table_name) return =<< (lift $ getTable (action_driver_object action_input) the_table_name the_table_id)
+           unless ([action_param] `elem` tableSelect table [the_table_header]) invalid
            return $ driverAction (action_driver_object action_input) [action_name, action_param]
 
 -- |
@@ -99,7 +116,8 @@ selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state a
 --
 stateGuard :: [String] -> Action -> Action
 stateGuard allowed_states actionM action_input =
-    do guard =<< (liftM (maybe False (`elem` allowed_states)) $ lift $ getAnswer (action_driver_object action_input) "state")
+    do is_valid_state <- liftM (maybe False (`elem` allowed_states)) $ lift $ getAnswer (action_driver_object action_input) "state"
+       unless is_valid_state invalid
        actionM action_input
 
 -- |
@@ -139,7 +157,8 @@ quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
 
 continue_action :: (String,Action)
 continue_action = ("continue",\action_input ->
-    do guard =<< (liftM (== Just "yes") $ lift $ getAnswer (action_driver_object action_input) "snapshot")
+    do is_snapshot <- liftM (== Just "yes") $ lift $ getAnswer (action_driver_object action_input) "snapshot"
+       unless is_snapshot invalid
        return $ driverAction (action_driver_object action_input) ["continue"])
 
 direction_actions :: [(String,Action)]
@@ -314,9 +333,10 @@ lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action na
 --
 getValidActions :: ActionInput -> Maybe [String] -> IO [String]
 getValidActions action_input actions_list = 
-    do valid_action_pairs <- filterM (actionValid action_input . snd) $ 
-                                 maybe all_actions (map lookupAction) actions_list
-       return $ map fst valid_action_pairs
+    do valid_action_pairs <- mapM (\a -> liftM ((,) a) $ actionValid action_input $ snd a) $ maybe all_actions (map lookupAction) actions_list
+       return $ case () of
+           () | any (isUndecided . snd) valid_action_pairs -> []
+           () | otherwise -> map (fst . fst) $ filter (isGo . snd) valid_action_pairs
 
 -- |
 -- Takes a list of action names and executes the first action in the list that is valid

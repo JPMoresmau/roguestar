@@ -61,6 +61,7 @@ main =
        window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
        reshapeCallback $= Just roguestarReshapeCallback
        displayCallback $= roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object
+       perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $= (Just $ keyCallback print_text_object)
        addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref driver_object print_text_object keymap window)
        mainLoop
@@ -100,9 +101,13 @@ roguestarTimerCallback globals_ref driver_object print_text_object keymap window
 maybeExecuteKeymappedAction :: IORef Globals -> DriverObject -> PrintTextObject -> Keymap -> IO ()
 maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap =
     do let action_input = ActionInput globals_ref driver_object print_text_object
-       buffer_contents <- getInputBuffer print_text_object
-       actions <- keysToActionNames action_input keymap buffer_contents
-       worked <- takeUserInputAction action_input actions
-       if worked
-           then clearInputBuffer print_text_object
-	   else setInputBuffer print_text_object =<< filterKeySequence action_input keymap buffer_contents
+       synced_with_engine <- liftM (not . null) $ getValidActions action_input Nothing
+       when synced_with_engine $ 
+           do pullInputBuffer print_text_object
+              buffer_contents <- getInputBuffer print_text_object
+              actions <- keysToActionNames action_input keymap buffer_contents
+              worked <- takeUserInputAction action_input actions
+              if worked
+                  then clearInputBuffer print_text_object
+	          else setInputBuffer print_text_object =<< filterKeySequence action_input keymap buffer_contents
+
