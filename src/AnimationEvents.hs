@@ -12,8 +12,7 @@ import PrintTextData
 import MaybeArrow
 import Data.Monoid
 import Tables
-import RSAGL.FRP.FRP
-import RSAGL.FRP.Time
+import RSAGL.FRP
 import Strings
 
 eventStateHeader :: (String -> Bool) -> RSAnimAX () () () () () ()
