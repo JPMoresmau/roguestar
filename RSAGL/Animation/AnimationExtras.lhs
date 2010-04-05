@@ -17,8 +17,7 @@ module RSAGL.Animation.AnimationExtras
     where
 
 import RSAGL.Math.Vector
-import RSAGL.FRP.FRP
-import RSAGL.FRP.Time
+import RSAGL.FRP
 import RSAGL.Math.AbstractVector
 import Control.Arrow
 import Control.Arrow.Operations

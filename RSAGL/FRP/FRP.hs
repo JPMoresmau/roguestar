@@ -15,13 +15,8 @@ module RSAGL.FRP.FRP
      newFRP1Program,
      updateFRPProgram,
      accumulate,
-     integral,
-     summation,
-     derivative,
-     integralRK4,
-     integralRK4',
      absoluteTime,
-     threadTime,
+     deltaTime,
      ThreadIdentityRule,
      forbidDuplicates,
      allowAnonymous,
@@ -29,11 +24,7 @@ module RSAGL.FRP.FRP
      frpContext,
      frp1Context,
      whenJust,
-     sticky,
-     initial,
-     ioAction,
-     arrHashed,
-     changed)
+     ioAction)
     where
 
 import Prelude hiding ((.),id)
@@ -47,12 +38,10 @@ import Control.Arrow.Operations hiding (delay)
 import Data.IORef
 import Control.Applicative
 import RSAGL.Math.AbstractVector
-import RSAGL.Math.RK4
 import Data.List
 import Data.Maybe
 import Control.Exception
 import RSAGL.Auxiliary.RecombinantState
-import System.Mem.StableName
 
 {--------------------------------------------------------------------------------}
 --    FRP Data Structures
@@ -196,52 +185,8 @@ accumulate initial_value accumF = FRPX $ \_ -> FactoryArrow $
            do prev_o <- readIORef prev_o_ref
               let o = accumF i prev_o
               writeIORef prev_o_ref o
-              evaluate o
+              _ <- evaluate o
               return o
-
--- | Delay a piece of data for one frame.
-delay :: x -> FRPX k s t i o x x
-delay initial_value = accumulate (initial_value,error "delay: impossible") (\new_value (old_value,_) -> (new_value,old_value)) >>> arr snd
-
--- | Take the integral of a rate over time, using the trapezoidal rule.
-integral :: (AbstractVector v,AbstractAdd p v) => p -> FRPX k s t i o (Rate v) p
-integral initial_value = proc v ->
-    do delta_t <- deltaTime -< ()
-       (new_accum,_) <- accumulate (zero,perSecond zero) (\(delta_t,new_rate) (old_accum,old_rate) ->
-           (old_accum `add` ((scalarMultiply (recip 2) $ new_rate `add` old_rate) `over` delta_t),new_rate)) -< (delta_t,v)
-       returnA -< initial_value `add` new_accum
-
--- | Take the derivative of a value over time, by simple subtraction between frames.
-derivative :: (AbstractVector v,AbstractSubtract p v) => FRPX k s t i o p (Rate v)
-derivative = proc new_value ->
-    do delta_t <- deltaTime -< ()
-       m_old_value <- delay Nothing -< Just new_value
-       let z = perSecond zero
-       returnA -< maybe z (\old_value -> if delta_t == zero then z else (new_value `sub` old_value) `per` delta_t) m_old_value
-
--- | 'accumulate' harness for some numerical methods.
--- Parameters are: current input, previous output, delta time, absolute time, and number of frames at the specified frequency.
-accumulateNumerical :: Frequency -> (i -> o -> Time -> Time -> Integer -> o) -> o -> FRPX k s t x y i o
-accumulateNumerical frequency accumF initial_value = proc i ->
-    do absolute_time <- absoluteTime -< ()
-       delta_t <- deltaTime -< ()
-       accumulate initial_value (\(i,absolute_time',delta_t',frames) o -> accumF i o absolute_time' delta_t' frames) -< 
-           (i,absolute_time,delta_t,ceiling $ toSeconds delta_t / toSeconds (interval frequency))
-
-integralRK4 :: (AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRPX k s t i o (Time -> p -> Rate v) p
-integralRK4 f addPV = accumulateNumerical f (\diffF p abs_t delta_t -> integrateRK4 addPV diffF p (abs_t `sub` delta_t) abs_t)
-
-integralRK4' :: (AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) -> 
-                FRPX k s t x y (Time -> p -> Rate v -> Acceleration v) (p,Rate v)
-integralRK4' f addPV = accumulateNumerical f (\diffF p abs_t delta_t -> integrateRK4' addPV diffF p (abs_t `sub` delta_t) abs_t)
-
--- | Sum some data frame-by-frame.
-summation :: (AbstractAdd p v) => p -> FRPX k s t i o v p
-summation initial_value = accumulate initial_value (\v p -> p `add` v)
-
--- | Elapsed time since the instantiation of this switch or thread.  Reset when a thread switches.
-threadTime :: FRPX k s t i o () Time
-threadTime = summation zero <<< deltaTime
 
 -- | Get the current absolute time.  This value is transferable across different
 -- instances of an application and even between different computers and operating
@@ -278,7 +223,7 @@ switchContinue = frpxOf $ \frpinit (m_switch,i) ->
     do case m_switch of
            (Just switch) ->
                do newSwitch <- replaceSwitch frpinit switch
-                  callCC $ \_ -> newSwitch i
+                  _ <- callCC $ \_ -> newSwitch i
                   error "switchContinue: Unreachable code."
            Nothing -> return i
 
@@ -290,9 +235,9 @@ switchTerminate :: FRPX k s t i o (Maybe (FRPX k s t i o i o),o) o
 switchTerminate = frpxOf $ \frp_init (m_switch,o) ->
     do case m_switch of
            (Just switch) ->
-               do replaceSwitch frp_init switch
+               do _ <- replaceSwitch frp_init switch
                   exit <- lift $ liftM frpstate_exit $ getFRPState frp_init
-                  exit $ Just o
+                  _ <- exit $ Just o
                   error "switchTerminate: Unreachable code."
            Nothing -> return o
 
@@ -358,7 +303,7 @@ threadResults = map (\t -> (frp_thread_identity $ thread_object t,thread_output 
 -- * A transformation from the current state to the nested state.
 -- * A state-append function, which takes the original state as the first parameter, and one of the threaded results as the second parameter.
 --   This will be run repeatedly to accumulate the output state.
--- * A multithreaded algorithm.  The simplest (and single-threaded) implementation is sequence_.
+-- * A multithreading algorithm.  The simplest (and single-threaded) implementation is sequence_.
 -- * A list of seed threads with their associated thread identities.
 unsafeThreadGroup :: forall t s ss u j p k l i o. (Eq t) => (s -> ss) -> (s -> ss -> s) -> ThreadIdentityRule t -> ([IO ()] -> IO ()) -> [(t,FRPX k ss t j p j p)] -> FRPX l s u i o j (ThreadGroup ss t j p)
 unsafeThreadGroup sclone sappend rule multithread seed_threads = FRPX $ \frp_init -> FactoryArrow $
@@ -411,34 +356,7 @@ whenJust actionA = frp1Context whenJust_
 	      do switchContinue -< (fmap (const whenJust_) i,i)
 	         returnA -< Nothing
 
--- | Answer the most recent input that satisfies the predicate.
--- Accepts an initial value, which need not satisfy the predicate.
-sticky :: (x -> Bool) -> x -> FRPX k s t i o x x
-sticky f x = accumulate x (\new_x old_x -> if f new_x then new_x else old_x)
-
--- | Answer the first input that ever passes through a function.
-initial :: FRPX k s t i o x x
-initial = accumulate Nothing (\new_x m_old_x -> Just $ fromMaybe new_x m_old_x) >>> arr (fromMaybe $ error "initial: impossible happened")
-
 -- | Perform an arbitrary IO action.
 ioAction :: (j -> IO p) -> FRPX k s t i o j p
 ioAction action = frpxOf $ \_ j -> lift $ action j
 
--- | Exactly like 'arr', but uses 'StableName's to optimize away reduntant calls.  Use trace on the function to
--- get an idea of how often it is being evaluated in practice.
-arrHashed :: (j -> p) -> FRPX k s t i o j p
-arrHashed f = proc j ->
-    do j_stable <- ioAction makeStableName -< j
-       (_,p) <- accumulate (Nothing,error "arrHashed: impossible")
-                           (\(j_stable,j) (p_stable,p) -> if Just j_stable == p_stable
-                                                          then (p_stable,p)
-                                                          else (Just j_stable,f j)) -< (j_stable,j)
-       returnA -< p
-
--- | Answer true during a frame in which the input changes, based on an equality predicate.
--- Takes the same form as 'accumulate', that is, the first parameter of the predicate is the
--- new input.
-changed :: (x -> x -> Bool) -> FRPX k s t i o x Bool
-changed f = proc x ->
-    do d_x <- delay Nothing -< Just x
-       returnA -< maybe True (not . f x) d_x

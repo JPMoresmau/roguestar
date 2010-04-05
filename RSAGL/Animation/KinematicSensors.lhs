@@ -9,9 +9,8 @@ module RSAGL.Animation.KinematicSensors
 
 import Control.Arrow
 import RSAGL.Math.Vector
-import RSAGL.FRP.FRP
+import RSAGL.FRP
 import RSAGL.Scene.CoordinateSystems
-import RSAGL.FRP.Time
 import RSAGL.Types
 \end{code}
 

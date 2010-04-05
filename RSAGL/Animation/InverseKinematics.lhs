@@ -15,12 +15,11 @@ module RSAGL.Animation.InverseKinematics
 
 import Control.Arrow
 import RSAGL.Math.Vector
-import RSAGL.FRP.FRP
+import RSAGL.FRP
 import RSAGL.Math.Affine
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Animation.KinematicSensors
 import RSAGL.Animation.Joint
-import RSAGL.FRP.Time
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Angle
 import RSAGL.Math.FMod
