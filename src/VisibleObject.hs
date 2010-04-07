@@ -97,7 +97,7 @@ visibleObjectHeader :: RSAnimAX Threaded (Maybe Integer) i o () ()
 visibleObjectHeader = proc () ->
     do unique_id <- arr (fromMaybe (error "visibleObjectHeader: threadIdentity was Nothing")) <<< threadIdentity -< ()
        uids <- allObjects -< ()
-       killThreadIf -< isNothing $ find (== unique_id) uids
+       killThreadIf -< not $ unique_id `elem` uids
 
 -- | List all 'VisibleObject' records.
 visibleObjects :: RSAnimAX k t i o () [VisibleObject]

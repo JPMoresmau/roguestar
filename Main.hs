@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleInstances #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleInstances, OverloadedStrings #-}
 
 module Main (main) where
 
@@ -11,6 +11,10 @@ import System.IO
 import Control.Monad
 import Paths_roguestar_gl
 import GHC.Environment
+import System.Time
+import qualified Data.ByteString as B
+import Data.ByteString.Char8 ()
+import GHC.Exts (IsString(..))
 
 known_args :: [String]
 known_args = [arg_echo_protocol,arg_single_threaded]
@@ -40,8 +44,8 @@ main =
        when ("--verbose" `elem` args) $ putStrLn $ "starting process: " ++ roguestar_gl_bin ++ " " ++ unwords gl_args
        (gl_in,gl_out,gl_err,roguestar_gl) <- runInteractiveProcess (bin_dir `combine` "roguestar-gl") gl_args Nothing Nothing
        stdout_chan <- newChan
-       _ <- forkIO $ pump e_out  $ [("",DHandle gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",DChan stdout_chan)] else [])
-       _ <- forkIO $ pump gl_out $ [("",DHandle e_in)] ++ (if should_echo_protocol then [("engine <<< gl *** ",DChan stdout_chan)] else [])
+       _ <- forkIO $ pump e_out  $ [("",DHandle gl_in)] ++ (if should_echo_protocol then [("engine >>> gl *** ",DChanTime stdout_chan)] else [])
+       _ <- forkIO $ pump gl_out $ [("",DHandle e_in)] ++ (if should_echo_protocol then [("engine <<< gl *** ",DChanTime stdout_chan)] else [])
        _ <- forkIO $ pump e_err  $ [("roguestar-engine *** ",DChan stdout_chan)]
        _ <- forkIO $ pump gl_err $ [("roguestar-gl     *** ",DChan stdout_chan)]
        _ <- forkIO $ printChan stdout stdout_chan
@@ -56,30 +60,31 @@ main =
            ExitFailure x -> putStrLn $ "roguestar-gl terminated unexpectedly (" ++ show x ++ ")"
            _ -> return ()       
 
-data Destination = DHandle Handle | DChan (Chan String)
+data Destination = DHandle Handle | DChan (Chan B.ByteString) | DChanTime (Chan B.ByteString)
 
-send :: Destination -> String -> IO ()
-send (DHandle h) str = hPutStrLn h str >> hFlush h
+send :: Destination -> B.ByteString -> IO ()
+send (DHandle h) str = B.hPutStrLn h str >> hFlush h
 send (DChan c) str = writeChan c str
+send (DChanTime c) str = 
+    do t <- getClockTime
+       writeChan c $ fromString (show t) `B.append` ": " `B.append` str
 
 setup :: Destination -> IO ()
 setup (DHandle h) = hSetBuffering h NoBuffering
 setup _ = return ()
 
-pump :: Handle -> [(String,Destination)] -> IO ()
+pump :: Handle -> [(B.ByteString,Destination)] -> IO ()
 pump from tos =
     do mapM_ (setup . snd) tos
-       hSetBuffering from NoBuffering
        forever $
-           do l <- hGetLine from
-	      flip mapM_ tos $ \(name,to) -> send to $ name ++ l
+           do l <- B.hGetLine from
+	      flip mapM_ tos $ \(name,to) -> send to $ name `B.append` l
 
-printChan :: Handle -> Chan String -> IO ()
-printChan h c =
+printChan :: Handle -> Chan B.ByteString -> IO ()
+printChan h c = forever $
     do s <- readChan c
-       hPutStrLn h s
+       B.hPutStrLn h s
        hFlush h
-       printChan h c
 
 getNumberOfCPUCores :: IO Int
 getNumberOfCPUCores =
