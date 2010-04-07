@@ -55,11 +55,11 @@ mainLoop db_init =
        forkIO $ forever $ writeChan input_chan =<< getLine
        forkIO $ forever $
            do next_line <- liftM (map toLower . unlines . lines) (readChan output_chan)
-              when (not $ null next_line ) $
+              when (not $ null next_line) $
                   do putStrLn next_line
                      putStrLn "over"
               hFlush stdout
-       forever $
+       forkIO $ forever $
            do next_command <- readChan input_chan
               case (words $ map toLower next_command) of
                   ["quit"] -> exitWith ExitSuccess
@@ -78,6 +78,7 @@ mainLoop db_init =
                   failed -> 
                       do forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords failed ++ "`"
                          return ()
+       forever $ threadDelay 1000000 -- "park" the main function
 
 -- | Wait for currently running queries to finish, and stop processing incomming queries while we mutate the database.
 stopping :: TVar (Maybe Integer) -> IO () -> IO ()
