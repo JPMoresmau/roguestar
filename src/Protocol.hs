@@ -52,14 +52,16 @@ mainLoop db_init =
        input_chan <- newChan
        output_chan <- newChan
        query_count <- newTVarIO (Just 0) -- Just (the number of running queries) or Nothing (a non-query action is in progress)
-       forkIO $ forever $ writeChan input_chan =<< getLine
-       forkIO $ forever $
+       wait_quit <- newEmptyMVar
+       let foreverLoopThenQuit = flip finally (putMVar wait_quit ()) . forever
+       forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< getLine
+       forkIO $ foreverLoopThenQuit $
            do next_line <- liftM (map toLower . unlines . lines) (readChan output_chan)
               when (not $ null next_line) $
                   do putStrLn next_line
                      putStrLn "over"
               hFlush stdout
-       forkIO $ forever $
+       forkIO $ foreverLoopThenQuit $
            do next_command <- readChan input_chan
               case (words $ map toLower next_command) of
                   ["quit"] -> exitWith ExitSuccess
@@ -78,7 +80,7 @@ mainLoop db_init =
                   failed -> 
                       do forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords failed ++ "`"
                          return ()
-       forever $ threadDelay 1000000 -- "park" the main function
+       takeMVar wait_quit -- "park" the main function
 
 -- | Wait for currently running queries to finish, and stop processing incomming queries while we mutate the database.
 stopping :: TVar (Maybe Integer) -> IO () -> IO ()
