@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Keymaps.VIKeymap
     (vi_keymap)
     where

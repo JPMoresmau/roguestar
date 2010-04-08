@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses, FlexibleInstances, TypeFamilies, ExistentialQuantification, Rank2Types #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses, FlexibleInstances, TypeFamilies, ExistentialQuantification, Rank2Types, OverloadedStrings #-}
 
 module Animation
     (RSAnimAX,
@@ -50,6 +50,7 @@ import Data.Ord
 import Strings
 import Globals
 import Data.IORef
+import qualified Data.ByteString as B
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator IO,
@@ -106,13 +107,13 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object (Rog
        assembleScene result_scene_layer_info $ animstate_scene_accumulator result_animstate
 
 -- | Request an answer from the engine.  This will return 'Nothing' until the answer arrives, which may never happen.
-driverGetAnswerA :: RSAnimAX any t i o String (Maybe String)
+driverGetAnswerA :: RSAnimAX any t i o B.ByteString (Maybe B.ByteString)
 driverGetAnswerA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,query_) -> getAnswer driver_object_ query_) -< (driver_object,query)
 
 -- | Request a data table from the engine.  This will return 'Nothing' until the entire table arrives, which may never happen.
-driverGetTableA :: RSAnimAX any t i o (String,String) (Maybe RoguestarTable)
+driverGetTableA :: RSAnimAX any t i o (B.ByteString,B.ByteString) (Maybe RoguestarTable)
 driverGetTableA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,(the_table_name,the_table_id)) -> 
@@ -120,10 +121,10 @@ driverGetTableA = proc query ->
 
 -- | Print a line of text to the game console.  This will print exactly once.
 -- Accepts 'Nothing' and prints once immediately when a value is supplied.
-printTextOnce :: RSAnimAX k t i o (Maybe (TextType,String)) ()
+printTextOnce :: RSAnimAX k t i o (Maybe (TextType,B.ByteString)) ()
 printTextOnce = onceA printTextA 
 
-printTextA :: RSAnimAX k t i o (Maybe (TextType,String)) ()
+printTextA :: RSAnimAX k t i o (Maybe (TextType,B.ByteString)) ()
 printTextA = proc pt_data ->
     do print_text_object <- arr animstate_print_text_object <<< fetch -< ()
        ioAction (\(print_text_object,x) -> case x of
@@ -137,16 +138,16 @@ donesA = proc () ->
        ioAction driverDones -< thawDriver driver_object
 
 -- | Print a debugging message to 'stderr'.  This will print on every frame of animation.
-debugA :: RSAnimAX k t i o (Maybe String) ()
-debugA = ioAction (maybe (return ()) (hPutStrLn stderr))
+debugA :: RSAnimAX k t i o (Maybe B.ByteString) ()
+debugA = ioAction (maybe (return ()) (B.hPutStrLn stderr))
 
 -- | Print a debugging message to 'stderr'.  This will print exactly once.
-debugOnce :: RSAnimAX k t i o (Maybe String) ()
+debugOnce :: RSAnimAX k t i o (Maybe B.ByteString) ()
 debugOnce = onceA debugA
 
 -- | Get a list of keystrokes that correspond to the specified action, that are valid on the current frame of animation.
 -- This can be used to display a menu that correctly indicates what keystroke to press for a given action.
-actionNameToKeysA :: String -> RSAnimAX any t i o () [String]
+actionNameToKeysA :: B.ByteString -> RSAnimAX any t i o () [B.ByteString]
 actionNameToKeysA action_name = proc () ->
     do animstate <- fetch -< ()
        let action_input = ActionInput (animstate_globals animstate)
@@ -155,14 +156,14 @@ actionNameToKeysA action_name = proc () ->
        ioAction id -< actionNameToKeys action_input common_keymap action_name
 
 -- | Print a menu using 'printMenuItemA'
-printMenuA :: [String] -> RSAnimAX any t i o () ()
+printMenuA :: [B.ByteString] -> RSAnimAX any t i o () ()
 printMenuA = foldr (>>>) (arr id) . map printMenuItemA
 
 -- | Print a single menu item including it's keystroke.
-printMenuItemA :: String -> RSAnimAX any t i o () ()
+printMenuItemA :: B.ByteString -> RSAnimAX any t i o () ()
 printMenuItemA action_name = proc () ->
     do keys <- actionNameToKeysA action_name -< ()
-       printTextA -< fmap (\s -> (Query,s ++ " - " ++ hrstring action_name)) $ listToMaybe $ sortBy (comparing length) keys
+       printTextA -< fmap (\s -> (Query,s `B.append` " - " `B.append` hrstring action_name)) $ listToMaybe $ sortBy (comparing B.length) keys
 
 -- | Clear all printed text once.  This begins a new clean segment of printed text.
 clearPrintTextOnce :: RSAnimAX k t i o () ()

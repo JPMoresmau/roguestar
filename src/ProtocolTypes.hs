@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | ADTs corresponding to certain data tables incomming from roguestar-engine.
 module ProtocolTypes
     (ProtocolType(..),
@@ -11,15 +12,16 @@ import Data.Maybe
 import Tables
 import RSAGL.Math.Angle
 import Debug.Trace
+import qualified Data.ByteString.Char8 as B
 
 -- | 'ProtocolType' is any type that can be constructed from a row of a 'RoguestarTable'.
 -- 'formatTable' is a function from bottom to the expected format of the table row.
 class ProtocolType t where
-    fromTable :: [TableDataFormat String Integer] -> Maybe t
-    formatTable :: t -> [TableDataFormat String String]
+    fromTable :: [TableDataFormat B.ByteString Integer] -> Maybe t
+    formatTable :: t -> [TableDataFormat B.ByteString B.ByteString]
 
 data TerrainTile = TerrainTile {
-    tt_type :: String,
+    tt_type :: B.ByteString,
     tt_xy :: (Integer,Integer) }
         deriving (Eq,Show)
 
@@ -49,7 +51,7 @@ instance ProtocolType WieldedObject where
         WieldedObject unique_id creature_id
     fromTable _ = Nothing
 
-facingToAngle :: String -> BoundAngle
+facingToAngle :: B.ByteString -> BoundAngle
 facingToAngle "south" = BoundAngle $ fromDegrees 0
 facingToAngle "southeast" = BoundAngle $ fromDegrees 45
 facingToAngle "east" = BoundAngle $ fromDegrees 90
@@ -59,7 +61,7 @@ facingToAngle "northwest" = BoundAngle $ fromDegrees 225
 facingToAngle "west" = BoundAngle $ fromDegrees 270
 facingToAngle "southwest" = BoundAngle $ fromDegrees 315
 facingToAngle "here" = BoundAngle $ fromDegrees 0
-facingToAngle s = trace ("facingToAngle: what is " ++ s ++ "?") $ BoundAngle $ fromDegrees 180
+facingToAngle s = trace ("facingToAngle: what is " ++ B.unpack s ++ "?") $ BoundAngle $ fromDegrees 180
 
 tableSelectTyped :: (ProtocolType t) => RoguestarTable -> [t]
 tableSelectTyped the_table = result

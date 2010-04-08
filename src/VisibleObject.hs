@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, OverloadedStrings #-}
 
 module VisibleObject
     (ToolThreadInput(..),
@@ -38,6 +38,7 @@ import qualified Data.Map as Map
 import Control.Monad
 import Scene
 import Models.LibraryData
+import qualified Data.ByteString.Char8 as B
 
 data ToolThreadInput = ToolThreadInput {
     -- | Wield points of all creatures that are on screen.
@@ -68,8 +69,8 @@ questionMarkAvatar = proc _ ->
        m_tool <- objectDetailsLookup ThisObject "tool" -< ()
        m_building <- objectDetailsLookup ThisObject "building" -< ()
        debugOnce -< if any (isJust) [m_object_type,m_species,m_tool]
-                    then (Just $ "questionMarkAvatar: apparently didn't recognize object: " ++ 
-		                 show m_object_type ++ ", " ++ show m_species ++ ", " ++ show m_tool ++ ", " ++ show m_building) 
+                    then (Just $ B.concat $ ["questionMarkAvatar: apparently didn't recognize object: ",
+		                 B.pack $ show m_object_type, ", ", B.pack $ show m_species, ", ", B.pack $ show m_tool, ", ", B.pack $ show m_building]) 
 		    else Nothing
        m_position <- objectIdealPosition ThisObject -< ()
        let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)
@@ -87,7 +88,7 @@ visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimAX Threaded (Maybe Int
 visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
 
 -- | Kill a thread if an object has the wrong \"object-type\" field, e.g. anything that isn't a \"creature\".
-objectTypeGuard :: (String -> Bool) -> RSAnimAX Threaded (Maybe Integer) a b () ()
+objectTypeGuard :: (B.ByteString -> Bool) -> RSAnimAX Threaded (Maybe Integer) a b () ()
 objectTypeGuard f = proc () ->
     do m_obj_type <- objectDetailsLookup ThisObject "object-type" -< ()
        killThreadIf -< maybe False (not . f) m_obj_type
@@ -161,10 +162,10 @@ visibleObject obj = proc () ->
        returnA -< do find ((== m_unique_id) . Just . vo_unique_id) visible_objects
 
 -- | Get an "object-details" field for the specified visible object.
-objectDetailsLookup :: VisibleObjectReference -> String -> RSAnimAX k (Maybe Integer) i o () (Maybe String)
+objectDetailsLookup :: VisibleObjectReference -> B.ByteString -> RSAnimAX k (Maybe Integer) i o () (Maybe B.ByteString)
 objectDetailsLookup obj field = proc _ ->
     do m_unique_id <- getVisibleObject obj -< ()
-       m_details_table <- arr (fromMaybe Nothing) <<< whenJust (driverGetTableA <<< arr (\x -> ("object-details",show x))) -< m_unique_id
+       m_details_table <- arr (fromMaybe Nothing) <<< whenJust (driverGetTableA <<< arr (\x -> ("object-details",B.pack $ show x))) -< m_unique_id
        sticky isJust Nothing -< 
            do details_table <- m_details_table
               tableLookup details_table ("property","value") field

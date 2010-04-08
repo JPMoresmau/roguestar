@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, OverloadedStrings #-}
 
 module RenderingControl
     (mainAnimationLoop)
@@ -28,6 +28,7 @@ import AnimationExtras
 import AnimationEvents
 import Strings
 import RSAGL.Types
+import qualified Data.ByteString.Char8 as B
 
 -- | Enters the top-level animation loop.
 mainAnimationLoop :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
@@ -50,13 +51,13 @@ mainDispatch = proc () ->
 
 -- | Forces the current RSAnim thread to switch whenever the current state does not match the specified predicate.
 -- Any switch that wants to surrender control whenever the state changes should call this first.
-mainStateHeader :: (String -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
+mainStateHeader :: (B.ByteString -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo blanking_state | blanking_state `elem` blanking_states = blankingDispatch blanking_state
         switchTo menu_state | menu_state `elem` menu_states = menuManager
         switchTo planar_state | planar_state `elem` planar_states = planarGameplayDispatch
 	switchTo "game-over" = gameOver
-	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ unknown_state
+	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ B.unpack unknown_state
 
 -- | Displays all menus with a black background.
 menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
@@ -73,7 +74,7 @@ monitorPlanetName = proc () ->
            _ | not p ->      Nothing
            Nothing ->        Nothing
            Just "nothing" -> Nothing
-           Just somewhere -> Just (Event,"Welcome to " ++ capitalize somewhere ++ ".")
+           Just somewhere -> Just (Event, B.concat $ ["Welcome to ", capitalize somewhere, "."])
        returnA -< ()
 
 -- | Print a compass heading message whenever it changes.
@@ -86,7 +87,7 @@ monitorCompassReading = proc () ->
            Nothing ->        Nothing
            Just "nothing" -> Nothing
            Just "here" ->    Nothing
-           Just compass ->   Just (Event,"Compass reading: " ++ hrstring compass ++ ".")
+           Just compass ->   Just (Event, B.concat $ ["Compass reading: ", hrstring compass, "."])
        returnA -< ()
 
 
@@ -97,7 +98,7 @@ gameOver = proc () ->
        returnA -< roguestarSceneLayerInfo mempty basic_camera
 
 -- | List of all states that require the display of the planar environment (terrain, characters, tools, and sky)
-planar_states :: [String]
+planar_states :: [B.ByteString]
 planar_states = ["player-turn","move","turn","jump","attack","fire","clear-terrain"] ++ recognized_events
 
 -- | Captures all planar visuals: terrain, characters, tools, and sky.
@@ -155,11 +156,11 @@ centerCoordinates = proc () ->
 		     return (x,y)
 
 -- | A list of the states that require the screen to be blanked (made black), interrupting the planar visuals.
-blanking_states :: [String]
+blanking_states :: [B.ByteString]
 blanking_states = ["teleport-event"]
 
 -- | Display the blanked screen and print any blanking events.
-blankingDispatch :: String -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+blankingDispatch :: B.ByteString -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
 blankingDispatch "teleport-event" = proc () ->
     do mainStateHeader (`elem` blanking_states) -< () 
        clearPrintTextOnce -< ()
@@ -167,5 +168,5 @@ blankingDispatch "teleport-event" = proc () ->
        blockContinue <<< arr ((< 0.5) . toSeconds) <<< threadTime -< ()
        returnA -< roguestarSceneLayerInfo mempty basic_camera
 blankingDispatch blanking_state = proc () ->
-    do debugOnce -< Just $ "blankingDispatch: unrecognized blanking_state `" ++ blanking_state ++ "`"
+    do debugOnce -< Just $ "blankingDispatch: unrecognized blanking_state `" `B.append` blanking_state `B.append` "`"
        returnA -< roguestarSceneLayerInfo mempty basic_camera

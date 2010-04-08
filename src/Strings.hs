@@ -1,25 +1,26 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Strings
     (replace,capitalize,hrstring)
     where
 
 import Data.Char
-import Data.List
+import qualified Data.ByteString.Char8 as B
 
 -- | Replace all instances of the first string with the second string in the third string.
 -- @replace "old" "new" "What's old?"@
-replace :: String -> String -> String -> String
-replace _ _ [] = []
-replace a b s = case stripPrefix a s of
-    Nothing -> head s : replace a b (tail s)
-    Just s' -> b ++ replace a b s'
+replace :: B.ByteString -> B.ByteString -> B.ByteString -> B.ByteString
+replace a b s = case B.breakSubstring a s of
+    (x,y) | B.null y  -> x
+    (x,y) | otherwise -> x `B.append` b `B.append` replace a b (B.drop (B.length a) y)
 
 -- | Just capitalize the first letter of the string.
-capitalize :: String -> String
-capitalize [] = []
-capitalize (s:ss) = toUpper s : ss
+capitalize :: B.ByteString -> B.ByteString
+capitalize s = case B.uncons s of
+    Nothing -> s
+    Just (c,s') -> toUpper c `B.cons` s'
 
 -- | Human readable strings, when we can't just rip the plaintext from the protocol.
-hrstring :: String -> String
+hrstring :: B.ByteString -> B.ByteString
 hrstring "str" =   "Strength     "
 hrstring "spd" =   "Speed        "
 hrstring "con" =   "Endurance    "
@@ -29,6 +30,6 @@ hrstring "cha" =   "Charisma     "
 hrstring "mind" =  "Mindfulness  "
 hrstring "maxhp" = "Health       "
 hrstring "forceadept" = "force adept"
-hrstring x = map (\c -> if c == '_' then ' ' else c) x
+hrstring x = B.map (\c -> if c == '_' then ' ' else c) x
 
 

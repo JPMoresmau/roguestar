@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Keymaps.NumpadKeymap
     (numpad_keymap)
     where

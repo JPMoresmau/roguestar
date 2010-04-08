@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Interacts with Protocol module of roguestar-engine.
 module Driver
     (DriverObject,RoguestarEngineState,FrozenDriver,
@@ -17,19 +18,20 @@ import System.IO
 import Tables
 import RSAGL.FRP.Time
 import Control.Monad.Reader
+import qualified Data.ByteString.Char8 as B
 
 -- | Contains all of the information that is known about roguestar-engine at a specific moment in time.
 --
 data RoguestarEngineState = RoguestarEngineState { 
     restate_tables :: [RoguestarTable],
-    restate_answers :: [(String,String)] }
+    restate_answers :: [(B.ByteString,B.ByteString)] }
 
 -- | A class for DriverObjects.
 class DriverClass a where
     -- | Retrieves an answer from the engine.  An answer is a single string.
-    getAnswer :: a -> String -> IO (Maybe String)
+    getAnswer :: a -> B.ByteString -> IO (Maybe B.ByteString)
     -- | Retrieves a table from the engine.  These tables make up a kind of simple relational database.
-    getTable :: a -> String -> String -> IO (Maybe RoguestarTable)
+    getTable :: a -> B.ByteString -> B.ByteString -> IO (Maybe RoguestarTable)
 
 instance DriverClass DriverObject where
     getAnswer driver_object query =
@@ -67,11 +69,11 @@ thawDriver (FrozenDriver driver_object _ _) = driver_object
 data DriverData = DriverData {
         -- | Unparsed incomming information from the engine, previous lines, separated by line
 	-- These lines are stores in reverse order from how they are recieved.
-	driver_engine_input_lines :: [String],
+	driver_engine_input_lines :: [B.ByteString],
 	-- | Lines already sent to the engine.  This is cleared whenever we send a
 	-- "game action" line.  We retain this because it's wasteful to repeat queries
 	-- when nothing has been committed back to the engine.
-	driver_engine_output_lines :: [String],
+	driver_engine_output_lines :: [B.ByteString],
 	-- | Parsed information about the game state.  This is cleared whenever we send a
 	-- "game action" line.
 	driver_engine_state :: RoguestarEngineState,
@@ -131,31 +133,31 @@ driverDones :: DriverObject -> IO Integer
 driverDones driver_object = driverGet driver_object driver_dones
 
 -- | Transmits a read-only query against the state of the engine.
-driverQuery :: DriverObject -> [String] -> IO ()
-driverQuery driver_object query = driverWrite driver_object $ "game query " ++ unwords query ++ "\n"
+driverQuery :: DriverObject -> [B.ByteString] -> IO ()
+driverQuery driver_object query = driverWrite driver_object $ "game query " `B.append` B.unwords query `B.append` "\n"
 
 -- | Commit an action to the engine.
-driverAction :: DriverObject -> [String] -> IO ()
+driverAction :: DriverObject -> [B.ByteString] -> IO ()
 driverAction driver_object strs = 
     do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState [] [],
                                                         driver_actions = succ $ driver_actions driver }
-       driverWrite driver_object $ "game action " ++ unwords strs ++ "\n"
+       driverWrite driver_object $ "game action " `B.append` B.unwords strs `B.append` "\n"
 
 -- | Writes the specified command to standard output, will never write the same string twice between calls to 'driverReset'.
-driverWrite :: DriverObject -> String -> IO ()
+driverWrite :: DriverObject -> B.ByteString -> IO ()
 driverWrite (DriverObject driver_mvar) str =
     do already_sent <- modifyMVar driver_mvar $ \driver ->
            do let already_sent = elem str $ driver_engine_output_lines driver
               return (if already_sent then driver else driver { driver_engine_output_lines = str:driver_engine_output_lines driver },already_sent)
        unless already_sent $ 
-           do _ <- forkIO $ writing (DriverObject driver_mvar) $ putStr str >> hFlush stdout
+           do _ <- forkIO $ writing (DriverObject driver_mvar) $ B.putStr str >> hFlush stdout
               return ()
 
 -- | Just read from the engine.  Whenever 'driverRead' reads an "over", it automatically
 -- fires off 'interpretText' to parse the newly read information.
 driverRead :: DriverObject -> IO ()
 driverRead driver_object = reading driver_object $
-    do str <- getLine
+    do str <- B.getLine
        modifyDriver driver_object (\driver -> driver { driver_engine_input_lines= str : driver_engine_input_lines driver })
        when (str == "over") $ interpretText driver_object
 
@@ -186,7 +188,7 @@ interpretText driver_object =
        modifyDriver driver_object $ \driver -> driver { driver_engine_input_lines = [] }
 
 -- | 'interpretLine' is a simple line-by-line parser invoked using 'foldM'.
-interpretLine :: DriverObject -> DriverInterpretationState -> String -> IO DriverInterpretationState
+interpretLine :: DriverObject -> DriverInterpretationState -> B.ByteString -> IO DriverInterpretationState
 interpretLine _ DIError _ = return DIError
 
 -- Ignore empty lines.
@@ -194,8 +196,8 @@ interpretLine _ di_state "" = do return di_state
 
 -- Report errors.  \"protocol-error\" means that engine believes that we screwed up.
 -- \"error\" means that the engine admits it screwed up.
-interpretLine _ _ str | (head $ words str) `elem` ["protocol-error:", "error:"] = 
-    do hPutStr stderr str
+interpretLine _ _ str | (head $ B.words str) `elem` ["protocol-error:", "error:"] = 
+    do B.hPutStr stderr str
        return DIError
 
 -- Engine acknowledges completed database update.
@@ -217,14 +219,14 @@ interpretLine _ (DIScanningTable {}) "over" =
        return DIError
 
 -- Engine is answering a question.
-interpretLine driver_object DINeutral str | (head $ words str) == "answer:" && (length $ words str) == 3 =
-    do modifyEngineState driver_object (\engine_state -> engine_state { restate_answers = (words str !! 1,words str !! 2):restate_answers engine_state })
+interpretLine driver_object DINeutral str | (head $ B.words str) == "answer:" && (length $ B.words str) == 3 =
+    do modifyEngineState driver_object (\engine_state -> engine_state { restate_answers = (B.words str !! 1,B.words str !! 2):restate_answers engine_state })
        return DINeutral
 
 -- Engine is opening a new table.
-interpretLine _ DINeutral str | (head $ words str) == "begin-table" && (length $ words str) > 3 = 
+interpretLine _ DINeutral str | (head $ B.words str) == "begin-table" && (length $ B.words str) > 3 = 
     do t <- getTime
-       let table_start_data = words str
+       let table_start_data = B.words str
        return $ DIScanningTable $ RoguestarTable {
 						  table_created = t,
 				                  table_name = table_start_data !! 1,
@@ -232,18 +234,18 @@ interpretLine _ DINeutral str | (head $ words str) == "begin-table" && (length $
 		                                  table_header = drop 3 table_start_data,
                                                   table_data = []}
 
-interpretLine _ _ str | (head $ words str) == "begin-table" =
+interpretLine _ _ str | (head $ B.words str) == "begin-table" =
     do hPutStr stderr "Driver raised protocol error: incomplete begin-table header"
        return DIError
 
 -- Engine is closing a table.
-interpretLine driver_object (DIScanningTable table) str | (head $ words str) == "end-table" =
+interpretLine driver_object (DIScanningTable table) str | (head $ B.words str) == "end-table" =
   do modifyEngineState driver_object (\engine_state -> engine_state { restate_tables = (table { table_data=reverse $ table_data table}):restate_tables engine_state })
      return DINeutral
 
 -- Inside an open table, read a single row of that table.
 interpretLine _ (DIScanningTable table) str = 
-    let table_row = words str
+    let table_row = B.words str
         in (if length table_row == (length $ table_header table)
 	then return $ DIScanningTable (table { table_data = table_row : table_data table })
 	else do hPutStr stderr "Driver raised protocol error: malformed table row"
@@ -251,5 +253,5 @@ interpretLine _ (DIScanningTable table) str =
 
 -- If we don't know what else to do, just print to stderr.
 interpretLine _ _ str = 
-    do hPutStr stderr str
+    do B.hPutStr stderr str
        return DINeutral

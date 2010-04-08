@@ -3,12 +3,13 @@ module Models.LibraryData
     where
 
 import Models.Sky
+import qualified Data.ByteString.Char8 as B
 
 data EnergyColor = Blue | Yellow | Red | Green deriving (Eq,Ord,Show)
 
 data LibraryModel = 
     -- Terrain
-    TerrainTile String
+    TerrainTile B.ByteString
     -- Astronomical Phenomena
   | SkySphere SkyInfo
   | SunDisc SunInfo

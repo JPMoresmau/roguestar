@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, OverloadedStrings #-}
 
 module AnimationTools
     (toolAvatar)
@@ -16,6 +16,7 @@ import Models.LibraryData
 import Control.Applicative
 import EventUtils
 import Control.Monad
+import qualified Data.ByteString.Char8 as B
 
 -- | Avatar for any tool that automatically switched to the correct tool-specific thread.
 toolAvatar :: RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
@@ -92,16 +93,16 @@ energySwordAvatar energy_color sword_size = proc tti ->
                libraryA -< (scene_layer_local,EnergySword energy_color sword_size)
                transformA libraryA -< (Affine $ translate (Vector3D 0 2.9 0) . scale (Vector3D 1 blade_length 1),(scene_layer_local,EnergyCylinder energy_color))
 
-gasSphereAvatar :: String -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+gasSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 gasSphereAvatar = simpleToolAvatar . gasToModel
-    where gasToModel :: String -> LibraryModel
+    where gasToModel :: B.ByteString -> LibraryModel
           gasToModel = const GasSphere
 
-materialSphereAvatar :: String -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+materialSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 materialSphereAvatar = simpleToolAvatar . materialToModel
-    where materialToModel :: String -> LibraryModel
+    where materialToModel :: B.ByteString -> LibraryModel
           materialToModel = const MetalSphere
 
-chromaliteSphereAvatar :: String -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+chromaliteSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
 chromaliteSphereAvatar = simpleToolAvatar . const ChromaliteSphere
           

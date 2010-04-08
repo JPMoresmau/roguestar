@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Keymaps.CommonKeymap
     (common_keymap)
     where

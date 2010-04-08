@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Models.Terrain
     (known_terrain_types,
      terrainTile)
@@ -9,11 +11,12 @@ import RSAGL.Modeling
 import Models.Tree
 import RSAGL.Math
 import RSAGL.Types
+import qualified Data.ByteString.Char8 as B
 
 -- |
 -- A list of all terrain type names known to roguestar-gl.
 -- But at any given moment the engine might have been extended to include other types.
-known_terrain_types :: [String]
+known_terrain_types :: [B.ByteString]
 known_terrain_types =
     ["water",
      "deepwater",
@@ -52,7 +55,7 @@ terrainTileShape physical_height aesthetic_height q = model $
 -- Creates a terrain tile based on 'terrainTileShape' with appropriate characteristics and material for its type,
 -- but without any special casing for unsual terrains like forest.
 --
-basicTerrainTile :: String -> Quality -> Modeling ()
+basicTerrainTile :: B.ByteString -> Quality -> Modeling ()
 basicTerrainTile s q = model $
     do terrainTileShape 0.01 (terrainHeight s) q
        material $ terrainTexture s
@@ -61,7 +64,7 @@ basicTerrainTile s q = model $
 -- Creates a terrain tile based on 'terrailTileShape'
 -- Provides special casing for forest, rockface, liquids, etc.
 --
-terrainTile :: String -> Quality -> Modeling ()
+terrainTile :: B.ByteString -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
 terrainTile "forest" q =
     do basicTerrainTile "forest" q
@@ -82,7 +85,7 @@ terrainTile s q = basicTerrainTile s q
 -- sharper contrast in its normal vectors than others (see 'terrainTileShape').
 -- Unrecognized terrain types will appear very tall, so they can be easily noticed and corrected.
 --
-terrainHeight :: String -> RSdouble
+terrainHeight :: B.ByteString -> RSdouble
 terrainHeight "water" = 0.01
 terrainHeight "deepwater" = 0.005
 terrainHeight "sand" = 0.1
@@ -103,7 +106,7 @@ terrainHeight _ = 5.0
 -- Answers the material of a type of terrain.
 -- Unrecognized terrain types will appear bright magenta, so they can be easily noticed and corrected.
 --
-terrainTexture :: String -> MaterialM () ()
+terrainTexture :: B.ByteString -> MaterialM () ()
 terrainTexture "water" =
     do pigment $ pure blue
        specular 100 $ pure white

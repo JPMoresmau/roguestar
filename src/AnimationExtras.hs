@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, OverloadedStrings #-}
 
 module AnimationExtras
     (genericStateHeader,
@@ -12,9 +12,10 @@ import RSAGL.FRP
 import RSAGL.Scene
 import Control.Arrow
 import RSAGL.Types
+import qualified Data.ByteString.Char8 as B
 
 -- | Switch out if the driver \"state\" does match the specified predicate.
-genericStateHeader :: (String -> RSAnimAX () () i o i o) -> (String -> Bool) -> RSAnimAX () () i o i ()
+genericStateHeader :: (B.ByteString -> RSAnimAX () () i o i o) -> (B.ByteString -> Bool) -> RSAnimAX () () i o i ()
 genericStateHeader switchTo f = proc i ->
     do m_state <- driverGetAnswerA -< "state"
        switchContinue -< (if fmap f m_state == Just True then Nothing else fmap switchTo m_state,i)

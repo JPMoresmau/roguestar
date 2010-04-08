@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Models.Sky
     (SkyInfo(..),default_sky,
      SunInfo(..),default_sun,
@@ -20,9 +22,10 @@ import RSAGL.Modeling.Noise
 import Scene
 import Data.Monoid
 import RSAGL.Types
+import qualified Data.ByteString as B
 
 data SkyInfo = SkyInfo {
-    sky_info_biome :: String,
+    sky_info_biome :: B.ByteString,
     sky_info_degrees_after_midnight :: Integer,
     sky_info_degrees_latitude :: Integer,
     sky_info_degrees_axial_tilt :: Integer,
@@ -78,7 +81,7 @@ arid_atmosphere = [
     AtmosphereLayer Air 0.05 2.5e-3,
     AtmosphereLayer (Dust $ rust) 0.1 1.0e-3 ]
 
-biomeAtmosphere :: String -> (Integer,Atmosphere)
+biomeAtmosphere :: B.ByteString -> (Integer,Atmosphere)
 biomeAtmosphere "rockbiome" = (0,arid_atmosphere)
 biomeAtmosphere "icyrockbiome" = (-100,thin_atmosphere)
 biomeAtmosphere "grasslandbiome" = (35,medium_atmosphere)

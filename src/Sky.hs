@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, OverloadedStrings #-}
 
 module Sky
     (getSkyInfo,
@@ -25,6 +25,7 @@ import RSAGL.Animation
 import System.Random ()
 import Control.Monad.Random
 import Globals
+import qualified Data.ByteString.Char8 as B
 
 -- | Get the current SkyInfo data for the current planet.
 getSkyInfo :: RSAnimAX k t i o () SkyInfo
@@ -33,7 +34,7 @@ getSkyInfo = proc () ->
        m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
        clingy Discrete (==) (uncurry generateSkyInfo) -< (random_id,m_biome)
 
-generateSkyInfo :: Maybe String -> Maybe String -> SkyInfo
+generateSkyInfo :: Maybe B.ByteString -> Maybe B.ByteString -> SkyInfo
 generateSkyInfo random_id m_biome = fst $ flip runRand (mkStdGen $ fromInteger $ fromMaybe 0 $ random_id >>= readInteger) $
      do temperature <- getRandomR (10000,2000)
         degrees_after_midnight <- getRandomR (0,360)
