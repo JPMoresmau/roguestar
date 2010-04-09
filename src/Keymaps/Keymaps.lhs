@@ -31,7 +31,7 @@ fixKeymap :: Keymap -> Keymap
 fixKeymap = concatMap $ \(keystrokes,action_name) -> 
     case () of
         () | B.length keystrokes == 1 -> [(keystrokes,action_name)]
-	() | B.head keystrokes == '>' && (not $ B.null keystrokes) -> [(keystrokes,action_name)]
+	() | B.head keystrokes == '>' && (not $ B.null keystrokes) -> [(B.drop 1 keystrokes,action_name)]
 	() -> let fixed_keystrokes = B.concat $ intersperse "-" $ B.words keystrokes 
                   in [(fixed_keystrokes `B.append` "\r",action_name),(keystrokes `B.append` "\n",action_name)]
 \end{code}
