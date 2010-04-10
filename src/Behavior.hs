@@ -7,7 +7,6 @@ module Behavior
     where
 
 import DB
-import DBData
 import Position
 import Facing
 import Data.Ratio
@@ -21,13 +20,11 @@ import CreatureData
 import Plane
 import PlaneVisibility
 import Data.List
-import Data.Maybe
 import Control.Monad.Maybe
 import TerrainData
 import Make
 import Construction
 import Building
-import Control.Monad.Error
 
 --
 -- Every possible behavior that a creature might take, AI or Human.
@@ -84,18 +81,18 @@ dbBehave (Jump face) creature_ref =
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 dbBehave (TurnInPlace face) creature_ref =
-    do dbMove (turnCreature face) creature_ref
+    do _ <- dbMove (turnCreature face) creature_ref
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
 
 dbBehave (Pickup tool_ref) creature_ref =
-    do dbMove (dbPickupTool creature_ref) tool_ref
+    do _ <- dbMove (dbPickupTool creature_ref) tool_ref
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
 
 dbBehave (Wield tool_ref) creature_ref =
     do available <- availableWields creature_ref
        already_wielded <- dbGetWielded creature_ref
        when (not $ tool_ref `elem` available) $ throwError $ DBErrorFlag ToolIs_Unreachable
-       dbMove dbWieldTool tool_ref
+       _ <- dbMove dbWieldTool tool_ref
        dbAdvanceTime creature_ref =<< case () of
            () | Just tool_ref == already_wielded -> return 0 -- already wielded, so this was an empty action
            () | otherwise -> quickActionTime creature_ref
@@ -108,20 +105,20 @@ dbBehave (Drop tool_ref) creature_ref =
     do tool_parent <- liftM extractLocation $ dbWhere tool_ref
        already_wielded <- dbGetWielded creature_ref
        when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag ToolIs_NotInInventory
-       dbMove dbDropTool tool_ref
+       _ <- dbMove dbDropTool tool_ref
        dbAdvanceTime creature_ref =<< case () of
            () | Just tool_ref == already_wielded -> return 0  -- instantly drop a tool if it's already held in the hand
            () | otherwise -> quickActionTime creature_ref
 
 dbBehave (Fire face) creature_ref =
-    do dbMove (turnCreature face) creature_ref
+    do _ <- dbMove (turnCreature face) creature_ref
        ranged_attack_model <- rangedAttackModel creature_ref
        atomic $ liftM executeAttack $ resolveAttack ranged_attack_model face
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 dbBehave (Attack face) creature_ref =
-    do dbMove (turnCreature face) creature_ref
+    do _ <- dbMove (turnCreature face) creature_ref
        melee_attack_model <- meleeAttackModel creature_ref
        atomic $ liftM executeAttack $ resolveAttack melee_attack_model face
        dbAdvanceTime creature_ref =<< move1ActionTime creature_ref
@@ -131,7 +128,7 @@ dbBehave Wait creature_ref = dbAdvanceTime creature_ref =<< quickActionTime crea
 
 dbBehave Vanish creature_ref = 
     do dbAdvanceTime creature_ref =<< quickActionTime creature_ref
-       runMaybeT $
+       _ <- runMaybeT $
            do (plane_ref :: PlaneRef) <- MaybeT $ liftM (fmap location) $ getPlanarPosition creature_ref
               lift $
                   do faction <- getCreatureFaction creature_ref
@@ -151,14 +148,14 @@ dbBehave (Make make_prep) creature_ref =
        return ()
 
 dbBehave (ClearTerrain face) creature_ref =
-    do dbMove (turnCreature face) creature_ref
+    do _ <- dbMove (turnCreature face) creature_ref
        ok <- modifyFacingTerrain clearTerrain face creature_ref
        when (not ok) $ throwError $ DBErrorFlag Unable
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
        return ()
 
 dbBehave (ActivateBuilding face) creature_ref =
-    do dbMove (turnCreature face) creature_ref
+    do _ <- dbMove (turnCreature face) creature_ref
        ok <- activateFacingBuilding face creature_ref
        when (not ok) $ throwError $ DBErrorFlag Unable
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref

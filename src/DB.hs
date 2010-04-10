@@ -1,7 +1,8 @@
 {-# LANGUAGE MultiParamTypeClasses, ExistentialQuantification, FlexibleContexts, Rank2Types, RelaxedPolyRec #-}
 
 module DB
-    (DB,
+    (DBResult,
+     DB,
      runDB,
      DBReadable(..),
      playerState,
@@ -67,7 +68,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import TimeCoordinate
 import Data.Ord
-import Control.Arrow (first)
+import Control.Arrow (first,second)
 import Control.Monad.Random as Random
 import Random
 import Debug.Trace
@@ -100,36 +101,36 @@ data DBError =
 instance Error DBError where
     strMsg = DBError
 
-newtype DB a = DB (ErrorT DBError (State DB_History) a)
+type DBResult r = Either DBError (r,DB_History)
+data DB a = DB { cycleDB :: forall r. DB_History -> (a -> DB_History -> DBResult r) -> DBResult r }
 
 runDB :: DB a -> DB_BaseType -> IO (Either DBError (a,DB_BaseType))
-runDB (DB actionM) db = 
-    do hist <- setupDBHistory db
-       return $ case runState (runErrorT actionM) hist of
-                    (Right a,DB_History { db_here = db' }) -> Right (a,db')
-	            (Left e,_) -> Left e
+runDB dbAction database = 
+    do hist <- setupDBHistory database
+       return $ (either Left (Right . second db_here)) $ cycleDB dbAction hist $ \a h -> Right (a,h)
 
 instance Monad DB where
-    (DB k) >>= m = DB $ k >>= (\x -> let DB n = m x in n)
-    return = DB . return
-    fail s = DB $ throwError $ DBError $ "engine-error: " ++ s
+    return a = DB $ \h f -> f a h
+    k >>= m = DB $ \h f -> cycleDB k h $ \a h' -> cycleDB (m a) h' f
+    fail = error
 
 instance MonadState DB_BaseType DB where
-    get = liftM db_here $ DB get
-    put s = DB $ modify $ \x -> x { db_here = s { db_action_count = succ $ db_action_count $ db_here x } }
+    get = DB $ \h f -> f (db_here h) h
+    put s = DB $ \h f -> f () $ modification h
+        where modification = \db -> db { db_here = s { db_action_count = succ $ db_action_count $ db_here db } }
 
 instance MonadReader DB_BaseType DB where
-    ask = liftM db_here $ DB get
-    local f actionM = 
+    ask = get
+    local modification actionM = 
         do s <- get
-	   modify f
+	   modify modification
            a <- catchError (liftM Right actionM) (return . Left)
-	   DB $ modify $ \x -> x { db_here = s }
+	   DB $ \h f -> f () $ h { db_here = s }
            either throwError return a
 
 instance MonadError DBError DB where
-    throwError = DB . throwError
-    catchError (DB actionM) handlerM = DB $ catchError actionM (\e -> let DB n = handlerM e in n)
+    throwError e = DB $ \_ _ -> Left e
+    catchError actionM handlerM = DB $ \h f -> either (\err -> cycleDB (handlerM err) h f) Right $ cycleDB actionM h f
 
 instance MonadRandom DB where
     getRandom = dbRandom random
@@ -138,10 +139,7 @@ instance MonadRandom DB where
     getRandomRs min_max = liftM (randomRs min_max) $ dbRandom Random.split
 
 dbRandom :: (RNG -> (a,RNG)) -> DB a
-dbRandom f =
-    do (x,g') <- liftM (f . db_random) $ DB get
-       DB $ modify $ \db -> db { db_random = g' }
-       return x
+dbRandom rgen = DB $ \h f -> let (x,g) = rgen (db_random h) in f x (h { db_random = g })
 
 class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db) => DBReadable db where
     dbSimulate :: DB a -> db a
@@ -150,13 +148,13 @@ class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db)
 instance DBReadable DB where
     dbSimulate = local id
     dbPeepSnapshot actionM =
-        do s <- DB $ gets db_here
+        do s <- DB $ \h f -> f (db_here h) h
 	   m_snapshot <- gets db_prior_snapshot
 	   case m_snapshot of
 	       Just snapshot ->
-	           do DB $ modify $ \hist -> hist { db_here = snapshot }
+	           do DB $ \h f -> f () $ h { db_here = snapshot }
 	              a <- dbSimulate actionM
-                      DB $ modify $ \hist -> hist { db_here = s }
+                      DB $ \h f -> f () $ h { db_here = s }
 	              return $ Just a
                Nothing ->  return Nothing
 	   
@@ -316,7 +314,7 @@ dbUnsafeDeleteObject :: (ReferenceType e) =>
     Reference e -> 
     DB ()
 dbUnsafeDeleteObject f ref =
-    do dbMoveAllWithin f ref
+    do _ <- dbMoveAllWithin f ref
        modify $ \db -> db {
            db_creatures = Map.delete (unsafeReference ref) $ db_creatures db,
            db_planes = Map.delete (unsafeReference ref) $ db_planes db,

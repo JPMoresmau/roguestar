@@ -4,7 +4,6 @@ module Town
 
 import BuildingData
 import DB
-import DBData
 import TerrainData
 import Plane
 

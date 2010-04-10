@@ -12,7 +12,6 @@ import Plane
 import PlaneData
 import Control.Monad
 import CreatureData
-import Data.Maybe
 import Data.List
 import Grids
 import GridRayCaster

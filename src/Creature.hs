@@ -18,12 +18,10 @@ module Creature
      sweepDead)
     where
 
-import Data.Maybe
 import CreatureData
 import DB
 import SpeciesData
 import Species
-import DBData
 import FactionData
 import Control.Monad.Error
 import Tool

@@ -16,16 +16,13 @@ module Plane
 
 import Grids
 import DB
-import DBData
 import TerrainData
 import PlaneData
 import Control.Monad
 import Data.Maybe
 import Data.List
 import Position
-import Control.Monad.Random
 import PlayerState
-import Data.Char
 import FactionData
 
 dbNewPlane :: (PlaneLocation l) => Maybe String -> TerrainGenerationData -> l -> DB PlaneRef
