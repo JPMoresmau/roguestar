@@ -9,7 +9,6 @@ module Combat
     where
 
 import DB
-import DBData
 import Creature
 import CreatureData
 import Tool
@@ -17,8 +16,6 @@ import ToolData
 import Control.Monad.Error
 import Facing
 import Data.Maybe
-import Data.List
-import Data.Ord
 import DeviceActivation
 import Contact
 import Plane
@@ -151,7 +148,7 @@ executeAttack (AttackHit attacker_ref m_tool_ref defender_ref damage) =
        dbPushSnapshot $ AttackEvent attacker_ref m_tool_ref defender_ref
 executeAttack (AttackMalfunction attacker_ref tool_ref damage) =
     do injureCreature damage attacker_ref
-       dbMove dbDropTool tool_ref
+       _ <- dbMove dbDropTool tool_ref
        dbPushSnapshot $ WeaponOverheatsEvent attacker_ref tool_ref
        return ()
 executeAttack (AttackExplodes attacker_ref tool_ref damage) =
@@ -160,7 +157,7 @@ executeAttack (AttackExplodes attacker_ref tool_ref damage) =
        deleteTool tool_ref
 executeAttack (AttackDisarm attacker_ref defender_ref dropped_tool) =
     do dbPushSnapshot $ DisarmEvent attacker_ref defender_ref dropped_tool
-       dbMove dbDropTool dropped_tool
+       _ <- dbMove dbDropTool dropped_tool
        return ()
 executeAttack (AttackSunder attacker_ref weapon_ref defender_ref sundered_tool) =
     do dbPushSnapshot $ SunderEvent attacker_ref weapon_ref defender_ref sundered_tool

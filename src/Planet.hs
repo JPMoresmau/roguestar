@@ -5,11 +5,9 @@ module Planet
 
 import PlanetData
 import DB
-import DBData
 import Plane
 import TerrainData
 import Control.Monad
-import Control.Monad.Random
 import Data.Maybe
 import Data.Ord
 import Town
@@ -28,14 +26,14 @@ makePlanet plane_location planet_info =
        town <- liftM catMaybes $ forM (planet_info_town planet_info) $ \(r,b) ->
            do p <- rationalRoll r
               return $ if p then Just b else Nothing
-       createTown plane_ref town
+       _ <- createTown plane_ref town
        return plane_ref
 
 makePlanets :: (PlaneLocation l) => l -> [PlanetInfo]  -> DB PlaneRef
 makePlanets _ [] = return $ error "makePlanetarySystem: empty list"
 makePlanets l (planet_info:rest) =
     do plane_ref <- makePlanet l planet_info
-       makePlanets (Subsequent plane_ref) rest
+       _ <- makePlanets (Subsequent plane_ref) rest
        return plane_ref
 
 generatePlanetInfo :: (DBReadable db) => [PlanetInfo] -> db [PlanetInfo]

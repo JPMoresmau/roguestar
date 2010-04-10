@@ -75,7 +75,7 @@ dbPerform1PlanarAITurn plane_ref =
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = 
     atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
-        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects 
+        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects (return . const True)
            (rand_x :: Integer) <- lift $ getRandomR (1,100)
            rand_face <- lift $ pickM [minBound..maxBound]
            (_,my_position) <- lift P.whereAmI

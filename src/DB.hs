@@ -66,6 +66,7 @@ import ToolData
 import Control.Monad.State
 import Control.Monad.Error
 import Control.Monad.Reader
+import Control.Applicative
 import TimeCoordinate
 import Data.Ord
 import Control.Arrow (first,second)
@@ -115,6 +116,13 @@ instance Monad DB where
     k >>= m = DB $ \h f -> cycleDB k h $ \a h' -> cycleDB (m a) h' f
     fail = error
 
+instance Functor DB where
+    fmap = liftM
+
+instance Applicative DB where
+    pure = return
+    (<*>) = ap
+
 instance MonadState DB_BaseType DB where
     get = DB $ \h f -> f (db_here h) h
     put s = DB $ \h f -> f () $ modification h
@@ -146,7 +154,7 @@ dbRandom rgen = DB $ \h f -> let (x,g) = rgen (db_random h) in f x (h { db_rando
 dbRandomSplit :: DB RNG
 dbRandomSplit = DB $ \h f -> let (a,b) = Random.split (db_random h) in f a (h { db_random = b })
 
-class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db) => DBReadable db where
+class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db,Applicative db) => DBReadable db where
     dbSimulate :: DB a -> db a
     dbPeepSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db (Maybe a)
 

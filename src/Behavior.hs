@@ -133,7 +133,8 @@ dbBehave Vanish creature_ref =
               lift $
                   do faction <- getCreatureFaction creature_ref
                      is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 
-	                 mapM (flip dbGetVisibleObjectsForFaction plane_ref) ({- all factions except this one: -} delete faction [minBound..maxBound])
+	                 mapM (\fact -> dbGetVisibleObjectsForFaction (return . const True) fact plane_ref) 
+                             ({- all factions except this one: -} delete faction [minBound..maxBound])
                      when (not is_visible_to_anyone_else) $ deleteCreature creature_ref
        return ()
 

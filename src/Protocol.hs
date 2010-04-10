@@ -10,7 +10,6 @@ import CreatureData
 import Creature
 import Character
 import DB
-import DBData
 import System.Exit
 import System.IO
 import BeginGame
@@ -35,8 +34,6 @@ import Substances
 import PlayerState
 import Make
 import Control.Concurrent
-import Control.Concurrent.MVar
-import Control.Concurrent.Chan
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
 import Control.Exception
@@ -54,14 +51,14 @@ mainLoop db_init =
        query_count <- newTVarIO (Just 0) -- Just (the number of running queries) or Nothing (a non-query action is in progress)
        wait_quit <- newEmptyMVar
        let foreverLoopThenQuit = flip finally (putMVar wait_quit ()) . forever
-       forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< getLine
-       forkIO $ foreverLoopThenQuit $
+       _ <- forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< getLine
+       _ <- forkIO $ foreverLoopThenQuit $
            do next_line <- liftM (map toLower . unlines . lines) (readChan output_chan)
               when (not $ null next_line) $
                   do putStrLn next_line
                      putStrLn "over"
               hFlush stdout
-       forkIO $ foreverLoopThenQuit $
+       _ <- forkIO $ foreverLoopThenQuit $
            do next_command <- readChan input_chan
               case (words $ map toLower next_command) of
                   ["quit"] -> exitWith ExitSuccess
@@ -317,7 +314,7 @@ dbDispatchQuery ["who-player"] = return "answer: who-player 2"
 
 dbDispatchQuery ["visible-objects","0"] = 
     do maybe_plane_ref <- dbGetCurrentPlane
-       (objects :: [Location S (Reference ()) ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+       (objects :: [Location S (Reference ()) ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . const True) Player) maybe_plane_ref
        table_rows <- mapM (dbObjectToTableRow . entity) objects
        return ("begin-table visible-objects 0 object-unique-id x y facing\n" ++
                (unlines $ table_rows) ++
@@ -328,9 +325,9 @@ dbDispatchQuery ["visible-objects","0"] =
                                  (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,show $ fromMaybe Here maybe_face]
                                  _ -> ""
 
-dbDispatchQuery ["object-details",_] = ro $
+dbDispatchQuery ["object-details",uid] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
-     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction Player) maybe_plane_ref
+     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . (== uid) . show . toUID) Player) maybe_plane_ref
      let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
      let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
@@ -399,7 +396,7 @@ dbDispatchQuery ["menu",s] | Just window_size <- readNumber s =
 
 dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
-       creature_refs <- maybe (return []) (dbGetVisibleObjectsForFaction Player) m_plane_ref
+       creature_refs <- maybe (return []) (dbGetVisibleObjectsForFaction (return . const True) Player) m_plane_ref
        wielded_tool_refs <- mapM dbGetWielded creature_refs
        let wieldedPairToTable :: CreatureRef -> Maybe ToolRef -> Maybe String
            wieldedPairToTable creature_ref = fmap (\tool_ref -> (show $ toUID tool_ref) ++ " " ++ (show $ toUID creature_ref))

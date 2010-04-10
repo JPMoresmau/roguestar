@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE PatternGuards, FlexibleContexts, ScopedTypeVariables, RankNTypes #-}
 
 module PlaneVisibility
     (dbGetVisibleTerrainForFaction,
@@ -20,6 +20,7 @@ import Facing
 import Data.Ratio
 import Building
 import Position
+import Control.Applicative
 
 dbGetSeersForFaction :: (DBReadable db) => Faction -> PlaneRef -> db [CreatureRef]
 dbGetSeersForFaction faction plane_ref = 
@@ -48,29 +49,31 @@ dbGetVisibleTerrainForCreature creature_ref =
 
 -- |
 -- Returns a list of all objects that are visible to any creature belonging
--- to the specified faction on the specified plane.
+-- to the specified faction on the specified plane.  Accepts a filter to
+-- determine what kinds of objects will be tested..
 --
-dbGetVisibleObjectsForFaction :: (DBReadable db,GenericReference a S) => Faction -> PlaneRef -> db [a]
-dbGetVisibleObjectsForFaction faction plane_ref =
+dbGetVisibleObjectsForFaction :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> m Bool) -> Faction -> PlaneRef -> db [a]
+dbGetVisibleObjectsForFaction filterF faction plane_ref =
     do critters <- dbGetSeersForFaction faction plane_ref
-       liftM (nubBy (=:=) . concat) $ mapRO dbGetVisibleObjectsForCreature critters
+       liftM (nubBy (=:=) . concat) $ mapRO (dbGetVisibleObjectsForCreature filterF) critters
 
 -- |
 -- Returns a list of all objects that are visible to the specified creature.
+-- Accepts a filter to determine what kinds of objects will be tested.
 --
-dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a S) => CreatureRef -> db [a]
-dbGetVisibleObjectsForCreature creature_ref =
+dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> m Bool) -> CreatureRef -> db [a]
+dbGetVisibleObjectsForCreature filterF creature_ref =
     do (loc :: Maybe PlaneRef) <- liftM (fmap location) $ getPlanarPosition creature_ref
        case loc of
-		Just plane_ref -> filterRO (dbIsPlanarVisibleTo creature_ref . generalizeReference) =<< dbGetContents plane_ref
+		Just plane_ref -> filterRO (\a -> (&&) <$> filterF a <*> (dbIsPlanarVisible creature_ref $ generalizeReference a)) =<< dbGetContents plane_ref
 		Nothing -> return []
 
 -- |
--- dbIsPlanarVisibleTo (a creature) (some object) is true if the creature can see the object.
+-- dbIsPlanarVisible (a creature) (some object) is true if the creature can see the object.
 --
-dbIsPlanarVisibleTo :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Bool
-dbIsPlanarVisibleTo creature_ref obj_ref | creature_ref =:= obj_ref = return True
-dbIsPlanarVisibleTo creature_ref obj_ref =
+dbIsPlanarVisible :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Bool
+dbIsPlanarVisible creature_ref obj_ref | creature_ref =:= obj_ref = return True
+dbIsPlanarVisible creature_ref obj_ref =
     do (creature_loc :: Maybe (PlaneRef,Position)) <- liftM (fmap location) $ getPlanarPosition creature_ref
        (obj_loc :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap location) $ getPlanarPosition obj_ref
        spot_check <- dbGetOpposedSpotCheck creature_ref obj_ref

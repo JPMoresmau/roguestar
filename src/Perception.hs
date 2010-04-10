@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, Rank2Types #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types, FlexibleContexts #-}
 
 -- |
 -- Perception is essentially a catalogue of information that can be
@@ -67,11 +67,11 @@ whoAmI = DBPerception $ ask
 runPerception :: (DBReadable db) => CreatureRef -> (forall m. DBReadable m => DBPerception m a) -> db a
 runPerception creature_ref perception = dbSimulate $ runReaderT (fromPerception perception) creature_ref
 
-visibleObjects :: (DBReadable db,LocationType a,LocationType b) => DBPerception db [Location S a b]
-visibleObjects =
+visibleObjects :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> DBPerception m Bool) -> DBPerception db [a]
+visibleObjects filterF =
     do me <- whoAmI
        faction <- myFaction
-       liftDB $ maybe (return []) (dbGetVisibleObjectsForFaction faction) =<< liftM extractLocation (dbWhere me)
+       liftDB $ maybe (return []) (dbGetVisibleObjectsForFaction (\a -> runPerception me $ filterF a) faction) =<< liftM extractLocation (dbWhere me)
 
 myFaction :: (DBReadable db) => DBPerception db Faction
 myFaction = Perception.getCreatureFaction =<< whoAmI
