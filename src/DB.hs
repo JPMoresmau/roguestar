@@ -74,6 +74,7 @@ import Random
 import Debug.Trace
 import PlayerState
 import DBErrorFlag
+import Control.Parallel.Strategies
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,
@@ -122,10 +123,11 @@ instance MonadState DB_BaseType DB where
 instance MonadReader DB_BaseType DB where
     ask = get
     local modification actionM = 
-        do s <- get
+        do split_rng <- dbRandomSplit
+           s <- get
 	   modify modification
            a <- catchError (liftM Right actionM) (return . Left)
-	   DB $ \h f -> f () $ h { db_here = s }
+	   DB $ \h f -> f () $ h { db_here = s, db_random = split_rng }
            either throwError return a
 
 instance MonadError DBError DB where
@@ -141,6 +143,9 @@ instance MonadRandom DB where
 dbRandom :: (RNG -> (a,RNG)) -> DB a
 dbRandom rgen = DB $ \h f -> let (x,g) = rgen (db_random h) in f x (h { db_random = g })
 
+dbRandomSplit :: DB RNG
+dbRandomSplit = DB $ \h f -> let (a,b) = Random.split (db_random h) in f a (h { db_random = b })
+
 class (Monad db,MonadError DBError db,MonadReader DB_BaseType db,MonadRandom db) => DBReadable db where
     dbSimulate :: DB a -> db a
     dbPeepSnapshot :: (DBReadable db) => (forall m. DBReadable m => m a) -> db (Maybe a)
@@ -152,9 +157,10 @@ instance DBReadable DB where
 	   m_snapshot <- gets db_prior_snapshot
 	   case m_snapshot of
 	       Just snapshot ->
-	           do DB $ \h f -> f () $ h { db_here = snapshot }
+	           do split_rng <- dbRandomSplit
+                      DB $ \h f -> f () $ h { db_here = snapshot }
 	              a <- dbSimulate actionM
-                      DB $ \h f -> f () $ h { db_here = s }
+                      DB $ \h f -> f () $ h { db_here = s, db_random = split_rng }
 	              return $ Just a
                Nothing ->  return Nothing
 	   
@@ -163,10 +169,10 @@ ro :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
 ro db = dbSimulate db
 
 filterRO :: (DBReadable db) => (forall m. DBReadable m => a -> m Bool) -> [a] -> db [a]
-filterRO f xs = ro $ filterM f xs
+filterRO f xs = liftM (`using` parList rwhnf) $ filterM (dbSimulate . f) xs
 
 mapRO :: (DBReadable db) => (forall m. DBReadable m => a -> m b) -> [a] -> db [b]
-mapRO f xs = ro $ mapM f xs
+mapRO f xs = liftM (`using` parList rwhnf) $ mapM (dbSimulate . f) xs
 
 sortByRO :: (DBReadable db,Ord b) => (forall m. DBReadable m => a -> m b) -> [a] -> db [a]
 sortByRO f xs =

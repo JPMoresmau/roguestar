@@ -23,7 +23,7 @@ import Position
 
 dbGetSeersForFaction :: (DBReadable db) => Faction -> PlaneRef -> db [CreatureRef]
 dbGetSeersForFaction faction plane_ref = 
-    filterRO (filterByFaction faction) =<< dbGetContents plane_ref
+    filterM (filterByFaction faction) =<< dbGetContents plane_ref
 
 -- |
 -- Returns a list of all terrain patches that are visible to any creature belonging
@@ -53,7 +53,7 @@ dbGetVisibleTerrainForCreature creature_ref =
 dbGetVisibleObjectsForFaction :: (DBReadable db,GenericReference a S) => Faction -> PlaneRef -> db [a]
 dbGetVisibleObjectsForFaction faction plane_ref =
     do critters <- dbGetSeersForFaction faction plane_ref
-       liftM (nubBy (=:=) . concat) $ mapM dbGetVisibleObjectsForCreature critters
+       liftM (nubBy (=:=) . concat) $ mapRO dbGetVisibleObjectsForCreature critters
 
 -- |
 -- Returns a list of all objects that are visible to the specified creature.
