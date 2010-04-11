@@ -13,7 +13,8 @@ module Driver
 import Control.Concurrent.MVar
 import Control.Concurrent
 import Control.Exception
-import Data.List
+import Data.List as List
+import Data.Map as Map
 import System.IO
 import Tables
 import RSAGL.FRP.Time
@@ -23,8 +24,8 @@ import qualified Data.ByteString.Char8 as B
 -- | Contains all of the information that is known about roguestar-engine at a specific moment in time.
 --
 data RoguestarEngineState = RoguestarEngineState { 
-    restate_tables :: [RoguestarTable],
-    restate_answers :: [(B.ByteString,B.ByteString)] }
+    restate_tables :: Map (B.ByteString,B.ByteString) RoguestarTable, -- index by table_name and table_id
+    restate_answers :: Map B.ByteString B.ByteString }
 
 -- | A class for DriverObjects.
 class DriverClass a where
@@ -44,8 +45,8 @@ instance DriverClass DriverObject where
            getTable restate the_table_name the_table_id
 
 instance DriverClass RoguestarEngineState where
-    getAnswer restate query = return $ lookup query $ restate_answers restate
-    getTable restate the_table_name the_table_id = return $ (find (\x -> table_name x == the_table_name && table_id x == the_table_id)) $ restate_tables restate
+    getAnswer restate query = return $ Map.lookup query $ restate_answers restate
+    getTable restate the_table_name the_table_id = return $ (Map.lookup (the_table_name,the_table_id)) $ restate_tables restate
 
 instance DriverClass FrozenDriver where
     getAnswer (FrozenDriver driver_object restate dones) query =
@@ -108,7 +109,7 @@ initialDriverData =
        return $ DriverData {
            driver_engine_input_lines = [],
            driver_engine_output_lines = [],
-           driver_engine_state = RoguestarEngineState [] [],
+           driver_engine_state = RoguestarEngineState Map.empty Map.empty,
            driver_actions = 0,
            driver_dones = 0,
            driver_writing = w,
@@ -139,7 +140,7 @@ driverQuery driver_object query = driverWrite driver_object $ "game query " `B.a
 -- | Commit an action to the engine.
 driverAction :: DriverObject -> [B.ByteString] -> IO ()
 driverAction driver_object strs = 
-    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState [] [],
+    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState Map.empty Map.empty,
                                                         driver_actions = succ $ driver_actions driver }
        driverWrite driver_object $ "game action " `B.append` B.unwords strs `B.append` "\n"
 
@@ -202,7 +203,7 @@ interpretLine _ _ str | (head $ B.words str) `elem` ["protocol-error:", "error:"
 
 -- Engine acknowledges completed database update.
 interpretLine driver_object DINeutral "done" =
-    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState [] [],
+    do modifyDriver driver_object $ \driver -> driver { driver_engine_state = RoguestarEngineState Map.empty Map.empty,
 		   			                driver_engine_output_lines = [],
 					                driver_dones = driver_dones driver + 1 }
        return DINeutral
@@ -220,7 +221,7 @@ interpretLine _ (DIScanningTable {}) "over" =
 
 -- Engine is answering a question.
 interpretLine driver_object DINeutral str | (head $ B.words str) == "answer:" && (length $ B.words str) == 3 =
-    do modifyEngineState driver_object (\engine_state -> engine_state { restate_answers = (B.words str !! 1,B.words str !! 2):restate_answers engine_state })
+    do modifyEngineState driver_object $ \engine_state -> engine_state { restate_answers = Map.insert (B.words str !! 1) (B.words str !! 2) (restate_answers engine_state) }
        return DINeutral
 
 -- Engine is opening a new table.
@@ -240,7 +241,7 @@ interpretLine _ _ str | (head $ B.words str) == "begin-table" =
 
 -- Engine is closing a table.
 interpretLine driver_object (DIScanningTable table) str | (head $ B.words str) == "end-table" =
-  do modifyEngineState driver_object (\engine_state -> engine_state { restate_tables = (table { table_data=reverse $ table_data table}):restate_tables engine_state })
+  do modifyEngineState driver_object $ \engine_state -> engine_state { restate_tables = Map.insert (table_name table,table_id table) table $ restate_tables engine_state }
      return DINeutral
 
 -- Inside an open table, read a single row of that table.
