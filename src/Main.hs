@@ -22,6 +22,8 @@ import System.Timeout
 import System.Exit
 import Data.IORef
 import Globals
+import Control.Concurrent.MVar
+import Control.Concurrent
 
 roguestar_client_version :: String
 roguestar_client_version = "0.3"
@@ -50,6 +52,7 @@ main =
     do (_, command_line) <- getArgsAndInitialize
        let command_line_options = parseCommandLine command_line
        let keymap = findKeymapOrDefault $ keymap_name command_line_options
+       scene_var <- newEmptyMVar
        globals_ref <- newIORef default_globals
        driver_object <- newDriverObject
        print_text_object <- newPrintTextObject
@@ -59,11 +62,22 @@ main =
        initialDisplayMode $= display_mode
        window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
        reshapeCallback $= Just roguestarReshapeCallback
-       displayCallback $= roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object
+       displayCallback $= roguestarDisplayCallback scene_var print_text_object
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $= (Just $ keyCallback print_text_object)
-       addTimerCallback timer_callback_millis (roguestarTimerCallback globals_ref driver_object print_text_object keymap window)
+       addTimerCallback timer_callback_millis (roguestarTimerCallback scene_var globals_ref driver_object print_text_object keymap window)
+       sceneLoop scene_var lib globals_ref driver_object print_text_object animation_object
        mainLoop
+
+sceneLoop :: MVar Scene -> Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
+sceneLoop scene_var lib globals_ref driver_object print_text_object animation_object = liftM (const ()) $ forkIO $ forever $
+    do result <- timeout 20000000 $
+           do scene <- runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
+              putMVar scene_var scene
+       if isNothing result
+           then do hPutStrLn stderr "roguestar-gl: aborting due to stalled simulation run (timed out after 20 seconds)"
+                   exitWith $ ExitFailure 1
+           else return ()
 
 roguestarReshapeCallback :: Size -> IO ()
 roguestarReshapeCallback (Size width height) = 
@@ -71,14 +85,13 @@ roguestarReshapeCallback (Size width height) =
        loadIdentity
        viewport $= (Position 0 0,Size width height)
 
-roguestarDisplayCallback :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
-roguestarDisplayCallback lib globals_ref driver_object print_text_object animation_object =
+roguestarDisplayCallback :: MVar Scene -> PrintTextObject -> IO ()
+roguestarDisplayCallback scene_var print_text_object =
   do result <- timeout 20000000 $
          do color (Color4 0 0 0 0 :: Color4 GLfloat)
             clear [ColorBuffer]
-            scene <- runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
             (Size width height) <- get windowSize
-            sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) scene
+            sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) =<< takeMVar scene_var
             renderText print_text_object 
             swapBuffers
      if isNothing result
@@ -86,11 +99,12 @@ roguestarDisplayCallback lib globals_ref driver_object print_text_object animati
 	         exitWith $ ExitFailure 1
 	 else return ()
 
-roguestarTimerCallback :: IORef Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
-roguestarTimerCallback globals_ref driver_object print_text_object keymap window =
+roguestarTimerCallback :: MVar Scene -> IORef Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
+roguestarTimerCallback scene_var globals_ref driver_object print_text_object keymap window =
     do result <- timeout 20000000 $
-        do addTimerCallback timer_callback_millis $ roguestarTimerCallback globals_ref driver_object print_text_object keymap window
-           postRedisplay $ Just window
+        do addTimerCallback timer_callback_millis $ roguestarTimerCallback scene_var globals_ref driver_object print_text_object keymap window
+           is_empty <- isEmptyMVar scene_var
+           unless is_empty $ postRedisplay $ Just window
            maybeExecuteKeymappedAction globals_ref driver_object print_text_object keymap
        if isNothing result
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled timer callback (timed out after 20 seconds)"

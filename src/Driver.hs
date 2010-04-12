@@ -241,7 +241,9 @@ interpretLine _ _ str | (head $ B.words str) == "begin-table" =
 
 -- Engine is closing a table.
 interpretLine driver_object (DIScanningTable table) str | (head $ B.words str) == "end-table" =
-  do modifyEngineState driver_object $ \engine_state -> engine_state { restate_tables = Map.insert (table_name table,table_id table) table $ restate_tables engine_state }
+  do modifyEngineState driver_object $ \engine_state -> engine_state { restate_tables = Map.insert (table_name table,table_id table) 
+                                                                                        (table { table_data = reverse $ table_data table }) $ restate_tables engine_state }
+     forceTable table
      return DINeutral
 
 -- Inside an open table, read a single row of that table.

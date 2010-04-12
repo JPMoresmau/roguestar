@@ -2,6 +2,7 @@
 module Tables
     (RoguestarTable(..),
      TableDataFormat(..),
+     forceTable,
      tableSelect,
      tableSelectFormatted,
      tableLookup,
@@ -11,11 +12,17 @@ module Tables
 
 import Data.List
 import RSAGL.FRP.Time
+import Control.Exception
 import qualified Data.ByteString.Char8 as B
 
 -- | 'RoguestarTable' is a crude implementation of a relational data table that is used to represent information that has been sent to us from roguestar-engine.
 data RoguestarTable = RoguestarTable { table_created :: Time, table_name, table_id :: B.ByteString, table_header :: [B.ByteString], table_data :: [[B.ByteString]] }
 		      deriving (Eq,Show)
+
+forceTable :: RoguestarTable -> IO ()
+forceTable table =
+    do mapM_ evaluate $ table_header table
+       mapM_ (mapM_ evaluate) $ table_data table
 
 -- | 'tableSelect' selects rows from a table, like the SQL select statement.
 -- For example: \texttt{tableSelect people ["name","sex","phone-number"] = [["bob","male","123-4567"],["susan","female","987-6543"]]}
