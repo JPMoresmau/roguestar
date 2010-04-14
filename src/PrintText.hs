@@ -59,8 +59,8 @@ printText (PrintTextObject pto _) text_type str =
         \print_text -> print_text { text_output_buffer = text_output_buffer print_text ++ map ((,) text_type) (B.lines str) } 
 
 keyCallback :: PrintTextObject -> KeyboardMouseCallback
-keyCallback (PrintTextObject _ chan) (Char char) Up _ _ = writeChan chan $ B.pack [char]
-keyCallback (PrintTextObject _ chan) (SpecialKey special) Up _ _ = writeChan chan $ ":::" `B.append` (B.pack $ show special)
+keyCallback (PrintTextObject _ chan) (Char char) Down _ _ = writeChan chan $ B.pack [char]
+keyCallback (PrintTextObject _ chan) (SpecialKey special) Down _ _ = writeChan chan $ ":::" `B.append` (B.pack $ show special)
 keyCallback _ _ _ _ _ = return ()
 
 getInputBuffer :: PrintTextObject -> IO B.ByteString
