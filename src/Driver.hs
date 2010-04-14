@@ -59,7 +59,7 @@ instance DriverClass FrozenDriver where
            getTable restate the_table_name the_table_id
 
 freezeDriver :: (MonadIO m) => DriverObject -> m FrozenDriver
-freezeDriver driver_object =
+freezeDriver driver_object = 
     do d <- liftIO $ driverGet driver_object id
        return $ FrozenDriver driver_object (driver_engine_state d) (driver_dones d)
 
@@ -85,11 +85,12 @@ data DriverData = DriverData {
         -- | Writer mutex
         driver_writing :: MVar (),
         -- | Reader mutex
-        driver_reading :: MVar() }
+        driver_reading :: MVar () }
 
 -- | An object that contains the state of the interaction between the driver and "roguestar-engine".
 -- Since the Driver interacts on 'stdin'/'stdout', there should probably only be one instance of this in any running program.
-newtype DriverObject = DriverObject (MVar DriverData)
+data DriverObject = DriverObject {
+    do_data :: MVar DriverData }
 
 -- | A frozen 'DriverObject'.  It has a static view of the world as seen at the time that the Driver is fozen, however, the original
 -- 'DriverObject' continues to be updated when this 'FrozenDriver' is used.
@@ -146,12 +147,12 @@ driverAction driver_object strs =
 
 -- | Writes the specified command to standard output, will never write the same string twice between calls to 'driverReset'.
 driverWrite :: DriverObject -> B.ByteString -> IO ()
-driverWrite (DriverObject driver_mvar) str =
+driverWrite (driver_object@(DriverObject driver_mvar)) str =
     do already_sent <- modifyMVar driver_mvar $ \driver ->
            do let already_sent = elem str $ driver_engine_output_lines driver
               return (if already_sent then driver else driver { driver_engine_output_lines = str:driver_engine_output_lines driver },already_sent)
        unless already_sent $ 
-           do _ <- forkIO $ writing (DriverObject driver_mvar) $ B.putStr str >> hFlush stdout
+           do _ <- forkIO $ writing driver_object $ B.putStr str >> hFlush stdout
               return ()
 
 -- | Just read from the engine.  Whenever 'driverRead' reads an "over", it automatically

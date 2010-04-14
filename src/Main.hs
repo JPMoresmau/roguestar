@@ -24,6 +24,7 @@ import Data.IORef
 import Globals
 import Control.Concurrent.MVar
 import Control.Concurrent
+import Statistics
 
 roguestar_client_version :: String
 roguestar_client_version = "0.3"
@@ -62,17 +63,19 @@ main =
        initialDisplayMode $= display_mode
        window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
        reshapeCallback $= Just roguestarReshapeCallback
-       displayCallback $= roguestarDisplayCallback scene_var print_text_object
+       display_statistics <- newStatistics "rendering"
+       displayCallback $= roguestarDisplayCallback display_statistics scene_var print_text_object
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $= (Just $ keyCallback print_text_object)
        addTimerCallback timer_callback_millis (roguestarTimerCallback scene_var globals_ref driver_object print_text_object keymap window)
-       sceneLoop scene_var lib globals_ref driver_object print_text_object animation_object
+       scene_statistics <- newStatistics "scene"
+       sceneLoop scene_statistics scene_var lib globals_ref driver_object print_text_object animation_object
        mainLoop
 
-sceneLoop :: MVar Scene -> Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
-sceneLoop scene_var lib globals_ref driver_object print_text_object animation_object = liftM (const ()) $ forkIO $ forever $
+sceneLoop :: Statistics -> MVar Scene -> Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
+sceneLoop stats scene_var lib globals_ref driver_object print_text_object animation_object = liftM (const ()) $ forkIO $ forever $
     do result <- timeout 20000000 $
-           do scene <- runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
+           do scene <- runStatistics stats $ runRoguestarAnimationObject lib globals_ref driver_object print_text_object animation_object 
               putMVar scene_var scene
        if isNothing result
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled simulation run (timed out after 20 seconds)"
@@ -85,15 +88,17 @@ roguestarReshapeCallback (Size width height) =
        loadIdentity
        viewport $= (Position 0 0,Size width height)
 
-roguestarDisplayCallback :: MVar Scene -> PrintTextObject -> IO ()
-roguestarDisplayCallback scene_var print_text_object =
+roguestarDisplayCallback :: Statistics -> MVar Scene -> PrintTextObject -> IO ()
+roguestarDisplayCallback stats scene_var print_text_object =
   do result <- timeout 20000000 $
          do color (Color4 0 0 0 0 :: Color4 GLfloat)
             clear [ColorBuffer]
             (Size width height) <- get windowSize
-            sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) =<< takeMVar scene_var
-            renderText print_text_object 
-            swapBuffers
+            scene <- takeMVar scene_var
+            runStatistics stats $ 
+                do sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) scene
+                   renderText print_text_object 
+                   swapBuffers
      if isNothing result
          then do hPutStrLn stderr "roguestar-gl: aborting due to stalled display callback (timed out after 20 seconds)"
 	         exitWith $ ExitFailure 1
