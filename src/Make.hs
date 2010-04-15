@@ -21,6 +21,6 @@ resolveMake _ _ = return MakeFailed
 executeMake :: MakeOutcome -> DB ()
 executeMake (MakeSuccess c t refs) =
     do mapM_ deleteTool $ nub refs
-       dbAddTool t (Wielded c)
+       _ <- dbAddTool t (Wielded c)
        return ()
 executeMake MakeFailed = return ()

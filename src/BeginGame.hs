@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module BeginGame
     (dbBeginGame)
     where
@@ -9,7 +9,6 @@ import Character
 import CharacterData
 import BuildingData
 import DB
-import DBData
 import Facing
 import TerrainData
 import ToolData
@@ -20,6 +19,7 @@ import PlayerState
 import Town
 import PlanetData
 import Planet
+import qualified Data.ByteString.Char8 as B ()
 
 homeBiome :: Species -> Biome
 homeBiome Anachronid = ForestBiome
@@ -79,12 +79,12 @@ dbBeginGame creature character_class =
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 (Position (0,0)) (not . (`elem` difficult_terrains)) plane_ref
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
-       createTown plane_ref [Portal,Monolith]
+       _ <- createTown plane_ref [Portal,Monolith]
        let starting_equip = startingEquipmentBySpecies (creature_species creature) ++ startingEquipmentByClass character_class
        forM_ starting_equip $ \tool -> dbAddTool tool (Inventory creature_ref)
        forM_ [0..10] $ \_ -> do tool_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref
                                 tool_type <- weightedPickM [(8,phase_pistol),(5,phaser),(3,phase_rifle),(8,kinetic_fleuret),(3,kinetic_sabre),
                                                               (5,Sphere $ toSubstance Nitrogen),(5,Sphere $ toSubstance Ionidium),(5,Sphere $ toSubstance Aluminum)]
                                 dbAddTool tool_type (Dropped plane_ref tool_position)
-       makePlanets (Subsequent plane_ref) =<< generatePlanetInfo all_planets
+       _ <- makePlanets (Subsequent plane_ref) =<< generatePlanetInfo all_planets
        setPlayerState $ PlayerCreatureTurn creature_ref NormalMode

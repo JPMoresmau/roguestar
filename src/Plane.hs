@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
 module Plane
     (dbNewPlane,
      planetName,
@@ -24,8 +24,9 @@ import Data.List
 import Position
 import PlayerState
 import FactionData
+import qualified Data.ByteString.Char8 as B
 
-dbNewPlane :: (PlaneLocation l) => Maybe String -> TerrainGenerationData -> l -> DB PlaneRef
+dbNewPlane :: (PlaneLocation l) => Maybe B.ByteString -> TerrainGenerationData -> l -> DB PlaneRef
 dbNewPlane name tg_data l = 
     do rns <- getRandoms
        random_id <- getRandomR (1,1000000)
@@ -35,13 +36,13 @@ dbNewPlane name tg_data l =
                            plane_random_id = random_id,
                            plane_planet_name = fromMaybe random_name name}) l
 
-planetName :: (DBReadable db) => PlaneRef -> db String
+planetName :: (DBReadable db) => PlaneRef -> db B.ByteString
 planetName = liftM plane_planet_name . dbGetPlane
 
-randomPlanetName :: (DBReadable db) => Faction -> db String
+randomPlanetName :: (DBReadable db) => Faction -> db B.ByteString
 randomPlanetName faction = 
     do planet_number <- getRandomR (1000 :: Integer,9999)
-       return $ factionPrefix faction ++ "-" ++ show planet_number
+       return $ factionPrefix faction `B.append` "-" `B.append` B.pack (show planet_number)
 
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),

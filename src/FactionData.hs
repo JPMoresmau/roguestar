@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module FactionData
     (Faction(..),factionPrefix)
     where
+
+import qualified Data.ByteString.Char8 as B
 
 data Faction = Player
 	     | InterstellarConcordance        -- the lawful galactic government
@@ -15,7 +18,7 @@ data Faction = Player
 	     | Civilian                       -- merchants, children -- killing these antagonizes all factions
 	       deriving (Eq,Read,Show,Enum,Bounded)
 
-factionPrefix :: Faction -> String
+factionPrefix :: Faction -> B.ByteString
 factionPrefix Player = "Z"
 factionPrefix InterstellarConcordance = "C"
 factionPrefix PanGalacticTreatyOrganization = "P"

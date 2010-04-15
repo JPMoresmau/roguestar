@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module Substances
     (Gas(..),
      Material(..),
@@ -24,6 +24,7 @@ import Alignment
 import Data.List
 import Data.Ord
 import Data.Maybe
+import qualified Data.ByteString.Char8 as B
 
 data Substance = 
     GasSubstance Gas
@@ -36,13 +37,13 @@ substances = map GasSubstance [minBound..maxBound] ++
              map MaterialSubstance [minBound..maxBound] ++
 	     map ChromaliteSubstance [minBound..maxBound]
 
-prettySubstance :: Substance -> String
-prettySubstance (GasSubstance x) = show x
-prettySubstance (MaterialSubstance x) = show x
-prettySubstance (ChromaliteSubstance x) = show x
+prettySubstance :: Substance -> B.ByteString
+prettySubstance (GasSubstance x) = B.pack $ show x
+prettySubstance (MaterialSubstance x) = B.pack $ show x
+prettySubstance (ChromaliteSubstance x) = B.pack $ show x
 
 printSubstances :: IO ()
-printSubstances = putStrLn $ unlines $ map (\(x,y) -> prettySubstance y ++ ":  " ++ show x) $ sortBy (comparing fst) $ map (\x -> (substanceValue x,x)) substances
+printSubstances = B.putStrLn $ B.unlines $ map (\(x,y) -> prettySubstance y `B.append` ":  " `B.append` B.pack (show x)) $ sortBy (comparing fst) $ map (\x -> (substanceValue x,x)) substances
 
 data Solid = MaterialSolid Material
            | ChromaliteSolid Chromalite

@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, ScopedTypeVariables, PatternGuards #-}
+{-# LANGUAGE ExistentialQuantification, ScopedTypeVariables, PatternGuards, OverloadedStrings #-}
 
 module Protocol
     (mainLoop)
@@ -24,7 +24,6 @@ import PlaneVisibility
 import Facing
 import ToolData
 import Control.Monad.Error
-import Numeric
 import Turns
 import SpeciesData
 import Species
@@ -37,6 +36,7 @@ import Control.Concurrent
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
 import Control.Exception
+import qualified Data.ByteString.Char8 as B
 import qualified Perception
 -- Don't call dbBehave, use dbPerformPlayerTurn
 import Behavior hiding (dbBehave)
@@ -51,20 +51,20 @@ mainLoop db_init =
        query_count <- newTVarIO (Just 0) -- Just (the number of running queries) or Nothing (a non-query action is in progress)
        wait_quit <- newEmptyMVar
        let foreverLoopThenQuit = flip finally (putMVar wait_quit ()) . forever
-       _ <- forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< getLine
+       _ <- forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< B.getLine
        _ <- forkIO $ foreverLoopThenQuit $
-           do next_line <- liftM (map toLower . unlines . lines) (readChan output_chan)
-              when (not $ null next_line) $
-                  do putStrLn next_line
-                     putStrLn "over"
+           do next_line <- liftM (B.map toLower . B.unlines . B.lines) (readChan output_chan)
+              when (B.length next_line > 0) $
+                  do B.putStrLn next_line
+                     B.putStrLn "over"
               hFlush stdout
        _ <- forkIO $ foreverLoopThenQuit $
            do next_command <- readChan input_chan
-              case (words $ map toLower next_command) of
+              case (B.words $ B.map toLower next_command) of
                   ["quit"] -> exitWith ExitSuccess
                   ["reset"] -> stopping query_count $ modifyMVar_ db_var (const $ return initial_db)
                   ["game","query","snapshot"] ->
-                      do result <- (runDB $ ro $ liftM (\b -> "answer: snapshot " ++ if b then "yes" else "no") dbHasSnapshot) =<< readMVar db_var
+                      do result <- (runDB $ ro $ liftM (\b -> "answer: snapshot " `B.append` if b then "yes" else "no") dbHasSnapshot) =<< readMVar db_var
                          querrying query_count $ complete Nothing output_chan result
                   ("game":"query":args) -> querrying query_count $
                       do result <- (runDB $ ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) =<< readMVar db_var
@@ -75,7 +75,7 @@ mainLoop db_init =
                          querrying query_count $ complete Nothing output_chan result -- print the result as a query
                   ("noop":_) -> return ()
                   failed -> 
-                      do forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ unwords failed ++ "`"
+                      do _ <- forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ B.unpack (B.unwords failed) ++ "`"
                          return ()
        takeMVar wait_quit -- "park" the main function
 
@@ -91,12 +91,12 @@ stopping query_count actionM = bracket
 querrying :: TVar (Maybe Integer) -> IO () -> IO ()
 querrying query_count actionM =
     do atomically $ writeTVar query_count =<< liftM Just . (maybe retry $ return . (+1)) =<< readTVar query_count
-       forkIO $ finally (atomically $ do writeTVar query_count =<< liftM (fmap (subtract 1)) (readTVar query_count)) actionM
+       _ <- forkIO $ finally (atomically $ do writeTVar query_count =<< liftM (fmap (subtract 1)) (readTVar query_count)) actionM
        return ()
 
 -- | Complete a querry or action.  If a database variable is provided, it will be modified according to the result of the action.
 -- The result of the action will be printed to the output_chan.
-complete :: Maybe (MVar DB_BaseType) -> Chan String -> Either DBError (String,DB_BaseType) -> IO ()
+complete :: Maybe (MVar DB_BaseType) -> Chan B.ByteString -> Either DBError (B.ByteString,DB_BaseType) -> IO ()
 complete m_db_var output_chan result =
     do case m_db_var of
            Just db_var -> 
@@ -108,12 +108,12 @@ complete m_db_var output_chan result =
            Nothing ->
                do case result of
                       Right (outstr,_) ->
-                          do mapM_ evaluate outstr
+                          do evaluate outstr
                              writeChan output_chan outstr
                       Left (DBErrorFlag errflag) -> return () -- client will query this explicitly (if it cares)
                       Left (DBError errstr) ->
-                          do writeChan output_chan $ "error: " ++ errstr
-                             hPutStrLn stderr $ "DBError: " ++ errstr
+                          do writeChan output_chan $ "error: " `B.append` B.pack errstr
+                             B.hPutStrLn stderr $ "DBError: " `B.append` B.pack errstr
 
 dbOldestSnapshotOnly :: (DBReadable db) => db ()
 dbOldestSnapshotOnly = 
@@ -203,7 +203,7 @@ modifyMenuState f_ =
        let f = (\x -> if number_of_tools == 0 then 0 else x `mod` number_of_tools) . f_
        setPlayerState . modifyMenuIndex f =<< playerState
 
-dbDispatchQuery :: (DBReadable db) => [String] -> db String
+dbDispatchQuery :: (DBReadable db) => [B.ByteString] -> db B.ByteString
 dbDispatchQuery ["state"] = 
     do state <- playerState
        return $ case state of
@@ -236,78 +236,78 @@ dbDispatchQuery ["state"] =
 
 dbDispatchQuery ["action-count"] =
     do n <- dbActionCount
-       return $ "answer: action-count " ++ show n
+       return $ "answer: action-count " `B.append` (B.pack $ show n)
 
 dbDispatchQuery ["menu-state"] =
     do m_state <- menuState
        return $ case m_state of
            Nothing -> "answer: menu-state 0"
-           Just state -> "answer: menu-state " ++ show state
+           Just state -> "answer: menu-state " `B.append` (B.pack $ show state)
 
 dbDispatchQuery ["who-attacks"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-	   SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-           SnapshotEvent (DisarmEvent { disarm_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
-           SnapshotEvent (SunderEvent { sunder_event_source_creature = attacker_ref }) -> "answer: who-attacks " ++ (show $ toUID attacker_ref)
+           SnapshotEvent (AttackEvent { attack_event_source_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
+	   SnapshotEvent (MissEvent { miss_event_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
+           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
+           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
+           SnapshotEvent (DisarmEvent { disarm_event_source_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
+           SnapshotEvent (SunderEvent { sunder_event_source_creature = attacker_ref }) -> "answer: who-attacks " `B.append` (B.pack $ show $ toUID attacker_ref)
 	   _ -> "answer: who-attacks 0"
 
 dbDispatchQuery ["who-hit"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (AttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
-           SnapshotEvent (DisarmEvent { disarm_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
-           SnapshotEvent (SunderEvent { sunder_event_target_creature = target_ref }) -> "answer: who-hit " ++ (show $ toUID target_ref)
+           SnapshotEvent (AttackEvent { attack_event_target_creature = target_ref }) -> "answer: who-hit " `B.append` (B.pack $ show $ toUID target_ref)
+           SnapshotEvent (DisarmEvent { disarm_event_target_creature = target_ref }) -> "answer: who-hit " `B.append` (B.pack $ show $ toUID target_ref)
+           SnapshotEvent (SunderEvent { sunder_event_target_creature = target_ref }) -> "answer: who-hit " `B.append` (B.pack $ show $ toUID target_ref)
 	   _ -> "answer: who-hit 0"
 
 dbDispatchQuery ["tool-used"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (ExpendToolEvent { expend_tool_event_tool = tool_ref }) -> "answer: tool-used " ++ (show $ toUID tool_ref)
+           SnapshotEvent (ExpendToolEvent { expend_tool_event_tool = tool_ref }) -> "answer: tool-used " `B.append` (B.pack $ show $ toUID tool_ref)
            _ -> "answer: tool-used 0"
 
 dbDispatchQuery ["weapon-used"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (AttackEvent { attack_event_source_weapon = Just weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
-	   SnapshotEvent (MissEvent { miss_event_weapon = Just weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
-           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_weapon = weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
-           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_weapon = weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
-           SnapshotEvent (SunderEvent { sunder_event_source_weapon = weapon_ref }) -> "answer: weapon-used " ++ (show $ toUID weapon_ref)
+           SnapshotEvent (AttackEvent { attack_event_source_weapon = Just weapon_ref }) -> "answer: weapon-used " `B.append` (B.pack $ show $ toUID weapon_ref)
+	   SnapshotEvent (MissEvent { miss_event_weapon = Just weapon_ref }) -> "answer: weapon-used " `B.append` (B.pack $ show $ toUID weapon_ref)
+           SnapshotEvent (WeaponOverheatsEvent { weapon_overheats_event_weapon = weapon_ref }) -> "answer: weapon-used " `B.append` (B.pack $ show $ toUID weapon_ref)
+           SnapshotEvent (WeaponExplodesEvent { weapon_explodes_event_weapon = weapon_ref }) -> "answer: weapon-used " `B.append` (B.pack $ show $ toUID weapon_ref)
+           SnapshotEvent (SunderEvent { sunder_event_source_weapon = weapon_ref }) -> "answer: weapon-used " `B.append` (B.pack $ show $ toUID weapon_ref)
 	   _ -> "answer: weapon-used 0"
 
 dbDispatchQuery ["tool-hit"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (DisarmEvent { disarm_event_target_tool = tool_ref }) -> "answer: tool-hit " ++ (show $ toUID tool_ref)
-           SnapshotEvent (SunderEvent { sunder_event_target_tool = tool_ref }) -> "answer: tool-hit " ++ (show $ toUID tool_ref)
+           SnapshotEvent (DisarmEvent { disarm_event_target_tool = tool_ref }) -> "answer: tool-hit " `B.append` (B.pack $ show $ toUID tool_ref)
+           SnapshotEvent (SunderEvent { sunder_event_target_tool = tool_ref }) -> "answer: tool-hit " `B.append` (B.pack $ show $ toUID tool_ref)
            _ -> "answer: tool-hit 0"
 
 dbDispatchQuery ["who-killed"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent (KilledEvent killed_ref) -> "answer: who-killed " ++ (show $ toUID killed_ref)
+           SnapshotEvent (KilledEvent killed_ref) -> "answer: who-killed " `B.append` (B.pack $ show $ toUID killed_ref)
 	   _ -> "answer: who-killed 0"
 
 dbDispatchQuery ["who-event"] =
     do state <- playerState
        return $ case state of
-           SnapshotEvent event -> "answer: who-event " ++ fromMaybe "0" (fmap (show . toUID) $ subjectOf event)
+           SnapshotEvent event -> "answer: who-event " `B.append` fromMaybe "0" (fmap (B.pack . show . toUID) $ subjectOf event)
            _ -> "answer: who-event 0"
 
 dbDispatchQuery ["player-races","0"] =
-    return ("begin-table player-races 0 name\n" ++
-	    unlines player_race_names ++
+    return ("begin-table player-races 0 name\n" `B.append`
+	    B.unlines (map B.pack player_race_names) `B.append`
 	    "end-table")
 
 dbDispatchQuery ["visible-terrain","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        terrain_map <- maybe (return []) (dbGetVisibleTerrainForFaction Player) maybe_plane_ref 
-       return ("begin-table visible-terrain 0 x y terrain-type\n" ++
-	       (unlines $ map (\(terrain_type,Position (x,y)) -> unwords [show x, show y, show terrain_type]) terrain_map) ++
+       return ("begin-table visible-terrain 0 x y terrain-type\n" `B.append`
+	       (B.unlines $ map (\(terrain_type,Position (x,y)) -> B.unwords $ map B.pack [show x, show y, show terrain_type]) terrain_map) `B.append`
 	       "end-table")
 
 dbDispatchQuery ["who-player"] = return "answer: who-player 2"
@@ -316,18 +316,18 @@ dbDispatchQuery ["visible-objects","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
        (objects :: [Location S (Reference ()) ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . const True) Player) maybe_plane_ref
        table_rows <- mapM (dbObjectToTableRow . entity) objects
-       return ("begin-table visible-objects 0 object-unique-id x y facing\n" ++
-               (unlines $ table_rows) ++
+       return ("begin-table visible-objects 0 object-unique-id x y facing\n" `B.append`
+               (B.unlines $ table_rows) `B.append`
                "end-table")
         where dbObjectToTableRow obj_ref = 
                 do l <- dbWhere obj_ref
                    return $ case (extractLocation l,extractLocation l) of
-                                 (Just (Position (x,y)),maybe_face) -> unwords [show $ toUID obj_ref,show x,show y,show $ fromMaybe Here maybe_face]
+                                 (Just (Position (x,y)),maybe_face) -> B.unwords $ map B.pack $ [show $ toUID obj_ref,show x,show y,show $ fromMaybe Here maybe_face]
                                  _ -> ""
 
 dbDispatchQuery ["object-details",uid] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
-     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . (== uid) . show . toUID) Player) maybe_plane_ref
+     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . (== uid) . B.pack . show . toUID) Player) maybe_plane_ref
      let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
      let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
@@ -335,43 +335,43 @@ dbDispatchQuery ["object-details",uid] = ro $
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
      tools <- liftM (zip tool_refs) $ mapRO dbGetTool tool_refs
      buildings <- liftM (zip building_refs) $ mapRO dbGetBuilding building_refs
-     liftM unlines $ liftM3 (\a b c -> a ++ b ++ c) 
+     liftM B.unlines $ liftM3 (\a b c -> concat [a,b,c]) 
                             (mapM creatureToTableData creatures)
                             (mapM toolToTableData tools)
                             (mapM buildingToTableData buildings)
-   where objectTableWrapper :: (DBReadable db) => Reference a -> db String -> db String
+   where objectTableWrapper :: (DBReadable db) => Reference a -> db B.ByteString -> db B.ByteString
          objectTableWrapper obj_ref tableDataF = 
           do table_data <- tableDataF
              return $
-                 "begin-table object-details " ++
-                 (show $ toUID obj_ref) ++
-                 " property value\n" ++
-                 table_data ++
+                 "begin-table object-details " `B.append`
+                 (B.pack $ show $ toUID obj_ref) `B.append`
+                 " property value\n" `B.append`
+                 table_data `B.append`
                  "end-table"
-         creatureToTableData :: (DBReadable db) => (CreatureRef,Creature) -> db String
+         creatureToTableData :: (DBReadable db) => (CreatureRef,Creature) -> db B.ByteString
          creatureToTableData (ref,creature) = objectTableWrapper ref $
             do fac <- getCreatureFaction ref
                hp <- getCreatureAbsoluteHealth ref
                maxhp <- getCreatureMaxHealth ref
                return $
-                   "object-type creature\n" ++
-                   "species " ++ (show $ creature_species creature) ++ "\n" ++
-                   "random-id " ++ (show $ creature_random_id creature) ++ "\n" ++
-                   "faction " ++ show fac ++ "\n" ++
+                   "object-type creature\n" `B.append`
+                   "species " `B.append` (B.pack $ show $ creature_species creature) `B.append` "\n" `B.append`
+                   "random-id " `B.append` (B.pack $ show $ creature_random_id creature) `B.append` "\n" `B.append`
+                   "faction " `B.append` B.pack (show fac) `B.append` "\n" `B.append`
                        (if fac == Player then
-                           "hp " ++ show hp ++ "\n" ++
-                           "maxhp " ++ show maxhp ++ "\n"
+                           "hp " `B.append` B.pack (show hp) `B.append` "\n" `B.append`
+                           "maxhp " `B.append` B.pack (show maxhp) `B.append` "\n"
                         else "")
-         toolToTableData :: (DBReadable db) => (ToolRef,Tool) -> db String
+         toolToTableData :: (DBReadable db) => (ToolRef,Tool) -> db B.ByteString
          toolToTableData (ref,tool) = objectTableWrapper ref $ return $
-               "object-type tool\n" ++
-               "tool-type " ++ toolType tool ++ "\n" ++
-               "tool " ++ toolName tool ++ "\n"
-         buildingToTableData :: (DBReadable db) => (BuildingRef,Building) -> db String
+               "object-type tool\n" `B.append`
+               "tool-type " `B.append` toolType tool `B.append` "\n" `B.append`
+               "tool " `B.append` toolName tool `B.append` "\n"
+         buildingToTableData :: (DBReadable db) => (BuildingRef,Building) -> db B.ByteString
          buildingToTableData (ref,Building) = objectTableWrapper ref $
              do building_type <- buildingType ref
-                return $ "object-type building\n" ++
-                         "building-type " ++ show building_type ++ "\n"
+                return $ "object-type building\n" `B.append`
+                         "building-type " `B.append` B.pack (show building_type) `B.append` "\n"
 
 dbDispatchQuery ["player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 
@@ -398,10 +398,10 @@ dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
        creature_refs <- maybe (return []) (dbGetVisibleObjectsForFaction (return . const True) Player) m_plane_ref
        wielded_tool_refs <- mapM dbGetWielded creature_refs
-       let wieldedPairToTable :: CreatureRef -> Maybe ToolRef -> Maybe String
-           wieldedPairToTable creature_ref = fmap (\tool_ref -> (show $ toUID tool_ref) ++ " " ++ (show $ toUID creature_ref))
-       return $ "begin-table wielded-objects 0 uid creature\n" ++
-                unlines (catMaybes $ zipWith wieldedPairToTable creature_refs wielded_tool_refs) ++
+       let wieldedPairToTable :: CreatureRef -> Maybe ToolRef -> Maybe B.ByteString
+           wieldedPairToTable creature_ref = fmap (\tool_ref -> (B.pack $ show $ toUID tool_ref) `B.append` " " `B.append` (B.pack $ show $ toUID creature_ref))
+       return $ "begin-table wielded-objects 0 uid creature\n" `B.append`
+                B.unlines (catMaybes $ zipWith wieldedPairToTable creature_refs wielded_tool_refs) `B.append`
 		"end-table"
 
 dbDispatchQuery ["biome"] =
@@ -409,35 +409,35 @@ dbDispatchQuery ["biome"] =
        biome_name <- case m_plane_ref of
            Nothing -> return "nothing"
 	   Just plane_ref -> liftM (show . plane_biome) $ dbGetPlane plane_ref
-       return $ "answer: biome " ++ biome_name
+       return $ "answer: biome " `B.append` B.pack biome_name
 
 dbDispatchQuery ["current-plane"] =
     do m_plane_ref <- dbGetCurrentPlane
        return $ case m_plane_ref of
            Nothing -> "answer: current-plane 0"
-           Just plane_ref -> "answer: current-plane " ++ show (toUID plane_ref)
+           Just plane_ref -> "answer: current-plane " `B.append` (B.pack $ show $ toUID plane_ref)
 
 dbDispatchQuery ["plane-random-id"] =
     do m_plane_ref <- dbGetCurrentPlane
        case m_plane_ref of
            Nothing -> return "answer: plane-random-id 0"
-           Just plane_ref -> liftM (("answer: plane-random-id " ++) . show . plane_random_id) $ dbGetPlane plane_ref
+           Just plane_ref -> liftM (("answer: plane-random-id " `B.append`) . B.pack . show . plane_random_id) $ dbGetPlane plane_ref
 
 dbDispatchQuery ["planet-name"] =
     do m_plane_ref <- dbGetCurrentPlane
        case m_plane_ref of
          Nothing -> return "answer: planet-name nothing"
-         Just plane_ref -> liftM ("answer: planet-name " ++) $ planetName plane_ref
+         Just plane_ref -> liftM ("answer: planet-name " `B.append`) $ planetName plane_ref
 
 dbDispatchQuery ["compass"] =
     do m_player_ref <- getCurrentCreature Player
        case m_player_ref of
          Nothing -> return "answer: compass nothing"
-         Just player_ref -> Perception.runPerception player_ref $ liftM (("answer: compass " ++) . show) Perception.compass
+         Just player_ref -> Perception.runPerception player_ref $ liftM (("answer: compass " `B.append`) . B.pack . show) Perception.compass
 
-dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" ++ unwords unrecognized ++ "`"
+dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" `B.append` B.unwords unrecognized `B.append` "`"
 
-dbDispatchAction :: [String] -> DB ()
+dbDispatchAction :: [B.ByteString] -> DB ()
 dbDispatchAction ["continue"] = dbPopOldestSnapshot
 
 dbDispatchAction ["select-race",race_name] = 
@@ -502,7 +502,7 @@ dbDispatchAction ["select-menu"] =
     do state <- playerState
        i <- menuState
        tool_table <- toolsToMenuTable =<< toolMenuElements
-       let selection = maybe "0" (\(_,tool_ref,_) -> show $ toUID tool_ref) $ find (\(n,_,_) -> Just n == i) tool_table
+       let selection = maybe "0" (\(_,tool_ref,_) -> B.pack $ show $ toUID tool_ref) $ find (\(n,_,_) -> Just n == i) tool_table
        case state of
            PlayerCreatureTurn _ player_mode -> case player_mode of
                PickupMode {} -> dbDispatchAction ["pickup",selection]
@@ -530,15 +530,15 @@ dbDispatchAction ["make-with",tool_uid] =
                (Just ch,_,_) | needsChromalite make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (ch,tool_ref))
                (_,Just m,_) | needsMaterial make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (m,tool_ref))
                (_,_,Just g) | needsGas make_prep -> setPlayerState (PlayerCreatureTurn c $ MakeMode 0 $ make_prep `makeWith` (g,tool_ref))
-               _ | otherwise -> throwError $ DBError $ "error: tool doesn't have needed substance"
-           _ -> throwError $ DBError $ "protocol-error: not in make or make-what state"
+               _ | otherwise -> throwError $ DBError "error: tool doesn't have needed substance"
+           _ -> throwError $ DBError "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["make-end"] =
     do state <- playerState
        case state of
            PlayerCreatureTurn c (MakeMode _ make_prep) | isFinished make_prep -> dbPerformPlayerTurn (Make make_prep) c
-           PlayerCreatureTurn _ (MakeMode {}) -> throwError $ DBError $ "protocol-error: make isn't complete"
-           _ -> throwError $ DBError $ "protocol-error: not in make or make-what state"
+           PlayerCreatureTurn _ (MakeMode {}) -> throwError $ DBError "protocol-error: make isn't complete"
+           _ -> throwError $ DBError "protocol-error: not in make or make-what state"
 
 dbDispatchAction ["pickup"] = dbRequiresPlayerTurnState $ \creature_ref ->
     do pickups <- dbAvailablePickups creature_ref
@@ -587,25 +587,26 @@ dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_re
 
 dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Activate creature_ref
 
-dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (unwords unrecognized) ++ "`")
+dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (B.unpack $ B.unwords unrecognized) ++ "`")
 
-dbSelectPlayerRace :: String -> DB ()
-dbSelectPlayerRace race_name = case find (\s -> map toLower (show s) == race_name) player_species of
-			       Nothing -> throwError $ DBError $ "protocol-error: unrecognized race '" ++ race_name ++ "'"
-			       Just species -> generateInitialPlayerCreature species
+dbSelectPlayerRace :: B.ByteString -> DB ()
+dbSelectPlayerRace race_name = 
+    case find (\s -> B.map toLower (B.pack $ show s) == race_name) player_species of
+        Nothing -> throwError $ DBError $ "protocol-error: unrecognized race '" ++ B.unpack race_name ++ "'"
+        Just species -> generateInitialPlayerCreature species
 
-dbSelectPlayerClass :: String -> Creature -> DB ()
+dbSelectPlayerClass :: B.ByteString -> Creature -> DB ()
 dbSelectPlayerClass class_name creature = 
     let eligable_base_classes = getEligableBaseCharacterClasses creature
-	in case find (\x -> (map toLower . show) x == class_name) eligable_base_classes of
-	   Nothing -> throwError $ DBError $ "protocol-error: unrecognized or invalid class '" ++ class_name ++ "'"
-	   Just the_class -> dbBeginGame creature the_class
+	in case find (\x -> (B.map toLower . B.pack . show) x == class_name) eligable_base_classes of
+	       Nothing -> throwError $ DBError $ "protocol-error: unrecognized or invalid class '" ++ B.unpack class_name ++ "'"
+	       Just the_class -> dbBeginGame creature the_class
 
 dbRerollRace :: Creature -> DB ()
 dbRerollRace _ = do starting_race <- dbGetStartingRace
 		    generateInitialPlayerCreature $ fromJust starting_race
 
-dbQueryPlayerStats :: (DBReadable db) => Creature -> db String
+dbQueryPlayerStats :: (DBReadable db) => Creature -> db B.ByteString
 dbQueryPlayerStats creature = return $ playerStatsTable creature
 
 -- |
@@ -628,7 +629,7 @@ toolMenuElements =
 -- Convert a list of tool menu elements into table row entries.
 -- The result entries consist of an index incrementing from zero, ToolRef, and name of the tool.
 --
-toolsToMenuTable :: (DBReadable db) => [ToolRef] -> db [(Integer,ToolRef,String)]
+toolsToMenuTable :: (DBReadable db) => [ToolRef] -> db [(Integer,ToolRef,B.ByteString)]
 toolsToMenuTable raw_uids =
     do let uids = sortBy (comparing toUID) raw_uids
        tool_names <- mapM (liftM toolName . dbGetTool) uids
@@ -637,80 +638,80 @@ toolsToMenuTable raw_uids =
 -- |
 -- Generate a tool menu table in text form, with the specified name and element list.
 --
-showToolMenuTable :: String -> String -> [(Integer,ToolRef,String)] -> String
+showToolMenuTable :: B.ByteString -> B.ByteString -> [(Integer,ToolRef,B.ByteString)] -> B.ByteString
 showToolMenuTable table_name table_id tool_table = 
-    "begin-table " ++ table_name ++ " " ++ table_id ++ " n uid name" ++ "\n" ++
-    unlines (map (\(n,uid,tool_name) -> unwords [show n,show $ toUID uid,tool_name]) tool_table) ++
+    "begin-table " `B.append` table_name `B.append` " " `B.append` table_id `B.append` " n uid name" `B.append` "\n" `B.append`
+    B.unlines (map (\(n,uid,tool_name) -> B.unwords [B.pack $ show n,B.pack $ show $ toUID uid,tool_name]) tool_table) `B.append`
     "end-table"
 
 -- |
 -- Information about player creatures (for which the player should have almost all available information.)
 --
-playerStatsTable :: Creature -> String
+playerStatsTable :: Creature -> B.ByteString
 playerStatsTable c =
-    "begin-table player-stats 0 property value\n" ++
-               "str " ++ (show $ rawScore Strength c) ++ "\n" ++
-	       "spd " ++ (show $ rawScore Speed c) ++ "\n" ++
-	       "con " ++ (show $ rawScore Constitution c) ++ "\n" ++
-	       "int " ++ (show $ rawScore Intellect c) ++ "\n" ++
-	       "per " ++ (show $ rawScore Perception c) ++ "\n" ++
-	       "cha " ++ (show $ rawScore Charisma c) ++ "\n" ++
-	       "mind " ++ (show $ rawScore Mindfulness c) ++ "\n" ++
-	       "maxhp " ++ (show $ creatureAbilityScore ToughnessTrait c) ++ "\n" ++
-	       "species " ++ (show $ creature_species c) ++ "\n" ++
-	       "random-id " ++ (show $ creature_random_id c) ++ "\n" ++
-	       "gender " ++ (show $ creatureGender c) ++ "\n" ++
+    "begin-table player-stats 0 property value\n" `B.append`
+               "str " `B.append` (B.pack $ show $ rawScore Strength c) `B.append` "\n" `B.append`
+	       "spd " `B.append` (B.pack $ show $ rawScore Speed c) `B.append` "\n" `B.append`
+	       "con " `B.append` (B.pack $ show $ rawScore Constitution c) `B.append` "\n" `B.append`
+	       "int " `B.append` (B.pack $ show $ rawScore Intellect c) `B.append` "\n" `B.append`
+	       "per " `B.append` (B.pack $ show $ rawScore Perception c) `B.append` "\n" `B.append`
+	       "cha " `B.append` (B.pack $ show $ rawScore Charisma c) `B.append` "\n" `B.append`
+	       "mind " `B.append` (B.pack $ show $ rawScore Mindfulness c) `B.append` "\n" `B.append`
+	       "maxhp " `B.append` (B.pack $ show $ creatureAbilityScore ToughnessTrait c) `B.append` "\n" `B.append`
+	       "species " `B.append` (B.pack $ show $ creature_species c) `B.append` "\n" `B.append`
+	       "random-id " `B.append` (B.pack $ show $ creature_random_id c) `B.append` "\n" `B.append`
+	       "gender " `B.append` (B.pack $ show $ creatureGender c) `B.append` "\n" `B.append`
 	       "end-table"
 
-toolName :: Tool -> String
+toolName :: Tool -> B.ByteString
 toolName (DeviceTool _ d) = deviceName d
 toolName (Sphere s) = prettySubstance s
 
-toolType :: Tool -> String
+toolType :: Tool -> B.ByteString
 toolType (DeviceTool Gun _) = "gun"
 toolType (DeviceTool Sword _) = "sword"
 toolType (Sphere (GasSubstance _)) = "sphere-gas"
 toolType (Sphere (MaterialSubstance _)) = "sphere-material"
 toolType (Sphere (ChromaliteSubstance _)) = "sphere-chromalite"
 
-dbQueryBaseClasses :: (DBReadable db) => Creature -> db String
+dbQueryBaseClasses :: (DBReadable db) => Creature -> db B.ByteString
 dbQueryBaseClasses creature = return $ baseClassesTable creature
 
-baseClassesTable :: Creature -> String
+baseClassesTable :: Creature -> B.ByteString
 baseClassesTable creature = 
-    "begin-table base-classes 0 class\n" ++
-    (unlines $ map show $ getEligableBaseCharacterClasses creature) ++
+    "begin-table base-classes 0 class\n" `B.append`
+    (B.unlines $ map (B.pack . show) $ getEligableBaseCharacterClasses creature) `B.append`
     "end-table"
 
-dbQueryCenterCoordinates :: (DBReadable db) => CreatureRef -> db String
+dbQueryCenterCoordinates :: (DBReadable db) => CreatureRef -> db B.ByteString
 dbQueryCenterCoordinates creature_ref =
     do l <- dbWhere creature_ref
        case (extractLocation l,extractLocation l :: Maybe Facing) of
 		(Just (Position (x,y)),Nothing) -> 
-                    return (begin_table ++
-			    "x " ++ show x ++ "\n" ++
-			    "y " ++ show y ++ "\n" ++
+                    return (begin_table `B.append`
+			    "x " `B.append` B.pack (show x) `B.append` "\n" `B.append`
+			    "y " `B.append` B.pack (show y) `B.append` "\n" `B.append`
 			    "end-table")
                 (Just (Position (x,y)),Just face) -> 
-                    return (begin_table ++
-                           "x " ++ show x ++ "\n" ++
-                           "y " ++ show y ++ "\n" ++
-                           "facing " ++ show face ++ "\n" ++
+                    return (begin_table `B.append`
+                           "x " `B.append` B.pack (show x) `B.append` "\n" `B.append`
+                           "y " `B.append` B.pack (show y) `B.append` "\n" `B.append`
+                           "facing " `B.append` B.pack (show face) `B.append` "\n" `B.append`
                            "end-table")
-		_ -> return (begin_table ++ "end-table")
+		_ -> return (begin_table `B.append` "end-table")
 	   where begin_table = "begin-table center-coordinates 0 axis coordinate\n"
 
-readUID :: (Integer -> Reference a) -> String -> DB (Reference a)
+readUID :: (Integer -> Reference a) -> B.ByteString -> DB (Reference a)
 readUID f x = 
     do let m_uid = readNumber x
        ok <- maybe (return False) (dbVerify . f) m_uid
-       when (not ok) $ throwError $ DBError $ "protocol-error: " ++ x ++ " is not a valid uid."
+       when (not ok) $ throwError $ DBError $ "protocol-error: " ++ B.unpack x ++ " is not a valid uid."
        return $ f $ fromJust m_uid
 
-readNumber :: String -> Maybe Integer
-readNumber = fmap fst . listToMaybe . filter (null . snd) . readDec
+readNumber :: B.ByteString -> Maybe Integer
+readNumber = fmap fst . B.readInteger
 
-readDeviceKind :: String -> Maybe DeviceKind
+readDeviceKind :: B.ByteString -> Maybe DeviceKind
 readDeviceKind "pistol" = Just Pistol
 readDeviceKind "carbine" = Just Carbine
 readDeviceKind "rifle" = Just Rifle

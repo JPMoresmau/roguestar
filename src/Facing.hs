@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module Facing
     (Facing(..),
      facingToRelative,
@@ -12,6 +12,7 @@ module Facing
 import Position
 import Data.Ord
 import Data.List
+import qualified Data.ByteString.Char8 as B
 
 data Facing = North
 	    | NorthEast
@@ -29,7 +30,7 @@ data Facing = North
 -- The input string must be lower case.
 -- No form of "Here" is an acceptable input to this function.
 --
-stringToFacing :: String -> Maybe Facing
+stringToFacing :: B.ByteString -> Maybe Facing
 stringToFacing "n" = Just North
 stringToFacing "ne" = Just NorthEast
 stringToFacing "e" = Just East

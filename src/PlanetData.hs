@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module PlanetData
     (PlanetInfo(..),
      addTown,
@@ -9,6 +10,7 @@ module PlanetData
 import TerrainData
 import BuildingData
 import Data.Ratio
+import qualified Data.ByteString.Char8 as B
 
 -- | Information used to construct new planets.
 -- Whenever the player goes through a stargate to a new planet,
@@ -22,12 +24,12 @@ data PlanetInfo = PlanetInfo {
     -- This gives the order in which players visit planets.
     planet_info_priority :: Double,
     -- | Some planets have names.
-    planet_info_name :: Maybe String,
+    planet_info_name :: Maybe B.ByteString,
     planet_info_biome :: Biome,
     planet_info_town :: [(Rational,BuildingType)] }
         deriving (Read,Show)
 
-pgto :: String -> Biome -> PlanetInfo
+pgto :: B.ByteString -> Biome -> PlanetInfo
 pgto "" biome = PlanetInfo {
     planet_info_priority = 0.25,
     planet_info_name = Nothing,

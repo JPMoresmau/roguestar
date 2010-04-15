@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module ToolData 
     (Tool(..),
      fromSphere,
@@ -25,7 +26,7 @@ module ToolData
     where
 
 import Substances
-import Data.Char
+import qualified Data.ByteString.Char8 as B
 
 data Tool = DeviceTool DeviceFunction Device
           | Sphere Substance
@@ -60,7 +61,7 @@ kindToFunction Sabre = (Sword,4)
 -- | Any kind of device that is constructed from a power cell, materal, and gas medium,
 -- using the various device rules to determine it's power.
 data Device = Device {
-   device_name :: String,
+   device_name :: B.ByteString,
    device_chromalite :: Chromalite,
    device_material :: Material,
    device_gas :: Gas,
@@ -91,12 +92,12 @@ instance DeviceType Device where
 instance DeviceType PseudoDevice where
     toPseudoDevice = id
 
-device :: String -> DeviceKind -> Chromalite -> Material -> Gas -> Tool
+device :: B.ByteString -> DeviceKind -> Chromalite -> Material -> Gas -> Tool
 device s dk c m g = DeviceTool func (Device s c m g size)
     where (func,size) = kindToFunction dk
 
 improvised :: DeviceKind -> Chromalite -> Material -> Gas -> Tool
-improvised dk c m g = device ("improvised_" ++ show dk) dk c m g
+improvised dk c m g = device ("improvised_" `B.append` B.pack (show dk)) dk c m g
 
 phase_pistol :: Tool
 phase_pistol = device "phase_pistol" Pistol Caerulite Zinc Flourine
@@ -113,7 +114,7 @@ kinetic_fleuret = device "kinetic_fleuret" Fleuret Ionidium Aluminum Nitrogen
 kinetic_sabre :: Tool
 kinetic_sabre = device "kinetic_sabre" Sabre Ionidium Aluminum Nitrogen
 
-deviceName :: Device -> String
+deviceName :: Device -> B.ByteString
 deviceName = device_name
 
 deviceDurability :: Device -> Integer
