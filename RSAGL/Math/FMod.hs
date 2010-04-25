@@ -15,10 +15,10 @@ instance FMod Double where
     fmod n d = n - fromInteger f * d
         where f = floor $ n / d
 
-instance FMod GLfloat where
+instance FMod RSfloat where
     fmod n d = n - fromInteger f * d
         where f = floor $ n / d
 
-instance FMod GLdouble where
+instance FMod RSdouble where
     fmod n d = n - fromInteger f * d
         where f = floor $ n / d

@@ -59,7 +59,7 @@ class (AbstractVector c) => ColorClass c where
     zipRGB :: (RSdouble -> RSdouble -> RSdouble) -> RGB -> c -> c
     zipColor :: (RSdouble -> RSdouble -> RSdouble) -> c -> c -> c
     toPremultipliedRGB :: c -> RGB
-    colorToOpenGL :: c -> Color4 RSdouble
+    colorToOpenGL :: c -> Color4 GLdouble
     toRGBA :: c -> RGBA
     fromRGB :: RGB -> c
 
@@ -161,11 +161,11 @@ scaleRGBA :: RSdouble -> RGBA -> RGBA
 scaleRGBA x c = c { rgba_a = x * rgba_a c,
                     rgba_rgb = scaleRGB x (rgba_rgb c) }
 
-rgbToOpenGL :: RGB -> Color4 RSdouble
-rgbToOpenGL (RGB r g b) = Color4 r g b 1
+rgbToOpenGL :: RGB -> Color4 GLdouble
+rgbToOpenGL (RGB r g b) = Color4 (toGLdouble r) (toGLdouble g) (toGLdouble b) 1
 
 rgbaToOpenGL :: RGBA -> Color4 GLdouble
-rgbaToOpenGL (RGBA a (RGB r g b)) = Color4 r g b a
+rgbaToOpenGL (RGBA a (RGB r g b)) = Color4 (toGLdouble r) (toGLdouble g) (toGLdouble b) (toGLdouble a)
 
 instance AbstractZero RGB where
     zero = rgb 0 0 0

@@ -17,7 +17,6 @@ module RSAGL.Math.AbstractVector
 import Data.Fixed
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
-import Graphics.UI.GLUT as GLUT
 import RSAGL.Types
 
 class AbstractZero a where
@@ -143,42 +142,42 @@ instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) wh
 
 instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
 
--- GLfloat
+-- RSfloat
 
-instance AbstractAdd GLfloat GLfloat where
+instance AbstractAdd RSfloat RSfloat where
     add = (+)
 
-instance AbstractSubtract GLfloat GLfloat where
+instance AbstractSubtract RSfloat RSfloat where
     sub = (-)
 
-instance AbstractScale GLfloat where
+instance AbstractScale RSfloat where
     scalarMultiply d = (f2f d *)
 
-instance AbstractMagnitude GLfloat where
+instance AbstractMagnitude RSfloat where
     magnitude = abs . f2f
 
-instance AbstractVector GLfloat
+instance AbstractVector RSfloat
 
-instance AbstractZero GLfloat where
+instance AbstractZero RSfloat where
     zero = 0
 
--- GLdouble
+-- RSdouble
 
-instance AbstractAdd GLdouble GLdouble where
+instance AbstractAdd RSdouble RSdouble where
     add = (+)
 
-instance AbstractSubtract GLdouble GLdouble where
+instance AbstractSubtract RSdouble RSdouble where
     sub = (-)
 
-instance AbstractScale GLdouble where
+instance AbstractScale RSdouble where
     scalarMultiply = (*)
 
-instance AbstractMagnitude GLdouble where
+instance AbstractMagnitude RSdouble where
     magnitude = abs . f2f
 
-instance AbstractVector GLdouble
+instance AbstractVector RSdouble
 
-instance AbstractZero GLdouble where
+instance AbstractZero RSdouble where
     zero = 0
 
 -- Lists

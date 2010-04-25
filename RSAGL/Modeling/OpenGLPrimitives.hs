@@ -5,12 +5,11 @@ module RSAGL.Modeling.OpenGLPrimitives
 
 import Graphics.Rendering.OpenGL.GL
 import Control.Monad
-import RSAGL.Types
 
 class OpenGLPrimitive a where
-    getVertex :: a -> Vertex3 RSdouble
-    getNormal :: a -> Normal3 RSdouble
-    getColor :: a -> Color4 RSdouble
+    getVertex :: a -> Vertex3 GLdouble
+    getNormal :: a -> Normal3 GLdouble
+    getColor :: a -> Color4 GLdouble
 
 -- | Simple 'renderPrimitive' function for a list of vertices.  Optionally a single color can be specified to override vertex-wise colors.
 renderPrimitives :: (OpenGLPrimitive a) => PrimitiveMode -> Bool -> [a] -> IO ()
