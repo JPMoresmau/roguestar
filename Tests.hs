@@ -8,8 +8,7 @@ module Main
     (main)
     where
 
-import RSAGL.FRP.FRP as FRP
-import RSAGL.FRP.Time
+import RSAGL.FRP as FRP
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
@@ -27,11 +26,11 @@ import Data.Maybe
 import Control.Monad
 import RSAGL.Types
 
-instance Arbitrary GLdouble where
+instance Arbitrary RSdouble where
     arbitrary = fmap f2f (arbitrary :: Gen Double)
     shrink = List.map f2f . (shrink :: Double -> [Double]) . f2f
 
-instance Arbitrary GLfloat where
+instance Arbitrary RSfloat where
     arbitrary = fmap f2f (arbitrary :: Gen Float)
     shrink = List.map f2f . (shrink :: Float -> [Float]) . f2f
 
