@@ -15,7 +15,7 @@ description:         Roguestar is a science fiction themed roguelike (turn-based
                      The git repository is available at <http://www.downstairspeople.org/git/roguestar-engine.git>.
 homepage:            http://roguestar.downstairspeople.org/
 
-build-depends:       base>3, containers, array, old-time, random, mtl, MaybeT, MonadRandom, data-memocombinators, stm, parallel, bytestring
+build-depends:       base>3, containers, array, old-time, random, mtl, MaybeT, MonadRandom, data-memocombinators, stm, parallel, bytestring, PSQueue, priority-sync
 build-type:          Simple
 tested-with:         GHC==6.8.2
 

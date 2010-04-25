@@ -36,6 +36,7 @@ import Control.Concurrent
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
 import Control.Exception
+import WorkCluster
 import qualified Data.ByteString.Char8 as B
 import qualified Perception
 -- Don't call dbBehave, use dbPerformPlayerTurn
@@ -50,6 +51,8 @@ mainLoop db_init =
        output_chan <- newChan
        query_count <- newTVarIO (Just 0) -- Just (the number of running queries) or Nothing (a non-query action is in progress)
        wait_quit <- newEmptyMVar
+       work_cluster <- newWorkCluster
+       replaceWorkOperation work_cluster . evaluateGame =<< readMVar db_var
        let foreverLoopThenQuit = flip finally (putMVar wait_quit ()) . forever
        _ <- forkIO $ foreverLoopThenQuit $ writeChan input_chan =<< B.getLine
        _ <- forkIO $ foreverLoopThenQuit $
@@ -63,21 +66,26 @@ mainLoop db_init =
               case (B.words $ B.map toLower next_command) of
                   ["quit"] -> exitWith ExitSuccess
                   ["reset"] -> stopping query_count $ modifyMVar_ db_var (const $ return initial_db)
-                  ["game","query","snapshot"] ->
-                      do result <- (runDB $ ro $ liftM (\b -> "answer: snapshot " `B.append` if b then "yes" else "no") dbHasSnapshot) =<< readMVar db_var
-                         querrying query_count $ complete Nothing output_chan result
-                  ("game":"query":args) -> querrying query_count $
-                      do result <- (runDB $ ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) =<< readMVar db_var
-                         querrying query_count $ complete Nothing output_chan result
+                  ("game":"query":args) -> 
+                      do querrying query_count $
+                             do result <- workRequest work_cluster (Query, args)
+                                complete Nothing output_chan result
                   ("game":"action":args) ->
-                      do result <- runDB (liftM (const "") $ dbDispatchAction args) =<< readMVar db_var
+                      do result <- workRequest work_cluster (Action, args)
                          stopping query_count $ complete (Just db_var) output_chan result
-                         querrying query_count $ complete Nothing output_chan result -- print the result as a query
+                         querrying query_count $ complete Nothing output_chan result -- print the result as a query, this will ensure errors get printed
+                         replaceWorkOperation work_cluster . evaluateGame =<< readMVar db_var
                   ("noop":_) -> return ()
                   failed -> 
                       do _ <- forkIO $ complete Nothing output_chan $ Left $ DBError $ "protocol-error: unrecognized request: `" ++ B.unpack (B.unwords failed) ++ "`"
                          return ()
        takeMVar wait_quit -- "park" the main function
+
+-- | Evaluate a 'GameDirective' and return it from a remote thread via an 'MVar'.
+evaluateGame :: DB_BaseType -> WorkRequest -> IO WorkResult
+evaluateGame db0 (Query, ["snapshot"]) = (runDB $ ro $ liftM (\b -> "answer: snapshot " `B.append` if b then "yes" else "no") dbHasSnapshot) db0
+evaluateGame db0 (Query, args) = (runDB $ ro $ dbPeepOldestSnapshot $ dbDispatchQuery args) db0
+evaluateGame db0 (Action, args) = runDB (liftM (const "") $ dbDispatchAction args) db0
 
 -- | Wait for currently running queries to finish, and stop processing incomming queries while we mutate the database.
 stopping :: TVar (Maybe Integer) -> IO () -> IO ()
@@ -103,14 +111,14 @@ complete m_db_var output_chan result =
                do modifyMVar_ db_var $ \db0 -> return $ case result of
                       Right (_,db1) -> db1
                       Left (DBErrorFlag errflag) -> db0 { db_error_flag = show errflag }
-                      Left (DBError errstr) -> db0
+                      Left (DBError _) -> db0
                   writeChan output_chan "done"
            Nothing ->
                do case result of
                       Right (outstr,_) ->
-                          do evaluate outstr
+                          do _ <- evaluate outstr
                              writeChan output_chan outstr
-                      Left (DBErrorFlag errflag) -> return () -- client will query this explicitly (if it cares)
+                      Left (DBErrorFlag _) -> return () -- client will query this explicitly (if it cares)
                       Left (DBError errstr) ->
                           do writeChan output_chan $ "error: " `B.append` B.pack errstr
                              B.hPutStrLn stderr $ "DBError: " `B.append` B.pack errstr
