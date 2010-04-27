@@ -43,7 +43,7 @@ Library
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
                          RSAGL.Types, RSAGL.FRP.Accumulation
 
-    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
+    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper, RSAGL.FRP.Message
 
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all
