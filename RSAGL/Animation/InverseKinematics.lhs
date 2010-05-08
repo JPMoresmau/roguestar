@@ -1,7 +1,7 @@
 \section{Inverse Kinematics}
 
 \begin{code}
-{-# LANGUAGE Arrows, UndecidableInstances #-}
+{-# LANGUAGE Arrows, ExistentialQuantification, UndecidableInstances, TypeFamilies #-}
 
 module RSAGL.Animation.InverseKinematics
     (leg,
@@ -43,7 +43,7 @@ where a value greater than 1 indicates that the foot is down.
 FIXME: this could be done better.
 
 \begin{code}
-foot :: (CoordinateSystemClass s) => RSdouble -> RSdouble -> RSdouble -> FRPX k s t i o Bool (CSN Point3D,Bool)
+foot :: (CoordinateSystemClass s,s ~ StateOf m) => RSdouble -> RSdouble -> RSdouble -> FRP e m Bool (CSN Point3D,Bool)
 foot forward_radius side_radius lift_radius = proc emergency_footdown ->
     do fwd_total_stepage <- arr (* recip forward_radius) <<< odometer root_coordinate_system (Vector3D 0 0 1) -< ()
        side_total_stepage <- arr (* recip side_radius) <<< odometer root_coordinate_system (Vector3D 1 0 0) -< ()
@@ -64,12 +64,12 @@ foot forward_radius side_radius lift_radius = proc emergency_footdown ->
 of the legs always try to touch the ground.
 
 \begin{code}
-newtype Leg threaded s t i o = Leg (FRPX threaded s t i o [Bool] [Bool])
+data Leg e m = Leg (FRP e m [Bool] [Bool])
 
-instance (CoordinateSystemClass s) => AffineTransformable (Leg threaded s t i o ) where
+instance (CoordinateSystemClass s,StateOf m ~ s) => AffineTransformable (Leg e m) where
     transform m (Leg l) = Leg (proc x -> transformA l -< (Affine $ transform m,x))
 
-leg :: (CoordinateSystemClass s) => Vector3D -> Point3D -> RSdouble -> Point3D -> (FRPX k s t i o Joint ()) -> Leg k s t i o
+leg :: (CoordinateSystemClass s,StateOf m ~ s) => Vector3D -> Point3D -> RSdouble -> Point3D -> (FRP e m Joint ()) -> Leg e m
 leg bend base len end animation = Leg $ proc feet_that_are_down ->
     do let declare_emergency_foot_down = length (filter id feet_that_are_down) < length (filter not feet_that_are_down) &&
                                          not (and $ take 1 feet_that_are_down)
@@ -79,14 +79,14 @@ leg bend base len end animation = Leg $ proc feet_that_are_down ->
        returnA -< (foot_is_down || declare_emergency_foot_down) : feet_that_are_down
   where foot_radius = sqrt (len^2 - (distanceBetween base end)^2) / 2
 
-legs :: [Leg threaded s t i o] -> FRPX threaded s t i o () ()
+legs :: [Leg e m] -> FRP e m () ()
 legs ls = (foldl (>>>) (arr $ const []) $ map (\(Leg l) -> l) ls) >>> (arr $ const ())
 \end{code}
 
 \texttt{jointAnimation} is just a simple combinator to combine the upper and lower components of a joint into an animated Joint.
 
 \begin{code}
-jointAnimation :: (CoordinateSystemClass s) => FRPX k s t i o () () -> FRPX k s t i o () () -> FRPX k s t i o Joint ()
+jointAnimation :: (CoordinateSystemClass s,StateOf m ~ s) => FRP e m () () -> FRP e m () () -> FRP e m Joint ()
 jointAnimation upperJoint lowerJoint = proc j ->
     do transformA upperJoint -< (affineOf $ joint_arm_upper j,())
        transformA lowerJoint -< (affineOf $ joint_arm_lower j,())
@@ -104,11 +104,11 @@ approach goal_point goal_radius max_speed _ position = withTime (fromSeconds 1) 
     where goal_vector = goal_point `sub` position
           speed_ratio = min 1 $ magnitude goal_vector / goal_radius
 
-approachFrom :: (AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => RSdouble -> Rate RSdouble -> p -> FRPX any t i o a p p
+approachFrom :: (AbstractVector v,AbstractAdd p v, AbstractSubtract p v,AbstractMagnitude v) => RSdouble -> Rate RSdouble -> p -> FRP e m p p
 approachFrom goal_radius max_speed initial_value = proc goal_point -> integralRK4 frequency add initial_value -< approach goal_point goal_radius max_speed
     where frequency = 1 `per` time goal_radius max_speed 
 
-approachA :: (AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v) => RSdouble -> Rate RSdouble -> FRPX any t i o a p p
+approachA :: (AbstractVector v,AbstractAdd p v,AbstractSubtract p v,AbstractMagnitude v,FRPModel m) => RSdouble -> Rate RSdouble -> FRP e m p p
 approachA goal_radius max_speed = frp1Context $ proc p -> switchContinue -< (Just $ approachFrom goal_radius max_speed p,p)
 \end{code}
 

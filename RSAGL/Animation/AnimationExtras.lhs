@@ -1,7 +1,7 @@
 \section{Specific Animations}
 
 \begin{code}
-{-# LANGUAGE Arrows #-}
+{-# LANGUAGE Arrows, TypeFamilies #-}
 
 module RSAGL.Animation.AnimationExtras
     (rotationA,
@@ -34,17 +34,17 @@ import RSAGL.Types
 \subsection{Simple Animators}
 
 \begin{code}
-rotationA :: Vector3D -> Rate Angle -> FRPX k s t i o ignored AffineTransformation
+rotationA :: Vector3D -> Rate Angle -> FRP e m ignored AffineTransformation
 rotationA v a = proc _ ->
     do t <- absoluteTime -< ()
        returnA -< rotate v (a `over` t)
 
-animateA :: (CoordinateSystemClass s) => FRPX k s t i o j AffineTransformation -> FRPX k s t i o j p -> FRPX k s t i o j p
+animateA :: (CoordinateSystemClass s,StateOf m ~ s) => FRP e m j AffineTransformation -> FRP e m j p -> FRP e m j p
 animateA affineA action = proc i ->
     do at <- affineA -< i
        transformA action -< (affineOf at,i)
 
-rotateA :: (CoordinateSystemClass s) => Vector3D -> Rate Angle -> FRPX k s t i o j p -> FRPX k s t i o j p
+rotateA :: (CoordinateSystemClass s,StateOf m ~ s) => Vector3D -> Rate Angle -> FRP e m j p -> FRP e m j p
 rotateA v a = animateA (rotationA v a)
 \end{code}
 
@@ -114,9 +114,9 @@ constrainForce predicate f t p v = if predicate t p v
 \texttt{accelerationModel} implements the \texttt{ForceFunction}s on a single particle.
 
 \begin{code}
-accelerationModel :: (CoordinateSystemClass s) => 
-                     Frequency -> PV -> FRPX k s t i o j ForceFunction ->
-                     FRPX k s t i o (PVA,j) p -> FRPX k s t i o j p
+accelerationModel :: (CoordinateSystemClass s,StateOf m ~ s) => 
+                     Frequency -> PV -> FRP e m j ForceFunction ->
+                     FRP e m (PVA,j) p -> FRP e m j p
 accelerationModel f pv forceA actionA = proc j ->
     do (p,v) <- integralRK4' f (flip translate) pv <<< forceA -< j
        a <- derivative -< v

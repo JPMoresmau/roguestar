@@ -3,6 +3,9 @@
 These are various composable modules that provide physics information for the inverse kinematics system.
 
 \begin{code}
+
+{-# LANGUAGE TypeFamilies #-}
+
 module RSAGL.Animation.KinematicSensors
     (odometer)
     where
@@ -20,7 +23,7 @@ The \texttt{odometer} indicates the distance traveled in a remote coordinate sys
 It does not measure side-to-side motion, only motion in the direction of the vector.
 
 \begin{code}
-odometer :: (CoordinateSystemClass s) => CoordinateSystem -> Vector3D -> FRPX k s t i o () RSdouble
+odometer :: (CoordinateSystemClass s,StateOf m ~ s) => CoordinateSystem -> Vector3D -> FRP e m () RSdouble
 odometer cs measurement_vector_ =
        arr (const origin_point_3d) >>> exportToA cs >>> derivative >>> importFromA cs >>>
        arr (withTime (fromSeconds 1) (dotProduct measurement_vector)) >>>

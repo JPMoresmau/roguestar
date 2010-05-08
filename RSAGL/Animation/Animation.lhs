@@ -3,7 +3,7 @@
 The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine transformation and scene accumulation.
 
 \begin{code}
-{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving, TypeFamilies #-}
+{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving, TypeFamilies, ExistentialQuantification, Rank2Types #-}
 
 module RSAGL.Animation.Animation
     (AniM,
@@ -13,7 +13,6 @@ module RSAGL.Animation.Animation
      rotationM,
      animateM,
      rotateM,
-     AniA,
      AnimationObject,
      newAnimationObjectM,
      newAnimationObjectA,
@@ -73,12 +72,6 @@ rotateM :: Vector3D -> Rate Angle -> AniM a -> AniM a
 rotateM v a = animateM (rotationM v a)
 \end{code}
 
-\subsection{The AniA Arrow}
-
-\begin{code}
-type AniA k t i o j p = FRPX k (SceneAccumulator IO) t i o j p
-\end{code}
-
 \subsection{Animation Objects}
 
 This is one possible implementation of an animation object.
@@ -91,7 +84,7 @@ data AnimationObject i o =
 newAnimationObjectM :: (i -> AniM o) -> AnimationObject i o
 newAnimationObjectM = AniMObject
 
-newAnimationObjectA :: AniA () () i o i o -> IO (AnimationObject i o)
+newAnimationObjectA :: (forall e. FRP e (FRP1 (SceneAccumulator IO) i o) i o) -> IO (AnimationObject i o)
 newAnimationObjectA thread = liftM AniAObject $ newFRP1Program thread
 
 runAnimationObject :: AnimationObject i o -> i -> AniM o
