@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module RenderingControl
     (mainAnimationLoop)
@@ -31,7 +31,7 @@ import RSAGL.Types
 import qualified Data.ByteString.Char8 as B
 
 -- | Enters the top-level animation loop.
-mainAnimationLoop :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+mainAnimationLoop :: FRP e (FRP1 AnimationState () SceneLayerInfo) () SceneLayerInfo
 mainAnimationLoop = proc () ->
     do m_state <- driverGetAnswerA -< "state"
        switchContinue -< (fmap (const $ mainWelcome >>> mainDispatch) m_state,())
@@ -42,7 +42,7 @@ mainAnimationLoop = proc () ->
 	       returnA -< ()
 
 -- | This is the actual to-level animation loop.
-mainDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+mainDispatch :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 mainDispatch = proc () ->
     do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
        monitorPlanetName -< ()
@@ -51,7 +51,7 @@ mainDispatch = proc () ->
 
 -- | Forces the current RSAnim thread to switch whenever the current state does not match the specified predicate.
 -- Any switch that wants to surrender control whenever the state changes should call this first.
-mainStateHeader :: (B.ByteString -> Bool) -> RSAnimAX () () () SceneLayerInfo () ()
+mainStateHeader :: (FRPModel m) => (B.ByteString -> Bool) -> FRP e (RSwitch Disabled () () SceneLayerInfo m) () ()
 mainStateHeader = genericStateHeader switchTo
   where switchTo blanking_state | blanking_state `elem` blanking_states = blankingDispatch blanking_state
         switchTo menu_state | menu_state `elem` menu_states = menuManager
@@ -60,13 +60,13 @@ mainStateHeader = genericStateHeader switchTo
 	switchTo unknown_state = error $ "mainStateHeader: unrecognized state: " ++ B.unpack unknown_state
 
 -- | Displays all menus with a black background.
-menuManager :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+menuManager :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
        frp1Context menuDispatch -< ()
 
 -- | Print a "Welcome to P-XXXX" message whenever we arrive on a new planet.
-monitorPlanetName :: RSAnimAX k t i o () ()
+monitorPlanetName :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
 monitorPlanetName = proc () ->
     do m_planet_name <- driverGetAnswerA -< "planet-name"
        p <- changed (==) <<< sticky isJust Nothing -< m_planet_name
@@ -78,7 +78,7 @@ monitorPlanetName = proc () ->
        returnA -< ()
 
 -- | Print a compass heading message whenever it changes.
-monitorCompassReading :: RSAnimAX k t i o () ()
+monitorCompassReading :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
 monitorCompassReading = proc () ->
     do m_compass <- driverGetAnswerA -< "compass"
        p <- changed (==) <<< sticky isJust Nothing -< m_compass
@@ -92,7 +92,7 @@ monitorCompassReading = proc () ->
 
 
 -- | Print the game over message and retain control of the rendering loop forever.
-gameOver :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+gameOver :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 gameOver = proc () ->
     do printTextOnce -< Just (Event,"Game Over")
        returnA -< roguestarSceneLayerInfo mempty basic_camera
@@ -102,7 +102,7 @@ planar_states :: [B.ByteString]
 planar_states = ["player-turn","move","turn","jump","attack","fire","clear-terrain"] ++ recognized_events
 
 -- | Captures all planar visuals: terrain, characters, tools, and sky.
-planarGameplayDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+planarGameplayDispatch :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 planarGameplayDispatch = proc () ->
     do -- setup/get infos
        mainStateHeader (`elem` planar_states) -< () 
@@ -147,7 +147,7 @@ planarCamera camera_distance look_at = PerspectiveCamera {
     camera_fov = fromDegrees $ 40 + 30 / camera_distance }
 
 -- | Retrieve the look-at point from the engine.
-centerCoordinates :: RSAnimAX any t i o () (Maybe (Integer,Integer))
+centerCoordinates :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () (Maybe (Integer,Integer))
 centerCoordinates = proc () ->
     do m_center_coordinates_table <- sticky isJust Nothing <<< driverGetTableA -< ("center-coordinates","0")
        returnA -< do center_coordinates_table <- m_center_coordinates_table
@@ -160,7 +160,7 @@ blanking_states :: [B.ByteString]
 blanking_states = ["teleport-event"]
 
 -- | Display the blanked screen and print any blanking events.
-blankingDispatch :: B.ByteString -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+blankingDispatch :: (FRPModel m) => B.ByteString -> FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 blankingDispatch "teleport-event" = proc () ->
     do mainStateHeader (`elem` blanking_states) -< () 
        clearPrintTextOnce -< ()
@@ -170,3 +170,4 @@ blankingDispatch "teleport-event" = proc () ->
 blankingDispatch blanking_state = proc () ->
     do debugOnce -< Just $ "blankingDispatch: unrecognized blanking_state `" `B.append` blanking_state `B.append` "`"
        returnA -< roguestarSceneLayerInfo mempty basic_camera
+

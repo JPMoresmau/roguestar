@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module AnimationMenus
     (menu_states,
@@ -18,8 +18,11 @@ import Actions
 import Scene
 import qualified Data.ByteString.Char8 as B
 
+type MenuSwitch m = RSwitch Disabled () () SceneLayerInfo m
+type MenuHandler e m = FRP e (MenuSwitch m) () SceneLayerInfo
+
 -- Header for menu states.  This will automatically switch away to an approprate menu if the provided state predicate does not match.
-menuStateHeader :: (B.ByteString -> Bool) -> RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+menuStateHeader :: (FRPModel m) => (B.ByteString -> Bool) -> MenuHandler e m
 menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
   where switchTo "race-selection" = menuRaceSelection
         switchTo "class-selection" = menuClassSelection
@@ -31,10 +34,10 @@ menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarScen
         switchTo "make-finished" = makeFinishedMenuSelection
         switchTo unknown_state = menuStateHeader (== unknown_state)
 
-menuDispatch :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+menuDispatch :: (FRPModel m) => MenuHandler e m
 menuDispatch = menuStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 
-menuRaceSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+menuRaceSelection :: (FRPModel m) => MenuHandler e m
 menuRaceSelection = proc s -> 
     do result <- menuStateHeader (== "race-selection") -< s
        requestPrintTextMode -< Unlimited
@@ -43,7 +46,7 @@ menuRaceSelection = proc s ->
        printTextA -< Just (Query,"Select a Race:")
        returnA -< result
 
-menuClassSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+menuClassSelection :: (FRPModel m) => MenuHandler e m
 menuClassSelection = proc () -> 
     do result <- menuStateHeader (== "class-selection") -< ()
        stats <- sticky isJust Nothing <<< arr (fmap table_created) <<< driverGetTableA -< ("player-stats","0")
@@ -58,7 +61,7 @@ menuClassSelection = proc () ->
        printTextA -< Just (Query,"Select a Class:")
        returnA -< result
 
-printCharacterStats :: Integer -> RSAnimAX any t i o () ()
+printCharacterStats :: (FRPModel m, StateOf m ~ AnimationState) => Integer -> FRP e m () ()
 printCharacterStats unique_id = proc () ->
     do m_player_stats <- driverGetTableA -< ("player-stats",B.pack $ show unique_id)
        print1CharacterStat -< (m_player_stats,"str")
@@ -73,12 +76,12 @@ printCharacterStats unique_id = proc () ->
        printTextA -< Just (Event,"-")
        print1CharacterStat -< (m_player_stats,"maxhp")
   
-print1CharacterStat :: RSAnimAX any t i o (Maybe RoguestarTable,B.ByteString) ()
+print1CharacterStat :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe RoguestarTable,B.ByteString) ()
 print1CharacterStat = proc (m_player_stats,stat_str) ->
     do let m_stat_int = (\x -> tableLookupInteger x ("property","value") stat_str) =<< m_player_stats
        printTextA -< fmap (\x -> (Event,hrstring stat_str `B.append` ": " `B.append` (B.pack $ show x))) m_stat_int
 
-makeWhatMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+makeWhatMenuSelection :: (FRPModel m) => MenuHandler e m
 makeWhatMenuSelection = proc () ->
     do result <- menuStateHeader (== "make-what") -< ()
        requestPrintTextMode -< Unlimited
@@ -87,14 +90,14 @@ makeWhatMenuSelection = proc () ->
        printTextA -< Just (Query,"Build what?")
        returnA -< result
 
-makeFinishedMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+makeFinishedMenuSelection :: (FRPModel m) => MenuHandler e m
 makeFinishedMenuSelection = proc () ->
     do result <- menuStateHeader (== "make-finished") -< ()
        clearPrintTextA -< Just ()
        printTextA -< Just (Query,"Confirm.")
        returnA -< result
 
-toolMenuSelection :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo
+toolMenuSelection :: (FRPModel m) => MenuHandler e m
 toolMenuSelection = proc () ->
     do menuStateHeader (`elem` ["pickup","drop","wield","make"]) -< ()
        state <- sticky isJust Nothing <<< driverGetAnswerA -< "menu-state"
@@ -116,3 +119,4 @@ toolMenuSelection = proc () ->
        printMenuItemA "prev" -< ()
        printMenuItemA "escape" -< ()
        returnA -< roguestarSceneLayerInfo mempty basic_camera
+

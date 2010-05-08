@@ -1,9 +1,10 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, Rank2Types, TypeFamilies, FlexibleContexts #-}
 
 module VisibleObject
     (ToolThreadInput(..),
      CreatureThreadOutput(..),
      AbstractEmpty(..),
+     AvatarSwitch,
      visibleObjectThreadLauncher,
      objectTypeGuard,
      questionMarkAvatar,
@@ -58,9 +59,11 @@ instance AbstractEmpty () where
 instance AbstractEmpty (Maybe a) where
     abstractEmpty = Nothing
 
+type AvatarSwitch i o m = RSwitch Enabled (Maybe Integer) i o m
+
 -- | Avatar for unrecognized objects.  Basically this is a big conspicuous warning that
 -- something is implemented in the engine but not in the client.
-questionMarkAvatar :: RSAnimAX Threaded (Maybe Integer) i o i (Maybe CreatureThreadOutput)
+questionMarkAvatar :: (FRPModel m) => FRP e (AvatarSwitch i o m) i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->
     do visibleObjectHeader -< ()
        t <- threadTime -< ()
@@ -84,28 +87,30 @@ questionMarkAvatar = proc _ ->
 
 
 -- | Launch threads to represent every visible object.
-visibleObjectThreadLauncher :: (AbstractEmpty o) => RSAnimAX Threaded (Maybe Integer) i o i o -> RSAnimAX Threaded (Maybe Integer) i o i o
+visibleObjectThreadLauncher :: (FRPModel m,AbstractEmpty o) =>
+                               FRP e (AvatarSwitch i o m) i o -> 
+                               FRP e (AvatarSwitch i o m) i o
 visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
 
 -- | Kill a thread if an object has the wrong \"object-type\" field, e.g. anything that isn't a \"creature\".
-objectTypeGuard :: (B.ByteString -> Bool) -> RSAnimAX Threaded (Maybe Integer) a b () ()
+objectTypeGuard :: (FRPModel m, StateOf m ~ AnimationState, ThreadingOf m ~ Enabled, ThreadIDOf m ~ Maybe Integer) => (B.ByteString -> Bool) -> FRP e m () ()
 objectTypeGuard f = proc () ->
     do m_obj_type <- objectDetailsLookup ThisObject "object-type" -< ()
        killThreadIf -< maybe False (not . f) m_obj_type
 
 -- | Header function that just kills the current thread if it isn't a visible object.
-visibleObjectHeader :: RSAnimAX Threaded (Maybe Integer) i o () ()
+visibleObjectHeader :: (FRPModel m, ThreadingOf m ~ Enabled, ThreadIDOf m ~ Maybe Integer, StateOf m ~ AnimationState) => FRP e m () ()
 visibleObjectHeader = proc () ->
     do unique_id <- arr (fromMaybe (error "visibleObjectHeader: threadIdentity was Nothing")) <<< threadIdentity -< ()
        uids <- allObjects -< ()
        killThreadIf -< not $ unique_id `elem` uids
 
 -- | List all 'VisibleObject' records.
-visibleObjects :: RSAnimAX k t i o () [VisibleObject]
+visibleObjects :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () [VisibleObject]
 visibleObjects = proc () -> arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
 
 -- | List all object UIDs.
-allObjects :: RSAnimAX k t i o () [Integer]
+allObjects :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m () [Integer]
 allObjects = proc () ->
     do visible_object_ids <- arr (map vo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
        wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
@@ -125,19 +130,19 @@ data VisibleObjectReference =
   | Attacker
 
 -- | As a Tool, who is wielding you?
-wieldedParent :: RSAnimAX k t i o (Maybe Integer) (Maybe Integer)
+wieldedParent :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m (Maybe Integer) (Maybe Integer)
 wieldedParent = proc m_unique_id -> 
     do wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_creature_id $ find ((== m_unique_id) . Just . wo_unique_id) wielded_pairs
 
 -- | As a creature, what tool are you wielding?
-wieldedTool :: RSAnimAX k t i o (Maybe Integer) (Maybe Integer)
+wieldedTool :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m (Maybe Integer) (Maybe Integer)
 wieldedTool = proc m_unique_id ->
     do wielded_pairs <- arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
        returnA -< fmap wo_unique_id $ find ((== m_unique_id) . Just . wo_creature_id) wielded_pairs
 
 -- | Get the unique ID of the object specified.
-getVisibleObject :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe Integer)
+getVisibleObject :: (FRPModel m, StateOf m ~ AnimationState, ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe Integer)
 getVisibleObject (ThisObject) = threadIdentity
 getVisibleObject (UniqueID unique_id) = proc () -> returnA -< Just unique_id
 getVisibleObject (WieldedParent (WieldedTool ref)) = getVisibleObject ref
@@ -147,22 +152,22 @@ getVisibleObject (WieldedTool ref) = getVisibleObject ref >>> wieldedTool
 getVisibleObject Attacker = arr (const "who-attacks") >>> driverGetAnswerA >>> arr (maybe Nothing readInteger)
 
 -- | As a Tool, are you currently being wielded by anyone?
-isBeingWielded :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () Bool
+isBeingWielded :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () Bool
 isBeingWielded obj = getVisibleObject (WieldedParent obj) >>> arr isJust
 
 -- | As a Creature, are you currently wielding a tool?
-isWielding :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () Bool
+isWielding :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () Bool
 isWielding obj = getVisibleObject (WieldedTool obj) >>> arr isJust
 
 -- | Get the 'VisibleObject' record for any object.
-visibleObject :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe VisibleObject)
+visibleObject :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe VisibleObject)
 visibleObject obj = proc () ->
     do m_unique_id <- getVisibleObject obj -< ()
        visible_objects <- visibleObjects -< ()
        returnA -< do find ((== m_unique_id) . Just . vo_unique_id) visible_objects
 
 -- | Get an "object-details" field for the specified visible object.
-objectDetailsLookup :: VisibleObjectReference -> B.ByteString -> RSAnimAX k (Maybe Integer) i o () (Maybe B.ByteString)
+objectDetailsLookup :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> B.ByteString -> FRP e m () (Maybe B.ByteString)
 objectDetailsLookup obj field = proc _ ->
     do m_unique_id <- getVisibleObject obj -< ()
        m_details_table <- arr (fromMaybe Nothing) <<< whenJust (driverGetTableA <<< arr (\x -> ("object-details",B.pack $ show x))) -< m_unique_id
@@ -171,26 +176,26 @@ objectDetailsLookup obj field = proc _ ->
               tableLookup details_table ("property","value") field
 
 -- | Grid position to which the specified object should move.
-objectDestination :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe (Integer,Integer))
+objectDestination :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe (Integer,Integer))
 objectDestination obj = arr (fmap vo_xy) <<< visibleObject obj
 
 -- | Correct position of the specified object, with smooth translation.
-objectIdealPosition :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe Point3D)
+objectIdealPosition :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe Point3D)
 objectIdealPosition obj = 
     whenJust (approachA 0.25 (perSecond 3)) <<< 
     arr (fmap (\(x,y) -> Point3D (realToFrac x) 0 (negate $ realToFrac y))) <<< 
     objectDestination obj
 
 -- | Goal direction in which the specified object should be pointed.
-objectFacing :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe BoundAngle)
+objectFacing :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe BoundAngle)
 objectFacing obj = arr (fmap vo_facing) <<< visibleObject obj
 
 -- | Direction in which the specified object should be pointed, with smooth rotation.
-objectIdealFacing :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe Angle)
+objectIdealFacing :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe Angle)
 objectIdealFacing obj = arr (fmap unboundAngle) <<< whenJust (approachA 0.1 (perSecond 1)) <<< objectFacing obj
 
 -- | Combine 'objectIdealPosition' and 'objectIdealFacing' to place an object.
-objectIdealOrientation :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe CoordinateSystem)
+objectIdealOrientation :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe CoordinateSystem)
 objectIdealOrientation obj = proc () ->
     do m_p <- objectIdealPosition obj -< ()
        m_a <- objectIdealFacing obj -< ()
@@ -200,7 +205,7 @@ objectIdealOrientation obj = proc () ->
 
 -- | 'objectIdealOrientation' implementation that is aware of wield points for wieldable objects.  If an object is being
 -- wielded, it will snap to it's wield point.
-wieldableObjectIdealOrientation :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o ToolThreadInput (Maybe CoordinateSystem)
+wieldableObjectIdealOrientation :: (FRPModel m,StateOf m ~ AnimationState,ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m ToolThreadInput (Maybe CoordinateSystem)
 wieldableObjectIdealOrientation obj = proc tti ->
     do ideal_resting <- objectIdealOrientation obj -< ()
        m_wielded_parent <- getVisibleObject (WieldedParent obj) -< ()

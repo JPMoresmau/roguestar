@@ -1,8 +1,17 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, Arrows, MultiParamTypeClasses, FlexibleInstances, TypeFamilies, ExistentialQuantification, Rank2Types, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, 
+             Arrows, 
+             MultiParamTypeClasses, 
+             FlexibleInstances, 
+             TypeFamilies, 
+             ExistentialQuantification, 
+             Rank2Types, 
+             OverloadedStrings,
+             UndecidableInstances #-}
 
 module Animation
-    (RSAnimAX,
+    (RSwitch,
+     AnimationState,
      RoguestarAnimationObject,
      newRoguestarAnimationObject,
      runRoguestarAnimationObject,
@@ -78,15 +87,15 @@ instance RecombinantState AnimationState where
         animstate_block_continue = animstate_block_continue old || animstate_block_continue new,
         animstate_print_text_mode = animstate_print_text_mode old `mergePrintTextModes` animstate_print_text_mode new }
 
--- | The FRP arrows for roguestar animations.
-type RSAnimAX k t i o = FRPX k AnimationState t i o
+-- | The RogueStar switch type.
+type RSwitch k t i o m = SimpleSwitch k t AnimationState i o m
 
-instance (CoordinateSystemClass csc) => AffineTransformable (FRPX k csc t i o j p) where
+instance (CoordinateSystemClass csc,StateOf m ~ csc) => AffineTransformable (FRP e m j p) where
     transform m actionA = proc x -> transformA actionA -< (Affine $ transform m,x)
 
 newtype RoguestarAnimationObject = RoguestarAnimationObject (FRPProgram AnimationState () SceneLayerInfo)
 
-newRoguestarAnimationObject :: RSAnimAX () () () SceneLayerInfo () SceneLayerInfo -> IO RoguestarAnimationObject
+newRoguestarAnimationObject :: (forall e. FRP e (FRP1 AnimationState () SceneLayerInfo) () SceneLayerInfo) -> IO RoguestarAnimationObject
 newRoguestarAnimationObject rs_anim = 
     liftM RoguestarAnimationObject $ newFRP1Program rs_anim
 
@@ -107,13 +116,13 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object (Rog
        assembleScene result_scene_layer_info $ animstate_scene_accumulator result_animstate
 
 -- | Request an answer from the engine.  This will return 'Nothing' until the answer arrives, which may never happen.
-driverGetAnswerA :: RSAnimAX any t i o B.ByteString (Maybe B.ByteString)
+driverGetAnswerA :: (StateOf m ~ AnimationState) => FRP e m B.ByteString (Maybe B.ByteString)
 driverGetAnswerA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,query_) -> getAnswer driver_object_ query_) -< (driver_object,query)
 
 -- | Request a data table from the engine.  This will return 'Nothing' until the entire table arrives, which may never happen.
-driverGetTableA :: RSAnimAX any t i o (B.ByteString,B.ByteString) (Maybe RoguestarTable)
+driverGetTableA :: (StateOf m ~ AnimationState) => FRP e m (B.ByteString,B.ByteString) (Maybe RoguestarTable)
 driverGetTableA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,(the_table_name,the_table_id)) -> 
@@ -121,10 +130,10 @@ driverGetTableA = proc query ->
 
 -- | Print a line of text to the game console.  This will print exactly once.
 -- Accepts 'Nothing' and prints once immediately when a value is supplied.
-printTextOnce :: RSAnimAX k t i o (Maybe (TextType,B.ByteString)) ()
+printTextOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe (TextType,B.ByteString)) ()
 printTextOnce = onceA printTextA 
 
-printTextA :: RSAnimAX k t i o (Maybe (TextType,B.ByteString)) ()
+printTextA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe (TextType,B.ByteString)) ()
 printTextA = proc pt_data ->
     do print_text_object <- arr animstate_print_text_object <<< fetch -< ()
        ioAction (\(print_text_object,x) -> case x of
@@ -132,22 +141,22 @@ printTextA = proc pt_data ->
 	    Just (pt_type,pt_string) -> printText print_text_object pt_type pt_string) -< (print_text_object,pt_data)
 
 -- | Number of dones.  (A done is a message from the engine that an change has occured in the game world.)
-donesA :: RSAnimAX k t i o () Integer
+donesA :: (StateOf m ~ AnimationState) => FRP e m () Integer
 donesA = proc () ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction driverDones -< thawDriver driver_object
 
 -- | Print a debugging message to 'stderr'.  This will print on every frame of animation.
-debugA :: RSAnimAX k t i o (Maybe B.ByteString) ()
+debugA :: (StateOf m ~ AnimationState) => FRP e m (Maybe B.ByteString) ()
 debugA = ioAction (maybe (return ()) (B.hPutStrLn stderr))
 
 -- | Print a debugging message to 'stderr'.  This will print exactly once.
-debugOnce :: RSAnimAX k t i o (Maybe B.ByteString) ()
+debugOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe B.ByteString) ()
 debugOnce = onceA debugA
 
 -- | Get a list of keystrokes that correspond to the specified action, that are valid on the current frame of animation.
 -- This can be used to display a menu that correctly indicates what keystroke to press for a given action.
-actionNameToKeysA :: B.ByteString -> RSAnimAX any t i o () [B.ByteString]
+actionNameToKeysA :: (StateOf m ~ AnimationState) => B.ByteString -> FRP e m () [B.ByteString]
 actionNameToKeysA action_name = proc () ->
     do animstate <- fetch -< ()
        let action_input = ActionInput (animstate_globals animstate)
@@ -156,39 +165,39 @@ actionNameToKeysA action_name = proc () ->
        ioAction id -< actionNameToKeys action_input common_keymap action_name
 
 -- | Print a menu using 'printMenuItemA'
-printMenuA :: [B.ByteString] -> RSAnimAX any t i o () ()
+printMenuA :: (FRPModel m, StateOf m ~ AnimationState) => [B.ByteString] -> FRP e m () ()
 printMenuA = foldr (>>>) (arr id) . map printMenuItemA
 
 -- | Print a single menu item including it's keystroke.
-printMenuItemA :: B.ByteString -> RSAnimAX any t i o () ()
+printMenuItemA :: (FRPModel m, StateOf m ~ AnimationState) => B.ByteString -> FRP e m () ()
 printMenuItemA action_name = proc () ->
     do keys <- actionNameToKeysA action_name -< ()
        printTextA -< fmap (\s -> (Query,s `B.append` " - " `B.append` hrstring action_name)) $ listToMaybe $ sortBy (comparing B.length) keys
 
 -- | Clear all printed text once.  This begins a new clean segment of printed text.
-clearPrintTextOnce :: RSAnimAX k t i o () ()
+clearPrintTextOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
 clearPrintTextOnce = onceA clearPrintTextA <<< arr (const $ Just ())
 
-clearPrintTextA :: RSAnimAX k t i o (Maybe ()) ()
+clearPrintTextA :: (StateOf m ~ AnimationState) => FRP e m (Maybe ()) ()
 clearPrintTextA = proc i ->
     do print_text_object <- arr (animstate_print_text_object) <<< fetch -< ()
        ioAction id -< when (isJust i) $ clearOutputBuffer print_text_object
 
 -- | Do an action exactly once.
-onceA :: (forall x y. RSAnimAX () () x y (Maybe j) p) -> RSAnimAX k t i o (Maybe j) p
+onceA :: (FRPModel m) => (forall n. (FRPModel n, StateOf n ~ StateOf m) => FRP e n (Maybe j) p) -> FRP e m (Maybe j) p
 onceA actionA = frp1Context onceA_
     where onceA_ = proc j -> 
               do p <- actionA -< j
 	         switchTerminate -< (if isJust j then (Just $ arr (const p)) else Nothing,p)
 
 -- | Display a library model.
-libraryA :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
+libraryA :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
        accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Poor)
 
 -- | Display a library model that remains oriented toward the camera.
-libraryPointAtCamera :: RSAnimAX any t i o (SceneLayer,LibraryModel) ()
+libraryPointAtCamera :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
 libraryPointAtCamera = proc (layer,lm) ->
     do lib <- arr animstate_library <<< fetch -< ()
        pointAtCameraA -< (layer,lookupModel lib lm Poor)
@@ -197,14 +206,14 @@ libraryPointAtCamera = proc (layer,lm) ->
 -- the client will automatically ask it to step forward either to the next snapshot or
 -- the player's turn.  This delays the continue action until some animation or
 -- text finishes printing.
-blockContinue :: RSAnimAX k t i o Bool ()
+blockContinue :: (StateOf m ~ AnimationState) => FRP e m Bool ()
 blockContinue = proc b ->
     do animstate <- fetch -< ()
        store -< animstate { animstate_block_continue = animstate_block_continue animstate || b }
 
 -- | Change the 'PrintTextMode'.  If multiple calls are made to 'requestPrintTextMode', then
 -- 'Disabled' takes precedence over all others, while 'Unlimited' takes precedence over 'Limited'.
-requestPrintTextMode :: RSAnimAX k t i o PrintTextMode ()
+requestPrintTextMode :: (StateOf m ~ AnimationState) => FRP e m PrintTextMode ()
 requestPrintTextMode = proc s ->
     do animstate <- fetch -< ()
        store -< animstate { animstate_print_text_mode = animstate_print_text_mode animstate `mergePrintTextModes` s }
@@ -217,11 +226,11 @@ mergePrintTextModes Unlimited Limited = Unlimited
 mergePrintTextModes m _ = m
 
 -- | Read a global variable.
-readGlobal :: (Globals -> g) -> RSAnimAX any t i o () g
+readGlobal :: (StateOf m ~ AnimationState) => (Globals -> g) -> FRP e m () g
 readGlobal f = proc () ->
     do globals_ref <- arr animstate_globals <<< fetch -< ()
        ioAction (\globals_ref_ -> liftM f $ readIORef globals_ref_) -< globals_ref
 
 -- | Get a bounded random value, as 'randomRIO'.  A new value is pulled for each frame of animation.
-randomA :: (Random a) => RSAnimAX any t i o (a,a) a
+randomA :: (Random a) => FRP e m (a,a) a
 randomA = ioAction randomRIO

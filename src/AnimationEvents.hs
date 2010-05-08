@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies, RankNTypes, FlexibleContexts #-}
 
 module AnimationEvents
     (eventMessager,recognized_events)
@@ -16,7 +16,7 @@ import RSAGL.FRP
 import Strings
 import qualified Data.ByteString.Char8 as B
 
-eventStateHeader :: (B.ByteString -> Bool) -> RSAnimAX () () () () () ()
+eventStateHeader :: (FRPModel m) => (B.ByteString -> Bool) -> EventHandler e m () ()
 eventStateHeader stateP = proc () ->
     do genericStateHeader switchTo stateP -< ()
        acs <- driverGetAnswerA -< "action-count"
@@ -24,19 +24,21 @@ eventStateHeader stateP = proc () ->
        switchContinue -< (if acs /= iacs then Just eventMessager else Nothing,())
            where switchTo s = fromMaybe eventMessager $ lookup s messages
 
--- | Print messages about game events.
-eventMessager :: RSAnimAX () () () () () ()
-eventMessager = proc () -> 
-    do eventStateHeader (isNothing . flip lookup messages) -< () 
-       blockContinue -< True 
+type EventSwitch m = RSwitch Disabled () () () m
+type EventHandler e m a b = FRP e (EventSwitch m) a b
+type MessageHandler e m a b = MaybeArrow (FRP e (EventSwitch m)) a b
 
-type MessageHandler a b = MaybeArrow (RSAnimAX () () () ()) a b
+-- | Print messages about game events.
+eventMessager :: (FRPModel m) => EventHandler e m () ()
+eventMessager = proc () -> 
+    do eventStateHeader (not . (`elem` recognized_events)) -< () 
+       blockContinue -< True 
 
 -- | A handler for messages from a specific event state, such as \"attack-event\".
 -- Parameters are:
 -- * The name of the event (\"attack-event\")
 -- * The handler for the event.
-messageState :: B.ByteString -> MessageHandler () B.ByteString -> (B.ByteString,RSAnimAX () () () () () ())
+messageState :: (FRPModel m) => B.ByteString -> MessageHandler e m () B.ByteString -> (B.ByteString,EventHandler e m () ())
 messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
     do m_string <- runMaybeArrow actionA -< Just ()
        printTextOnce -< fmap ((,) Event) m_string
@@ -46,16 +48,16 @@ messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
        blockContinue -< isNothing m_string && not time_out))
 
 -- | As 'messageState', but just prints a simple string.
-messagePrompt :: B.ByteString -> B.ByteString -> (B.ByteString,RSAnimAX () () () () () ())
+messagePrompt :: (FRPModel m) => B.ByteString -> B.ByteString -> (B.ByteString,EventHandler e m () ())
 messagePrompt s prompt = messageState s $ arr (const prompt)
 
 -- | As 'messageState', but constructs an alternate message handler to be switched
 -- via 'continueWith'.
-alternateMessage :: B.ByteString -> MessageHandler () B.ByteString -> RSAnimAX () () () () () ()
+alternateMessage :: (FRPModel m) => B.ByteString -> MessageHandler e m () B.ByteString -> EventHandler e m () ()
 alternateMessage s actionA = snd $ messageState s actionA
 
 -- | Provide a default value to substitute if a computation doesn't yield a value after the specified timeout period.
-timeout :: Time -> b -> MessageHandler a b -> MessageHandler a b
+timeout :: (FRPModel m) => Time -> b -> MessageHandler e m a b -> MessageHandler e m a b
 timeout duration default_value handler = (>>>) (extract handler) $ MaybeArrow $ frp1Context $ proc m_m_o ->
     do let m_o = fromMaybe Nothing m_m_o
        t <- threadTime -< ()
@@ -63,21 +65,21 @@ timeout duration default_value handler = (>>>) (extract handler) $ MaybeArrow $ 
        returnA -< m_o
 
 -- | As 'driverGetAnswerA'
-answer :: B.ByteString -> MessageHandler () B.ByteString 
+answer :: B.ByteString -> MessageHandler e m () B.ByteString 
 answer s = liftConst s driverGetAnswerA
 
 -- | As 'driverGetTableA' that gets one element of the 'object-details' table.
-detail :: B.ByteString -> MessageHandler B.ByteString B.ByteString
+detail :: (FRPModel m) => B.ByteString -> MessageHandler e m B.ByteString B.ByteString
 detail field = proc unique_id ->
     MaybeArrow (arr $ maybe Nothing $ \x -> tableLookup x ("property","value") field) <<< 
                       MaybeArrow (arr (fromMaybe Nothing) <<< whenJust driverGetTableA) -< ("object-details",unique_id)
 
 -- | Switch to an alternate message handler constructed with 'alternateMessage'.
-continueWith :: MessageHandler (RSAnimAX () () () () () ()) ()
+continueWith :: (FRPModel m) => MessageHandler e m (EventHandler e m () ()) ()
 continueWith = liftJust $ switchContinue <<< arr (\x -> (x,()))
 
 -- | Get a noun from a uid for any tool or character.
-nameOf :: B.ByteString -> MessageHandler () Noun
+nameOf :: (FRPModel m) => B.ByteString -> MessageHandler e m () Noun
 nameOf who = proc () ->
     do who_id <- answer who -< ()
        who_player <- answer "who-player" -< ()
@@ -103,7 +105,7 @@ possessivePronounToString You = "your"
 possessivePronounToString (Singular {}) = "its"
 possessivePronounToString X = "its"
 
-nounToUID :: MessageHandler Noun B.ByteString
+nounToUID :: MessageHandler e m Noun B.ByteString
 nounToUID = proc noun ->
     do you_id <- answer "who-player" -< ()
        returnA -< case noun of
@@ -139,9 +141,9 @@ sentence subject he1 he2 = appEndo $ mconcat $ map Endo $
                    replace "$(His)" $ capitalize $ possessivePronounToString obj]
 
 recognized_events :: [B.ByteString]
-recognized_events = map fst messages
+recognized_events = map fst (messages :: [(B.ByteString,EventHandler e () () ())])
 
-messages :: [(B.ByteString,RSAnimAX () () () () () ())]
+messages :: (FRPModel m) => [(B.ByteString,EventHandler e m () ())]
 messages = [
     messageState "attack-event" $ proc () -> 
         do weapon_used <- answer "weapon-used" -< ()
@@ -191,14 +193,14 @@ messages = [
     messagePrompt "clear-terrain"  "Clear terrain.  Direction:",
     messagePrompt "turn"  "Turn.  Direction:"]
 
-unarmedAttack :: RSAnimAX () () () () () ()
+unarmedAttack :: (FRPModel m) => EventHandler e m () ()
 unarmedAttack = alternateMessage "attack-event" $ proc () ->
     do who_attacks <- nameOf "who-attacks" -< ()
        who_hit <- nameOf "who-hit" -< ()
        player_hp_string <- playerHPString -< who_hit
        returnA -< sentence who_attacks who_hit X $ "$You strike(s) $him!" `B.append` player_hp_string
 
-armedAttack :: RSAnimAX () () () () () ()
+armedAttack :: (FRPModel m) => EventHandler e m () ()
 armedAttack = alternateMessage "attack-event" $ proc () ->
     do weapon_used <- answer "weapon-used" -< ()
        who_attacks <- nameOf "who-attacks" -< ()
@@ -211,7 +213,7 @@ armedAttack = alternateMessage "attack-event" $ proc () ->
            _ -> sentence who_attacks who_hit X $ "$You attack(s) $him!" `B.append` player_hp_string
 
 -- | Generates a string for the hit points of a creature, if that information is available.
-playerHPString :: MessageHandler Noun B.ByteString
+playerHPString :: (FRPModel m) => MessageHandler e m Noun B.ByteString
 playerHPString = timeout (fromSeconds 0.1) "" $ proc noun ->
     do uid <- nounToUID -< noun
        hp <- detail "hp" -< uid

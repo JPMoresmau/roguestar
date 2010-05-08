@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 module EventUtils
     (recentAttack)
     where
@@ -10,7 +10,7 @@ import RSAGL.FRP
 import Data.Maybe
 
 -- | Indicates the most recent time at which the specified creature performed an attack, in thread time.
-recentAttack :: VisibleObjectReference -> RSAnimAX k (Maybe Integer) i o () (Maybe Time)
+recentAttack :: (FRPModel m, StateOf m ~ AnimationState, ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe Time)
 recentAttack obj = proc () ->
     do state <- driverGetAnswerA -< "state"
        count <- driverGetAnswerA -< "action-count"

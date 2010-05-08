@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module Sky
     (getSkyInfo,
@@ -28,7 +28,7 @@ import Globals
 import qualified Data.ByteString.Char8 as B
 
 -- | Get the current SkyInfo data for the current planet.
-getSkyInfo :: RSAnimAX k t i o () SkyInfo
+getSkyInfo :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m () SkyInfo
 getSkyInfo = proc () ->
     do random_id <- sticky isJust Nothing <<< driverGetAnswerA -< "plane-random-id"
        m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
@@ -48,7 +48,7 @@ generateSkyInfo random_id m_biome = fst $ flip runRand (mkStdGen $ fromInteger $
                                sky_info_degrees_axial_tilt = degrees_axial_tilt,
                                sky_info_degrees_orbital = degrees_orbital }
 
-sky :: RSAnimAX k t i o SkyInfo ()
+sky :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m SkyInfo ()
 sky = proc sky_info ->
     do sky_on <- readGlobal global_sky_on -< ()
        libraryA -< (scene_layer_sky_sphere,if sky_on then SkySphere sky_info else NullModel)
@@ -71,7 +71,7 @@ sky = proc sky_info ->
            then mapLightSource (mapBoth $ scaleRGB $ lighting_skylight lighting_configuration) $ skylight (Vector3D 0 1 0) skylight_color
            else NoLight)
 
-sun :: RSAnimAX k t i o SkyInfo ()
+sun :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m SkyInfo ()
 sun = proc sky_info ->
     do libraryA -< (scene_layer_distant,SunDisc $ sunInfoOf sky_info)
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
@@ -83,7 +83,7 @@ sun = proc sky_info ->
 	       lightsource_ambient = blackbody}
             else NoLight)
 
-lightingConfiguration :: RSAnimAX k t i o SkyInfo LightingConfiguration
+lightingConfiguration :: (FRPModel m) => FRP e m SkyInfo LightingConfiguration
 lightingConfiguration = proc sky_info ->
     do nightlight <- approachA 1.0 (perSecond 1.0) -< lighting_nightlight $ Models.Sky.lightingConfiguration sky_info
        artificial <- approachA 1.0 (perSecond 1.0) -< lighting_artificial $ Models.Sky.lightingConfiguration sky_info

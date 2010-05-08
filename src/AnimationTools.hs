@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module AnimationTools
     (toolAvatar)
@@ -18,8 +18,11 @@ import EventUtils
 import Control.Monad
 import qualified Data.ByteString.Char8 as B
 
+type ToolAvatarSwitch m = AvatarSwitch ToolThreadInput () m
+type ToolAvatar e m = FRP e (ToolAvatarSwitch m) ToolThreadInput ()
+
 -- | Avatar for any tool that automatically switched to the correct tool-specific thread.
-toolAvatar :: RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+toolAvatar :: (FRPModel m) => ToolAvatar e m
 toolAvatar = proc tti ->
     do objectTypeGuard (== "tool") -< ()
        m_tool <- objectDetailsLookup ThisObject "tool" -< ()
@@ -41,14 +44,14 @@ toolAvatar = proc tti ->
         switchTo ("sphere-chromalite",chromalite) = chromaliteSphereAvatar chromalite
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
-simpleToolAvatar :: LibraryModel -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+simpleToolAvatar :: (FRPModel m) => LibraryModel -> ToolAvatar e m
 simpleToolAvatar phase_weapon_model = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
        whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
        returnA -< ()
 
-phaseWeaponAvatar :: LibraryModel -> Integer -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+phaseWeaponAvatar :: (FRPModel m) => LibraryModel -> Integer -> ToolAvatar e m
 phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
@@ -56,7 +59,7 @@ phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
        t_now <- threadTime -< ()
        whenJust (transformA displayA) -< fmap (\o -> (o,(m_atk_time,t_now))) m_orientation
        returnA -< ()
-  where displayA :: RSAnimAX () () x y (Maybe Time,Time) ()
+  where displayA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe Time,Time) ()
         displayA = proc (m_atk_time,t_now) ->
             do libraryA -< (scene_layer_local,phase_weapon_model)
                accumulateSceneA -< (scene_layer_local,lightSource $ case fmap (toSeconds . (t_now `sub`)) m_atk_time of
@@ -68,7 +71,7 @@ phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
                    _ | otherwise -> NoLight)
                returnA -< ()
 
-energySwordAvatar :: EnergyColor -> Integer -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+energySwordAvatar :: (FRPModel m) => EnergyColor -> Integer -> ToolAvatar e m
 energySwordAvatar energy_color sword_size = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
@@ -87,22 +90,22 @@ energySwordAvatar energy_color sword_size = proc tti ->
            do orientation <- m_orientation
               return (orientation,(Affine id,is_being_wielded))
        returnA -< ()
-  where displayA :: RSAnimAX () () i o Bool ()
+  where displayA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m Bool ()
         displayA = scale' (1/75) $ proc is_being_wielded ->
             do blade_length <- approachFrom 1 (perSecond 65) 0 -< if is_being_wielded then 10 * realToFrac sword_size else 0
                libraryA -< (scene_layer_local,EnergySword energy_color sword_size)
                transformA libraryA -< (Affine $ translate (Vector3D 0 2.9 0) . scale (Vector3D 1 blade_length 1),(scene_layer_local,EnergyCylinder energy_color))
 
-gasSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+gasSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
 gasSphereAvatar = simpleToolAvatar . gasToModel
     where gasToModel :: B.ByteString -> LibraryModel
           gasToModel = const GasSphere
 
-materialSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+materialSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
 materialSphereAvatar = simpleToolAvatar . materialToModel
     where materialToModel :: B.ByteString -> LibraryModel
           materialToModel = const MetalSphere
 
-chromaliteSphereAvatar :: B.ByteString -> RSAnimAX Threaded (Maybe Integer) ToolThreadInput () ToolThreadInput ()
+chromaliteSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
 chromaliteSphereAvatar = simpleToolAvatar . const ChromaliteSphere
           

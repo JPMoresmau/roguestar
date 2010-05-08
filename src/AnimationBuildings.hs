@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, OverloadedStrings #-}
+{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies, FlexibleContexts #-}
 
 module AnimationBuildings
     (buildingAvatar)
@@ -11,7 +11,10 @@ import Models.LibraryData
 import Control.Arrow
 import Scene
 
-buildingAvatar :: RSAnimAX Threaded (Maybe Integer) () () () ()
+type BuildingAvatarSwitch m = AvatarSwitch () () m
+type BuildingAvatar e m = FRP e (BuildingAvatarSwitch m) () ()
+
+buildingAvatar :: (FRPModel m) => BuildingAvatar e m
 buildingAvatar = proc () ->
     do objectTypeGuard (== "building") -< ()
        m_building_type <- objectDetailsLookup ThisObject "building-type" -< ()
@@ -21,7 +24,7 @@ buildingAvatar = proc () ->
         switchTo "portal" = simpleBuildingAvatar Portal
         switchTo _ = questionMarkAvatar >>> arr (const ())
 
-simpleBuildingAvatar :: LibraryModel -> RSAnimAX Threaded (Maybe Integer) () () () ()
+simpleBuildingAvatar :: (FRPModel m) => LibraryModel -> BuildingAvatar e m
 simpleBuildingAvatar phase_weapon_model = proc () ->
     do visibleObjectHeader -< ()
        m_orientation <- objectIdealOrientation ThisObject -< ()
