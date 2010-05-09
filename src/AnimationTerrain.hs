@@ -7,6 +7,7 @@ module AnimationTerrain
 import Data.List
 import RSAGL.FRP
 import RSAGL.Math
+import RSAGL.Animation.InverseKinematics
 import Animation
 import Control.Arrow
 import Data.Maybe
@@ -23,26 +24,21 @@ terrainThreadLauncher = spawnThreads <<<
                         arr (map (\x -> (Just x,terrainTile x))) <<<
                         newListElements <<< terrainElements
 
-terrainTile :: (FRPModel m) => ProtocolTypes.TerrainTile -> FRP e (TerrainThreadSwitch m) () ()
-terrainTile terrain_tile = proc () ->
-    do t <- threadTime -< ()
-       still_here <- renderTerrainTile terrain_tile -< fromSeconds $ min 0 $ toSeconds t - 1
-       switchTerminate -< (if still_here then Nothing else Just $ terrainTile_Descending terrain_tile,())
-
-terrainTile_Descending :: (FRPModel m) => ProtocolTypes.TerrainTile -> FRP e (TerrainThreadSwitch m) () ()
-terrainTile_Descending terrain_tile = proc () ->
-    do t <- arr ((subtract 1) . toSeconds) <<< threadTime -< ()
-       killThreadIf -< t >= 1
-       renderTerrainTile terrain_tile -< fromSeconds $ max 0 $ t
+terrainTile :: (FRPModel m) => ProtocolTypes.TerrainTile ->
+                               FRP e (TerrainThreadSwitch m) () ()
+terrainTile (tid@(ProtocolTypes.TerrainTile terrain_type (x,y))) = proc () ->
+    do terrain_elements <- terrainElements -< ()
+       let still_here = isJust $ find (== tid) terrain_elements
+       let goal_size = if still_here then 1.25 else -0.25
+       actual_size <- arr (max 0 . min 1) <<<
+                      approachFrom 0.5 (perSecond 1.0) 0 -< goal_size
+       killThreadIf -< actual_size <= 0.0 && not still_here
+       transformA libraryA -<
+           (Affine $ translate
+                         (Vector3D (fromInteger x) 0 (negate $ fromInteger y)) .
+                     scale' actual_size,
+               (scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
        returnA -< ()
-
-renderTerrainTile :: (FRPModel m) => ProtocolTypes.TerrainTile -> FRP e (TerrainThreadSwitch m) Time Bool
-renderTerrainTile (terrain_id@(ProtocolTypes.TerrainTile terrain_type (x,y))) = proc t ->
-    do let awayness = max 0 $ min 0.99 $ (toSeconds t)^2
-       terrain_elements <- terrainElements -< ()
-       transformA libraryA -< (Affine $ translate (Vector3D (realToFrac x) 0 (negate $ realToFrac y)) . scale' (1 - awayness),
-                               (scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
-       returnA -< isJust $ find (== terrain_id) terrain_elements
 
 terrainElements :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () [ProtocolTypes.TerrainTile]
 terrainElements = arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA <<< arr (const ("visible-terrain","0"))
