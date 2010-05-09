@@ -1,8 +1,13 @@
-{-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies, Rank2Types, FlexibleContexts #-}
+{-# LANGUAGE Arrows,
+             OverloadedStrings,
+             TypeFamilies,
+             Rank2Types,
+             FlexibleContexts #-}
 
 module AnimationExtras
     (genericStateHeader,
      floatBobbing,
+     newListElements,
      basic_camera)
     where
 
@@ -12,6 +17,7 @@ import RSAGL.FRP
 import RSAGL.Scene
 import Control.Arrow
 import RSAGL.Types
+import Data.List ((\\))
 import qualified Data.ByteString.Char8 as B
 
 -- | Switch out if the driver \"state\" does match the specified predicate.
@@ -30,6 +36,12 @@ floatBobbing ay by animationA = proc j ->
     do t <- threadTime -< ()
        let float_y = lerpBetween (-1,sine $ fromRotations $ t `cyclical'` (fromSeconds 5),1) (ay,by)
        transformA animationA -< (Affine $ translate (Vector3D 0 float_y 0),j)
+
+-- | Get new elements in a list on a frame-by-frame basis.
+newListElements :: (FRPModel m,Eq a) => FRP e m [a] [a]
+newListElements = proc as ->
+    do olds_as <- delay [] -< as
+       returnA -< as \\ olds_as
 
 -- | A simple default forward-looking camera.
 basic_camera :: Camera

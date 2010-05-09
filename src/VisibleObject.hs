@@ -1,4 +1,9 @@
-{-# LANGUAGE Arrows, OverloadedStrings, Rank2Types, TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE
+    Arrows,
+    OverloadedStrings,
+    Rank2Types,
+    TypeFamilies,
+    FlexibleContexts #-}
 
 module VisibleObject
     (ToolThreadInput(..),
@@ -33,6 +38,7 @@ import Tables
 import Control.Arrow
 import Data.List
 import RSAGL.Animation
+import AnimationExtras
 import RSAGL.Math
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -46,8 +52,9 @@ data ToolThreadInput = ToolThreadInput {
     tti_wield_points :: Map.Map Integer CoordinateSystem }
 
 data CreatureThreadOutput = CreatureThreadOutput {
-    -- | Wield point for this creature.  This is the coordinate system in which a tool should be rendered, 
-    -- where the origin is the point at which the creature is grasping the weapon.
+    -- | Wield point for this creature.  This is the coordinate system in which
+    -- a tool should be rendered, where the origin is the point at which the
+    -- creature is grasping the weapon.
     cto_wield_point :: CoordinateSystem }
 
 class AbstractEmpty a where
@@ -61,8 +68,8 @@ instance AbstractEmpty (Maybe a) where
 
 type AvatarSwitch i o m = RSwitch Enabled (Maybe Integer) i o m
 
--- | Avatar for unrecognized objects.  Basically this is a big conspicuous warning that
--- something is implemented in the engine but not in the client.
+-- | Avatar for unrecognized objects.  Basically this is a big conspicuous
+-- warning that something is implemented in the engine but not in the client.
 questionMarkAvatar :: (FRPModel m) => FRP e (AvatarSwitch i o m) i (Maybe CreatureThreadOutput)
 questionMarkAvatar = proc _ ->
     do visibleObjectHeader -< ()
@@ -88,9 +95,14 @@ questionMarkAvatar = proc _ ->
 
 -- | Launch threads to represent every visible object.
 visibleObjectThreadLauncher :: (FRPModel m,AbstractEmpty o) =>
-                               FRP e (AvatarSwitch i o m) i o -> 
+                               FRP e (AvatarSwitch i o m) i o ->
                                FRP e (AvatarSwitch i o m) i o
-visibleObjectThreadLauncher avatarA = arr (const abstractEmpty) <<< spawnThreads <<< arr (map (\x -> (Just x,avatarA))) <<< allObjects <<< arr (const ())
+visibleObjectThreadLauncher avatarA =
+    arr (const abstractEmpty) <<<
+    spawnThreads <<<
+    arr (map (\x -> (Just x,avatarA))) <<<
+    newListElements <<< allObjects <<<
+    arr (const ())
 
 -- | Kill a thread if an object has the wrong \"object-type\" field, e.g. anything that isn't a \"creature\".
 objectTypeGuard :: (FRPModel m, StateOf m ~ AnimationState, ThreadingOf m ~ Enabled, ThreadIDOf m ~ Maybe Integer) => (B.ByteString -> Bool) -> FRP e m () ()
@@ -112,14 +124,18 @@ visibleObjects = proc () -> arr (maybe [] tableSelectTyped) <<< sticky isJust No
 -- | List all object UIDs.
 allObjects :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m () [Integer]
 allObjects = proc () ->
-    do visible_object_ids <- arr (map vo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("visible-objects","0")
-       wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA -< ("wielded-objects","0")
-       returnA -< Set.toList $ Set.fromList visible_object_ids `Set.union` Set.fromList wielded_object_ids
+    do visible_object_ids <- arr (map vo_unique_id . maybe [] tableSelectTyped)
+           <<< sticky isJust Nothing
+           <<< driverGetTableA -< ("visible-objects","0")
+       wielded_object_ids <- arr (map wo_unique_id . maybe [] tableSelectTyped)
+           <<< sticky isJust Nothing
+           <<< driverGetTableA -< ("wielded-objects","0")
+       returnA -< Set.toList $ Set.fromList visible_object_ids `Set.union`
+                               Set.fromList wielded_object_ids
 
-
-{---------------------------------------------------------------------------------------------------
+{-------------------------------------------------------------------------------
   Retrieving information about specific visible objects.
-----------------------------------------------------------------------------------------------------}
+-------------------------------------------------------------------------------}
 
 -- | Indirect or direct reference to a visible object.
 data VisibleObjectReference =

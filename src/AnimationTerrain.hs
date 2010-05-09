@@ -13,19 +13,22 @@ import Data.Maybe
 import Models.LibraryData
 import ProtocolTypes
 import Scene
+import AnimationExtras
 
 type TerrainThreadSwitch m = RSwitch Enabled (Maybe ProtocolTypes.TerrainTile) () () m
 
 -- | Thread that launches rendering threads for the terrain tiles.
 terrainThreadLauncher :: (FRPModel m) => FRP e (TerrainThreadSwitch m) () ()
-terrainThreadLauncher = spawnThreads <<< arr (map (\x -> (Just x,terrainTile x))) <<< terrainElements
+terrainThreadLauncher = spawnThreads <<<
+                        arr (map (\x -> (Just x,terrainTile x))) <<<
+                        newListElements <<< terrainElements
 
 terrainTile :: (FRPModel m) => ProtocolTypes.TerrainTile -> FRP e (TerrainThreadSwitch m) () ()
 terrainTile terrain_tile = proc () ->
     do t <- threadTime -< ()
        still_here <- renderTerrainTile terrain_tile -< fromSeconds $ min 0 $ toSeconds t - 1
        switchTerminate -< (if still_here then Nothing else Just $ terrainTile_Descending terrain_tile,())
-       
+
 terrainTile_Descending :: (FRPModel m) => ProtocolTypes.TerrainTile -> FRP e (TerrainThreadSwitch m) () ()
 terrainTile_Descending terrain_tile = proc () ->
     do t <- arr ((subtract 1) . toSeconds) <<< threadTime -< ()
