@@ -25,6 +25,7 @@ import System.IO
 import Globals
 import Data.IORef
 import RSAGL.Types
+import Control.Concurrent.STM
 import qualified Data.ByteString.Char8 as B
 
 -- |
@@ -67,7 +68,11 @@ actionValid action_input action =
 executeAction :: ActionInput -> Action -> IO ()
 executeAction action_input action =
     do result <- runErrorT $ action action_input
-       either (\failure -> printText (action_print_text_object action_input) UnexpectedEvent ("unable to execute action: " `B.append` B.pack (show failure)))
+       either (\failure -> atomically $ printText
+                                        (action_print_text_object action_input)
+                                        UnexpectedEvent
+                                        ("unable to execute action: " `B.append`
+                                            B.pack (show failure)))
               (id)
               result
        return ()

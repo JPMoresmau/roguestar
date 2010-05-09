@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, 
-             Arrows, 
-             MultiParamTypeClasses, 
-             FlexibleInstances, 
-             TypeFamilies, 
-             ExistentialQuantification, 
-             Rank2Types, 
+{-# LANGUAGE GeneralizedNewtypeDeriving,
+             Arrows,
+             MultiParamTypeClasses,
+             FlexibleInstances,
+             TypeFamilies,
+             ExistentialQuantification,
+             Rank2Types,
              OverloadedStrings,
              UndecidableInstances #-}
 
@@ -59,6 +59,7 @@ import Data.Ord
 import Strings
 import Globals
 import Data.IORef
+import Control.Concurrent.STM
 import qualified Data.ByteString as B
 
 data AnimationState = AnimationState {
@@ -68,7 +69,8 @@ data AnimationState = AnimationState {
     animstate_print_text_object :: PrintTextObject,
     animstate_library :: Library,
     animstate_block_continue :: Bool,
-    animstate_print_text_mode :: PrintTextMode }
+    animstate_print_text_mode :: PrintTextMode,
+    animstate_suspended_stm_action :: STM () }
 
 instance CoordinateSystemClass AnimationState where
     getCoordinateSystem = getCoordinateSystem . animstate_scene_accumulator
@@ -96,24 +98,37 @@ instance (CoordinateSystemClass csc,StateOf m ~ csc) => AffineTransformable (FRP
 newtype RoguestarAnimationObject = RoguestarAnimationObject (FRPProgram AnimationState () SceneLayerInfo)
 
 newRoguestarAnimationObject :: (forall e. FRP e (FRP1 AnimationState () SceneLayerInfo) () SceneLayerInfo) -> IO RoguestarAnimationObject
-newRoguestarAnimationObject rs_anim = 
+newRoguestarAnimationObject rs_anim =
     liftM RoguestarAnimationObject $ newFRP1Program rs_anim
 
-runRoguestarAnimationObject :: Library -> IORef Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO Scene
-runRoguestarAnimationObject lib globals_ref driver_object print_text_object (RoguestarAnimationObject rso) =
+runRoguestarAnimationObject :: Library ->
+                               IORef Globals ->
+                               DriverObject ->
+                               PrintTextObject ->
+                               RoguestarAnimationObject ->
+                               IO Scene
+runRoguestarAnimationObject lib globals_ref driver_object print_text_object
+                            (RoguestarAnimationObject rso) =
     do frozen_driver_object <- freezeDriver driver_object
        let anim_state = AnimationState {
                animstate_globals = globals_ref,
-	       animstate_scene_accumulator = null_scene_accumulator,
-	       animstate_driver_object = frozen_driver_object,
-	       animstate_print_text_object = print_text_object,
-	       animstate_library = lib,
-	       animstate_block_continue = False,
-	       animstate_print_text_mode = Limited }
-       (result_scene_layer_info,result_animstate) <- updateFRPProgram Nothing ((),anim_state) rso
-       when (not $ animstate_block_continue result_animstate) $ executeContinueAction $ ActionInput globals_ref driver_object print_text_object
-       setPrintTextMode print_text_object $ animstate_print_text_mode result_animstate
-       assembleScene result_scene_layer_info $ animstate_scene_accumulator result_animstate
+               animstate_scene_accumulator = null_scene_accumulator,
+               animstate_driver_object = frozen_driver_object,
+               animstate_print_text_object = print_text_object,
+               animstate_library = lib,
+               animstate_block_continue = False,
+               animstate_print_text_mode = Limited,
+               animstate_suspended_stm_action = return () }
+       (result_scene_layer_info,result_animstate) <-
+           updateFRPProgram Nothing ((),anim_state) rso
+       when (not $ animstate_block_continue result_animstate) $
+           executeContinueAction $
+               ActionInput globals_ref driver_object print_text_object
+       atomically $ setPrintTextMode print_text_object $
+           animstate_print_text_mode result_animstate
+       atomically $ animstate_suspended_stm_action result_animstate
+       assembleScene result_scene_layer_info $
+           animstate_scene_accumulator result_animstate
 
 -- | Request an answer from the engine.  This will return 'Nothing' until the answer arrives, which may never happen.
 driverGetAnswerA :: (StateOf m ~ AnimationState) => FRP e m B.ByteString (Maybe B.ByteString)
@@ -128,17 +143,28 @@ driverGetTableA = proc query ->
        ioAction (\(driver_object_,(the_table_name,the_table_id)) -> 
                  getTable driver_object_ the_table_name the_table_id) -< (driver_object,query)
 
+-- | Store an IO action and run it at the end of the frame.
+suspendedSTMAction :: (FRPModel m, StateOf m ~ AnimationState) =>
+                     (i -> STM ()) -> FRP e m i ()
+suspendedSTMAction action = proc i ->
+    do s <- fetch -< ()
+       store -< s { animstate_suspended_stm_action =
+           animstate_suspended_stm_action s >> action i }
+
 -- | Print a line of text to the game console.  This will print exactly once.
 -- Accepts 'Nothing' and prints once immediately when a value is supplied.
 printTextOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe (TextType,B.ByteString)) ()
-printTextOnce = onceA printTextA 
+printTextOnce = onceA printTextA
 
-printTextA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe (TextType,B.ByteString)) ()
+printTextA :: (FRPModel m, StateOf m ~ AnimationState) =>
+              FRP e m (Maybe (TextType,B.ByteString)) ()
 printTextA = proc pt_data ->
     do print_text_object <- arr animstate_print_text_object <<< fetch -< ()
-       ioAction (\(print_text_object,x) -> case x of
+       suspendedSTMAction (\(print_text_object,x) -> case x of
             Nothing -> return ()
-	    Just (pt_type,pt_string) -> printText print_text_object pt_type pt_string) -< (print_text_object,pt_data)
+            Just (pt_type,pt_string) ->
+                printText print_text_object pt_type pt_string)
+           -< (print_text_object,pt_data)
 
 -- | Number of dones.  (A done is a message from the engine that an change has occured in the game world.)
 donesA :: (StateOf m ~ AnimationState) => FRP e m () Integer
@@ -178,17 +204,18 @@ printMenuItemA action_name = proc () ->
 clearPrintTextOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
 clearPrintTextOnce = onceA clearPrintTextA <<< arr (const $ Just ())
 
-clearPrintTextA :: (StateOf m ~ AnimationState) => FRP e m (Maybe ()) ()
+clearPrintTextA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe ()) ()
 clearPrintTextA = proc i ->
     do print_text_object <- arr (animstate_print_text_object) <<< fetch -< ()
-       ioAction id -< when (isJust i) $ clearOutputBuffer print_text_object
+       suspendedSTMAction id -<
+           when (isJust i) $ clearOutputBuffer print_text_object
 
 -- | Do an action exactly once.
 onceA :: (FRPModel m) => (forall n. (FRPModel n, StateOf n ~ StateOf m) => FRP e n (Maybe j) p) -> FRP e m (Maybe j) p
 onceA actionA = frp1Context onceA_
     where onceA_ = proc j -> 
               do p <- actionA -< j
-	         switchTerminate -< (if isJust j then (Just $ arr (const p)) else Nothing,p)
+                 switchTerminate -< (if isJust j then (Just $ arr (const p)) else Nothing,p)
 
 -- | Display a library model.
 libraryA :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
@@ -234,3 +261,4 @@ readGlobal f = proc () ->
 -- | Get a bounded random value, as 'randomRIO'.  A new value is pulled for each frame of animation.
 randomA :: (Random a) => FRP e m (a,a) a
 randomA = ioAction randomRIO
+
