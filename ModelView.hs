@@ -6,9 +6,7 @@ module Main
     where
 
 import Data.IORef
-import System.IO
 import Graphics.UI.GLUT as GLUT hiding (specular,scale,translate,rotate)
-import Graphics.Rendering.OpenGL.GLU.Errors
 import System.Random
 import RSAGL.Modeling
 import RSAGL.FRP
@@ -34,7 +32,7 @@ number_of_frames :: Integer
 number_of_frames = 6000
 --number_of_frames = 60
 
-moon_orbital_animation :: AniA k () i o (IO BakedModel) (CSN Point3D)
+moon_orbital_animation :: (FRPModel m) => FRP e (SimpleSwitch k () (SceneAccumulator IO) i o m) (IO BakedModel) (CSN Point3D)
 moon_orbital_animation =
     accelerationModel (perSecond 60)
                       (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
@@ -42,22 +40,41 @@ moon_orbital_animation =
                       (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite+2,sceneObject im)
                                          exportA -< origin_point_3d)
 
-walking_orb_animation :: LODCache Integer BakedModel -> LODCache Integer BakedModel ->
-                         LODCache Integer BakedModel -> LODCache Integer BakedModel ->
-                         IO (AniA k () i o () ())
+walking_orb_animation :: (FRPModel m) =>
+                         LODCache Integer BakedModel -> 
+                         LODCache Integer BakedModel ->
+                         LODCache Integer BakedModel -> 
+                         LODCache Integer BakedModel ->
+                         FRP e
+                             (SimpleSwitch k () (SceneAccumulator IO) i o m) 
+                             () ()
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
-    do let upper_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb_upper_leg 50)
-       let lower_leg_anim = proc () -> accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb_lower_leg 50)
-       let orb_legs = legs $ rotationGroup (Vector3D 0 1 0) 25 $
-                             leg (Vector3D 0 1 1) (Point3D 0 0.5 0.5) 2 (Point3D 0 0 1.8) $ jointAnimation upper_leg_anim lower_leg_anim
-       return $ proc () ->
-           do accumulateSceneA -< (std_scene_layer_local,sceneObject $ getLOD qo_orb test_quality)
-              transformA pointAtCameraA -< (Affine $ Affine.translate (Vector3D 0 1.05 0),(std_scene_layer_local,getLOD qo_glow_orb test_quality))
-              accumulateSceneA -< (std_scene_layer_local,lightSource $ PointLight (Point3D 0 0 0)
-                                                                  (measure (Point3D 0 0 0) (Point3D 0 6 0))
-                                                                  (scaleRGB 0.5 white) blackbody)
-              orb_legs -< ()
-              returnA -< ()
+    proc () ->
+        do accumulateSceneA -< (std_scene_layer_local,sceneObject $ 
+                                getLOD qo_orb test_quality)
+           transformA pointAtCameraA -< (Affine $ 
+               Affine.translate (Vector3D 0 1.05 0),
+               (std_scene_layer_local,getLOD qo_glow_orb test_quality))
+           accumulateSceneA -< (std_scene_layer_local,
+               lightSource $ PointLight (Point3D 0 0 0)
+                                        (measure (Point3D 0 0 0) (Point3D 0 6 0))
+                                        (scaleRGB 0.5 white) 
+                                        blackbody)
+           orb_legs -< ()
+           returnA -< ()
+  where upper_leg_anim = proc () -> accumulateSceneA -<
+                             (std_scene_layer_local,
+                              sceneObject $ getLOD qo_orb_upper_leg 50)
+        lower_leg_anim = proc () -> accumulateSceneA -< 
+                             (std_scene_layer_local,
+                              sceneObject $ getLOD qo_orb_lower_leg 50)
+        orb_legs = legs $ 
+            rotationGroup (Vector3D 0 1 0) 25 $
+                leg (Vector3D 0 1 1) 
+                    (Point3D 0 0.5 0.5) 
+                    2 
+                    (Point3D 0 0 1.8) $ 
+                        jointAnimation upper_leg_anim lower_leg_anim
 
 testScene :: IO (AniM ((),Camera))
 testScene = 
@@ -87,7 +104,11 @@ testScene =
        putStrLn "loading sky..."
        qo_sky <- newQO sky
        putStrLn "done."
-       walking_orb_animation_arrow <- walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg
+       let walking_orb_animation_arrow = walking_orb_animation 
+                                             qo_orb
+                                             qo_glow_orb
+                                             qo_orb_upper_leg
+                                             qo_orb_lower_leg
        ao_walking_orb <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),walking_orb_animation_arrow)])
        ao_moon_orbit <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),moon_orbital_animation)])
        return $ 
@@ -105,22 +126,28 @@ testScene =
 	                             Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . 
 				     rotation_station) $ 
 	          accumulateSceneM std_scene_layer_infinite $ sceneObject $ getLOD qo_station test_quality
-              transformM (affineOf $ rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
-                  do runAnimationObject ao_walking_orb ()
-              transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM (affineOf rotation_planet) $ accumulateSceneM (std_scene_layer_infinite+2) $ 
-		         sceneObject $ getLOD qo_planet test_quality
+              _ <- transformM (affineOf $
+                       rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
+                           runAnimationObject ao_walking_orb ()
+              _ <- transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
+                  do transformM (affineOf rotation_planet) $ 
+                         accumulateSceneM (std_scene_layer_infinite+2) $ 
+		             sceneObject $ getLOD qo_planet test_quality
                      accumulateSceneM (std_scene_layer_infinite+2) $
-		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D 1 (-1) (-1)) white blackbody
+		         lightSource $ DirectionalLight (vectorNormalize $ 
+                             Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $
-		         lightSource $ DirectionalLight (vectorNormalize $ Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
+		         lightSource $ DirectionalLight (vectorNormalize $ 
+                             Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $ 
 		         sceneObject $ getLOD qo_ring test_quality
-                     runAnimationObject ao_moon_orbit $ getLOD qo_moon test_quality
-              return ((),PerspectiveCamera (transformation rotation_camera $ Point3D 1 2 (-8))
-                                           (Point3D 0 2.5 2)
-                                           (Vector3D 0 1 0)
-                                           (fromDegrees 45))
+                     runAnimationObject ao_moon_orbit $ 
+                         getLOD qo_moon test_quality
+              return ((),PerspectiveCamera 
+                             (transformation rotation_camera $ Point3D 1 2 (-8))
+                             (Point3D 0 2.5 2)
+                             (Vector3D 0 1 0)
+                             (fromDegrees 45))
 
 main :: IO ()
 main = displayModel

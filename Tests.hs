@@ -37,42 +37,56 @@ instance Arbitrary RSfloat where
 --
 -- State machine that adds its input to its state
 --
-countingArrow :: Integer -> FRPX k s t i o Integer Integer
+countingArrow :: (FRPModel m) => Integer -> 
+                                 FRP e 
+                                     (SimpleSwitch k t s i o m)
+                                     Integer
+                                     Integer
 countingArrow x = summation x
 
 --
 -- State machine that is true iff the number of False inputs it has recieved is even
 -- Could do this with 'accumulate' but using as a test 'switchTerminate' and 'switchContinue'.
 --
-evenZeroesArrow :: FRPX k () () Bool Bool Bool Bool
+evenZeroesArrow :: (FRPModel m) => FRP e (SimpleSwitch k () () Bool Bool m) Bool Bool
 evenZeroesArrow = proc x ->
      do switchTerminate -< (if x then Nothing else Just evenZeroesArrow_oddZeroes,False)
         returnA -< True
 
-evenZeroesArrow_oddZeroes :: FRPX k () () Bool Bool Bool Bool
+evenZeroesArrow_oddZeroes :: (FRPModel m) => FRP e (SimpleSwitch k () () Bool Bool m) Bool Bool
 evenZeroesArrow_oddZeroes = proc x ->
     do switchContinue -< (if x then Nothing else Just evenZeroesArrow,True)
        returnA -< False
 
 --
--- A cellular automata that spawns the two adjacent cells (represented by Integers) on each iteration.
--- Cells at non-zero integers divisible by 3 are "sticky;" once reached they persist forever.
--- All other integers die out after spawning.
+-- A cellular automata that spawns the two adjacent cells (represented by
+-- Integers) on each iteration.  Cells at non-zero integers divisible by 3 are
+-- "sticky;" once reached they persist forever.  All other integers die out
+-- after spawning.
 --
-spawnPlusAndMinusAndDie :: FRPX k () () () (Set Integer) () (Set Integer)
-spawnPlusAndMinusAndDie = frpContext forbidDuplicates [(0,step1)] >>> arr (List.map snd >>> mconcat)
-    where step1, step2 :: FRPX Threaded () Integer () (Set Integer) () (Set Integer)
+spawnPlusAndMinusAndDie :: (FRPModel m,Capability k) =>
+                           FRP e
+                               (SimpleSwitch k () () () (Set Integer) m)
+                               ()
+                               (Set Integer)
+spawnPlusAndMinusAndDie = frpContext forbidDuplicates [(0,step1)] >>>
+                          arr (List.map snd >>> mconcat)
+    where step1, step2 :: (FRPModel m) =>
+              FRP e
+                  (SimpleSwitch Enabled Integer () () (Set Integer) m)
+                  ()
+                  (Set Integer)
           step1 = proc () ->
               do i <- threadIdentity -< ()
-	         switchTerminate -< (Just $ step2,Set.singleton i)
+                 switchTerminate -< (Just $ step2,Set.singleton i)
           step2 = proc () ->
               do i <- threadIdentity -< ()
-	         spawnThreads -< [(i + 1,step1),(i - 1,step1)]
-		 killThreadIf -< not $ i `mod` 3 == 0 && i /= 0
+                 spawnThreads -< [(i + 1,step1),(i - 1,step1)]
+                 killThreadIf -< not $ i `mod` 3 == 0 && i /= 0
                  returnA -< Set.singleton i
 
 --
--- Sanity test of ArrowState instance of FRPX.
+-- Sanity test of ArrowState instance of FRP.
 --
 addFive :: Integer -> IO Integer
 addFive x = 
