@@ -1,16 +1,9 @@
-{-# LANGUAGE ExistentialQuantification, Arrows, ScopedTypeVariables, Rank2Types, FlexibleInstances, MultiParamTypeClasses, TypeFamilies, UndecidableInstances, DoRec #-}
+{-# LANGUAGE ExistentialQuantification, Arrows, ScopedTypeVariables, Rank2Types,
+             FlexibleInstances, MultiParamTypeClasses, TypeFamilies,
+             UndecidableInstances, DoRec #-}
 
 module RSAGL.FRP.FRP
     (FRP,
-     FRPModel(..),
-     FRP1,
-     FRPX,
-     FRPContext,
-     FRP1Context,
-     Switch,
-     SimpleSwitch,
-     Enabled,
-     Disabled,
      switchContinue,
      switchTerminate,
      spawnThreads,

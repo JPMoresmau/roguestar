@@ -3,7 +3,13 @@
 The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine transformation and scene accumulation.
 
 \begin{code}
-{-# LANGUAGE Arrows, MultiParamTypeClasses, FlexibleInstances, GeneralizedNewtypeDeriving, TypeFamilies, ExistentialQuantification, Rank2Types #-}
+{-# LANGUAGE Arrows,
+             MultiParamTypeClasses,
+             FlexibleInstances,
+             GeneralizedNewtypeDeriving,
+             TypeFamilies,
+             ExistentialQuantification,
+             Rank2Types #-}
 
 module RSAGL.Animation.Animation
     (AniM,
@@ -19,14 +25,13 @@ module RSAGL.Animation.Animation
      runAnimationObject)
     where
 
-import RSAGL.FRP.Time
 import RSAGL.Scene.Scene
 import Control.Monad.State
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Affine
-import RSAGL.FRP.FRP
+import RSAGL.FRP
 import RSAGL.Auxiliary.RecombinantState
 \end{code}
 

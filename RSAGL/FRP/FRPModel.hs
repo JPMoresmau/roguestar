@@ -1,21 +1,35 @@
-{-# LANGUAGE TypeFamilies, EmptyDataDecls, UndecidableInstances, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies,
+             EmptyDataDecls,
+             UndecidableInstances,
+             FlexibleContexts #-}
 
 -- | A model of the types used by an FRP program.
 module RSAGL.FRP.FRPModel
-    (Enabled, Disabled, FRPModel(..), FRP1, FRPX, FRPContext, FRP1Context, Switch, SimpleSwitch)
+    (Enabled,
+     Disabled,
+     Capability,
+     FRPModel(..),
+     FRP1,
+     FRPX,
+     FRPContext,
+     FRP1Context,
+     Switch,
+     SimpleSwitch)
     where
 
 import RSAGL.Auxiliary.RecombinantState
 
+class RSAGL_FRP_FRPMODEL a where
+
 data Enabled
 data Disabled
 
-class RSAGL_FRP_FRPMODEL_ENABLED_DISABLED a where
+class (RSAGL_FRP_FRPMODEL a) => Capability a where
 
-instance RSAGL_FRP_FRPMODEL_ENABLED_DISABLED Enabled where
-instance RSAGL_FRP_FRPMODEL_ENABLED_DISABLED Disabled where
-
-class RSAGL_FRP_FRPMODEL a where
+instance RSAGL_FRP_FRPMODEL Enabled where
+instance Capability Enabled where
+instance RSAGL_FRP_FRPMODEL Disabled where
+instance Capability Disabled where
 
 class (RSAGL_FRP_FRPMODEL frp,Eq (ThreadIDOf frp)) => FRPModel frp where
     -- | The threading capability, either 'Enabled' or 'Disabled'.
@@ -24,9 +38,11 @@ class (RSAGL_FRP_FRPMODEL frp,Eq (ThreadIDOf frp)) => FRPModel frp where
     type ThreadIDOf frp :: *
     -- | The 'ArrowState' type.
     type StateOf frp :: *
-    -- | The type of the switch input (used in switchTerminate/switchContinue, etc)
+    -- | The type of the switch input
+    -- (used in switchTerminate/switchContinue, etc)
     type SwitchInputOf frp :: *
-    -- | The type of the switch output (used in switchTerminate/switchContinue, etc)
+    -- | The type of the switch output
+    -- (used in switchTerminate/switchContinue, etc)
     type SwitchOutputOf frp :: *
     -- | Unwrap to get the nested Switch type.
     type Unwrap frp :: *
@@ -41,10 +57,12 @@ instance FRPModel       () where
     type SwitchOutputOf () = ()
     type Unwrap         () = ()
 
--- | The FRPModel type that represents a switch.  Consists of the following type variables.
+-- | The FRPModel type that represents a switch.
+-- Consists of the following type variables.
 --
--- Note: Don't pattern-match against this type directly, as it is a volatile interface.
--- Either use a type synonym, such as 'SimpleSwitch', or match against the type functions in FRPModel.
+-- Note: Don't pattern-match against this type directly, as it is a volatile
+-- interface.  Either use a type synonym, such as 'SimpleSwitch', or match
+-- against the type functions in FRPModel.
 --
 -- * k - See, ThreadingOf.
 -- * t - See, ThreadIDOf.
@@ -54,9 +72,11 @@ instance FRPModel       () where
 -- * m - A variable that represents switch nesting.
 data Switch k t s i o m
 
-instance (RSAGL_FRP_FRPMODEL m, RSAGL_FRP_FRPMODEL_ENABLED_DISABLED k) => RSAGL_FRP_FRPMODEL (Switch k t s i o m) where
+instance (RSAGL_FRP_FRPMODEL m, Capability k) =>
+         RSAGL_FRP_FRPMODEL (Switch k t s i o m) where
 
-instance (RSAGL_FRP_FRPMODEL m, Eq t, RSAGL_FRP_FRPMODEL_ENABLED_DISABLED k) => FRPModel (Switch k t s i o m) where
+instance (RSAGL_FRP_FRPMODEL m, Eq t, Capability k) =>
+         FRPModel (Switch k t s i o m) where
     type ThreadingOf    (Switch k t s i o m) = k
     type ThreadIDOf     (Switch k t s i o m) = t
     type StateOf        (Switch k t s i o m) = s

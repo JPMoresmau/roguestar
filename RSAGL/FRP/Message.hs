@@ -1,16 +1,30 @@
--- | A memoization scheme in which a piece of information is combined with it's source, creating a 'Message'.
--- A source is the exact point from which a 'Message' was instanced, and also an exact list of all modifications
+-- | A memoization scheme in which a piece of information is combined with it's
+-- source, creating a 'Message'.  A source is the exact point from which a
+-- 'Message' was instanced, and also an exact list of all modifications
 -- that have been made to the 'Message'.
 --
--- If we later reconstruct a new 'Message' from the same source, then we know that the two 'Message's have
--- matching contexts.
+-- If we later reconstruct a new 'Message' from the same source, then we know
+-- that the two 'Message's have matching contexts.
+--
 module RSAGL.FRP.Message
-    (Message,Transmitter,newTransmitter,Receiver,newReceiver,(<<*>>),send,receive,transmit,consistent,consistency)
+    (Message,
+     consistent,
+     consistency,
+     peek,
+     Transmitter,
+     newTransmitter,
+     Receiver,
+     newReceiver,
+     (<<*>>),
+     send,
+     receive,
+     transmit,
+     consistent,
+     consistency)
     where
 
 import System.IO.Unsafe
 import Control.Concurrent.STM
-import Control.Monad
 
 -- | A sourced data stream.
 data Message a = Message {
