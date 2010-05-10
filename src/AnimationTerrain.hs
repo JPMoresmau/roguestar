@@ -50,11 +50,11 @@ terrainDecoration :: (FRPModel m, StateOf m ~ AnimationState) =>
                      ProtocolTypes.TerrainTile ->
                      FRP e m () ()
 terrainDecoration (ProtocolTypes.TerrainTile "forest" (x,y)) =
-    fst $ runRand (leafyTree 3 True)
+    fst $ runRand (leafyTree 2 True)
                   (mkStdGen $ fromInteger $ x + 1000*y)
 terrainDecoration (ProtocolTypes.TerrainTile "deepforest" (x,y)) =
-    fst $ runRand (leafyTree 4 True)
-                  (mkStdGen $ fromInteger $ x + 1000*y)
+    fst $ runRand (leafyTree 3 True)
+                  (mkStdGen $ fromInteger $ 2*x + 1001*y + 7)
 terrainDecoration _ = proc () -> returnA -< ()
 
 leafyTree :: (FRPModel m, StateOf m ~ AnimationState) =>
@@ -86,10 +86,11 @@ leafyTreeBranch point vector thickness recursion has_leaves | recursion <= 0 =
         return $ if has_leaves then leaves else proc () -> returnA -< ()
 leafyTreeBranch point vector thickness recursion has_leaves =
     do b <- getRandom
+       let branch_inset = min 0.25 $ thickness / vectorLength vector
        takes <- getRandomR (1,recursion)
-       us <- liftM (take takes) $ getRandomRs (0.0,1.0)
+       us <- liftM (take takes) $ getRandomRs (2*branch_inset,1.0-branch_inset)
        other_branches <- mapM (leafyTreeBranchFrom $ b && has_leaves) us
-       continue_trunk <- leafyTreeBranchFrom has_leaves 1.0
+       continue_trunk <- leafyTreeBranchFrom has_leaves $ 1.0 - branch_inset
        let this_branch = translateToFrom point (Point3D 0 0 0) $
                rotateToFrom vector (Vector3D 0 1 0) $
                    scale (Vector3D thickness (vectorLength vector) thickness) $
