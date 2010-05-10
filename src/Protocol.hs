@@ -335,7 +335,14 @@ dbDispatchQuery ["visible-objects","0"] =
 
 dbDispatchQuery ["object-details",uid] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
-     (visibles :: [Reference ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . (== uid) . B.pack . show . toUID) Player) maybe_plane_ref
+     (visibles :: [Reference ()]) <- maybe
+         (return [])
+         (flip dbGetVisibleObjectsForFaction Player $ \ref ->
+              do let f = (== uid) . B.pack . show . toUID
+                 let m_wielder = coerceReference ref
+                 m_wield <- maybe (return Nothing) dbGetWielded m_wielder
+                 return $ maybe False f m_wield || f ref)
+         maybe_plane_ref
      let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs
      let tool_refs = mapMaybe (coerceReferenceTyped _tool) visibles ++ wielded
@@ -343,12 +350,15 @@ dbDispatchQuery ["object-details",uid] = ro $
      creatures <- liftM (zip creature_refs) $ mapRO dbGetCreature creature_refs
      tools <- liftM (zip tool_refs) $ mapRO dbGetTool tool_refs
      buildings <- liftM (zip building_refs) $ mapRO dbGetBuilding building_refs
-     liftM B.unlines $ liftM3 (\a b c -> concat [a,b,c]) 
+     liftM B.unlines $ liftM3 (\a b c -> concat [a,b,c])
                             (mapM creatureToTableData creatures)
                             (mapM toolToTableData tools)
                             (mapM buildingToTableData buildings)
-   where objectTableWrapper :: (DBReadable db) => Reference a -> db B.ByteString -> db B.ByteString
-         objectTableWrapper obj_ref tableDataF = 
+   where objectTableWrapper :: (DBReadable db) =>
+                               Reference a ->
+                               db B.ByteString ->
+                               db B.ByteString
+         objectTableWrapper obj_ref tableDataF =
           do table_data <- tableDataF
              return $
                  "begin-table object-details " `B.append`
@@ -356,7 +366,9 @@ dbDispatchQuery ["object-details",uid] = ro $
                  " property value\n" `B.append`
                  table_data `B.append`
                  "end-table"
-         creatureToTableData :: (DBReadable db) => (CreatureRef,Creature) -> db B.ByteString
+         creatureToTableData :: (DBReadable db) =>
+                                (CreatureRef,Creature) ->
+                                db B.ByteString
          creatureToTableData (ref,creature) = objectTableWrapper ref $
             do fac <- getCreatureFaction ref
                hp <- getCreatureAbsoluteHealth ref
