@@ -8,7 +8,6 @@ module Models.Terrain
 import Quality
 import Models.RecreantFactory
 import RSAGL.Modeling
-import Models.Tree
 import RSAGL.Math
 import RSAGL.Types
 import qualified Data.ByteString.Char8 as B
@@ -61,19 +60,11 @@ basicTerrainTile s q = model $
        material $ terrainTexture s
 
 -- |
--- Creates a terrain tile based on 'terrailTileShape'
+-- Creates a terrain tile based on 'terrainTileShape'
 -- Provides special casing for forest, rockface, liquids, etc.
 --
 terrainTile :: B.ByteString -> Quality -> Modeling ()
 terrainTile "recreantfactory" q = recreant_factory q
-terrainTile "forest" q =
-    do basicTerrainTile "forest" q
-       leafy_tree q
-terrainTile "deepforest" q =
-    do basicTerrainTile "deepforest" q
-       translate (Vector3D 0.5 0 0.5) $ leafy_tree q
-       translate (Vector3D (-0.5) 0 0.5) $ leafy_tree q
-       translate (Vector3D 0 0 (-0.5)) $ leafy_tree q
 terrainTile "rockface" q = model $
     do terrainTileShape (terrainHeight "rockface") (terrainHeight "rockface") q
        material $ terrainTexture "rockface"
@@ -104,7 +95,8 @@ terrainHeight _ = 5.0
 
 -- |
 -- Answers the material of a type of terrain.
--- Unrecognized terrain types will appear bright magenta, so they can be easily noticed and corrected.
+-- Unrecognized terrain types will appear bright magenta, so they can be easily
+-- noticed and corrected.
 --
 terrainTexture :: B.ByteString -> MaterialM () ()
 terrainTexture "water" =
@@ -119,7 +111,7 @@ terrainTexture "grass" = pigment $ pure forest_green
 terrainTexture "dirt" = pigment $ pure brown
 terrainTexture "forest" = pigment $ pure fern_green
 terrainTexture "deepforest" = pigment $ pure fern_green
-terrainTexture "ice" = 
+terrainTexture "ice" =
     do pigment $ pure white
        specular 1 $ pure teal
 terrainTexture "lava" =
@@ -134,3 +126,4 @@ terrainTexture "rockface" = pigment $ pure slate_gray
 terrainTexture _ =
     do pigment $ pure blackbody
        emissive $ pure magenta
+

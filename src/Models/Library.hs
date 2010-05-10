@@ -5,7 +5,7 @@ module Models.Library
      newLibrary,
      lookupModel)
     where
-    
+
 import Quality
 import Models.LibraryData
 import Models.Terrain
@@ -17,6 +17,7 @@ import Control.Concurrent
 import RSAGL.Bottleneck
 import Control.Monad
 import System.IO
+import Models.Tree
 import Models.Encephalon
 import Models.Recreant
 import Models.Androsynth
@@ -39,6 +40,8 @@ import Control.Exception
 --
 toModel :: LibraryModel -> Quality -> Modeling ()
 toModel (TerrainTile s) = terrainTile s
+toModel LeafyBlob = const $ leafy_blob
+toModel TreeBranch = const $ tree_branch
 toModel (SkySphere sky_info) = \q -> case q of
     Bad -> toModel NullModel Bad
     _ ->   makeSky sky_info
@@ -77,11 +80,28 @@ toModel Monolith = monolith
 toModel Portal = portal
 
 -- |
+-- Models that should be displayed at lower quality.
+--
+downgraded_models :: [LibraryModel]
+downgraded_models = [LeafyBlob,TreeBranch,
+                     GasSphere,MetalSphere,ChromaliteSphere,MachineArmLower,
+                     MachineArmUpper,CaduceatorArmLower,CaduceatorArmUpper,
+                     ReptilianLegLower,ReptilianLegUpper,ReptilianArmLower,
+                     ReptilianArmUpper, ThinLimb]
+
+-- |
 -- Sometimes we want to constrain the quality of some models.
 --
 forceQuality :: LibraryModel -> Quality -> Quality
-forceQuality CyborgType4HyperspaceRotor = const Bad                               -- ambient box, LOD doesn't affect appearance
-forceQuality (TerrainTile s) | not (s `elem` ["forest","deepforest"]) = min Poor  -- terrain just isn't that interesting
+-- ambient box, LOD doesn't affect appearance
+forceQuality CyborgType4HyperspaceRotor = const Bad
+-- terrain just isn't that interesting
+forceQuality (TerrainTile _) = min Poor
+forceQuality x | x `elem` downgraded_models = \q -> case q of
+    Bad -> Bad
+    Poor -> Bad
+    Good -> Poor
+    Super -> Poor
 forceQuality _ = id
 
 -- |
@@ -153,3 +173,4 @@ lookupModel (Library bottleneck lib) lm q_ = bracket (takeMVar lib) (\lib_map ->
                   qo <- newLODCache bottleneck (\q' -> bakeModel $ buildIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
                   putMVar lib $ insert lm qo lib_map
 	          liftM toIntermediateModel $ getLOD qo q
+

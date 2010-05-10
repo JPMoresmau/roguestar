@@ -7,9 +7,11 @@ import qualified Data.ByteString.Char8 as B
 
 data EnergyColor = Blue | Yellow | Red | Green deriving (Eq,Ord,Show)
 
-data LibraryModel = 
+data LibraryModel =
     -- Terrain
     TerrainTile B.ByteString
+  | LeafyBlob
+  | TreeBranch
     -- Astronomical Phenomena
   | SkySphere SkyInfo
   | SunDisc SunInfo
