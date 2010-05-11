@@ -49,7 +49,6 @@ import System.Random
 import PrintText
 import Models.Library
 import Models.LibraryData
-import Quality
 import Data.Maybe
 import Keymaps.Keymaps
 import Keymaps.CommonKeymap
@@ -220,14 +219,16 @@ onceA actionA = frp1Context onceA_
 -- | Display a library model.
 libraryA :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
 libraryA = proc (layer,lm) ->
-    do lib <- arr animstate_library <<< fetch -< ()
-       accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm Poor)
+    do q <- readGlobal global_quality_setting -< ()
+       lib <- arr animstate_library <<< fetch -< ()
+       accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm q)
 
 -- | Display a library model that remains oriented toward the camera.
 libraryPointAtCamera :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
 libraryPointAtCamera = proc (layer,lm) ->
-    do lib <- arr animstate_library <<< fetch -< ()
-       pointAtCameraA -< (layer,lookupModel lib lm Poor)
+    do q <- readGlobal global_quality_setting -< ()
+       lib <- arr animstate_library <<< fetch -< ()
+       pointAtCameraA -< (layer,lookupModel lib lm q)
 
 -- | Prevent the engine from auto-continuing.  When the engine is in a snapshot state, 
 -- the client will automatically ask it to step forward either to the next snapshot or

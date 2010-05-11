@@ -26,6 +26,8 @@ import Globals
 import Data.IORef
 import RSAGL.Types
 import Control.Concurrent.STM
+import Quality
+import Data.Char
 import qualified Data.ByteString.Char8 as B
 
 -- |
@@ -279,6 +281,26 @@ sky_off_action = alwaysAction "sky-off" $ \action_input ->
     do modifyIORef (action_globals action_input) $ \g -> g { global_sky_on = False }
        return ()
 
+setQualityAction :: Quality -> (B.ByteString,Action)
+setQualityAction q =
+    alwaysAction (B.pack $ map toLower $ "quality-" ++ show q) $
+           \action_input ->
+        do modifyIORef (action_globals action_input) $ \g ->
+               g { global_quality_setting = q }
+           return ()
+
+quality_bad :: (B.ByteString,Action)
+quality_bad = setQualityAction Bad
+
+quality_poor :: (B.ByteString,Action)
+quality_poor = setQualityAction Poor
+
+quality_good :: (B.ByteString,Action)
+quality_good = setQualityAction Good
+
+quality_super :: (B.ByteString,Action)
+quality_super = setQualityAction Super
+
 {----------------------------------------------------------
     Lists of Known Actions
  ----------------------------------------------------------}
@@ -321,7 +343,8 @@ all_actions :: [(B.ByteString,Action)]
 all_actions = [continue_action,quit_action,reroll_action,
                pickup_action,drop_action,wield_action,unwield_action,
                next_action,prev_action,normal_action,select_menu_action,
-               zoom_in_action,zoom_out_action,sky_on_action,sky_off_action] ++
+               zoom_in_action,zoom_out_action,sky_on_action,sky_off_action,
+               quality_bad,quality_poor,quality_good,quality_super] ++
               select_race_actions ++ 
 	      select_base_class_actions ++
               direction_actions ++
