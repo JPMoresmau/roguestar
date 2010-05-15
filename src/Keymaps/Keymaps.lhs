@@ -18,6 +18,7 @@ module Keymaps.Keymaps
 import Actions
 import Data.List
 import Control.Monad
+import Control.Concurrent.STM
 import qualified Data.ByteString.Char8 as B
 
 type Keymap = [(B.ByteString,B.ByteString)]
@@ -39,7 +40,7 @@ fixKeymap = concatMap $ \(keystrokes,action_name) ->
 \texttt{validKeyMap} reduces a \texttt{Keymap} to one that contains only those actions that are valid at this instant.
 
 \begin{code}
-validKeyMap :: ActionInput -> Keymap -> IO [(B.ByteString,B.ByteString)]
+validKeyMap :: ActionInput -> Keymap -> STM [(B.ByteString,B.ByteString)]
 validKeyMap action_input raw_keymap =
     do valid_actions <- getValidActions action_input Nothing
        return $ filter (\x -> snd x `elem` valid_actions) raw_keymap
@@ -49,17 +50,17 @@ validKeyMap action_input raw_keymap =
 or completes the key sequence if it is the prefix of exactly one valid action.
 
 \begin{code}
-filterKeySequence :: ActionInput -> Keymap -> B.ByteString -> IO B.ByteString
+filterKeySequence :: ActionInput -> Keymap -> B.ByteString -> STM B.ByteString
 filterKeySequence _ _ key_sequence | (length $ B.words key_sequence) == 0 = return ""
 filterKeySequence action_input keymap key_sequence =
     do valid_key_map <- validKeyMap action_input keymap
        let possible_completions = filter (\x -> elem key_sequence $ B.inits x) $ map fst $ valid_key_map
        return $ case length possible_completions of
-		 0 -> ""
-		 1 -> if key_sequence /= head possible_completions
-		      then B.init $ head possible_completions
-		      else key_sequence
-		 _ -> maximumBy (\x y -> compare (B.length x) (B.length y)) $ foldr1 intersect $ map B.inits possible_completions
+                 0 -> ""
+                 1 -> if key_sequence /= head possible_completions
+                      then B.init $ head possible_completions
+                      else key_sequence
+                 _ -> maximumBy (\x y -> compare (B.length x) (B.length y)) $ foldr1 intersect $ map B.inits possible_completions
 \end{code}
 
 \texttt{keysToActionNames} gets a list of the names of all action that could be exected by the given key sequence at this instant.
@@ -67,15 +68,15 @@ A result of zero indicates that the key sequence isn't a valid command.  A resul
 a collision in the key map, which is an error.
 
 \begin{code}
-keysToActionNames :: ActionInput -> Keymap -> B.ByteString -> IO [B.ByteString]
-keysToActionNames action_input keymap key_sequence = 
+keysToActionNames :: ActionInput -> Keymap -> B.ByteString -> STM [B.ByteString]
+keysToActionNames action_input keymap key_sequence =
     liftM (map snd . filter (\x -> fst x == key_sequence)) $ validKeyMap action_input keymap 
 \end{code}
 
 \texttt{actionNameToKeys} provides reverse lookup versus keysToActionNames.
 
 \begin{code}
-actionNameToKeys :: ActionInput -> Keymap -> B.ByteString -> IO [B.ByteString]
-actionNameToKeys action_input keymap action_name = 
-    liftM (map fst . filter (\x -> snd x == action_name)) $  validKeyMap action_input keymap
+actionNameToKeys :: ActionInput -> Keymap -> B.ByteString -> STM [B.ByteString]
+actionNameToKeys action_input keymap action_name =
+    liftM (map fst . filter (\x -> snd x == action_name)) $ validKeyMap action_input keymap
 \end{code}

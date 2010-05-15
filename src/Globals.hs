@@ -1,19 +1,23 @@
 module Globals
     (Globals(..),
-     default_globals)
+     defaultGlobals)
     where
 
 import RSAGL.Types
 import Quality
+import Control.Concurrent.STM
+import Control.Applicative
 
 data Globals = Globals {
-    global_planar_camera_distance :: RSdouble,
-    global_sky_on :: Bool,
-    global_quality_setting :: Quality }
+    global_planar_camera_distance :: TVar RSdouble,
+    global_sky_on :: TVar Bool,
+    global_quality_setting :: TVar Quality,
+    global_should_quit :: TVar Bool }
 
-default_globals :: Globals
-default_globals = Globals {
-    global_planar_camera_distance = 5.0,
-    global_sky_on = True,
-    global_quality_setting = Poor }
+defaultGlobals :: IO Globals
+defaultGlobals = Globals <$>
+    newTVarIO 5.0 <*>
+    newTVarIO True <*>
+    newTVarIO Poor <*>
+    newTVarIO False
 

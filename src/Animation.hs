@@ -57,13 +57,12 @@ import Data.List
 import Data.Ord
 import Strings
 import Globals
-import Data.IORef
 import Control.Concurrent.STM
 import qualified Data.ByteString as B
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator IO,
-    animstate_globals :: IORef Globals,
+    animstate_globals :: Globals,
     animstate_driver_object :: FrozenDriver,
     animstate_print_text_object :: PrintTextObject,
     animstate_library :: Library,
@@ -101,16 +100,16 @@ newRoguestarAnimationObject rs_anim =
     liftM RoguestarAnimationObject $ newFRP1Program rs_anim
 
 runRoguestarAnimationObject :: Library ->
-                               IORef Globals ->
+                               Globals ->
                                DriverObject ->
                                PrintTextObject ->
                                RoguestarAnimationObject ->
                                IO Scene
-runRoguestarAnimationObject lib globals_ref driver_object print_text_object
+runRoguestarAnimationObject lib globals driver_object print_text_object
                             (RoguestarAnimationObject rso) =
-    do frozen_driver_object <- freezeDriver driver_object
+    do frozen_driver_object <- atomically $ freezeDriver driver_object
        let anim_state = AnimationState {
-               animstate_globals = globals_ref,
+               animstate_globals = globals,
                animstate_scene_accumulator = null_scene_accumulator,
                animstate_driver_object = frozen_driver_object,
                animstate_print_text_object = print_text_object,
@@ -120,12 +119,13 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object
                animstate_suspended_stm_action = return () }
        (result_scene_layer_info,result_animstate) <-
            updateFRPProgram Nothing ((),anim_state) rso
-       when (not $ animstate_block_continue result_animstate) $
-           executeContinueAction $
-               ActionInput globals_ref driver_object print_text_object
-       atomically $ setPrintTextMode print_text_object $
-           animstate_print_text_mode result_animstate
-       atomically $ animstate_suspended_stm_action result_animstate
+       atomically $
+           do when (not $ animstate_block_continue result_animstate) $
+                  executeContinueAction $
+                      ActionInput globals driver_object print_text_object
+              setPrintTextMode print_text_object $
+                  animstate_print_text_mode result_animstate
+              animstate_suspended_stm_action result_animstate
        assembleScene result_scene_layer_info $
            animstate_scene_accumulator result_animstate
 
@@ -133,14 +133,18 @@ runRoguestarAnimationObject lib globals_ref driver_object print_text_object
 driverGetAnswerA :: (StateOf m ~ AnimationState) => FRP e m B.ByteString (Maybe B.ByteString)
 driverGetAnswerA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
-       ioAction (\(driver_object_,query_) -> getAnswer driver_object_ query_) -< (driver_object,query)
+       ioAction (\(driver_object_,query_) ->
+           atomically $ getAnswer driver_object_ query_) -<
+               (driver_object,query)
 
 -- | Request a data table from the engine.  This will return 'Nothing' until the entire table arrives, which may never happen.
 driverGetTableA :: (StateOf m ~ AnimationState) => FRP e m (B.ByteString,B.ByteString) (Maybe RoguestarTable)
 driverGetTableA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
-       ioAction (\(driver_object_,(the_table_name,the_table_id)) -> 
-                 getTable driver_object_ the_table_name the_table_id) -< (driver_object,query)
+       ioAction (\(driver_object_,(the_table_name,the_table_id)) ->
+                 atomically $
+                     getTable driver_object_ the_table_name the_table_id) -<
+                         (driver_object,query)
 
 -- | Store an IO action and run it at the end of the frame.
 suspendedSTMAction :: (FRPModel m, StateOf m ~ AnimationState) =>
@@ -169,7 +173,7 @@ printTextA = proc pt_data ->
 donesA :: (StateOf m ~ AnimationState) => FRP e m () Integer
 donesA = proc () ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
-       ioAction driverDones -< thawDriver driver_object
+       ioAction (atomically . driverDones) -< driver_object
 
 -- | Print a debugging message to 'stderr'.  This will print on every frame of animation.
 debugA :: (StateOf m ~ AnimationState) => FRP e m (Maybe B.ByteString) ()
@@ -187,7 +191,9 @@ actionNameToKeysA action_name = proc () ->
        let action_input = ActionInput (animstate_globals animstate)
                                       (thawDriver $ animstate_driver_object animstate)
                                       (animstate_print_text_object animstate)
-       ioAction id -< actionNameToKeys action_input common_keymap action_name
+       ioAction id -< atomically (actionNameToKeys action_input
+                                                   common_keymap
+                                                   action_name)
 
 -- | Print a menu using 'printMenuItemA'
 printMenuA :: (FRPModel m, StateOf m ~ AnimationState) => [B.ByteString] -> FRP e m () ()
@@ -254,10 +260,10 @@ mergePrintTextModes Unlimited Limited = Unlimited
 mergePrintTextModes m _ = m
 
 -- | Read a global variable.
-readGlobal :: (StateOf m ~ AnimationState) => (Globals -> g) -> FRP e m () g
+readGlobal :: (StateOf m ~ AnimationState) => (Globals -> TVar g) -> FRP e m () g
 readGlobal f = proc () ->
-    do globals_ref <- arr animstate_globals <<< fetch -< ()
-       ioAction (\globals_ref_ -> liftM f $ readIORef globals_ref_) -< globals_ref
+    do globals <- arr animstate_globals <<< fetch -< ()
+       ioAction (\globals_ -> atomically $ readTVar $ f globals_) -< globals
 
 -- | Get a bounded random value, as 'randomRIO'.  A new value is pulled for each frame of animation.
 randomA :: (Random a) => FRP e m (a,a) a

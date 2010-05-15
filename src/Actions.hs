@@ -14,16 +14,13 @@ module Actions
      player_turn_states)
     where
 
-import System.Exit
 import Control.Monad.Error
 import Driver
 import Data.List
 import PrintText
 import Tables
 import Data.Maybe
-import System.IO
 import Globals
-import Data.IORef
 import RSAGL.Types
 import Control.Concurrent.STM
 import Quality
@@ -34,11 +31,11 @@ import qualified Data.ByteString.Char8 as B
 -- Input to an action.
 --
 data ActionInput = ActionInput {
-    action_globals :: IORef Globals,
+    action_globals :: Globals,
     action_driver_object :: DriverObject,
     action_print_text_object :: PrintTextObject }
 
-type Action = ActionInput -> ErrorT ActionValidityReason IO (IO ())
+type Action = ActionInput -> ErrorT ActionValidityReason STM (STM ())
 
 data ActionValidity = Go | Hold ActionValidityReason deriving (Read, Show)
 data ActionValidityReason = Invalid | Undecided String deriving (Read,Show)
@@ -47,7 +44,7 @@ instance Error ActionValidityReason where
     noMsg = strMsg ""
     strMsg = Undecided
 
-invalid :: ErrorT ActionValidityReason IO ()
+invalid :: ErrorT ActionValidityReason STM ()
 invalid = throwError Invalid
 
 isUndecided :: ActionValidity -> Bool
@@ -62,24 +59,24 @@ isGo _ = False
  --  Support functions for Actions
  ----------------------------------------------------------}
 
-actionValid :: ActionInput -> Action -> IO ActionValidity
+actionValid :: ActionInput -> Action -> STM ActionValidity
 actionValid action_input action = 
     do result <- runErrorT $ action action_input
        return $ either Hold (const Go) result
 
-executeAction :: ActionInput -> Action -> IO ()
+executeAction :: ActionInput -> Action -> STM ()
 executeAction action_input action =
     do result <- runErrorT $ action action_input
-       either (\failure -> atomically $ printText
-                                        (action_print_text_object action_input)
-                                        UnexpectedEvent
-                                        ("unable to execute action: " `B.append`
-                                            B.pack (show failure)))
+       either (\failure -> printText
+                           (action_print_text_object action_input)
+                           UnexpectedEvent
+                           ("unable to execute action: " `B.append`
+                           B.pack (show failure)))
               (id)
               result
        return ()
 
-executeContinueAction :: ActionInput -> IO ()
+executeContinueAction :: ActionInput -> STM ()
 executeContinueAction action_input =
     do either (const $ return()) id =<< (runErrorT $ (snd continue_action) action_input)
        return ()
@@ -142,10 +139,10 @@ stateLinkedAction allowed_state action_name =
 -- |
 -- An action that can always run, like "quit".
 --
-alwaysAction :: B.ByteString -> (ActionInput -> IO ()) -> (B.ByteString,Action)
-alwaysAction action_name actionIO =
+alwaysAction :: B.ByteString -> (ActionInput -> STM ()) -> (B.ByteString,Action)
+alwaysAction action_name actionSTM =
     (action_name,
-     \action_input -> return $ actionIO action_input)
+     \action_input -> return $ actionSTM action_input)
 
 {----------------------------------------------------------
     Specific Actions
@@ -162,7 +159,8 @@ selectable_menu_states = if all (`elem` menu_states) states then states else err
     where states = ["pickup","drop","wield","make"]
 
 quit_action :: (B.ByteString,Action)
-quit_action = alwaysAction "quit" $ \_ -> exitWith ExitSuccess
+quit_action = alwaysAction "quit" $ \action_input ->
+    writeTVar (global_should_quit $ action_globals action_input) True
 
 continue_action :: (B.ByteString,Action)
 continue_action = ("continue",\action_input ->
@@ -261,32 +259,33 @@ zoomOut x = x + (zoomSize x)
 
 zoom_in_action :: (B.ByteString,Action)
 zoom_in_action = alwaysAction "zoom-in" $ \action_input ->
-    do modifyIORef (action_globals action_input) $ \g ->
-           g { global_planar_camera_distance = max 1.0 $ zoomIn $ global_planar_camera_distance g }
+    do writeTVar (global_planar_camera_distance $ action_globals action_input) .
+           (max 1.0 . zoomIn) =<< readTVar (global_planar_camera_distance $
+                                                action_globals action_input)
        return ()
 
 zoom_out_action :: (B.ByteString,Action)
 zoom_out_action = alwaysAction "zoom-out" $ \action_input ->
-    do modifyIORef (action_globals action_input) $ \g ->
-           g { global_planar_camera_distance = min 25.0 $ zoomOut $ global_planar_camera_distance g }
+    do writeTVar (global_planar_camera_distance $ action_globals action_input) .
+           (min 25.0 . zoomOut) =<< readTVar (global_planar_camera_distance $
+                                                action_globals action_input)
        return ()
 
 sky_on_action :: (B.ByteString,Action)
 sky_on_action = alwaysAction "sky-on" $ \action_input ->
-    do modifyIORef (action_globals action_input) $ \g -> g { global_sky_on = True }
+    do writeTVar (global_sky_on $ action_globals action_input) True
        return ()
 
 sky_off_action :: (B.ByteString,Action)
 sky_off_action = alwaysAction "sky-off" $ \action_input ->
-    do modifyIORef (action_globals action_input) $ \g -> g { global_sky_on = False }
+    do writeTVar (global_sky_on $ action_globals action_input) False
        return ()
 
 setQualityAction :: Quality -> (B.ByteString,Action)
 setQualityAction q =
     alwaysAction (B.pack $ map toLower $ "quality-" ++ show q) $
            \action_input ->
-        do modifyIORef (action_globals action_input) $ \g ->
-               g { global_quality_setting = q }
+        do writeTVar (global_quality_setting $ action_globals action_input) q
            return ()
 
 quality_bad :: (B.ByteString,Action)
@@ -361,8 +360,8 @@ lookupAction x = (x,fromMaybe (error $ "tried to operate on an unknown action na
 -- Accepts an optional list of action names to choose from; if Nothing,
 -- uses all concievable actions as that list.
 --
-getValidActions :: ActionInput -> Maybe [B.ByteString] -> IO [B.ByteString]
-getValidActions action_input actions_list = 
+getValidActions :: ActionInput -> Maybe [B.ByteString] -> STM [B.ByteString]
+getValidActions action_input actions_list =
     do valid_action_pairs <- mapM (\a -> liftM ((,) a) $ actionValid action_input $ snd a) $ maybe all_actions (map lookupAction) actions_list
        return $ case () of
            () | any (isUndecided . snd) valid_action_pairs -> []
@@ -373,15 +372,18 @@ getValidActions action_input actions_list =
 -- in the current context, based on each action's action_valid entry.
 -- Returns True if an action was taken, False otherwise.
 --
-takeUserInputAction :: ActionInput -> [B.ByteString] -> IO Bool
+takeUserInputAction :: ActionInput -> [B.ByteString] -> STM Bool
 takeUserInputAction _ [] = return False
 takeUserInputAction action_input action_names =
     do valid_actions <- getValidActions action_input (Just action_names)
        let action = map lookupAction valid_actions
        case length action of
            0 -> return False
-	   1 -> do executeAction action_input $ snd $ head action
+           1 -> do executeAction action_input $ snd $ head action
                    return True
-	   _ -> do hPutStrLn stderr ("Action bindings warning: multiple valid action for binding: " ++ (concat $ intersperse ", " $ map (B.unpack . fst) action))
-		   executeAction action_input $ snd $ head action
+           _ -> do driverSendError (action_driver_object action_input)
+                       ("Action bindings warning: multiple valid action for binding: " `B.append`
+                       (B.concat $ intersperse ", " $ map fst action))
+                   executeAction action_input $ snd $ head action
                    return True
+
