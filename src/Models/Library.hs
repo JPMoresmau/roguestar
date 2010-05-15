@@ -7,16 +7,17 @@ module Models.Library
     where
 
 import Quality
+import Data.Map as Map
+import RSAGL.Modeling hiding (model)
+import Control.Concurrent.STM
+import Control.Monad
+import GHC.Conc
+import PrioritySync.PrioritySync
+
 import Models.LibraryData
+
 import Models.Terrain
 import Models.QuestionMark
-import Data.Map as Map
-import RSAGL.Modeling
-import RSAGL.Scene.LODCache
-import Control.Concurrent
-import RSAGL.Bottleneck
-import Control.Monad
-import System.IO
 import Models.Tree
 import Models.Encephalon
 import Models.Recreant
@@ -33,7 +34,6 @@ import Models.EnergySwords
 import Models.Spheres
 import Models.Monolith
 import Models.Stargate
-import Control.Exception
 
 -- |
 -- Get the modeling data for a named library model.
@@ -42,9 +42,7 @@ toModel :: LibraryModel -> Quality -> Modeling ()
 toModel (TerrainTile s) = terrainTile s
 toModel LeafyBlob = const $ leafy_blob
 toModel TreeBranch = const $ tree_branch
-toModel (SkySphere sky_info) = \q -> case q of
-    Bad -> toModel NullModel Bad
-    _ ->   makeSky sky_info
+toModel (SkySphere sky_info) = const $ makeSky sky_info
 toModel (SunDisc sun_info) = const $ makeSun sun_info
 toModel QuestionMark = const $ question_mark
 toModel NullModel = const $ return ()
@@ -105,54 +103,55 @@ forceQuality x | x `elem` downgraded_models = \q -> case q of
 forceQuality _ = id
 
 -- |
--- All known library models.  Some models can't be known at compile time, and these aren't listed here.
--- For example, sky sphere models are parameterized on the configuration of the local planet-sun system.
+-- Models to build at start time.
 --
-all_library_models :: [LibraryModel]
-all_library_models =
+essential_library_models :: [LibraryModel]
+essential_library_models =
     Prelude.map TerrainTile known_terrain_types ++
-    [QuestionMark, NullModel,
-     Encephalon,
+    [Encephalon,
      Recreant,
      Androsynth,
      Caduceator,
      Reptilian,
-     AscendantGlow,
-     PhasePistol,
-     Phaser,
-     PhaseRifle,
-     MachineArmLower,
-     MachineArmUpper,
-     CaduceatorArmLower,
-     CaduceatorArmUpper,
-     ReptilianLegLower,
-     ReptilianLegUpper,
-     ReptilianArmLower,
-     ReptilianArmUpper,
-     ThinLimb,
-     CyborgType4Dome,
-     CyborgType4Base,
-     CyborgType4HyperspaceDisc,
-     CyborgType4HyperspaceRotor,
-     CyborgType4HyperspaceStabilizer,
-     Monolith]
+     AscendantGlow]
+
+modelPriority :: Quality -> LibraryModel -> Integer
+modelPriority Bad model | model `elem` essential_library_models = 0
+modelPriority q (SkySphere {}) = 10 * qualityPriority q
+modelPriority q _ = qualityPriority q
+
+qualityPriority :: Quality -> Integer
+qualityPriority Bad = 1
+qualityPriority Poor = 2
+qualityPriority Good = 4
+qualityPriority Super = 8
 
 -- |
 -- A library of named models.  Models are generated on demand, but models
--- known in all_library_models are generated at worst quality when the library is first initialized.
+-- known in all_library_models are generated at worst quality when the library
+-- is first initialized.
 --
-data Library = Library 
-    Bottleneck
-    (MVar (Map LibraryModel (LODCache Quality BakedModel)))
+data Library = Library {
+    library_cache :: TVar (Map.Map (Quality,LibraryModel)
+                                   (TVar (Maybe BakedModel))),
+    library_wrapper :: Quality -> LibraryModel -> IO () -> IO () }
 
 -- |
--- Create a new library.  Only one Library should be needed per process instance, i.e. a singleton.
+-- Create a new library.
+-- Only one Library should be needed per process instance.
 --
 newLibrary :: IO Library
-newLibrary = 
-    do lib <- liftM2 Library simpleBottleneck (newMVar Map.empty)
-       mapM_ (\x -> do hPutStrLn stderr ("newLibrary: preloading model: " ++ show x)
-                       lookupModel lib x Bad) all_library_models
+newLibrary =
+    do task_pool <- newTaskPool fast_queue_configuration
+                                (max 1 $ numCapabilities - 2)
+                                ()
+       startQueue task_pool
+       cache <- newTVarIO Map.empty
+       let lib = Library cache $ \q m actionIO ->
+                     do _ <- dispatch (schedule task_pool $ modelPriority q m)
+                                      actionIO
+                        return ()
+       mapM_ (\x -> lookupModel lib x Bad) essential_library_models
        return lib
 
 -- |
@@ -160,17 +159,36 @@ newLibrary =
 -- poorer model will be provided instead, and a background thread will launch to begin
 -- generating the model at the requested level of detail.
 --
--- If the model is not available at any level of quality, this may block until the model is completed.
---
 lookupModel :: Library -> LibraryModel -> Quality -> IO IntermediateModel
-lookupModel (Library bottleneck lib) lm q_ = bracket (takeMVar lib) (\lib_map -> tryPutMVar lib lib_map) $ \lib_map ->
-    do let q = forceQuality lm q_
-       let m_qo = Map.lookup lm lib_map
-       case m_qo of
-           Just qo -> liftM toIntermediateModel $ getLOD qo q
-	   Nothing ->
-	       do hPutStrLn stderr ("lookupModel: introducing model: " ++ show lm)
-                  qo <- newLODCache bottleneck (\q' -> bakeModel $ buildIntermediateModel (qualityToVertices q') (toModel lm q')) [Bad,Poor,Good,Super]
-                  putMVar lib $ insert lm qo lib_map
-	          liftM toIntermediateModel $ getLOD qo q
+lookupModel lib model q_ = (id =<<) $ atomically $
+    do let q = forceQuality model q_
+       cache <- readTVar $ library_cache lib
+       let m_var = Map.lookup (q,model) cache
+       case m_var of
+           Just var ->
+               do m_result <- liftM (fmap toIntermediateModel) $ readTVar var
+                  case m_result of
+                      Just result -> return $ return result
+                      Nothing | model == NullModel ->
+                          return $ atomically $ liftM toIntermediateModel $
+                              maybe retry return =<< readTVar var
+                      Nothing | q == Bad -> return $
+                          lookupModel lib NullModel Bad
+                      Nothing -> return $
+                          lookupModel lib model (pred q)
+           Nothing ->
+               do target <- newTVar Nothing
+                  writeTVar (library_cache lib) $
+                      Map.insert (q,model) target cache
+                  return $
+                      do library_wrapper lib q model $
+                             bakeAndStore target model q
+                         lookupModel lib model q
+
+
+bakeAndStore :: TVar (Maybe BakedModel) -> LibraryModel -> Quality -> IO ()
+bakeAndStore target model q =
+    do result <- bakeModel $ buildIntermediateModel (qualityToVertices q)
+                                                    (toModel model q)
+       atomically $ writeTVar target $ Just result
 

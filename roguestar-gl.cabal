@@ -17,7 +17,7 @@ homepage:            http://roguestar.downstairspeople.org/
 
 build-depends:       base>3, containers, arrows, mtl, MonadRandom, GLUT,
                      rsagl ==0.3, filepath >1.1, random >=1.0.0.0, bytestring,
-                     statistics, vector, stm
+                     statistics, vector, stm, priority-sync
 
 build-type:          Simple
 tested-with:         GHC==6.8.2
