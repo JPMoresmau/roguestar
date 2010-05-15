@@ -16,6 +16,7 @@ import Control.Concurrent
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
+import Data.Maybe
 import System.IO
 import Tables
 import RSAGL.FRP.Time
@@ -154,16 +155,21 @@ instance DriverClass RoguestarEngineState where
 
 instance DriverClass FrozenDriver where
     getAnswer (FrozenDriver driver_object restate acts _) query =
-        do current_actions <- readTVar (driver_actions driver_object)
-           when (current_actions == acts) $ getAnswer driver_object query >>
-                                            return ()
-           getAnswer restate query
+        do result <- getAnswer restate query
+           when (isNothing result) $
+               do current_actions <- readTVar (driver_actions driver_object)
+                  when (current_actions == acts) $
+                      getAnswer driver_object query >> return ()
+           return result
     getTable (FrozenDriver driver_object restate acts _)
              the_table_name the_table_id =
-        do current_actions <- readTVar (driver_actions driver_object)
-           when (current_actions == acts) $
-               getTable driver_object the_table_name the_table_id >> return ()
-           getTable restate the_table_name the_table_id
+        do result <- getTable restate the_table_name the_table_id
+           when (isNothing result) $
+               do current_actions <- readTVar (driver_actions driver_object)
+                  when (current_actions == acts) $
+                      getTable driver_object the_table_name the_table_id >>
+                          return ()
+           return result
 
 -- | Transmits a read-only query against the state of the engine.
 driverSendLossy :: DriverObject -> [B.ByteString] -> STM ()
