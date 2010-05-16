@@ -12,15 +12,12 @@ import RSAGL.FRP as FRP
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
-import RSAGL.Scene.LODCache
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
 import Test.QuickCheck
-import Control.Concurrent
 import RSAGL.Math.RK4
-import RSAGL.Bottleneck
 import RSAGL.Animation.Joint
 import Data.Maybe
 import Control.Monad
@@ -91,10 +88,10 @@ spawnPlusAndMinusAndDie = frpContext forbidDuplicates [(0,step1)] >>>
 addFive :: Integer -> IO Integer
 addFive x = 
     do p <- newFRP1Program (countingArrow x)
-       updateFRPProgram Nothing (1,()) p
-       updateFRPProgram Nothing (3,()) p
-       updateFRPProgram Nothing (-1,()) p
-       updateFRPProgram Nothing (1,()) p
+       _ <- updateFRPProgram Nothing (1,()) p
+       _ <- updateFRPProgram Nothing (3,()) p
+       _ <- updateFRPProgram Nothing (-1,()) p
+       _ <- updateFRPProgram Nothing (1,()) p
        liftM fst $ updateFRPProgram Nothing (1,()) p
 
 --
@@ -338,33 +335,6 @@ testCloseIO name actualIO expected f =
        actual <- actualIO
        testClose name actual expected f
 
-testLODCache :: IO ()
-testLODCache =
-    do bottleneck <- simpleBottleneck
-       qo <- newLODCache bottleneck (return . naiveFib) qs
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-       threadDelay 1000000
-       print =<< getLOD qo 100
-        where qs = [1..100]
-              naiveFib :: Integer -> Integer
-              naiveFib 0 = 0
-              naiveFib 1 = 1
-              naiveFib n = naiveFib (n-1) + naiveFib (n-2)
-
 testRK4 :: IO ()
 testRK4 = testClose "testRK4" 
                     (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0 (fromSeconds 0) (fromSeconds 1) 100)
@@ -411,4 +381,4 @@ main = do testIO "add five test (sanity test of accumulation)"
           quickCheckCachedMatrixValues
           testJoint
           testRK4
-          testLODCache
+

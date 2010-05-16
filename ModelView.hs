@@ -13,18 +13,16 @@ import RSAGL.FRP
 import RSAGL.Animation
 import RSAGL.Scene
 import RSAGL.Math
-import RSAGL.Scene.LODCache
 import RSAGL.RayTrace.RayTrace as RT
 import RSAGL.Extras.Sky
 import RSAGL.Math.CurveExtras
 import Control.Monad
 import System.Exit
-import RSAGL.Bottleneck
 import Control.Arrow
 import qualified RSAGL.Math.Affine as Affine
 
 test_quality :: Integer
-test_quality = 2^14
+test_quality = 2^10
 --test_quality = 64
 
 {- Until program termination. -}
@@ -41,109 +39,112 @@ moon_orbital_animation =
                                          exportA -< origin_point_3d)
 
 walking_orb_animation :: (FRPModel m) =>
-                         LODCache Integer BakedModel -> 
-                         LODCache Integer BakedModel ->
-                         LODCache Integer BakedModel -> 
-                         LODCache Integer BakedModel ->
+                         BakedModel ->
+                         BakedModel ->
+                         BakedModel ->
+                         BakedModel ->
                          FRP e
-                             (SimpleSwitch k () (SceneAccumulator IO) i o m) 
+                             (SimpleSwitch k () (SceneAccumulator IO) i o m)
                              () ()
 walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
     proc () ->
-        do accumulateSceneA -< (std_scene_layer_local,sceneObject $ 
-                                getLOD qo_orb test_quality)
-           transformA pointAtCameraA -< (Affine $ 
+        do accumulateSceneA -< (std_scene_layer_local,
+                                sceneObject $ return qo_orb)
+           transformA pointAtCameraA -< (Affine $
                Affine.translate (Vector3D 0 1.05 0),
-               (std_scene_layer_local,getLOD qo_glow_orb test_quality))
+               (std_scene_layer_local,return qo_glow_orb))
            accumulateSceneA -< (std_scene_layer_local,
                lightSource $ PointLight (Point3D 0 0 0)
                                         (measure (Point3D 0 0 0) (Point3D 0 6 0))
-                                        (scaleRGB 0.5 white) 
+                                        (scaleRGB 0.5 white)
                                         blackbody)
            orb_legs -< ()
            returnA -< ()
   where upper_leg_anim = proc () -> accumulateSceneA -<
                              (std_scene_layer_local,
-                              sceneObject $ getLOD qo_orb_upper_leg 50)
-        lower_leg_anim = proc () -> accumulateSceneA -< 
+                              sceneObject $ return qo_orb_upper_leg)
+        lower_leg_anim = proc () -> accumulateSceneA -<
                              (std_scene_layer_local,
-                              sceneObject $ getLOD qo_orb_lower_leg 50)
-        orb_legs = legs $ 
+                              sceneObject $ return qo_orb_lower_leg)
+        orb_legs = legs $
             rotationGroup (Vector3D 0 1 0) 25 $
-                leg (Vector3D 0 1 1) 
-                    (Point3D 0 0.5 0.5) 
-                    2 
-                    (Point3D 0 0 1.8) $ 
+                leg (Vector3D 0 1 1)
+                    (Point3D 0 0.5 0.5)
+                    2
+                    (Point3D 0 0 1.8) $
                         jointAnimation upper_leg_anim lower_leg_anim
 
 testScene :: IO (AniM ((),Camera))
-testScene = 
-    do bottleneck <- simpleBottleneck
-       let newQO :: Modeling () -> IO (LODCache Integer BakedModel)
-           newQO im = newLODCache bottleneck (bakeModel . flip buildIntermediateModel im) $ takeWhile (<= test_quality) $ iterate (*2) 64
-       putStrLn "loading planet..."
-       qo_planet <- newQO planet
-       putStrLn "loading ring..."
-       qo_ring <- newQO ring
-       putStrLn "loading moon..."
-       qo_moon <- newQO moon
-       putStrLn "loading ground..."
-       qo_ground <- newQO ground
-       putStrLn "loading monolith..."
-       qo_monolith <- newQO monolith
-       putStrLn "loading station..."
-       qo_station <- newQO station
-       putStrLn "loading orb..."
-       qo_orb <- newQO orb
-       putStrLn "loading glow_orb..."
-       qo_glow_orb <- newQO glow_orb
-       putStrLn "loading orb_upper_leg..."
-       qo_orb_upper_leg <- newQO orb_upper_leg
-       putStrLn "loading orb_lower_leg..."
-       qo_orb_lower_leg <- newQO orb_lower_leg
-       putStrLn "loading sky..."
-       qo_sky <- newQO sky
+testScene =
+    do let newQO :: Integer -> Modeling () -> IO BakedModel
+           newQO v im = bakeModel $ buildIntermediateModel v im
+       putStrLn "building planet..."
+       qo_planet <- newQO test_quality planet
+       putStrLn "building ring..."
+       qo_ring <- newQO test_quality ring
+       putStrLn "building moon..."
+       qo_moon <- newQO test_quality moon
+       putStrLn "building ground..."
+       qo_ground <- newQO test_quality ground
+       putStrLn "building monolith..."
+       qo_monolith <- newQO 20 monolith
+       putStrLn "building station..."
+       qo_station <- newQO test_quality station
+       putStrLn "building orb..."
+       qo_orb <- newQO test_quality orb
+       putStrLn "building glow_orb..."
+       qo_glow_orb <- newQO test_quality glow_orb
+       putStrLn "building orb_upper_leg..."
+       qo_orb_upper_leg <- newQO 50 orb_upper_leg
+       putStrLn "building orb_lower_leg..."
+       qo_orb_lower_leg <- newQO 50 orb_lower_leg
+       putStrLn "building sky..."
+       qo_sky <- newQO test_quality sky
        putStrLn "done."
-       let walking_orb_animation_arrow = walking_orb_animation 
+       let walking_orb_animation_arrow = walking_orb_animation
                                              qo_orb
                                              qo_glow_orb
                                              qo_orb_upper_leg
                                              qo_orb_lower_leg
        ao_walking_orb <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),walking_orb_animation_arrow)])
        ao_moon_orbit <- newAnimationObjectA (arr (map snd) <<< frpContext nullaryThreadIdentity [((),moon_orbital_animation)])
-       return $ 
+       return $
            do rotation_planet <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 25)
               rotation_station <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 5)
               rotation_camera <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 3)
               rotation_orb <- rotationM (Vector3D 0 1 0) (perSecond $ fromDegrees 7)
-              accumulateSceneM std_scene_layer_local $ sceneObject $ getLOD qo_ground test_quality
-              accumulateSceneM std_scene_layer_local $ sceneObject $ getLOD qo_monolith test_quality
+              accumulateSceneM std_scene_layer_local $ sceneObject $ return qo_ground
+              accumulateSceneM std_scene_layer_local $ sceneObject $ return qo_monolith
               transformM (affineOf $ Affine.translate $ Vector3D 0 (-0.01) 0) $
-	          do accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getLOD qo_sky test_quality
-		     accumulateSceneM (std_scene_layer_infinite+1) $ lightSource $ skylight (Vector3D 0 1 0) (scaleRGB 0.25 azure)
-	             accumulateSceneM (std_scene_layer_infinite+1) $ sceneObject $ getLOD qo_ground test_quality
-	      transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
-	                             Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . 
-				     rotation_station) $ 
-	          accumulateSceneM std_scene_layer_infinite $ sceneObject $ getLOD qo_station test_quality
+                  do accumulateSceneM (std_scene_layer_infinite+1) $
+                         sceneObject $ return qo_sky
+                     accumulateSceneM (std_scene_layer_infinite+1) $
+                         lightSource $ skylight (Vector3D 0 1 0)
+                                                (scaleRGB 0.25 azure)
+                     accumulateSceneM (std_scene_layer_infinite+1) $
+                         sceneObject $ return qo_ground
+              transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
+                                     Affine.rotate (Vector3D 1 0 0) (fromDegrees 90) . 
+                                     rotation_station) $
+                  accumulateSceneM std_scene_layer_infinite $
+                      sceneObject $ return qo_station
               _ <- transformM (affineOf $
                        rotation_orb . Affine.translate (Vector3D (4) 0 0)) $
                            runAnimationObject ao_walking_orb ()
-              _ <- transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $ 
-                  do transformM (affineOf rotation_planet) $ 
-                         accumulateSceneM (std_scene_layer_infinite+2) $ 
-		             sceneObject $ getLOD qo_planet test_quality
+              _ <- transformM (affineOf $ Affine.translate (Vector3D 0 1 6)) $
+                  do transformM (affineOf rotation_planet) $
+                         accumulateSceneM (std_scene_layer_infinite+2) $
+		             sceneObject $ return qo_planet
                      accumulateSceneM (std_scene_layer_infinite+2) $
-		         lightSource $ DirectionalLight (vectorNormalize $ 
+		         lightSource $ DirectionalLight (vectorNormalize $
                              Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $
-		         lightSource $ DirectionalLight (vectorNormalize $ 
+		         lightSource $ DirectionalLight (vectorNormalize $
                              Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
-                     accumulateSceneM (std_scene_layer_infinite+2) $ 
-		         sceneObject $ getLOD qo_ring test_quality
-                     runAnimationObject ao_moon_orbit $ 
-                         getLOD qo_moon test_quality
-              return ((),PerspectiveCamera 
+                     accumulateSceneM (std_scene_layer_infinite+2) $
+		         sceneObject $ return qo_ring
+                     runAnimationObject ao_moon_orbit $ return qo_moon
+              return ((),PerspectiveCamera
                              (transformation rotation_camera $ Point3D 1 2 (-8))
                              (Point3D 0 2.5 2)
                              (Vector3D 0 1 0)
