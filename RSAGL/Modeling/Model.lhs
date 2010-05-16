@@ -342,7 +342,7 @@ openCone (a,a_radius) (b,b_radius) = model $
                        vectorNormalize $ vectorScale slope axis `vectorAdd` uv')
            where (u',v') = orthos axis
                  axis = vectorNormalize $ vectorToFrom b a
-                 slope = (b_radius - a_radius) / distanceBetween a b
+                 slope = (a_radius - b_radius) / distanceBetween a b
 
 -- | A flat disc with a hole in the middle, defined in terms of it's center, normal vector, inner (hole) radius and outer radius.
 openDisc :: (Monoid attr) => Point3D -> Vector3D -> RSdouble -> RSdouble -> Modeling attr
