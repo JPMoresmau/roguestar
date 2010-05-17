@@ -28,9 +28,10 @@ import RSAGL.Types
 
 type TesselatedSurface a = [TesselatedElement a]
 
-data TesselatedElement a = TesselatedTriangleFan { tesselated_vertices :: [a] } 
-                         | TesselatedTriangleStrip { tesselated_vertices :: [a] }
-                         | TesselatedTriangles { tesselated_vertices :: [a] }
+data TesselatedElement a =
+    TesselatedTriangleFan { tesselated_vertices :: [a] }
+  | TesselatedTriangleStrip { tesselated_vertices :: [a] }
+  | TesselatedTriangles { tesselated_vertices :: [a] }
     deriving (Read,Show)
 
 instance (AffineTransformable a) => AffineTransformable (TesselatedElement a) where
@@ -48,7 +49,8 @@ instance Functor TesselatedElement where
     fmap f (TesselatedTriangleStrip as) = TesselatedTriangleStrip $ fmap f as
     fmap f (TesselatedTriangles as) = TesselatedTriangles $ fmap f as
 
--- | Generates a list of all vertices in a TesselatedSurface.  There will be duplicate entries.
+-- | Generates a list of all vertices in a TesselatedSurface.
+-- There will be duplicate entries.
 tesselatedSurfaceToVertexCloud :: TesselatedSurface a -> [a]
 tesselatedSurfaceToVertexCloud = concatMap tesselated_vertices
 
@@ -57,23 +59,43 @@ instance (Bound3D a) => Bound3D (TesselatedElement a) where
 
 -- | Tesselate a surface into a u-by-v grid of triangles.
 tesselateSurface :: Surface a -> (Integer,Integer) -> TesselatedSurface a
-tesselateSurface s uv = stripTriangles $ tesselateGrid $ iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)
+tesselateSurface s uv = tesselateGrid $
+    iterateSurface uv (zipSurface (,) (fmap fst uv_identity) s)
 
 -- | Tesselate polylines of possibly differing number of elements.
 tesselateGrid :: [[(RSdouble,a)]] -> TesselatedSurface a
-tesselateGrid = stripTriangles . concatMap (uncurry tesselateStrip) . doubles
+tesselateGrid = stripTriangles . map (selectiveShatter 5) .
+    concatMap (uncurry tesselateStrip) . doubles
 
--- | Strip out all single-triangle elements and stuff them in a single 'TesselatedTriangles' entry.
--- This is an optimization pass, as having a lot of single-triangle elements can be detrimental to performance.
+selectiveShatter :: Int -> TesselatedElement a -> TesselatedElement a
+selectiveShatter n e =
+    if isTriangles e || length (take n $ tesselated_vertices e) == n
+    then e else shatter e
+
+-- | Convert a TesselatedElement into a TesselatedTriangles copy
+-- of the same element.
+shatter :: TesselatedElement a -> TesselatedElement a
+shatter (TesselatedTriangleFan (a:as)) = TesselatedTriangles $ f as
+    where f (b:c:ds) = a:b:c:f (c:ds)
+          f _ = []
+shatter (TesselatedTriangleStrip as) = TesselatedTriangles $ f as
+    where f (a:b:c:d:es) = a:b:c:c:b:d:f (c:d:es)
+          f _ = []
+shatter x = x
+
+-- | Strip out all single-triangle elements and stuff them in a single
+-- 'TesselatedTriangles' entry.  This is an optimization pass, as having a lot
+-- of single-triangle elements can be detrimental to performance.
 stripTriangles :: TesselatedSurface a -> TesselatedSurface a
 stripTriangles elems = TesselatedTriangles (concatMap tesselated_vertices triangles) : not_triangles
-  where f x = length (tesselated_vertices x) == 3 || isTriangles x
+  where f x = isTriangles x ||
+              map (const ()) (tesselated_vertices x) == [(),(),()]
         triangles = filter f elems
         not_triangles = filter (not . f) elems
 
 isTriangles :: TesselatedElement a -> Bool
 isTriangles (TesselatedTriangles _) = True
-isTriangles _ = False        
+isTriangles _ = False
 
 tesselateStrip :: [(RSdouble,a)] -> [(RSdouble,a)] -> TesselatedSurface a
 tesselateStrip lefts rights = tesselate $ tesselateSteps lefts rights
