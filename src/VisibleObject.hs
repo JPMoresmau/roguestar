@@ -85,7 +85,9 @@ questionMarkAvatar = proc _ ->
        m_position <- objectIdealPosition ThisObject -< ()
        let float_y = sine $ fromRotations $ t `cyclical'` (fromSeconds 5)
        let m_transform = fmap (translate (Vector3D 0 (0.7 + float_y/10) 0)) m_position 
-       transformA libraryA -< maybe (Affine id,(scene_layer_local,NullModel)) (\p -> (Affine $ translateToFrom p origin_point_3d,(scene_layer_local,QuestionMark))) m_transform
+       transformA libraryA -< maybe (Affine id,(scene_layer_local,NullModel))
+           (\p -> (Affine $ translateToFrom p origin_point_3d,
+                  (scene_layer_local,SimpleModel QuestionMark))) m_transform
        m_wield_point <- whenJust exportCoordinateSystem -< fmap (\p -> translate (vectorToFrom p origin_point_3d `add` Vector3D 0.4 0 0)) m_transform 
        returnA -< 
            do wield_point <- m_wield_point

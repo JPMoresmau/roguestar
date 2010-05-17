@@ -218,23 +218,26 @@ clearPrintTextA = proc i ->
 -- | Do an action exactly once.
 onceA :: (FRPModel m) => (forall n. (FRPModel n, StateOf n ~ StateOf m) => FRP e n (Maybe j) p) -> FRP e m (Maybe j) p
 onceA actionA = frp1Context onceA_
-    where onceA_ = proc j -> 
+    where onceA_ = proc j ->
               do p <- actionA -< j
                  switchTerminate -< (if isJust j then (Just $ arr (const p)) else Nothing,p)
 
 -- | Display a library model.
-libraryA :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
+libraryA :: (StateOf m ~ AnimationState,LibraryModelSource lm) =>
+            FRP e m (SceneLayer,lm) ()
 libraryA = proc (layer,lm) ->
     do q <- readGlobal global_quality_setting -< ()
        lib <- arr animstate_library <<< fetch -< ()
-       accumulateSceneA -< (layer,sceneObject $ lookupModel lib lm q)
+       accumulateSceneA -< (layer,
+           sceneObject $ lookupModel lib (toLibraryModel lm) q)
 
 -- | Display a library model that remains oriented toward the camera.
-libraryPointAtCamera :: (StateOf m ~ AnimationState) => FRP e m (SceneLayer,LibraryModel) ()
+libraryPointAtCamera :: (StateOf m ~ AnimationState,LibraryModelSource lm) =>
+                        FRP e m (SceneLayer,lm) ()
 libraryPointAtCamera = proc (layer,lm) ->
     do q <- readGlobal global_quality_setting -< ()
        lib <- arr animstate_library <<< fetch -< ()
-       pointAtCameraA -< (layer,lookupModel lib lm q)
+       pointAtCameraA -< (layer,lookupModel lib (toLibraryModel lm) q)
 
 -- | Prevent the engine from auto-continuing.  When the engine is in a snapshot state, 
 -- the client will automatically ask it to step forward either to the next snapshot or

@@ -1,9 +1,7 @@
 {-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module Limbs
-    (rightArm,
-     leftArm,
-     bothArms,
+    (bothArms,
      bothLegs)
     where
 
@@ -54,18 +52,71 @@ leftArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest
     proc () -> arm arm_upper arm_lower bend_vector maximum_length -< (shoulder_anchor,hand_rest)
 
 -- | Animate two arms.  The parameters describe the right arm, and are swapped across the yz plane to produce left arm parameters.
-bothArms :: (FRPModel m, StateOf m ~ AnimationState, ThreadIDOf m ~ Maybe Integer) => LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> FRP e m () (Joint,Joint)
-bothArms arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest = proc () ->
-    do left_joint <- leftArm arm_upper arm_lower (swapX bend_vector) (swapX shoulder_anchor) maximum_length (swapX hand_rest) -< ()
-       right_joint <- rightArm arm_upper arm_lower bend_vector shoulder_anchor maximum_length hand_rest -< ()
+bothArms :: (FRPModel m,
+             StateOf m ~ AnimationState,
+             ThreadIDOf m ~ Maybe Integer,
+             LibraryModelSource lm1,
+             LibraryModelSource lm2) =>
+     lm1 ->
+     lm2 ->
+     Vector3D ->
+     Point3D ->
+     RSdouble ->
+     Point3D ->
+     FRP e m () (Joint,Joint)
+bothArms arm_upper
+         arm_lower
+         bend_vector
+         shoulder_anchor
+         maximum_length
+         hand_rest = proc () ->
+    do left_joint <- leftArm (toLibraryModel arm_upper)
+                             (toLibraryModel arm_lower)
+                             (swapX bend_vector)
+                             (swapX shoulder_anchor)
+                             maximum_length
+                             (swapX hand_rest) -< ()
+       right_joint <- rightArm (toLibraryModel arm_upper)
+                               (toLibraryModel arm_lower)
+                               bend_vector
+                               shoulder_anchor
+                               maximum_length
+                               hand_rest -< ()
        returnA -< (left_joint,right_joint)
 
 -- | Animate legs, which automatically know how to take steps when moved.
-bothLegs :: (FRPModel m, StateOf m ~ AnimationState) => LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D -> FRP e m () ()
-bothLegs leg_upper leg_lower bend_vector hip_anchor maximum_length foot_rest = proc () ->
-    do legs [leg bend_vector hip_anchor maximum_length foot_rest (libraryJointAnimation maximum_length leg_upper leg_lower),
-             leg bend_vector (swapX hip_anchor) maximum_length (swapX foot_rest) (libraryJointAnimation maximum_length leg_upper leg_lower)]
-	         -< ()
+bothLegs :: (FRPModel m,
+             StateOf m ~ AnimationState,
+             LibraryModelSource lm1,
+             LibraryModelSource lm2) =>
+    lm1 ->
+    lm2 ->
+    Vector3D ->
+    Point3D ->
+    RSdouble ->
+    Point3D ->
+    FRP e m () ()
+bothLegs leg_upper
+         leg_lower
+         bend_vector
+         hip_anchor
+         maximum_length
+         foot_rest = proc () ->
+    do legs [leg bend_vector
+                 hip_anchor
+                 maximum_length
+                 foot_rest
+                 (libraryJointAnimation maximum_length
+                                        (toLibraryModel leg_upper)
+                                        (toLibraryModel leg_lower)),
+             leg bend_vector
+                 (swapX hip_anchor)
+                 maximum_length
+                 (swapX foot_rest)
+                 (libraryJointAnimation maximum_length
+                                        (toLibraryModel leg_upper)
+                                        (toLibraryModel leg_lower))]
+                 -< ()
 
 swapX :: (AffineTransformable a) => a -> a
 swapX = scale (Vector3D (-1.0) 1.0 1.0)

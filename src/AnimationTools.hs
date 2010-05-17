@@ -51,7 +51,8 @@ simpleToolAvatar phase_weapon_model = proc tti ->
        whenJust (transformA libraryA) -< fmap (\o -> (o,(scene_layer_local,phase_weapon_model))) m_orientation
        returnA -< ()
 
-phaseWeaponAvatar :: (FRPModel m) => LibraryModel -> Integer -> ToolAvatar e m
+phaseWeaponAvatar :: (FRPModel m,LibraryModelSource lm) =>
+                     lm -> Integer -> ToolAvatar e m
 phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
     do visibleObjectHeader -< ()
        m_orientation <- wieldableObjectIdealOrientation ThisObject -< tti
@@ -93,19 +94,24 @@ energySwordAvatar energy_color sword_size = proc tti ->
   where displayA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m Bool ()
         displayA = scale' (1/75) $ proc is_being_wielded ->
             do blade_length <- approachFrom 1 (perSecond 65) 0 -< if is_being_wielded then 10 * realToFrac sword_size else 0
-               libraryA -< (scene_layer_local,EnergySword energy_color sword_size)
-               transformA libraryA -< (Affine $ translate (Vector3D 0 2.9 0) . scale (Vector3D 1 blade_length 1),(scene_layer_local,EnergyCylinder energy_color))
+               libraryA -< (scene_layer_local,
+                            EnergyThing EnergySword energy_color)
+               transformA libraryA -<
+                   (Affine $ translate (Vector3D 0 2.9 0) .
+                             scale (Vector3D 1 blade_length 1),
+                       (scene_layer_local,
+                            EnergyThing EnergyCylinder energy_color))
 
 gasSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
 gasSphereAvatar = simpleToolAvatar . gasToModel
     where gasToModel :: B.ByteString -> LibraryModel
-          gasToModel = const GasSphere
+          gasToModel = const $ SimpleModel GasSphere
 
 materialSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
 materialSphereAvatar = simpleToolAvatar . materialToModel
     where materialToModel :: B.ByteString -> LibraryModel
-          materialToModel = const MetalSphere
+          materialToModel = const $ SimpleModel MetalSphere
 
 chromaliteSphereAvatar :: (FRPModel m) => B.ByteString -> ToolAvatar e m
-chromaliteSphereAvatar = simpleToolAvatar . const ChromaliteSphere
-          
+chromaliteSphereAvatar = simpleToolAvatar . const (SimpleModel ChromaliteSphere)
+

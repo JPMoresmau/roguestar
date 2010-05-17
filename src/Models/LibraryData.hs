@@ -1,23 +1,20 @@
 module Models.LibraryData
-    (LibraryModel(..),EnergyColor(..))
+    (LibraryModel(..),
+     SimpleModel(..),
+     EnergyColor(..),
+     EnergyThing(..),
+     LibraryModelSource(..))
     where
 
 import Models.Sky
 import qualified Data.ByteString.Char8 as B
 
-data EnergyColor = Blue | Yellow | Red | Green deriving (Eq,Ord,Show)
+data EnergyColor = Blue | Yellow | Red | Green
+         deriving (Eq,Ord,Show,Enum,Bounded)
 
-data LibraryModel =
-    -- Terrain
-    TerrainTile B.ByteString
-  | LeafyBlob
+data SimpleModel =
+    LeafyBlob
   | TreeBranch
-    -- Astronomical Phenomena
-  | SkySphere SkyInfo
-  | SunDisc SunInfo
-    -- The Null Model
-  | NullModel
-    -- The Question Mark Object
   | QuestionMark
     -- Creature Bodies
   | Encephalon
@@ -26,13 +23,10 @@ data LibraryModel =
   | AscendantGlow
   | Caduceator
   | Reptilian
-    -- Energy Things
-  | EnergyCylinder EnergyColor
     -- Tools
   | PhasePistol
   | Phaser
   | PhaseRifle
-  | EnergySword EnergyColor Integer
   | GasSphere
   | MetalSphere
   | ChromaliteSphere
@@ -55,4 +49,34 @@ data LibraryModel =
     -- Buildings
   | Monolith
   | Portal
+      deriving (Eq,Ord,Show,Enum,Bounded)
+
+data EnergyThing =
+    EnergySword
+  | EnergyCylinder
+      deriving (Eq,Ord,Show,Enum,Bounded)
+
+data LibraryModel =
+    -- Terrain
+    TerrainTile B.ByteString
+    -- Astronomical Phenomena
+  | SkySphere SkyInfo
+  | SunDisc SunInfo
+    -- The Null Model
+  | NullModel
+    -- SimpleModels (zero-parameter models)
+  | SimpleModel SimpleModel
+    -- Energy things
+  | EnergyThing EnergyThing EnergyColor
       deriving (Eq,Ord,Show)
+
+-- | Things that are also LibraryModels.
+class LibraryModelSource a where
+    toLibraryModel :: a -> LibraryModel
+
+instance LibraryModelSource LibraryModel where
+    toLibraryModel = id
+
+instance LibraryModelSource SimpleModel where
+    toLibraryModel = SimpleModel
+
