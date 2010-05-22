@@ -164,6 +164,7 @@ newLibrary =
            do waitFor x
               modifyMVar_ loading_stdout_mvar $ const $
                   do hPutStrLn stderr $ "Pregenerated model: " ++ show x
+                     hPutStrLn stderr . modelInfo =<< lookupModel lib x Bad
                      return ()
        forM_ essential_library_models $ \x -> waitFor x
        return lib

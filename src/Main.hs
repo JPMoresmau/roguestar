@@ -70,7 +70,9 @@ watchQuit g =
 
 sceneLoop :: Statistics -> TVar (Maybe Scene) -> Library -> Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
 sceneLoop stats scene_var lib globals driver_object print_text_object animation_object = liftM (const ()) $ forkIO $ forever $
-    do --hPutStrLn stderr "S"
+    do atomically $
+           do b <- liftM isJust $ readTVar scene_var
+              when b retry
        result <- timeout 20000000 $
            do scene <- runStatistics stats $ runRoguestarAnimationObject lib globals driver_object print_text_object animation_object 
               atomically $ writeTVar scene_var $ Just scene
@@ -87,25 +89,26 @@ roguestarReshapeCallback (Size width height) =
 
 roguestarDisplayCallback :: Statistics -> TVar (Maybe Scene) -> PrintTextObject -> IO ()
 roguestarDisplayCallback stats scene_var print_text_object =
-  do --hPutStrLn stderr "D"
+  do scene <- atomically $
+         do result <- maybe retry return =<< readTVar scene_var
+            writeTVar scene_var Nothing
+            return result
      result <- timeout 20000000 $
          do color (Color4 0 0 0 0 :: Color4 GLfloat)
             clear [ColorBuffer]
             (Size width height) <- get windowSize
-            scene <- atomically $ maybe retry return =<< readTVar scene_var
             runStatistics stats $
                 do sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) scene
                    renderText print_text_object
                    swapBuffers
      if isNothing result
          then do hPutStrLn stderr "roguestar-gl: aborting due to stalled display callback (timed out after 20 seconds)"
-	         exitWith $ ExitFailure 1
-	 else return ()
+                 exitWith $ ExitFailure 1
+         else return ()
 
 roguestarTimerCallback :: TVar (Maybe Scene) -> Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
 roguestarTimerCallback scene_var globals driver_object print_text_object keymap window =
-    do --hPutStrLn stderr "T"
-       watchQuit globals
+    do watchQuit globals
        result <- timeout 20000000 $
         do addTimerCallback timer_callback_millis $ roguestarTimerCallback scene_var globals driver_object print_text_object keymap window
            postRedisplay $ Just window
