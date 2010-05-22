@@ -64,7 +64,7 @@ tesselateSurface s uv = tesselateGrid $
 
 -- | Tesselate polylines of possibly differing number of elements.
 tesselateGrid :: [[(RSdouble,a)]] -> TesselatedSurface a
-tesselateGrid = stripTriangles . map (selectiveShatter 5) .
+tesselateGrid = stripTriangles . {-map (selectiveShatter 5) .-}
     concatMap (uncurry tesselateStrip) . doubles
 
 selectiveShatter :: Int -> TesselatedElement a -> TesselatedElement a

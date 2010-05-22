@@ -19,6 +19,7 @@ module RSAGL.Modeling.Model
      bakeModel,
      freeModel,
      buildIntermediateModel,
+     modelInfo,
      intermediateModelToOpenGL,
      intermediateModelToVertexCloud,
      splitOpaques,
@@ -411,7 +412,7 @@ data BakedModel = BakedModel IntermediateModel -- this is just a newtype trick t
 data IntermediateModel = IntermediateModel [IMSurface]
 data IMSurface = IMSurface {
     imsurface_layers :: [IMLayer],
-    _imsurface_two_sided :: Bool }
+    imsurface_two_sided :: Bool }
 data IMLayer = IMLayer {
     imlayer_baked_surface :: Maybe (IORef (Maybe BakedSurface)),
     imlayer_tesselated_surface :: TesselatedSurface SingleMaterialSurfaceVertex3D,
@@ -419,6 +420,24 @@ data IMLayer = IMLayer {
 data SingleMaterialSurfaceVertex3D = SingleMaterialSurfaceVertex3D SurfaceVertex3D MaterialVertex3D
 data MultiMaterialSurfaceVertex3D = MultiMaterialSurfaceVertex3D SurfaceVertex3D [MaterialVertex3D]
 data MaterialVertex3D = MaterialVertex3D RGBA Bool
+
+modelInfo :: IntermediateModel -> String
+modelInfo (IntermediateModel surfaces) =
+    "\nNumber of Surfaces: " ++ show (length surfaces) ++
+    "\n" ++ concatMap surfaceInfo surfaces
+
+surfaceInfo :: IMSurface -> String
+surfaceInfo imsurface = "\n  Surface:" ++
+    "\n  Number of Layers: " ++ (show $ length $ imsurface_layers imsurface) ++
+    "\n  Two Sided: " ++ (show $ imsurface_two_sided imsurface) ++
+    concatMap layerInfo (imsurface_layers imsurface)
+
+layerInfo :: IMLayer -> String
+layerInfo imlayer = "\n    Layer:" ++
+    "\n    Number of Tesselated Fragments: " ++
+               (show $ length $ imlayer_tesselated_surface imlayer) ++
+    "\n    Number of Vertices: " ++
+               (show $ length $ tesselatedSurfaceToVertexCloud $ imlayer_tesselated_surface imlayer)
 
 instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
     getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 (f2f x) (f2f y) (f2f z)
