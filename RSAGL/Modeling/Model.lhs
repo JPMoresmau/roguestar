@@ -11,7 +11,6 @@ module RSAGL.Modeling.Model
      ModelingM,
      MaterialM,
      IntermediateModel,
-     parIntermediateModel,
      generalSurface,
      extractModel,
      ModelType(..),
@@ -453,13 +452,16 @@ instance ModelType IntermediateModel where
 instance ModelType BakedModel where
     toIntermediateModel (BakedModel im) = im
 
-disable_baked_models :: Bool -- in case of segfaults, BakedModel is the #1 suspect
+-- in case of segfaults, BakedModel is the #1 suspect, disable here
+disable_baked_models :: Bool
 disable_baked_models = False
 
 bakeModel :: IntermediateModel -> IO BakedModel
-bakeModel im | disable_baked_models = evaluate (im `using` rnf) >> (return $ BakedModel im) 
+bakeModel im | disable_baked_models =
+    do let im' = im `using` rdeepseq
+       im' `seq` return (BakedModel im')
 bakeModel (IntermediateModel surfaces) = liftM (BakedModel . IntermediateModel) $ forM surfaces $ \imsurface -> 
-    do layers <- forM (imsurface_layers imsurface) $ \imlayer -> 
+    do layers <- forM (imsurface_layers imsurface) $ \imlayer ->
            do b <- (newIORef . Just) =<< bakeSurface (materialLayerToOpenGLWrapper $ imlayer_material imlayer) 
                                              (not $ isPure $ materialLayerSurface $ imlayer_material imlayer) 
                                              (map unmapTesselatedElement $ imlayer_tesselated_surface imlayer)
@@ -577,14 +579,8 @@ msv3d_ruler (MultiMaterialSurfaceVertex3D p1 _) (MultiMaterialSurfaceVertex3D p2
 instance NFData IntermediateModel where
     rnf (IntermediateModel ms) = rnf ms
 
-parIntermediateModel :: Strategy IntermediateModel
-parIntermediateModel (IntermediateModel ms) = waitParList parIMSurface ms
-
 instance NFData IMSurface where
     rnf (IMSurface layers two_sided) = rnf (layers,two_sided)
-
-parIMSurface :: Strategy IMSurface
-parIMSurface (IMSurface layers _) = waitParList rnf layers
 
 instance NFData IMLayer where
     rnf (IMLayer _ t m) = rnf (t,m)
