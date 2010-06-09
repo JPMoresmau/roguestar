@@ -32,9 +32,8 @@ main =
 	      return (arg_echo_protocol `elem` args,
                       arg_single_threaded `elem` args,
 		      filter (not . (`elem` known_args)) $ args)
-       n <- getNumberOfCPUCores
        bin_dir <- getBinDir
-       let n_rts_string = if n == 1 || single_threaded then [] else ["-N" ++ show n]
+       let n_rts_string = if single_threaded then [] else ["-N"]
        let gl_args = ["+RTS", "-G4"] ++ n_rts_string ++ ["-RTS"] ++ args
        let engine_args = ["+RTS"] ++ n_rts_string ++ ["-RTS"] ++ args ++ ["version","over","begin"]
        let roguestar_engine_bin = bin_dir `combine` "roguestar-engine"
@@ -86,26 +85,3 @@ printChan h c = forever $
        B.hPutStrLn h s
        hFlush h
 
-getNumberOfCPUCores :: IO Int
-getNumberOfCPUCores =
-    do m_nop <- readNumberOfProcessors
-       m_cpuinfo <- scanCPUInfo
-       case (m_nop,m_cpuinfo) of
-           (Just n,_) -> do hPutStrLn stderr $ "roguestar: " ++ show n ++ 
-	                        " CPU core(s) based on windows environment variable NUMBER_OF_PROCESSORS. "
-			    return n
-           (_,Just n) -> do hPutStrLn stderr $ "roguestar: " ++ show n ++ " CPU core(s) based on /proc/cpuinfo. " 
-	                    return n
-	   _ ->          do hPutStrLn stderr "roguestar: couldn't find number of CPU cores, assuming 1 core"
-	                    return 1
-
-readNumberOfProcessors :: IO (Maybe Int)
-readNumberOfProcessors = flip catch (const $ return Nothing) $ liftM Just $
-    do n <- getEnv "NUMBER_OF_PROCESSORS"
-       return $! read n
-
-scanCPUInfo :: IO (Maybe Int)
-scanCPUInfo = catch (liftM (Just . length . filter isProcessorLine . map words . lines) $ readFile "/proc/cpuinfo")
-                    (const $ return Nothing)
-    where isProcessorLine ["processor",":",_] = True
-          isProcessorLine _ = False
