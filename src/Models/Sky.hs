@@ -31,7 +31,7 @@ data SkyInfo = SkyInfo {
     sky_info_degrees_axial_tilt :: Integer,
     -- | indicates current season, where 0 degrees is summer in northern hemisphere (positive latitude)
     -- given positive axial tilt, and 180 degrees is winter.
-    sky_info_degrees_orbital :: Integer, 
+    sky_info_degrees_orbital :: Integer,
     sky_info_solar_kelvins :: Integer }
         deriving (Eq,Ord,Show)
 

@@ -128,13 +128,20 @@ planarGameplayDispatch = proc () ->
        camera_distance <- approachA 5.0 (perSecond 5.0) <<< readGlobal global_planar_camera_distance -< ()
        let (planar_camera,lookat) = maybe (basic_camera,origin_point_3d) (\x -> (planarCamera camera_distance x,x)) m_lookat
        artificial_light_intensity <- arr lighting_artificial <<< lightingConfiguration -< sky_info
-       accumulateSceneA -< (scene_layer_local, lightSource $ if artificial_light_intensity > 0.05
-           then mapLightSource (mapBoth $ scaleRGB artificial_light_intensity) $ PointLight {
-                    lightsource_position = camera_position planar_camera,
-	            lightsource_radius = measure (camera_position planar_camera) lookat,
-		    lightsource_color = gray 0.8,
-		    lightsource_ambient = gray 0.2 }
-	   else NoLight)
+       sky_on <- readGlobal global_sky_on -< ()
+       accumulateSceneA -< (scene_layer_local, lightSource $ case () of
+           () | artificial_light_intensity > 0.05 && sky_on ->
+                    mapLightSource (mapBoth $ scaleRGB artificial_light_intensity) $ PointLight {
+                        lightsource_position = camera_position planar_camera,
+                        lightsource_radius = measure (camera_position planar_camera) lookat,
+                        lightsource_color = gray 0.8,
+                        lightsource_ambient = gray 0.2 }
+           () | artificial_light_intensity > 0.05 -> PointLight {
+                        lightsource_position = camera_position planar_camera,
+                        lightsource_radius = measure (camera_position planar_camera) lookat,
+                        lightsource_color = gray 0.5,
+                        lightsource_ambient = gray 0.5 }
+           () | otherwise -> NoLight)
        returnA -< roguestarSceneLayerInfo (skyAbsorbtionFilter sky_info) planar_camera
 
 -- | Sets up a Camera, based on a camera distance parameter (probably tied to the global_planar_camera_distance variable)

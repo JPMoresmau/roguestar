@@ -55,33 +55,44 @@ sky = proc sky_info ->
        let sun_vector = sunVector sky_info
        whenJust (transformA sun) -< if angleBetween sun_vector (Vector3D 0 1 0) < fromDegrees 135 && sky_on
            then Just (affineOf $ rotateToFrom (sunVector sky_info) (Vector3D 0 (-1) 0),sky_info)
-	   else Nothing
+           else Nothing
        returnA -< ()
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
        let nightlight_intensity = lighting_nightlight lighting_configuration
        let skylight_intensity = lighting_skylight lighting_configuration
        skylight_color <- clingy HashedDiscrete (==) ambientSkyRadiation -< sky_info
-       accumulateSceneA -< (scene_layer_local,lightSource $ if nightlight_intensity > 0.05
-           then mapLightSource (mapBoth $ scaleRGB $ nightlight_intensity) $ DirectionalLight {
-                    lightsource_direction = Vector3D 0 1 0,
-                   lightsource_color = rgb 0.1 0.1 0.2,
-                  lightsource_ambient = rgb 0.0 0.0 0.3 }
-           else NoLight)
-       accumulateSceneA -< (scene_layer_local,lightSource $ if skylight_intensity > 0.05
-           then mapLightSource (mapBoth $ scaleRGB $ lighting_skylight lighting_configuration) $ skylight (Vector3D 0 1 0) skylight_color
-           else NoLight)
+       accumulateSceneA -< (scene_layer_local,lightSource $ case () of
+           () | nightlight_intensity > 0.05 && sky_on ->
+                    mapLightSource (mapBoth $ scaleRGB nightlight_intensity) $
+                        DirectionalLight {
+                            lightsource_direction = Vector3D 0 1 0,
+                            lightsource_color = rgb 0.1 0.1 0.2,
+                            lightsource_ambient = rgb 0.0 0.0 0.3 }
+           () | otherwise -> NoLight)
+       accumulateSceneA -< (scene_layer_local,lightSource $ case () of
+           () | skylight_intensity > 0.05 && sky_on ->
+                    mapLightSource (mapBoth $ scaleRGB skylight_intensity) $
+                        skylight (Vector3D 0 1 0) skylight_color
+           () | lighting_artificial lighting_configuration <= 0.05 &&
+                not sky_on ->
+                        skylight (Vector3D 0 1 0) white
+           () | otherwise -> NoLight)
 
 sun :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m SkyInfo ()
 sun = proc sky_info ->
     do libraryA -< (scene_layer_distant,SunDisc $ sunInfoOf sky_info)
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
-       accumulateSceneA -< (scene_layer_distant,lightSource $ if (lighting_sunlight lighting_configuration > 0.05)
-            then PointLight {
-               lightsource_position = Point3D 0 (-10) 0,
-	       lightsource_radius = measure origin_point_3d (Point3D 0 (-10) 0),
-	       lightsource_color = sunColor $ sunInfoOf sky_info,
-	       lightsource_ambient = blackbody}
-            else NoLight)
+       sky_on <- readGlobal global_sky_on -< ()
+       let sunlight_intensity = lighting_sunlight lighting_configuration
+       accumulateSceneA -< (scene_layer_distant,lightSource $ case () of
+            () | sunlight_intensity > 0.05 && sky_on ->
+                     PointLight {
+                         lightsource_position = Point3D 0 (-10) 0,
+                         lightsource_radius = measure origin_point_3d
+                                                      (Point3D 0 (-10) 0),
+                         lightsource_color = sunColor $ sunInfoOf sky_info,
+                         lightsource_ambient = blackbody}
+            () | otherwise -> NoLight)
 
 lightingConfiguration :: (FRPModel m) => FRP e m SkyInfo LightingConfiguration
 lightingConfiguration = proc sky_info ->
