@@ -57,7 +57,6 @@ module RSAGL.Modeling.Model
 
 import RSAGL.Math
 import RSAGL.Math.CurveExtras
-import RSAGL.Auxiliary.Auxiliary
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Data.Traversable (sequenceA)
@@ -78,7 +77,6 @@ import RSAGL.Modeling.OpenGLPrimitives
 import RSAGL.Modeling.BakedModel hiding (tesselatedElementToOpenGL)
 import Data.IORef
 import Control.Monad
-import Control.Exception
 import RSAGL.Types
 \end{code}
 

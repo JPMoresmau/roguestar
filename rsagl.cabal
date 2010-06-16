@@ -1,25 +1,25 @@
 name:                rsagl
-version:             0.3
+version:             0.4
 license:             BSD3
 license-file:        LICENSE
 author:              Christopher Lane Hinson
 maintainer:          Christopher Lane Hinson <lane@downstairspeople.org>
 
-category:            Game, Graphics
+category:            Graphics, FRP
 synopsis:            The RogueStar Animation and Graphics Library
 description:         RSAGL, the RogueStar Animation and Graphics Library,
-                     was specifically designed for a computer game called roguestar, 
-                     but effort has been made to make it accessable to other projects that 
-                     might benefit from it.  It includes mathematical utilities,
-                     a 3D modeling language based on parametric surfaces, and a 
-                     YAMPA-inspired arrow-based FRP framework.
+                     was specifically designed for a computer game called
+                     roguestar, but effort has been made to make it accessable
+                     to other projects that might benefit from it.  It includes
+                     mathematical utilities, a 3D modeling language based on
+                     parametric surfaces, and an arrow-based FRP framework.
                      .
-                     The Darcs repository is available at <http://www.downstairspeople.org/darcs/rsagl>.
+                     The git repository is available at <http://www.downstairspeople.org/git/rsagl.git>.
 cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 
 build-type:          Simple
-tested-with:         GHC==6.10.1
+tested-with:         GHC==6.12.1
 
 Library
     exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math, RSAGL.Math.FMod,
@@ -43,12 +43,25 @@ Library
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
                          RSAGL.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
 
-    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper, RSAGL.FRP.Message
+    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 
     ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all
 
-    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, parsec>=3, Vec >= 0.9.6, stm, data-memocombinators
+    build-depends:       base>=4 && <5,
+                         old-time>= 1.0.0.3 && < 1.1,
+                         random>= 1.0.0.2 && < 1.1,
+                         array>= 0.3.0.0 && < 0.4,
+                         arrows>= 0.4.1.2 && < 0.5,
+                         containers>= 0.3.0.0 && < 0.4,
+                         parallel>= 2.2.0.1 && < 2.3,
+                         mtl>= 1.1.0.2 && < 1.2,
+                         OpenGL>= 2.2.3.0 && < 2.3,
+                         GLUT>= 2.1.2.1 && < 2.2,
+                         parsec>=3.1.0 && < 3.2,
+                         Vec>=0.9.7 && < 0.10,
+                         stm>= 2.1.1.2 && < 2.2,
+                         data-memocombinators>= 0.4.0 && < 0.5
 
 Executable _rsagl_process_colors
     main-is:             ProcessColors.hs
