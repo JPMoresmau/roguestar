@@ -18,7 +18,7 @@ newtype SeededGrid = SeededGrid Integer deriving (Read,Show)
 data StorableCachedGrid a = StorableCachedGrid (Grid a) ((Integer,Integer) -> a)
 
 instance (Show a) => Show (StorableCachedGrid a) where
-    show (StorableCachedGrid g f) = show g
+    show (StorableCachedGrid g _) = show g
 
 instance (Read a,Ord a) => Read (StorableCachedGrid a) where
     readsPrec = (List.map (first storableCachedGrid) .) . readsPrec
@@ -27,28 +27,31 @@ storableCachedGrid :: (Ord a) => Grid a -> StorableCachedGrid a
 storableCachedGrid g = StorableCachedGrid g $ pair integral integral $ gridAt g
 
 seededGrid :: Integer -> SeededGrid
-seededGrid n = SeededGrid n 
+seededGrid n = SeededGrid n
 
 seededLookup :: SeededGrid -> (Integer,Integer) -> Integer
-seededLookup (SeededGrid n) (x,y) = toInteger $ fst $ next $ mkRNG $ (fst $ next $ mkRNG (fromInteger $ x `mod` max_int)) + (fromInteger $ y `mod` max_int)
+seededLookup (SeededGrid n) (x,y) = toInteger $ fst $ next $ mkRNG $
+        (fst $ next $ mkRNG (fromInteger $ x `mod` max_int)) +
+        (fst $ next $ mkRNG (fromInteger $ y `mod` max_int)) +
+        (fromInteger $ n `mod` max_int)
     where max_int = toInteger (maxBound :: Int)
 
 data Grid a = CompletelyRandomGrid {
-                grid_seed :: SeededGrid,
-                grid_weights :: [(Integer,a)] }
+                _grid_seed :: SeededGrid,
+                _grid_weights :: [(Integer,a)] }
             | InterpolatedGrid {
-                grid_seed :: SeededGrid,
-                grid_interpolation_weights :: Map (a,a) [(Integer,a)],
+                _grid_seed :: SeededGrid,
+                _grid_interpolation_weights :: Map (a,a) [(Integer,a)],
                 grid_next :: Grid a }
             | ArbitraryReplacementGrid {
-                grid_seed :: SeededGrid,
-                grid_sources :: [(Rational,a)],
-                grid_replacement_weights :: [(Integer,a)],
+                _grid_seed :: SeededGrid,
+                _grid_sources :: [(Rational,a)],
+                _grid_replacement_weights :: [(Integer,a)],
                 grid_next :: Grid a }
             | SpecificPlacementGrid {
-                grid_replacements :: Map (Integer,Integer) a,
+                _grid_replacements :: Map (Integer,Integer) a,
                 grid_next :: Grid a }
-	    | CachedGrid (StorableCachedGrid a)
+            | CachedGrid (StorableCachedGrid a)
     deriving (Read,Show)
 
 gridAt :: (Ord a) => Grid a -> (Integer,Integer) -> a

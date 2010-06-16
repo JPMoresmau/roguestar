@@ -13,7 +13,6 @@ module CreatureAttribute
 import Data.Monoid
 import AttributeGeneration as AG
 import CreatureData
-import Data.Ratio
 import Control.Monad.Random
 import FactionData
 import SpeciesData

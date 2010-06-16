@@ -9,7 +9,6 @@ import Data.Char
 import CreatureData
 import CharacterData
 import SpeciesData
-import Data.List
 import CreatureAttribute
 import Data.Monoid
 import TerrainData

@@ -5,7 +5,6 @@ module Character
      applyCharacterClass)
     where
 
-import Data.List as List
 import Alignment
 import CharacterData
 import CreatureAttribute

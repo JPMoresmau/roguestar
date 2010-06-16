@@ -4,11 +4,8 @@ module Main (main)
 
 import DB
 import System.Environment
-import System.Random
-import Data.List
 import Tests
 import HierarchicalDatabase
-import Control.Monad
 import TerrainData
 import Protocol
 import GridRayCaster

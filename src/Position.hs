@@ -10,7 +10,6 @@ module Position
 
 import Data.List
 import qualified Data.Set as Set
-import Data.Ord
 
 -- | Position of an object in \"chessboard space\".
 newtype Position = Position { fromPosition :: (Integer,Integer) }

@@ -9,7 +9,6 @@ import Data.Set as Set
 import Data.List as List
 import Data.Ratio
 import Tests
-import Data.Maybe
 
 -- |
 -- When casting large numbers of rays from the same point, castRays will try to do this in
