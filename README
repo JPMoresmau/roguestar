@@ -1,0 +1,86 @@
+Roguestar: Meta-Package / Maintainer's Package README
+=====================================================
+
+This git repository contains all of the packages that make up roguestar.
+
+The binary packages:
+
+* roguestar-engine
+* roguestar-gl
+* rsagl-demos
+
+And the library packages:
+
+* rsagl (RogueStar Animation and Graphics Library)
+* priority-sync
+
+The library packages must be installed before the binary packages can
+even be configured.
+
+Maintainer Scripts
+------------------
+
+To facilitate maintenance, there is a `Makefile` that contains
+numerous convenient maintainer scripts.
+
+Unfortunately, cabal doesn't seem to be reliable enough when used
+with `--package-db` to consistantly get roguestar to build and install
+from scratch in a throwaway directory without touching the user's `~/.cabal`.
+
+The makefile accepts the following actions:
+
+install-deps  [-e OPTS=cabal install opts]
+:             use cabal to install all dependencies not in the
+:             haskell-platform.
+
+clean         [-e OPTS=cabal clean opts]
+:             restore everything to a pristine state
+
+clean-bin     [-e OPTS=cabal clean opts]
+:             clean the binaries
+
+config-libs   [-e OPTS=cabal configure opts]
+:             (re)configure the libraries
+:             by default, uses --user
+
+config-bin    [-e OPTS=cabal configure opts]
+:             (re)configure the binaries
+:             by default, uses --user
+:             by default, the prefix is ./roguestar-local
+
+build-libs    [-e OPTS=cabal build opts]
+:             build the libraries
+
+build-bin     [-e OPTS=cabal build opts]
+:             build the binaries
+
+copy-libs     [-e OPTS=cabal copy opts]
+:             install the libraries
+:             by default, they will end up in your ~/.cabal
+:             by default, uses --reinstall
+
+copy-bins     [-e OPTS=cabal copy opts]
+:             install the binaries
+:             by default, uses --reinstall
+
+install-libs  [-e OPTS=cabal install opts]
+:             install the libraries
+:             by default, they will end up in your ~/.cabal
+:             by default, uses --reinstall
+
+install-bins  [-e OPTS=cabal install opts]
+:             install the binaries
+:             by default, uses --reinstall
+
+install       [-e OPTS=cabal install opts]
+:             install everything
+
+from-scratch  (uses default opts)
+:             clean, configure, build, and install that whole thing
+
+from-libs     (uses default opts)
+:             rebuild and install the libs, clean, configure, build, and install the binaries
+
+sdist         [-e OPTS=cabal sdist opts]
+:             perform a cabal sdist, and gather everything under roguestar-sdist
+

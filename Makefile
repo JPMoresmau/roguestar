@@ -1,107 +1,104 @@
-GIT_CHECKOUT=master
-VERSION=${GIT_CHECKOUT}
-VERSION_SUFFIX=-${VERSION}
-PACKAGE_DB= --user # --package-db="${PWD}/roguestar-local/cabal-package-db"
-OPTS=
-CONFIGURE_OPTS=${PACKAGE_DB} --prefix="${PWD}/roguestar-local" ${OPTS}
-DEPENDS_OPTS=${PACKAGE_DB} --enable-library-profiling --enable-executable-profiling
+CONFIG_LIB_OPTS=--ghc-option=-Wall
+CONFIG_BIN_OPTS=--prefix=./roguestar-local --ghc-option=-Wall
 
-# Change these to make dist from somewhere other than the downstairspeople.org repo.
-GIT_ORIGIN_PATH=http://www.downstairspeople.org/git
-GIT_ORIGIN_SUFFIX=.git
+warning:
+	echo "See README."
 
-make : roguestar-gl roguestar-engine rsagl-demos
+install-deps:
+	cabal --version
+	cabal install Vec ${OPTS}
+	cabal install MaybeT ${OPTS}
+	cabal install MonadRandom ${OPTS}
+	cabal install data-inttrie ${OPTS}
+	cabal install data-memocombinators ${OPTS}
+	cabal install PSQueue ${OPTS}
+	cabal install vector ${OPTS}
+	cabal install statistics ${OPTS}
 
-depends-setup :
-	-rm -rf roguestar-local
-	mkdir roguestar-local
-	echo "[]" > roguestar-local/cabal-package-db
-	# Everything that debian doesn't ship with:
-	cabal install Vec ${DEPENDS_OPTS}
-	cabal install MaybeT ${DEPENDS_OPTS}
-	cabal install MonadRandom ${DEPENDS_OPTS}
-	cabal install heap ${DEPENDS_OPTS}
-	cabal install data-inttrie ${DEPENDS_OPTS}
-	cabal install data-memocombinators ${DEPENDS_OPTS}
+clean:
+	-rm -rf ./roguestar-local
+	-rm -rf ./roguestar-sdist
+	${MAKE} clean-libs
+	${MAKE} clean-bins
 
-setup :
-	(cd priority-sync && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
-	(cd roguestar-engine && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
-	(cd rsagl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
-	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
-	(cd roguestar-gl && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
-	(cd rsagl-demos && runghc Setup.hs clean && runghc Setup.hs configure ${CONFIGURE_OPTS} ${CONFIGURE_ROGUESTAR_OPTS})
+clean-libs:
+	(cd priority-sync && cabal clean ${OPTS})
+	(cd rsagl && cabal clean ${OPTS})
+	(cd rsagl-demos && cabal clean ${OPTS})
 
-setup-profile :
-	${MAKE} setup -e OPTS="--enable-library-profiling --enable-executable-profiling"
+clean-bins:
+	(cd roguestar-engine && cabal clean ${OPTS})
+	(cd roguestar-gl && cabal clean ${OPTS})
 
-rsagl :
-	(cd rsagl && runghc Setup.hs build && runghc Setup.hs install)
+config-libs:
+	(cd priority-sync && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
+	(cd rsagl && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 
-roguestar-gl : rsagl
-	(cd roguestar-gl && runghc Setup.hs build && runghc Setup.hs install)
+config-bins:
+	mkdir -p ./roguestar-local
+	(cd rsagl-demos && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
+	(cd roguestar-engine && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
+	(cd roguestar-gl && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
 
-roguestar-engine :
-	(cd roguestar-engine && runghc Setup.hs build && runghc Setup.hs install)
+build-libs:
+	(cd priority-sync && cabal build ${OPTS})
+	(cd rsagl && cabal build ${OPTS})
 
-rsagl-demos : rsagl
-	(cd rsagl-demos && runghc Setup.hs build && runghc Setup.hs install)
+build-bins:
+	(cd rsagl-demos && cabal build ${OPTS})
+	(cd roguestar-engine && cabal build ${OPTS})
+	(cd roguestar-gl && cabal build ${OPTS})
 
-rsagl-doc :
-	(cd rsagl && runghc Setup.hs haddock --internal)
+copy-libs:
+	(cd priority-sync && cabal copy ${OPTS})
+	(cd rsagl && cabal copy ${OPTS})
 
-from-scratch :
-	${MAKE} depends-setup
-	${MAKE} setup
-	${MAKE}
+copy-bins:
+	(cd rsagl-demos && cabal copy ${OPTS})
+	(cd roguestar-engine && cabal copy ${OPTS})
+	(cd roguestar-gl && cabal copy ${OPTS})
 
-clean :
-	-rm -rf roguestar-local
-	-rm -rf dist
-	-rm -rf dist-test
-	-(cd roguestar-engine && runghc Setup.hs clean)
-	-(cd roguestar-gl && runghc Setup.hs clean)
-	-(cd rsagl && runghc Setup.hs clean)
-	-(cd rsagl-demos && runghc Setup.hs clean)
+install-libs:
+	(cd priority-sync && cabal install --reinstall ${OPTS})
+	(cd rsagl && cabal install --reinstall ${OPTS})
 
-dist :
-	rm -rf dist
-	rm -rf dist-test
-	mkdir -p dist/roguestar${VERSION_SUFFIX}
-	git clone -q ${GIT_ORIGIN_PATH}/roguestar-engine${GIT_ORIGIN_SUFFIX} dist/roguestar${VERSION_SUFFIX}/roguestar-engine
-	git clone -q ${GIT_ORIGIN_PATH}/roguestar-gl${GIT_ORIGIN_SUFFIX} dist/roguestar${VERSION_SUFFIX}/roguestar-gl
-	git clone -q ${GIT_ORIGIN_PATH}/rsagl${GIT_ORIGIN_SUFFIX} dist/roguestar${VERSION_SUFFIX}/rsagl
-	(cd dist/roguestar${VERSION_SUFFIX}/rsagl && git checkout ${GIT_CHECKOUT} && rm -rf .git)
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-gl && git checkout ${GIT_CHECKOUT} && rm -rf .git)
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-engine && git checkout ${GIT_CHECKOUT} && rm -rf .git)
-	(cd dist; tar c roguestar${VERSION_SUFFIX}/ | gzip -9 > roguestar${VERSION_SUFFIX}.tar.gz )
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-engine && runghc Setup.hs sdist && cp dist/roguestar-engine-${VERSION}.tar.gz ../..)
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-gl && runghc Setup.hs sdist && cp dist/roguestar-gl-${VERSION}.tar.gz ../..)
-	(cd dist/roguestar${VERSION_SUFFIX}/rsagl && runghc Setup.hs sdist && cp dist/rsagl-${VERSION}.tar.gz ../..)
-	mkdir -p dist-test/src
-	echo "[]" > "${PWD}/dist-test/cabal-package-db"
-	cp dist/roguestar-engine-${VERSION}.tar.gz dist-test/src/
-	cp dist/roguestar-gl-${VERSION}.tar.gz dist-test/src/
-	cp dist/rsagl-${VERSION}.tar.gz dist-test/src/
-	(cd dist-test/src && tar xzf roguestar-engine-${VERSION}.tar.gz && cd roguestar-engine-${VERSION} && \
-            runghc Setup.hs configure --disable-optimization --package-db="${PWD}/dist-test/cabal-package-db" --prefix="${PWD}/dist-test" \
-	    && runghc Setup.hs build && runghc Setup.hs install)
-	(cd dist-test/src && tar xzf rsagl-${VERSION}.tar.gz && cd rsagl-${VERSION} &&                       \
-            runghc Setup.hs configure --disable-optimization --package-db="${PWD}/dist-test/cabal-package-db" --prefix="${PWD}/dist-test" && \
-	    runghc Setup.hs build && runghc Setup.hs install)
-	(cd dist-test/src && tar xzf roguestar-gl-${VERSION}.tar.gz && cd roguestar-gl-${VERSION} &&                \
-            runghc Setup.hs configure --disable-optimization --package-db="${PWD}/dist-test/cabal-package-db" --prefix="${PWD}/dist-test" && \
-	    runghc Setup.hs build && runghc Setup.hs install)
-	(dist-test/bin/roguestar-engine version | grep ${VERSION})
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-engine && cabal check)
-	(cd dist/roguestar${VERSION_SUFFIX}/roguestar-gl && cabal check)
-	(cd dist/roguestar${VERSION_SUFFIX}/rsagl && cabal check)
-	@echo "This distribution looks good.  Try dist-test/bin/roguestar."
+install-bins:
+	(cd rsagl-demos && cabal install --reinstall ${OPTS})
+	(cd roguestar-engine && cabal install --reinstall ${OPTS})
+	(cd roguestar-gl && cabal install --reinstall ${OPTS})
 
-dist-snapshot :
-	${MAKE} dist -e VERSION_SUFFIX="-${GIT_CHECKOUT}-`date --utc +%Y%m%d%H%M`"
+install:
+	${MAKE} install-libs
+	${MAKE} install-bins
 
-dist-local :
-	${MAKE} dist-snapshot -e GIT_ORIGIN_PATH=. -e GIT_ORIGIN_SUFFIX=/.git
+from-scratch:
+	${MAKE} clean -e OPTS=""
+	${MAKE} config-libs -e OPTS=""
+	${MAKE} build-libs -e OPTS=""
+	${MAKE} copy-libs -e OPTS=""
+	${MAKE} config-bins -e OPTS=""
+	${MAKE} build-bins -e OPTS=""
+	${MAKE} copy-bins -e OPTS=""
 
-.PHONY: default download make setup setup-clean dist dist-snapshot dist-local roguestar-engine roguestar-gl rsagl from-scratch rsagl-doc rsagl-demos
+from-libs:
+	${MAKE} build-libs -e OPTS=""
+	${MAKE} copy-libs -e OPTS=""
+	${MAKE} clean-bins -e OPTS=""
+	${MAKE} config-bins -e OPTS=""
+	${MAKE} build-bins -e OPTS=""
+	${MAKE} copy-bins -e OPTS=""
+
+sdist:
+	(cd priority-sync && cabal check && cabal sdist ${OPTS})
+	(cd rsagl && cabal check && cabal sdist ${OPTS})
+	(cd rsagl-demos && cabal check && cabal sdist ${OPTS})
+	(cd roguestar-engine && cabal check && cabal sdist ${OPTS})
+	(cd roguestar-gl && cabal check && cabal sdist ${OPTS})
+	mkdir -p ./roguestar-sdist
+	cp priority-sync/dist/*.tar.gz ./roguestar-sdist
+	cp rsagl/dist/*.tar.gz ./roguestar-sdist
+	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
+	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
+	cp roguestar-gl/dist/*.tar.gz ./roguestar-sdist
+	ls roguestar-sdist
+
