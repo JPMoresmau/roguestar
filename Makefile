@@ -2,7 +2,7 @@ CONFIG_LIB_OPTS=--ghc-option=-Wall
 CONFIG_BIN_OPTS=--prefix=./roguestar-local --ghc-option=-Wall
 
 warning:
-	echo "See README."
+	@echo "See README."
 
 install-deps:
 	cabal --version
@@ -14,6 +14,7 @@ install-deps:
 	cabal install PSQueue ${OPTS}
 	cabal install vector ${OPTS}
 	cabal install statistics ${OPTS}
+	cabal install priority-sync ${OPTS}
 
 clean:
 	-rm -rf ./roguestar-local
@@ -22,16 +23,14 @@ clean:
 	${MAKE} clean-bins
 
 clean-libs:
-	(cd priority-sync && cabal clean ${OPTS})
 	(cd rsagl && cabal clean ${OPTS})
-	(cd rsagl-demos && cabal clean ${OPTS})
 
 clean-bins:
+	(cd rsagl-demos && cabal clean ${OPTS})
 	(cd roguestar-engine && cabal clean ${OPTS})
 	(cd roguestar-gl && cabal clean ${OPTS})
 
 config-libs:
-	(cd priority-sync && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 	(cd rsagl && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 
 config-bins:
@@ -41,7 +40,6 @@ config-bins:
 	(cd roguestar-gl && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
 
 build-libs:
-	(cd priority-sync && cabal build ${OPTS})
 	(cd rsagl && cabal build ${OPTS})
 
 build-bins:
@@ -50,7 +48,6 @@ build-bins:
 	(cd roguestar-gl && cabal build ${OPTS})
 
 copy-libs:
-	(cd priority-sync && cabal copy ${OPTS})
 	(cd rsagl && cabal copy ${OPTS})
 
 copy-bins:
@@ -59,7 +56,6 @@ copy-bins:
 	(cd roguestar-gl && cabal copy ${OPTS})
 
 install-libs:
-	(cd priority-sync && cabal install --reinstall ${OPTS})
 	(cd rsagl && cabal install --reinstall ${OPTS})
 
 install-bins:
@@ -89,13 +85,11 @@ from-libs:
 	${MAKE} copy-bins -e OPTS=""
 
 sdist:
-	(cd priority-sync && cabal check && cabal sdist ${OPTS})
 	(cd rsagl && cabal check && cabal sdist ${OPTS})
 	(cd rsagl-demos && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-engine && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-gl && cabal check && cabal sdist ${OPTS})
 	mkdir -p ./roguestar-sdist
-	cp priority-sync/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
