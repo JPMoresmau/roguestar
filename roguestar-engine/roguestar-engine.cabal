@@ -1,5 +1,5 @@
 name:                roguestar-engine
-version:             0.4.0.0
+version:             0.4.0.1
 license:             OtherLicense
 license-file:        LICENSE
 author:              Christopher Lane Hinson
@@ -45,6 +45,9 @@ other-modules:       VisibilityData, Stats, FactionData, Behavior, Alignment,
                      Tests, DBData, GridRayCaster, BeginGame,
                      SpeciesData, TimeCoordinate, DB, AttributeGeneration,
                      CreatureAttribute, Building, BuildingData, Town
+                     Random, PlayerState, MakeData, DBErrorFlag, Construction,
+                     Make, Activate, Contact, DeviceActivation, WorkCluster,
+                     Planet, PlanetData
 
 ghc-options:         -Wall -threaded -fno-warn-type-defaults
 ghc-prof-options:    -prof -auto-all

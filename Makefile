@@ -94,5 +94,13 @@ sdist:
 	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-gl/dist/*.tar.gz ./roguestar-sdist
+	(cd roguestar-sdist && tar xzf roguestar-engine-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf roguestar-gl-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf rsagl-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf rsagl-demos-${VERSION}.tar.gz)
+	(cd roguestar-sdist/roguestar-engine-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/rsagl-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/rsagl-demos-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/roguestar-gl-${VERSION} && cabal configure && cabal install)
 	ls roguestar-sdist
 
