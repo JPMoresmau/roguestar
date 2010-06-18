@@ -9,7 +9,7 @@ import RSAGL.Math.CurveExtras
 question_mark_material :: Modeling () 
 question_mark_material = material $
     do pigment $ pure blackbody
-       emissive $ pure fuchsia
+       emissive $ pure hot_pink
 
 question_mark :: Modeling ()
 question_mark = model $ scale' 0.1 $ 

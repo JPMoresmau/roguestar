@@ -79,7 +79,7 @@ thick_atmosphere = [
 arid_atmosphere :: Atmosphere
 arid_atmosphere = [
     AtmosphereLayer Air 0.05 2.5e-3,
-    AtmosphereLayer (Dust $ rust) 0.1 1.0e-3 ]
+    AtmosphereLayer (Dust $ maroon) 0.1 1.0e-3 ]
 
 biomeAtmosphere :: B.ByteString -> (Integer,Atmosphere)
 biomeAtmosphere "rockbiome" = (0,arid_atmosphere)

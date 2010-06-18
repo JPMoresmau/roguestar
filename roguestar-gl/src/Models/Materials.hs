@@ -32,43 +32,42 @@ import Models.LibraryData
 
 treaty_metal :: MaterialM attr ()
 treaty_metal = material $
-    do pigment $ pure camouflage_green
-       specular 1 $ pure $ viridian
+    do pigment $ pure turquoise
+       specular 1 $ pure $ teal
 
 treaty_glow :: MaterialM attr ()
 treaty_glow = material $
     do pigment $ pure black
-       emissive $ pure brass
+       emissive $ pure mustard
 
 treaty_energy_field :: MaterialM attr ()
 treaty_energy_field = material $
-    do emissive $ pure brass
-       specular 1 $ pure saffron
+    do emissive $ pure mustard
 
 -- Alliance Materials  (yellow-gold solid colors, orange energy colors)
 
 alliance_metal :: Modeling ()
 alliance_metal = material $
-    do pigment $ pure $ scaleRGB 0.6 gold
-       specular 7 $ pure gold
+    do pigment $ pure $ scaleRGB 0.6 yellow
+       specular 7 $ pure yellow
 
 -- Concordance Materials  (violet solid colors, blue energy colors)
 
 concordance_metal :: Modeling ()
 concordance_metal = material $
-    do pigment $ pure slate_gray
+    do pigment $ pure mauve
        specular 4 $ pure lilac
 
 concordance_dark_glass :: Modeling ()
 concordance_dark_glass = material $
     do pigment $ pure black
-       specular 8 $ pure eggplant
+       specular 8 $ pure royal_blue
 
 concordance_bright_glass :: Modeling ()
 concordance_bright_glass = material $
     do pigment $ pure black
-       emissive $ pure puce
-       specular 8 $ pure eggplant
+       emissive $ pure royal_blue
+       specular 8 $ pure blue
 
 -- Pirates  (green solid colors, red energy colors)
 
@@ -81,12 +80,12 @@ concordance_bright_glass = material $
 -- Cyborg Materials  (white solid colors, green energy colors)
 
 cyborg_metal :: MaterialM attr ()
-cyborg_metal = metallic $ pure wheat
+cyborg_metal = metallic $ pure beige
 
 cyborg_glow :: MaterialM attr ()
 cyborg_glow = 
     do pigment $ pure blackbody
-       emissive $ pure $ scaleRGB 1.0 green
+       emissive $ pure $ scaleRGB 1.0 pale_green
 
 {-------------------------------------------------------
  - Materials by Species
@@ -95,15 +94,15 @@ cyborg_glow =
 -- Caduceator Skins
 
 caduceator_skin :: Modeling ()
-caduceator_skin = material $ pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure safety_orange),(1.0,pure black)]
+caduceator_skin = material $ pigment $ pattern (cloudy 75 0.01) [(0.0,pure red),(0.5,pure orange),(1.0,pure black)]
 
 -- Reptilian Skins
 
 reptilian_pigment :: ColorFunction RGB
-reptilian_pigment = pattern (cloudy 75 0.1) [(0.0,pure lavender),(1.0,pure saffron)]
+reptilian_pigment = pattern (cloudy 75 0.1) [(0.0,pure lavender),(1.0,pure periwinkle)]
 
 reptilian_specular :: ColorFunction RGB
-reptilian_specular = pattern (cloudy 75 0.1) [(0.0,pure firebrick),(1.0,pure chartreuse)]
+reptilian_specular = pattern (cloudy 75 0.1) [(0.0,pure red),(1.0,pure mustard)]
 
 reptilian_skin :: Modeling ()
 reptilian_skin = material $
@@ -113,17 +112,17 @@ reptilian_skin = material $
 -- Encephalon Skins
 
 encephalon_skin :: Modeling ()
-encephalon_skin = material $ pigment $ pattern (cloudy 32 0.1) [(0.0,pure sepia),(1.0,pure amethyst)]
+encephalon_skin = material $ pigment $ pattern (cloudy 32 0.1) [(0.0,pure mauve),(1.0,pure salmon)]
 
 {--------------------------------------------------------
  - Material by Energy Type
  - ------------------------------------------------------}
 
 energyColor :: EnergyColor -> RGB
-energyColor Blue = cobalt
-energyColor Yellow = saffron
+energyColor Blue = blue
+energyColor Yellow = yellow
 energyColor Red = red
-energyColor Green = shamrock
+energyColor Green = bright_green
 
 energyMaterial :: EnergyColor -> Modeling ()
 energyMaterial c = material $

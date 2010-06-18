@@ -105,24 +105,24 @@ terrainTexture "water" =
 terrainTexture "deepwater" =
     do pigment $ pure $ scaleRGB 0.8 blue
        specular 100 $ pure white
-terrainTexture "sand" = pigment $ pure corn
-terrainTexture "desert" = pigment $ pure $ lerp 0.5 (corn,white)
-terrainTexture "grass" = pigment $ pure forest_green
+terrainTexture "sand" = pigment $ pure beige
+terrainTexture "desert" = pigment $ pure $ lerp 0.5 (light_brown,white)
+terrainTexture "grass" = pigment $ pure green
 terrainTexture "dirt" = pigment $ pure brown
-terrainTexture "forest" = pigment $ pure fern_green
-terrainTexture "deepforest" = pigment $ pure fern_green
+terrainTexture "forest" = pigment $ pure olive_green
+terrainTexture "deepforest" = pigment $ pure olive_green
 terrainTexture "ice" =
     do pigment $ pure white
        specular 1 $ pure teal
 terrainTexture "lava" =
     do pigment $ pure blackbody
-       emissive $ pure coral
+       emissive $ pure red
 terrainTexture "glass" =
     do pigment $ pure black
        specular 1 $ pure white
-terrainTexture "rockyground" = pigment $ pure slate_gray
-terrainTexture "rubble" = pigment $ pure slate_gray
-terrainTexture "rockface" = pigment $ pure slate_gray
+terrainTexture "rockyground" = pigment $ pure grey
+terrainTexture "rubble" = pigment $ pure grey
+terrainTexture "rockface" = pigment $ pure grey
 terrainTexture _ =
     do pigment $ pure blackbody
        emissive $ pure magenta

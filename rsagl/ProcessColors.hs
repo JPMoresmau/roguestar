@@ -1,6 +1,4 @@
-module Main
-    (main)
-    where
+#!/usr/bin/runghc
 
 import RSAGL.Modeling.Material
 import Control.Monad
@@ -21,7 +19,8 @@ cteToHaskell (ColorTableEntry s r g b) = s ++ " :: RGB\n" ++ s ++ " = rgb256 " +
 
 wrapHaskellModule :: [ColorTableEntry] -> String -> String
 wrapHaskellModule cte s = ("module RSAGL.Modeling.RSAGLColors (" ++ (listColors cte) ++ ") where") ++ 
-                          "\n\nimport RSAGL.Modeling.Material\n\n" ++ s
+                          "\n\nimport Prelude ()" ++
+                          "\nimport RSAGL.Modeling.Material\n\n" ++ s
 
 listColors :: [ColorTableEntry] -> String
 listColors = concat . intersperse "," . map cte_name
@@ -55,7 +54,11 @@ colorTablesToHTML color_tables =
              toBlue = realToFrac . cte_blue
              takeHalf x = take (length x `div` 2) x
 
+isComment :: String -> Bool
+isComment s | null (words s) = True
+isComment s = ["#"] == (map (take 1) $ take 1 $ words s)
+
 main :: IO ()
-main = do color_tables <- liftM (map readColorTableEntry . lines) $ readFile "rsagl-rgb.txt"
+main = do color_tables <- liftM (map readColorTableEntry . filter (not . isComment) . lines) $ readFile "rsagl-rgb.txt"
           writeFile "RSAGL/Modeling/RSAGLColors.hs" $ wrapHaskellModule color_tables $ (unlines . map cteToHaskell) color_tables
           writeFile "rsagl-rgb.html" $ wrapHTMLFile $ colorTablesToHTML color_tables

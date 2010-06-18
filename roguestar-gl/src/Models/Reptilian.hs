@@ -54,8 +54,8 @@ reptilian_leg_upper _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (0.75,10.6),
 		     (0  ,10.8)]
        material $
-           do pigment $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_pigment),(1.0,pure burgundy)]
-              specular 5.0 $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_specular),(1.0,pure crimson)]
+           do pigment $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_pigment),(1.0,pure dark_pink)]
+              specular 5.0 $ pattern (gradient origin_point_3d (Vector3D 0 10 0)) [(0.0,reptilian_specular),(1.0,pure red)]
        affine $ scale' (1/10)
 
 reptilian_leg_lower :: Quality -> Modeling ()
@@ -71,8 +71,8 @@ reptilian_leg_lower _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
        openCone (Point3D 0 9.5 0,0.5) (Point3D 5 10 5,0.0001)
        openCone (Point3D 0 9.5 0,0.5) (Point3D (-5) 10 5,0.0001)
        material $ 
-          do pigment $ pure burgundy
-             specular 5.0 $ pure crimson
+          do pigment $ pure dark_pink
+             specular 5.0 $ pure red
        affine $ scale' (1/10)
 
 reptilian_arm_upper :: Quality -> Modeling ()
@@ -86,8 +86,8 @@ reptilian_arm_upper _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (1.0,9.9),
 		     (0  ,0.0)]
        material $
-           do pigment $ pure burgundy
-              specular 5.0 $ pure crimson
+           do pigment $ pure dark_pink
+              specular 5.0 $ pure red
        affine $ scale' (1/10)
 
 reptilian_arm_lower :: Quality -> Modeling ()
@@ -100,7 +100,7 @@ reptilian_arm_lower _ = rotate (Vector3D 1 0 0) (fromDegrees 90) $ model $
 		     (0.5,9.9),
 		     (0  ,0.0)]
        material $
-           do pigment $ pure burgundy
-              specular 5.0 $ pure crimson
+           do pigment $ pure dark_pink
+              specular 5.0 $ pure red
        affine $ scale' (1/10)
        

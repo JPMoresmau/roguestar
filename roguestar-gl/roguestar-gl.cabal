@@ -1,5 +1,5 @@
 name:                roguestar-gl
-version:             0.4.0.1
+version:             0.5
 license:             OtherLicense
 license-file:        LICENSE
 author:              Christopher Lane Hinson <lane@downstairspeople.org>
@@ -15,7 +15,7 @@ description:         Roguestar is a science fiction themed roguelike (turn-based
 homepage:            http://roguestar.downstairspeople.org/
 
 build-depends:       base>=4&&<5,
-                     rsagl==0.4.0.1,
+                     rsagl==0.5,
                      containers>=0.3.0.0 && < 0.4,
                      arrows>=0.4.1.2 && < 0.5,
                      mtl>=1.1.0.2 && < 1.2,

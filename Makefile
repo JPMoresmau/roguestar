@@ -47,14 +47,6 @@ build-bins:
 	(cd roguestar-engine && cabal build ${OPTS})
 	(cd roguestar-gl && cabal build ${OPTS})
 
-copy-libs:
-	(cd rsagl && cabal copy ${OPTS})
-
-copy-bins:
-	(cd rsagl-demos && cabal copy ${OPTS})
-	(cd roguestar-engine && cabal copy ${OPTS})
-	(cd roguestar-gl && cabal copy ${OPTS})
-
 install-libs:
 	(cd rsagl && cabal install --reinstall ${OPTS})
 
@@ -71,18 +63,18 @@ from-scratch:
 	${MAKE} clean -e OPTS=""
 	${MAKE} config-libs -e OPTS=""
 	${MAKE} build-libs -e OPTS=""
-	${MAKE} copy-libs -e OPTS=""
+	${MAKE} install-libs -e OPTS=""
 	${MAKE} config-bins -e OPTS=""
 	${MAKE} build-bins -e OPTS=""
-	${MAKE} copy-bins -e OPTS=""
+	${MAKE} install-bins -e OPTS=""
 
 from-libs:
 	${MAKE} build-libs -e OPTS=""
-	${MAKE} copy-libs -e OPTS=""
+	${MAKE} install-libs -e OPTS=""
 	${MAKE} clean-bins -e OPTS=""
 	${MAKE} config-bins -e OPTS=""
 	${MAKE} build-bins -e OPTS=""
-	${MAKE} copy-bins -e OPTS=""
+	${MAKE} install-bins -e OPTS=""
 
 sdist:
 	(cd rsagl && cabal check && cabal sdist ${OPTS})

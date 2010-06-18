@@ -1,5 +1,5 @@
 name:                rsagl-demos
-version:             0.4.0.1
+version:             0.5
 license:             BSD3
 license-file:        LICENSE
 author:              Christopher Lane Hinson
@@ -17,10 +17,10 @@ tested-with:         GHC==6.12.1
 Executable _rsagl_modelview
     main-is:             ModelView.hs
     ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
-    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, rsagl==0.4.0.1
+    build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, rsagl==0.5
 
 Executable _rsagl_tests
     main-is:             Tests.hs
     ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
-    build-depends:       base>=4&&<5, old-time, random, arrows, containers, parallel, QuickCheck, rsagl==0.4.0.1
+    build-depends:       base>=4&&<5, old-time, random, arrows, containers, parallel, QuickCheck, rsagl==0.5
 

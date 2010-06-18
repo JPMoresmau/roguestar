@@ -120,7 +120,7 @@ testScene =
                          sceneObject $ return qo_sky
                      accumulateSceneM (std_scene_layer_infinite+1) $
                          lightSource $ skylight (Vector3D 0 1 0)
-                                                (scaleRGB 0.25 azure)
+                                                (scaleRGB 0.25 periwinkle)
                      accumulateSceneM (std_scene_layer_infinite+1) $
                          sceneObject $ return qo_ground
               transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
@@ -219,7 +219,7 @@ planet = model $
        deform $ constrain (\(SurfaceVertex3D (Point3D x y z) _) -> x > 0 && y > 0 && z > 0) $ 
            RT.shadowDeform (Vector3D (-1) (-1) (-1)) (map (RT.plane (Point3D 0 0 0)) [Vector3D 1 0 0,Vector3D 0 1 0,Vector3D 0 0 1])
        let land_vs_water land water = pattern (cloudy 26 0.4) [(0,water),(0.5,water),(0.51,land),(1,land)]
-       let grass_and_mountains = pattern (cloudy 81 0.25) [(0.4,pattern (cloudy 99 0.1) [(0.0,pure brown),(1.0,pure slate_gray)]),(0.5,pure forest_green)]
+       let grass_and_mountains = pattern (cloudy 81 0.25) [(0.4,pattern (cloudy 99 0.1) [(0.0,pure brown),(1.0,pure grey)]),(0.5,pure forest_green)]
        let land_and_water = land_vs_water grass_and_mountains (pure blue)
        let cities bright dark = land_vs_water (pattern (cloudy 5 0.1) [(0.0,bright),(0.5,dark)]) (dark)
        let planet_surface = pattern (gradient (Point3D 0 0 0) (Vector3D 0 0.65 0)) 
@@ -234,7 +234,7 @@ planet = model $
 moon :: Modeling ()
 moon = model $ 
     do RSAGL.Modeling.sphere (Point3D 0 0 0) 0.2
-       material $ pigment $ pattern (cloudy 8 0.05) [(0.0,pure slate_gray),(1.0,pure white)]
+       material $ pigment $ pattern (cloudy 8 0.05) [(0.0,pure grey),(1.0,pure white)]
        regenerateNormals
 
 monolith :: Modeling ()
@@ -261,8 +261,8 @@ station = model $
             openCone (Point3D 0 0 (-0.5),0.02) (Point3D 0 0 0.5,0.02)
             closedCone (Point3D 0 0.2 0,0.2) (Point3D 0 (-0.2) 0,0.2)
             material $ 
-	        do pigment $ pure silver
-                   specular 100 $ pure silver
+	        do pigment $ pure grey
+                   specular 100 $ pure grey
        model $ 
          do box (Point3D (-0.15) 0.19 (-0.05)) (Point3D 0.15 0.21 0.05)
             material $ emissive $ pure white
@@ -302,8 +302,8 @@ orb = model $
                 (-0.4,0.2,0.4)]
        regularPrism (Point3D 0 0.5 0,0.5) (Point3D 0 1.0 0,-0.001) 4
        material $
-           do pigment $ pure gold
-              specular 64 $ pure silver
+           do pigment $ pure yellow
+              specular 64 $ pure grey
 
 glow_orb :: Modeling ()
 glow_orb = translate (Vector3D 0 1 0) $
@@ -315,15 +315,15 @@ orb_upper_leg = model $
     do tube $ zipCurve (,) (pure 0.05) $ linearInterpolation [Point3D 0 0 0,Point3D 0 0.1 0.5,Point3D 0 0 1]
        RSAGL.Modeling.sphere (Point3D 0 0 1) 0.05
        material $
-           do pigment $ pure gold
-              specular 64 $ pure silver
+           do pigment $ pure yellow
+              specular 64 $ pure grey
 
 orb_lower_leg :: Modeling ()
 orb_lower_leg = model $
     do openCone (Point3D 0 0 0,0.05) (Point3D 0 0 1,0)
        material $ 
-           do pigment $ pure gold
-              specular 64 $ pure silver
+           do pigment $ pure yellow
+              specular 64 $ pure grey
 
 sky :: Modeling ()
 sky = model $

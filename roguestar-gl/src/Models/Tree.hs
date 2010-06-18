@@ -13,5 +13,5 @@ leafy_blob = model $
 tree_branch :: ModelingM () ()
 tree_branch = model $
     do closedCone (Point3D 0 0 0, 1.0) (Point3D 0 1 0, 0.5)
-       material $ pigment $ pure dark_brown
+       material $ pigment $ pure brown
 

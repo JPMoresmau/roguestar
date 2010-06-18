@@ -93,8 +93,8 @@ ascendantAvatar = genericCreatureAvatar $ proc () ->
        accumulateSceneA -< (scene_layer_local,
                             lightSource $ PointLight (Point3D 0 0.5 0)
                                                      (measure (Point3D 0 0.5 0) (Point3D 0 0 0))
-						     azure
-						     azure)
+						     light_blue
+						     light_blue)
        t <- threadTime -< ()
        wield_point <- exportCoordinateSystem -< translate (rotateY (fromRotations $ t `cyclical'` (fromSeconds 3)) $ Vector3D 0.25 0.5 0)
        returnA -< CreatureThreadOutput {
