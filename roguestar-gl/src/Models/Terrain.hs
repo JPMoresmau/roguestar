@@ -31,7 +31,9 @@ known_terrain_types =
      "rockyground",
      "rubble",
      "rockface",
-     "recreantfactory"]
+     "recreantfactory",
+     "downstairs",
+     "upstairs"]
 
 -- |
 -- A simple 1-by-1 square patch, centered at the origin, and raised on a slope toward it's center.
@@ -68,6 +70,14 @@ terrainTile "recreantfactory" q = recreant_factory q
 terrainTile "rockface" q = model $
     do terrainTileShape (terrainHeight "rockface") (terrainHeight "rockface") q
        material $ terrainTexture "rockface"
+terrainTile "downstairs" q = model $
+    do basicTerrainTile "downstairs" q
+       model $
+           do box (Point3D (-0.5) 0 (-0.5)) (Point3D 0.5 0.05 (-0.45))
+              box (Point3D (-0.5) 0 0.5) (Point3D 0.5 0.05 0.45)
+              box (Point3D (-0.5) 0 0.5) (Point3D (-0.45) 0.05 (-0.5))
+              box (Point3D 0.5 0 0.5) (Point3D 0.45 0.05 (-0.5))
+              material $ pigment $ pure RSAGL.Modeling.tan
 terrainTile s q = basicTerrainTile s q
 
 -- |
@@ -91,6 +101,7 @@ terrainHeight "glass" = 0.04
 terrainHeight "rockyground" = 0.18
 terrainHeight "rubble" = 0.2
 terrainHeight "rockface" = 1.0
+terrainHeight "downstairs" = 0.01
 terrainHeight _ = 5.0
 
 -- |
@@ -123,6 +134,7 @@ terrainTexture "glass" =
 terrainTexture "rockyground" = pigment $ pure grey
 terrainTexture "rubble" = pigment $ pure grey
 terrainTexture "rockface" = pigment $ pure grey
+terrainTexture "downstairs" = pigment $ pure blackbody
 terrainTexture _ =
     do pigment $ pure blackbody
        emissive $ pure magenta
