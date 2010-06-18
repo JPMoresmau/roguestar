@@ -45,7 +45,7 @@ Library
 
     other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
 
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+    ghc-options:         -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all
 
     build-depends:       base>=4 && <5,
@@ -65,5 +65,5 @@ Library
 
 Executable _rsagl_process_colors
     main-is:             ProcessColors.hs
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+    ghc-options:         -fno-warn-type-defaults -fexcess-precision
 

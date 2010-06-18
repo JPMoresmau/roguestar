@@ -12,15 +12,15 @@ cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 
 build-type:          Simple
-tested-with:         GHC==6.10.1
+tested-with:         GHC==6.12.1
 
 Executable _rsagl_modelview
     main-is:             ModelView.hs
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
+    ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
     build-depends:       base>=4, old-time, random, array, arrows, containers, parallel, mtl, OpenGL, GLUT, rsagl==0.4.0.0
 
 Executable _rsagl_tests
     main-is:             Tests.hs
-    ghc-options:         -Wall -threaded -fno-warn-type-defaults -fexcess-precision
-    build-depends:       base>=4, old-time, random, arrows, containers, parallel, QuickCheck, rsagl>=0.4.0.0
+    ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
+    build-depends:       base>=4&&<5, old-time, random, arrows, containers, parallel, QuickCheck, rsagl>=0.4.0.0
 
