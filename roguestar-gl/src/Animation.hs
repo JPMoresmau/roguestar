@@ -19,6 +19,7 @@ module Animation
      driverGetTableA,
      printTextA,
      printTextOnce,
+     statusA,
      debugA,
      debugOnce,
      donesA,
@@ -36,7 +37,10 @@ module Animation
 
 import RSAGL.Math
 import RSAGL.FRP
-import RSAGL.Scene hiding (std_scene_layer_hud,std_scene_layer_cockpit,std_scene_layer_local,std_scene_layer_infinite)
+import RSAGL.Scene hiding (std_scene_layer_hud,
+                           std_scene_layer_cockpit,
+                           std_scene_layer_local,
+                           std_scene_layer_infinite)
 import RSAGL.Animation
 import RSAGL.Auxiliary.RecombinantState
 import Control.Monad.State
@@ -57,14 +61,18 @@ import Data.List
 import Data.Ord
 import Strings
 import Globals
+import PrintText
+import PrintTextData
 import Control.Concurrent.STM
 import qualified Data.ByteString as B
+import qualified Data.Map as Map
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator IO,
     animstate_globals :: Globals,
     animstate_driver_object :: FrozenDriver,
     animstate_print_text_object :: PrintTextObject,
+    animstate_status_lines :: Map.Map StatusField B.ByteString,
     animstate_library :: Library,
     animstate_block_continue :: Bool,
     animstate_print_text_mode :: PrintTextMode,
@@ -113,6 +121,7 @@ runRoguestarAnimationObject lib globals driver_object print_text_object
                animstate_scene_accumulator = null_scene_accumulator,
                animstate_driver_object = frozen_driver_object,
                animstate_print_text_object = print_text_object,
+               animstate_status_lines = Map.empty,
                animstate_library = lib,
                animstate_block_continue = False,
                animstate_print_text_mode = Limited,
@@ -126,6 +135,8 @@ runRoguestarAnimationObject lib globals driver_object print_text_object
               setPrintTextMode print_text_object $
                   animstate_print_text_mode result_animstate
               animstate_suspended_stm_action result_animstate
+              setStatus print_text_object $
+                  animstate_status_lines result_animstate
        assembleScene result_scene_layer_info $
            animstate_scene_accumulator result_animstate
 
@@ -168,6 +179,16 @@ printTextA = proc pt_data ->
             Just (pt_type,pt_string) ->
                 printText print_text_object pt_type pt_string)
            -< (print_text_object,pt_data)
+
+statusA :: (FRPModel m, StateOf m ~ AnimationState) =>
+           FRP e m (Maybe (StatusField,B.ByteString)) ()
+statusA = proc status_data ->
+    do animstate <- fetch -< ()
+       store -< case status_data of
+           Just (field,status) -> animstate { animstate_status_lines =
+               Map.insert field status $
+                   animstate_status_lines animstate }
+           Nothing -> animstate
 
 -- | Number of dones.  (A done is a message from the engine that an change has occured in the game world.)
 donesA :: (StateOf m ~ AnimationState) => FRP e m () Integer

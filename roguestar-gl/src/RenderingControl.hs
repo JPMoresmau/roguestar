@@ -28,6 +28,7 @@ import AnimationExtras
 import AnimationEvents
 import Strings
 import RSAGL.Types
+import PrintTextData
 import qualified Data.ByteString.Char8 as B
 
 -- | Enters the top-level animation loop.
@@ -39,14 +40,22 @@ mainAnimationLoop = proc () ->
        returnA -< roguestarSceneLayerInfo mempty basic_camera
   where mainWelcome = proc () ->
             do printTextOnce -< Just (Event,"Welcome to Roguestar-GL.")
-	       returnA -< ()
+               returnA -< ()
 
 -- | This is the actual to-level animation loop.
 mainDispatch :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 mainDispatch = proc () ->
-    do result <- frp1Context (mainStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
-       monitorPlanetName -< ()
-       monitorCompassReading -< ()
+    do result <- frp1Context (mainStateHeader (const False) >>>
+           arr (const $ roguestarSceneLayerInfo mempty basic_camera)) -< ()
+       m_planet_name <- sticky isJust Nothing <<< driverGetAnswerA -< "planet-name"
+       statusA -< fmap ((,) PlanetName) $ case m_planet_name of
+           Just "nothing" -> Nothing
+           x -> x
+       m_compass <- sticky isJust Nothing <<< driverGetAnswerA -< "compass"
+       statusA -< fmap ((,) CompassHeading) $ case m_compass of
+           Just "nothing" -> Nothing
+           Just "here" -> Nothing
+           x -> x
        returnA -< result
 
 -- | Forces the current RSAnim thread to switch whenever the current state does not match the specified predicate.
@@ -64,32 +73,6 @@ menuManager :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) (
 menuManager = proc () ->
     do mainStateHeader (`elem` menu_states) -< ()
        frp1Context menuDispatch -< ()
-
--- | Print a "Welcome to P-XXXX" message whenever we arrive on a new planet.
-monitorPlanetName :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
-monitorPlanetName = proc () ->
-    do m_planet_name <- driverGetAnswerA -< "planet-name"
-       p <- changed (==) <<< sticky isJust Nothing -< m_planet_name
-       printTextA -< case m_planet_name of
-           _ | not p ->      Nothing
-           Nothing ->        Nothing
-           Just "nothing" -> Nothing
-           Just somewhere -> Just (Event, B.concat $ ["Welcome to ", capitalize somewhere, "."])
-       returnA -< ()
-
--- | Print a compass heading message whenever it changes.
-monitorCompassReading :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()
-monitorCompassReading = proc () ->
-    do m_compass <- driverGetAnswerA -< "compass"
-       p <- changed (==) <<< sticky isJust Nothing -< m_compass
-       printTextA -< case m_compass of
-           _ | not p ->      Nothing
-           Nothing ->        Nothing
-           Just "nothing" -> Nothing
-           Just "here" ->    Nothing
-           Just compass ->   Just (Event, B.concat $ ["Compass reading: ", hrstring compass, "."])
-       returnA -< ()
-
 
 -- | Print the game over message and retain control of the rendering loop forever.
 gameOver :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo

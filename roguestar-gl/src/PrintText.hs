@@ -5,6 +5,7 @@
 module PrintText
     (newPrintTextObject,
      printText,
+     setStatus,
      PrintTextObject,
      renderText,
      PrintTextMode(..),
@@ -24,10 +25,12 @@ import PrintTextData
 import Control.Monad
 import Control.Concurrent.Chan
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Map as Map
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],
     text_input_buffer :: B.ByteString,
+    text_status_lines :: Map.Map StatusField B.ByteString,
     text_output_mode :: PrintTextMode }
 
 data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan B.ByteString)
@@ -39,7 +42,7 @@ font_height_pixels :: Int
 font_height_pixels = 15
 
 padding_pixels :: Int
-padding_pixels = 10
+padding_pixels = 5
 
 font :: BitmapFont
 font = Fixed9By15
@@ -49,6 +52,7 @@ newPrintTextObject =
     do pt_data <- newTVarIO $ PrintTextData {
            text_output_buffer = [],
            text_input_buffer = B.empty,
+           text_status_lines = Map.empty,
            text_output_mode = Unlimited }
        pt_chan <- newChan
        return $ PrintTextObject pt_data pt_chan
@@ -59,6 +63,17 @@ printText (PrintTextObject pto _) text_type str =
        writeTVar pto $ print_text {
            text_output_buffer = text_output_buffer print_text ++
                                 map ((,) text_type) (B.lines str) }
+
+setStatus :: PrintTextObject -> Map.Map StatusField B.ByteString -> STM ()
+setStatus p@(PrintTextObject pto _) status_lines =
+    do print_text <- readTVar pto
+       let changes = Map.differenceWith
+               (\new old -> if new==old then Nothing else Just new)
+               status_lines
+               (text_status_lines print_text)
+       forM_ (Map.toAscList changes) $ \(field,string) ->
+           printText p Update $ onChange field string
+       writeTVar pto . (\x -> x { text_status_lines = status_lines }) =<< readTVar pto
 
 keyCallback :: PrintTextObject -> KeyboardMouseCallback
 keyCallback (PrintTextObject _ chan) (Char char) Down _ _ =
@@ -108,6 +123,33 @@ renderText :: PrintTextObject -> IO ()
 renderText (PrintTextObject pto _) =
     do ptd <- atomically $ readTVar pto
        (Size width height) <- get windowSize
+       let max_characters_height =
+               (fromIntegral height - 2 * fromIntegral padding_pixels) `div`
+               (fromIntegral font_height_pixels)
+       let max_characters_width =
+               (fromIntegral width - 2 * fromIntegral padding_pixels) `div`
+               (fromIntegral font_width_pixels)
+       let lines_to_print =
+               restrictLines max_characters_height max_characters_width $
+                   (case (text_output_mode ptd) of
+                       PrintTextData.Disabled -> []
+                       Limited -> reverse $ take 5 $ reverse $
+                                      text_output_buffer ptd
+                       Unlimited -> (text_output_buffer ptd)) ++
+                   (if B.length (text_input_buffer ptd) > 0 ||
+                                text_output_mode ptd /= PrintTextData.Disabled
+                       then [(Input,"> " `B.append` (text_input_buffer ptd))]
+                       else [])
+       let status_lines = flip map (Map.toAscList $ text_status_lines ptd) $
+               \(field,string) -> (Update,whileActive field string)
+       drawLines (reverse lines_to_print) Log
+       drawLines (reverse status_lines) Status
+
+data PrintTextPosition = Status | Log
+
+drawLines :: [(TextType,B.ByteString)] -> PrintTextPosition -> IO ()
+drawLines lines_to_print position =
+    do (Size width height) <- get windowSize
        save_depth_func <- get depthFunc
        save_depth_mask <- get depthMask
        save_blend <- get blend
@@ -119,38 +161,28 @@ renderText (PrintTextObject pto _) =
        ortho2D 0 (fromIntegral width) 0 (fromIntegral height)
        matrixMode $= Modelview 0
        loadIdentity
-       let max_characters_height =
-               (fromIntegral height - 2 * fromIntegral padding_pixels) `div`
-               (fromIntegral font_height_pixels)
-       let max_characters_width =
-               (fromIntegral width - 2 * fromIntegral padding_pixels) `div`
-               (fromIntegral font_width_pixels)
-       let lines_to_print =
-               restrictLines max_characters_height max_characters_width $
-                   (case (text_output_mode ptd) of
-                       PrintTextData.Disabled -> []
-                       Limited -> reverse $ take 3 $ reverse $
-                                      text_output_buffer ptd
-                       Unlimited -> (text_output_buffer ptd)) ++
-                   (if B.length (text_input_buffer ptd) > 0 ||
-                                text_output_mode ptd /= PrintTextData.Disabled
-                       then [(Query,"> " `B.append` (text_input_buffer ptd))]
-                       else [])
+       let actual_width_pixels :: Int
            actual_width_pixels = font_width_pixels *
-                                 (maximum $ map (B.length . snd) lines_to_print)
+                                 (maximum $ map (B.length . snd) $ (undefined,""):lines_to_print)
+       let actual_height_pixels :: Int
            actual_height_pixels = font_height_pixels * (length lines_to_print)
-           in do color $ (Color4 0 0 0 0.92 :: Color4 GLfloat)
-                 (rect :: Vertex2 GLfloat -> Vertex2 GLfloat -> IO ())
-                     (Vertex2 (fromIntegral padding_pixels)
-                              (fromIntegral padding_pixels))
-                     (Vertex2 (fromIntegral (actual_width_pixels +
-                                             padding_pixels))
-                              (fromIntegral (actual_height_pixels +
-                                             padding_pixels)))
-                 currentRasterPosition $= (Vertex4 (fromIntegral padding_pixels)
-                                                   (fromIntegral padding_pixels)
-                                                   0 1)
-                 mapM_ drawLine $ reverse lines_to_print
+       let y_position :: Int
+           y_position = case position of
+               Status -> fromIntegral height - actual_height_pixels - padding_pixels
+               Log -> padding_pixels
+       color $ (Color4 0 0 0 0.92 :: Color4 GLfloat)
+       (rect :: Vertex2 GLfloat -> Vertex2 GLfloat -> IO ())
+           (Vertex2 (fromIntegral padding_pixels)
+                    (fromIntegral y_position))
+           (Vertex2 (fromIntegral (actual_width_pixels +
+                                   padding_pixels))
+                    (fromIntegral (actual_height_pixels +
+                                   y_position +
+                                   padding_pixels*2)))
+       currentRasterPosition $= (Vertex4 (fromIntegral padding_pixels)
+                                         (fromIntegral $ y_position + padding_pixels)
+                                         0 1)
+       mapM_ drawLine lines_to_print
        blend $= save_blend
        depthMask $= save_depth_mask
        depthFunc $= save_depth_func
@@ -169,7 +201,8 @@ restrictLines height width text_lines = reverse $ take height $ reverse $ concat
 
 textTypeToColor :: TextType -> Color3 GLfloat
 textTypeToColor UnexpectedEvent = Color3 1.0 0.5 0.0
-textTypeToColor Event = Color3 0.5 0.75 1.0
-textTypeToColor Input = Color3 0.5 1.0 0.5
-textTypeToColor Query = Color3 1.0 1.0 1.0
+textTypeToColor Event =  Color3 0.5 0.75 1.0
+textTypeToColor Input =  Color3 0.5 1.0 0.5
+textTypeToColor Query =  Color3 1.0 1.0 1.0
+textTypeToColor Update = Color3 0.9 0.9 0.2
 
