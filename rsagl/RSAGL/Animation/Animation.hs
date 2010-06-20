@@ -1,8 +1,3 @@
-\section{Monads and Arrows for Animation}
-
-The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine transformation and scene accumulation.
-
-\begin{code}
 {-# LANGUAGE Arrows,
              MultiParamTypeClasses,
              FlexibleInstances,
@@ -11,6 +6,8 @@ The \texttt{AniM} monad and the \texttt{AniA} arrow support frame time, affine t
              ExistentialQuantification,
              Rank2Types #-}
 
+-- | Supports monadic and arrow operations for animated
+-- scenes.
 module RSAGL.Animation.Animation
     (AniM,
      TimePlusSceneAccumulator,
@@ -33,13 +30,8 @@ import RSAGL.Math.Vector
 import RSAGL.Math.Affine
 import RSAGL.FRP
 import RSAGL.Auxiliary.RecombinantState
-\end{code}
 
-\subsection{The AniM Monad}
-
-The AniM monad is a simple state layer over the IO monad that supports scene accumulation and getting the frame time (the time at the beginning of the frame, as opposed to real time that would change as the animation progresses).
-
-\begin{code}
+-- | A time-aware scene accumulator.
 newtype TimePlusSceneAccumulator m = TimePlusSceneAccumulator (Time,SceneAccumulator m)
     deriving (CoordinateSystemClass)
 
@@ -51,8 +43,10 @@ instance RecombinantState (TimePlusSceneAccumulator m) where
     clone = id
     recombine (TimePlusSceneAccumulator (t,old)) (TimePlusSceneAccumulator (_,new)) = TimePlusSceneAccumulator (t,recombine old new)
 
+-- | A monad for animation using RSAGL's scene accumulation system.
 type AniM a = StateT (TimePlusSceneAccumulator IO) IO a
 
+-- | Get's the time of the current frame.
 frameTime :: AniM Time
 frameTime = gets (\(TimePlusSceneAccumulator (t,_)) -> t)
 
@@ -63,25 +57,24 @@ runAniM anim =
        result_scene <- assembleScene sli sa
        return (a,result_scene)
 
+-- | Generates a continuous rotation.
 rotationM :: Vector3D -> Rate Angle -> AniM AffineTransformation
 rotationM v a =
     do t <- frameTime
        return (rotate v (a `over` t))
 
+-- | Combine an animation with a continuous affine transformation.
 animateM :: AniM AffineTransformation -> AniM b -> AniM b
 animateM affineF action =
     do at <- affineF
        transformM (affineOf at) action
 
+-- | Rotate an animation continuously.
 rotateM :: Vector3D -> Rate Angle -> AniM a -> AniM a
 rotateM v a = animateM (rotationM v a)
-\end{code}
 
-\subsection{Animation Objects}
-
-This is one possible implementation of an animation object.
-
-\begin{code}
+-- | An object that can capture either a monadic or
+-- arrow-based animation.
 data AnimationObject i o =
     AniMObject (i -> AniM o)
   | AniAObject (FRPProgram (SceneAccumulator IO) i o)
@@ -99,4 +92,4 @@ runAnimationObject (AniAObject frpp) i =
        (o,new_s) <- liftIO $ updateFRPProgram (Just t) (i,old_s) frpp
        put $ TimePlusSceneAccumulator (t,new_s)
        return o
-\end{code}
+
