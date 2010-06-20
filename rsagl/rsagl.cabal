@@ -36,7 +36,7 @@ Library
                          RSAGL.Modeling.Noise, RSAGL.Modeling.Tesselation,
                          RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,
                          RSAGL.Math.Curve, RSAGL.Math.Angle, RSAGL.Modeling.Optimization,
-                         RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthagonal,
+                         RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthogonal,
                          RSAGL.Math.AbstractVector,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,

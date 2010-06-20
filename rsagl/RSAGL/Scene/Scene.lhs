@@ -47,7 +47,7 @@ import Control.Arrow.Operations
 import Graphics.UI.GLUT as GLUT
 import Data.Maybe
 import RSAGL.Math.WrappedAffine
-import RSAGL.Math.Orthagonal
+import RSAGL.Math.Orthogonal
 import RSAGL.Scene.LightSource
 import qualified Data.Map as Map
 import qualified Data.Set as Set

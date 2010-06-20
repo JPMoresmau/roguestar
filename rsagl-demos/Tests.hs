@@ -177,7 +177,7 @@ testCrossProduct =
        testClose "testCrossProduct(y)" y 0.0 equalClose
        testClose "testCrossProduct(z)" z 1.0 equalClose
 
--- crossProduct always yields a vector orthagonal to the parameters.
+-- crossProduct always yields a vector orthogonal to the parameters.
 quickCheckCrossProductByAngleBetween :: IO ()
 quickCheckCrossProductByAngleBetween = 
     do putStr "quickCheckCrossProductByAngleBetween: "
@@ -186,7 +186,7 @@ quickCheckCrossProductByAngleBetween =
                                         in (toDegrees $ angleBetween a c) `equalClose` 90 &&
                                            (toDegrees $ angleBetween b c) `equalClose` 90
 
--- orthos always yields two vectors orthagonal to the parameters
+-- orthos always yields two vectors orthogonal to the parameters
 quickCheckOrthos :: IO ()
 quickCheckOrthos =
     do putStr "quickCheckOrthos: "

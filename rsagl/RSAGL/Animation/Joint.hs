@@ -6,7 +6,7 @@ import RSAGL.Math.Vector
 import RSAGL.Math.Affine
 import RSAGL.Math.Interpolation
 import RSAGL.Scene.CoordinateSystems
-import RSAGL.Math.Orthagonal
+import RSAGL.Math.Orthogonal
 import RSAGL.Types
 
 -- | The result of computing a joint.  It provides AffineTransformations that
@@ -48,6 +48,6 @@ joint bend shoulder joint_length hand = Joint {
         joint_arm_hand = modelLookAt hand (backward $ Left elbow) (up $ Right (Vector3D 0 1 0)) }
     where joint_offset = sqrt (joint_length^2 - (distanceBetween shoulder hand)^2) / 2
           joint_offset_vector = vectorScaleTo joint_offset $ transformation
-              (orthagonalFrame (forward $ vectorToFrom hand shoulder) (down bend)) (Vector3D 0 (-1) 0)
+              (orthogonalFrame (forward $ vectorToFrom hand shoulder) (down bend)) (Vector3D 0 (-1) 0)
           elbow = translate joint_offset_vector $ lerp 0.5 (shoulder,hand)
 

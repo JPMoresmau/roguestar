@@ -13,7 +13,7 @@ import RSAGL.Math.Vector
 import RSAGL.Math.Affine
 import Control.Applicative
 import RSAGL.Scene.CoordinateSystems
-import RSAGL.Math.Orthagonal
+import RSAGL.Math.Orthogonal
 import Data.Maybe
 import RSAGL.Types
 \end{code}

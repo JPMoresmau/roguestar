@@ -5,7 +5,7 @@ module RSAGL.Math (
     module RSAGL.Math.Curve,
     module RSAGL.Math.Interpolation,
     module RSAGL.Math.Matrix,
-    module RSAGL.Math.Orthagonal,
+    module RSAGL.Math.Orthogonal,
     module RSAGL.Math.Ray,
     module RSAGL.Math.RK4,
     module RSAGL.Math.Vector)
@@ -17,7 +17,7 @@ import RSAGL.Math.Angle
 import RSAGL.Math.Curve
 import RSAGL.Math.Interpolation
 import RSAGL.Math.Matrix
-import RSAGL.Math.Orthagonal
+import RSAGL.Math.Orthogonal
 import RSAGL.Math.Ray
 import RSAGL.Math.RK4
 import RSAGL.Math.Vector

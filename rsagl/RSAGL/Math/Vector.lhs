@@ -270,13 +270,13 @@ randomXYZ (lo,hi) g = (fromXYZ (f2f x,f2f y,f2f z),g')
 
 \subsection{Orthagonal Vectors}
 
-\texttt{fixOrtho a v} finds the vector, orthagonal to a, that has the least angle to v.
+\texttt{fixOrtho a v} finds the vector, orthogonal to a, that has the least angle to v.
 
 \texttt{fixOrtho2 right up} yields \texttt{(up,forward)}.
 
 \texttt{fixOrtho2Left right up} yields \texttt{(up,backward)}.
 
-\texttt{orthos} finds two arbitrary vectors orthagonal to the parameter.
+\texttt{orthos} finds two arbitrary vectors orthogonal to the parameter.
 
 \begin{code}
 fixOrtho :: Vector3D -> Vector3D -> Vector3D
