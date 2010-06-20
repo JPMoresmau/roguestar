@@ -26,6 +26,8 @@ import Control.Monad
 import Control.Concurrent.Chan
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
+import RSAGL.Modeling.Color
+import RSAGL.Modeling.RSAGLColors
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],
@@ -189,7 +191,7 @@ drawLines lines_to_print position =
 
 drawLine :: (TextType,B.ByteString) -> IO ()
 drawLine (textType,str) = do (Vertex4 x y _ _) <- get currentRasterPosition
-			     color $ textTypeToColor textType
+			     color $ colorToOpenGL $ textTypeToColor textType
 			     currentRasterPosition $= (Vertex4 x y 0 1)
 			     renderString font $ B.unpack str
 			     currentRasterPosition $= (Vertex4 x (y + fromIntegral font_height_pixels) 0 1)
@@ -199,10 +201,10 @@ restrictLines height width text_lines = reverse $ take height $ reverse $ concat
     where splitLongLines (_,l) | B.null l = []
 	  splitLongLines (textType,str) = (textType,B.take width str):(splitLongLines (textType,B.drop width str))
 
-textTypeToColor :: TextType -> Color3 GLfloat
-textTypeToColor UnexpectedEvent = Color3 1.0 0.5 0.0
-textTypeToColor Event =  Color3 0.5 0.75 1.0
-textTypeToColor Input =  Color3 0.5 1.0 0.5
-textTypeToColor Query =  Color3 1.0 1.0 1.0
-textTypeToColor Update = Color3 0.9 0.9 0.2
+textTypeToColor :: TextType -> RGB
+textTypeToColor UnexpectedEvent = orange
+textTypeToColor Event =  yellow
+textTypeToColor Input =  white
+textTypeToColor Query =  grey
+textTypeToColor Update = light_brown
 

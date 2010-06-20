@@ -38,10 +38,13 @@ eventMessager = proc () ->
 -- Parameters are:
 -- * The name of the event (\"attack-event\")
 -- * The handler for the event.
-messageState :: (FRPModel m) => B.ByteString -> MessageHandler e m () B.ByteString -> (B.ByteString,EventHandler e m () ())
+messageState :: (FRPModel m) =>
+                B.ByteString ->
+                MessageHandler e m () (TextType,B.ByteString) ->
+                (B.ByteString,EventHandler e m () ())
 messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
     do m_string <- runMaybeArrow actionA -< Just ()
-       printTextOnce -< fmap ((,) Event) m_string
+       printTextOnce -< m_string
        t <- threadTime -< ()
        let time_out = t > fromSeconds 3
        printTextOnce -< if time_out then Just (UnexpectedEvent,"Hmmmm . . . RogueStar is puzzled. (" `B.append` s `B.append` ")") else Nothing
@@ -49,11 +52,14 @@ messageState s actionA = (s,eventStateHeader (== s) >>> (proc () ->
 
 -- | As 'messageState', but just prints a simple string.
 messagePrompt :: (FRPModel m) => B.ByteString -> B.ByteString -> (B.ByteString,EventHandler e m () ())
-messagePrompt s prompt = messageState s $ arr (const prompt)
+messagePrompt s prompt = messageState s $ arr (const (Query,prompt))
 
--- | As 'messageState', but constructs an alternate message handler to be switched
--- via 'continueWith'.
-alternateMessage :: (FRPModel m) => B.ByteString -> MessageHandler e m () B.ByteString -> EventHandler e m () ()
+-- | As 'messageState', but constructs an alternate message handler to be
+-- switched via 'continueWith'.
+alternateMessage :: (FRPModel m) =>
+                    B.ByteString ->
+                    MessageHandler e m () (TextType,B.ByteString) ->
+                    EventHandler e m () ()
 alternateMessage s actionA = snd $ messageState s actionA
 
 -- | Provide a default value to substitute if a computation doesn't yield a value after the specified timeout period.
@@ -152,40 +158,57 @@ messages = [
                                else armedAttack
            guardA -< False
            returnA -< error "messageState: \"attack-event\" unreachable",
-    messageState "miss-event" $ proc () -> 
+    messageState "miss-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
-	   returnA -< sentence who_attacks X X $ "$You miss(es).",
-    messageState "killed-event" $ proc () -> 
+           returnA -< (Event,sentence who_attacks X X $ "$You miss(es)."),
+    messageState "killed-event" $ proc () ->
         do who_killed <- nameOf "who-killed" -< ()
-	   returnA -< sentence who_killed X X "$You $have been killed.",
+           returnA -< (Event,sentence who_killed X X "$You $have been killed."),
     messageState "weapon-overheats-event" $ proc () ->
        do who_surprised <- nameOf "who-attacks" -< ()
           player_hp_string <- playerHPString -< who_surprised
-          returnA -< (if who_surprised == You then "Ouch!  " else "") `B.append` (sentence who_surprised X X $ "$Your weapon overheats!" `B.append` player_hp_string),
+          returnA -< ((,) Event) $
+              (if who_surprised == You then "Ouch!  " else "") `B.append`
+              (sentence who_surprised X X $
+                  "$Your weapon overheats!" `B.append` player_hp_string),
     messageState "weapon-explodes-event" $ proc () ->
         do who_surprised <- nameOf "who-attacks" -< ()
            weapon_type <- detail "tool-type" <<< answer "weapon-used" -< ()
            player_hp_string <- playerHPString -< who_surprised
-           returnA -< sentence who_surprised X X $ (if who_surprised == You then "Ouch!  Frak!\n" else "") `B.append`
-                      "$Your weapon explodes in $(your) hand!" `B.append`
-                      (if who_surprised == You && weapon_type == "gun" 
-                          then "\nAre you sure you're qualified to operate a directed energy firearm?" else "") `B.append`
-                      (if who_surprised == You && weapon_type == "sword"
-                          then "\nDo you have ANY training with that thing?" else "") `B.append` player_hp_string,
+           returnA -< ((,) Event) $ sentence who_surprised X X $
+               (if who_surprised == You then "Ouch!  Frak!\n" else "")
+                   `B.append`
+               "$Your weapon explodes in $(your) hand!"
+                   `B.append`
+               (if who_surprised == You && weapon_type == "gun"
+                    then "\nAre you sure you're qualified to operate a "
+                             `B.append`
+                         "directed energy firearm?"
+                    else "")
+                   `B.append`
+               (if who_surprised == You && weapon_type == "sword"
+                    then "\nDo you have ANY training with that thing?" else "")
+                   `B.append`
+               player_hp_string,
     messageState "disarm-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
-           returnA -< sentence who_attacks who_hit X "$You disarm(s) $him!",
+           returnA -< (Event,
+               sentence who_attacks who_hit X "$You disarm(s) $him!"),
     messageState "sunder-event" $ proc () ->
         do who_attacks <- nameOf "who-attacks" -< ()
            who_hit <- nameOf "who-hit" -< ()
-           returnA -< sentence who_attacks who_hit X "$You sunder(s) $his weapon!",
+           returnA -< (Event,
+               sentence who_attacks who_hit X "$You sunder(s) $his weapon!"),
     messageState "heal-event" $ proc () ->
         do who_healed <- nameOf "who-event" -< ()
            player_hp_string <- playerHPString -< who_healed
-           returnA -< sentence who_healed X X "$You $have been healed!" `B.append` player_hp_string,
+           returnA -< (Event,
+               sentence who_healed X X "$You $have been healed!"
+                   `B.append`
+               player_hp_string),
     messageState "expend-tool-event" $ proc () ->
-        do returnA -< "That object has been used up.",
+        do returnA -< (Update,"That object has been used up."),
     messagePrompt "attack" "Attack.  Direction:",
     messagePrompt "fire"   "Fire.  Direction:",
     messagePrompt "move"   "Walk.  Direction:",
@@ -198,7 +221,10 @@ unarmedAttack = alternateMessage "attack-event" $ proc () ->
     do who_attacks <- nameOf "who-attacks" -< ()
        who_hit <- nameOf "who-hit" -< ()
        player_hp_string <- playerHPString -< who_hit
-       returnA -< sentence who_attacks who_hit X $ "$You strike(s) $him!" `B.append` player_hp_string
+       returnA -< (Event,
+           sentence who_attacks who_hit X $ "$You strike(s) $him!"
+                                                `B.append`
+                                            player_hp_string)
 
 armedAttack :: (FRPModel m) => EventHandler e m () ()
 armedAttack = alternateMessage "attack-event" $ proc () ->
@@ -208,9 +234,12 @@ armedAttack = alternateMessage "attack-event" $ proc () ->
        weapon_type <- detail "tool-type" -< weapon_used
        player_hp_string <- playerHPString -< who_hit
        returnA -< case weapon_type of
-           "gun" -> sentence who_attacks who_hit X $ "$You shoot(s) $him!" `B.append` player_hp_string
-           "sword" -> sentence who_attacks who_hit X $ "$You hit(s) $him!" `B.append` player_hp_string
-           _ -> sentence who_attacks who_hit X $ "$You attack(s) $him!" `B.append` player_hp_string
+           "gun" -> (Event, sentence who_attacks who_hit X $
+                        "$You shoot(s) $him!" `B.append` player_hp_string)
+           "sword" -> (Event, sentence who_attacks who_hit X $
+                        "$You hit(s) $him!" `B.append` player_hp_string)
+           _ -> (Event, sentence who_attacks who_hit X $
+                    "$You attack(s) $him!" `B.append` player_hp_string)
 
 -- | Generates a string for the hit points of a creature, if that information is available.
 playerHPString :: (FRPModel m) => MessageHandler e m Noun B.ByteString
