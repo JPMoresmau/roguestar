@@ -16,7 +16,7 @@ import RSAGL.Math.Vector
 import RSAGL.Modeling.Color as Color
 import RSAGL.Math.Affine
 import RSAGL.Scene.CoordinateSystems
-import Graphics.UI.GLUT as GLUT
+import Graphics.Rendering.OpenGL as GL
 import RSAGL.Types
 import Data.List as List
 import Data.Monoid
@@ -105,7 +105,7 @@ instance AffineTransformable LightSource where
 -- | Set OpenGL light sources starting from 0.
 setLightSourcesToOpenGL :: [LightSource] -> IO ()
 setLightSourcesToOpenGL lss =
-    do max_lights <- GLUT.get maxLights
+    do max_lights <- GL.get maxLights
        mapM_ setLightSourceToOpenGL $ genericTake max_lights $ zip (map Light [0..]) (lss ++ repeat NoLight)
 
 -- | Set one specific OpenGL light source.
@@ -116,7 +116,7 @@ setLightSourceToOpenGL (l,dl@DirectionalLight { lightsource_color = Color.RGB cr
     do let Vector3D vx vy vz = vectorNormalize $ lightsource_direction dl
        light l $= Enabled
        ambient l $= Color4 (f2f ar) (f2f ag) (f2f ab) 1.0
-       GLUT.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       GL.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
        diffuse l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
        position l $= Vertex4 (f2f vx) (f2f vy) (f2f vz) 0
        attenuation l $= (1,0,0)
@@ -125,7 +125,7 @@ setLightSourceToOpenGL (l,pl@(PointLight { lightsource_position = (Point3D px py
                                            lightsource_ambient = Color.RGB ar ag ab })) =
     do light l $= Enabled
        ambient l $= Color4 (f2f ar) (f2f ag) (f2f ab) 1.0
-       GLUT.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
+       GL.specular l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
        diffuse l $= Color4 (f2f cr) (f2f cg) (f2f cb) 1.0
        position l $= Vertex4 (f2f px) (f2f py) (f2f pz) 1
        attenuation l $= (0.01,0,f2f $ recip $ distanceSquared $ lightsource_radius pl)

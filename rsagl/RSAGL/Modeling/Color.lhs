@@ -27,7 +27,8 @@ module RSAGL.Modeling.Color
     where
 
 import Control.Parallel.Strategies
-import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
+import Graphics.Rendering.OpenGL.Raw.Core31 (GLdouble,GLfloat)
+import Graphics.Rendering.OpenGL hiding (RGB,RGBA)
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Interpolation
 import RSAGL.Types

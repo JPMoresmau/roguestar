@@ -15,6 +15,7 @@ install-deps:
 	cabal install vector ${OPTS}
 	cabal install statistics ${OPTS}
 	cabal install priority-sync ${OPTS}
+	cabal install Vec-OpenGLRaw ${OPTS}
 
 clean:
 	-rm -rf ./roguestar-local

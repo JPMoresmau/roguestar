@@ -44,7 +44,7 @@ import Data.List
 import Control.Monad.State as State
 import Control.Arrow
 import Control.Arrow.Operations
-import Graphics.UI.GLUT as GLUT
+import Graphics.Rendering.OpenGL as GL
 import Data.Maybe
 import RSAGL.Math.WrappedAffine
 import RSAGL.Math.Orthogonal
@@ -219,12 +219,12 @@ sceneToOpenGL aspect_ratio nearfar s =
 
 render1Layer :: RSdouble -> (RSdouble,RSdouble) -> Scene -> SceneLayer -> IO ()
 render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
-    do save_rescale_normal <- GLUT.get rescaleNormal
-       save_cull_face <- GLUT.get cullFace
-       save_depth_func <- GLUT.get depthFunc
-       save_depth_mask <- GLUT.get depthMask
-       save_lighting <- GLUT.get lighting
-       save_light_model_ambient <- GLUT.get lightModelAmbient
+    do save_rescale_normal <- GL.get rescaleNormal
+       save_cull_face <- GL.get cullFace
+       save_depth_func <- GL.get depthFunc
+       save_depth_mask <- GL.get depthMask
+       save_lighting <- GL.get lighting
+       save_light_model_ambient <- GL.get lightModelAmbient
        rescaleNormal $= Enabled
        cullFace $= Just Front
        depthFunc $= Just Lequal
@@ -232,7 +232,7 @@ render1Layer aspect_ratio nearfar (Scene elems layerToCamera) n =
        lighting $= Enabled
        lightModelAmbient $= (Color4 0 0 0 1)
        clear [DepthBuffer]
-       preservingMatrix $ 
+       preservingMatrix $
            do cameraToOpenGL aspect_ratio nearfar (layerToCamera n)
               mapM_ render1Element $ fromMaybe [] $ Map.lookup (n,True) elems
               depthMask $= Disabled

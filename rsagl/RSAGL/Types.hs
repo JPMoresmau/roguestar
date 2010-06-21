@@ -1,17 +1,46 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module RSAGL.Types
-    (RSfloat,RSdouble,toGLfloat,toGLdouble,fromGLfloat,fromGLdouble,f2f,GLUT.GLfloat,GLUT.GLdouble)
+    (RSfloat,
+     RSdouble,
+     toGLfloat,
+     toGLdouble,
+     fromGLfloat,
+     fromGLdouble,
+     f2f)
     where
 
-import Graphics.UI.GLUT as GLUT
+import Graphics.Rendering.OpenGL.Raw.Core31
 import Data.Vec as Vec
+import Data.Vec.OpenGLRaw
 import System.Random
 import Control.Arrow
 
 newtype RSfloat = RSfloat GLfloat
-    deriving (Enum,Eq,Floating,Fractional,Num,Ord,Read,Real,RealFloat,RealFrac,Show)
+    deriving (Enum,
+              Eq,
+              Floating,
+              Fractional,
+              Num,
+              Ord,
+              Read,
+              Real,
+              RealFloat,
+              RealFrac,
+              Show,
+              NearZero)
 newtype RSdouble = RSdouble GLdouble
-    deriving (Enum,Eq,Floating,Fractional,Num,Ord,Read,Real,RealFloat,RealFrac,Show)
+    deriving (Enum,
+              Eq,
+              Floating,
+              Fractional,
+              Num,
+              Ord,
+              Read,
+              Real,
+              RealFloat,
+              RealFrac,
+              Show,
+              NearZero)
 
 toGLfloat :: RSfloat -> GLfloat
 toGLfloat (RSfloat x) = x
@@ -30,14 +59,6 @@ fromGLdouble = RSdouble
 f2f :: (RealFloat a,RealFloat b) => a -> b
 f2f = uncurry encodeFloat . decodeFloat
 {-# INLINE f2f #-}
-
-instance NearZero RSfloat where
-    nearZero x = abs x < 1e-6
-    {-# INLINE nearZero #-}
-
-instance NearZero RSdouble where
-    nearZero x = abs x < 1e-14
-    {-# INLINE nearZero #-}
 
 instance Random RSfloat where
     randomR (lo,hi) g = first f2f $ randomR (f2f lo, f2f hi :: Float) g
