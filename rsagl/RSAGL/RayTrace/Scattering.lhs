@@ -66,21 +66,21 @@ model absorbed light isn't re-scattered, resulting in wrong colors.
 
 \begin{code}
 achromaticAbsorbtion :: Scattering -> Scattering
-achromaticAbsorbtion = mapAbsorbtion (gray . meanBrightness)
+achromaticAbsorbtion = mapAbsorbtion (grayscale . meanBrightness)
 \end{code}
 
 \texttt{withoutAbsorbtion} removes all absorbtion from a \texttt{Scattering} media.
 
 \begin{code}
 withoutAbsorbtion :: Scattering -> Scattering
-withoutAbsorbtion = mapAbsorbtion (const $ gray 1)
+withoutAbsorbtion = mapAbsorbtion (const $ grayscale 1)
 \end{code}
 
 \texttt{withoutScattering} removes all scattering from a \texttt{Scattering} media.
 
 \begin{code}
 withoutScattering :: Scattering -> Scattering
-withoutScattering = mapScattering (const $ gray 0)
+withoutScattering = mapScattering (const $ grayscale 0)
 \end{code}
 
 \texttt{absorbtionOverDistance} takes a distance and the filter color of the absorbion media
@@ -117,7 +117,7 @@ traceScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> Sam
 traceScattering scatteringF lightingF samplingF source destination number_of_samples = 
     foldl' (\(summed_scattering,summed_absorbtion) (this_scattering,this_absorbtion) -> (addRGB summed_scattering (filterRGB summed_absorbtion this_scattering),
                                                                                          filterRGB summed_absorbtion this_absorbtion))
-	   (gray 0,gray 1) $ sampleScattering scatteringF lightingF samplingF source destination number_of_samples
+	   (grayscale 0,grayscale 1) $ sampleScattering scatteringF lightingF samplingF source destination number_of_samples
 
 sampleScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> SamplingAlgorithm (RGB,RGB) -> Point3D -> Point3D -> Samples [(RGB,RGB)]
 sampleScattering scatteringF lightingF sampleF source destination = sampleF (\d p -> (scatteredLightAt d p,absorbedLightAt d p))
@@ -138,7 +138,7 @@ a total absorbtion along that line segment.  For a constant medium, a single sam
 \begin{code}
 traceAbsorbtion :: (Point3D -> Scattering) -> SamplingAlgorithm RGB -> Point3D -> Point3D -> Samples RGB
 traceAbsorbtion scatteringF samplingF source destination number_of_samples =
-    foldr filterRGB (gray 1) $ samplingF (\d p -> absorbtionOverDistance d $ scattering_absorb $ scatteringF p) source destination number_of_samples
+    foldr filterRGB (grayscale 1) $ samplingF (\d p -> absorbtionOverDistance d $ scattering_absorb $ scatteringF p) source destination number_of_samples
 \end{code}
 
 \subsection{Sampling}
@@ -215,7 +215,7 @@ This is an inelastic medium that always features achromatic absorbtion.
 \begin{code}
 dust :: RSdouble -> RGB -> Scattering
 dust d c = adjustDistance d $ Scattering {
-    scattering_absorb = gray 0.5,
+    scattering_absorb = grayscale 0.5,
     scattering_scatter = flip scaleRGB c . (*0.5) . (1-) . (*2) . f2f . toRotations_ }
 \end{code}
 
@@ -283,8 +283,8 @@ elasticOmnidirectionalScatter d c = adjustDistance d $ Scattering {
 \begin{code}
 instance Monoid Scattering where
     mempty = Scattering {
-        scattering_absorb = gray 1.0,
-        scattering_scatter = const $ gray 0 }
+        scattering_absorb = grayscale 1.0,
+        scattering_scatter = const $ grayscale 0 }
     x `mappend` y = Scattering {
         scattering_absorb = scattering_absorb x `filterRGB` scattering_absorb y,
         scattering_scatter = \u -> scattering_scatter x u `addRGB` scattering_scatter y u }

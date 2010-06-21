@@ -78,7 +78,7 @@ rawSkyFilter = const $ Just id
 --
 dynamicSkyFilter :: RSdouble -> RSdouble -> SkyFilter
 dynamicSkyFilter max_black min_white origF = case () of
-                                () | min_color > 0 -> Just $ filterRGBLinear (gray min_color) (gray max_color)
+                                () | min_color > 0 -> Just $ filterRGBLinear (grayscale min_color) (grayscale max_color)
                                 () | otherwise -> Nothing
     where max_color = foldr (\(RGB r g b) x -> max (max r g) (max b x)) min_white cs
 	  min_color = foldr (\(RGB r g b) x -> minimum $ filter (/= 0) [r,g,b,x]) max_black cs
@@ -91,8 +91,8 @@ atmosphereLayerToScatteringModel :: AtmosphereLayer -> Scattering
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Air }) = 
      rayleigh (atmosphere_altitude l / atmosphere_thickness l) rayleigh_sky
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Vapor }) = mconcat [
-    elasticOmnidirectionalScatter (atmosphere_altitude l / atmosphere_thickness l) (gray $ meanBrightness rayleigh_sky),
-    elasticForwardScatter (atmosphere_altitude l / atmosphere_thickness l) (fromDegrees 30) (gray $ meanBrightness rayleigh_sky)]
+    elasticOmnidirectionalScatter (atmosphere_altitude l / atmosphere_thickness l) (grayscale $ meanBrightness rayleigh_sky),
+    elasticForwardScatter (atmosphere_altitude l / atmosphere_thickness l) (fromDegrees 30) (grayscale $ meanBrightness rayleigh_sky)]
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Dust c }) = 
     dust (f2f $ atmosphere_altitude l / atmosphere_thickness l) c
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Fog c }) = 
@@ -115,7 +115,7 @@ castSkyRay test_sphere a f r = case map (sv3d_position . snd) $ sortBy (comparin
 
 -- | Calculate the amount of absorbtion along a specific ray inside a single 'AtmosphereLayer'.
 atmosphereLayerAbsorbtion :: AtmosphereLayer -> Ray3D -> RGB
-atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 1) absorbF r
+atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (grayscale 1) absorbF r
     where absorbF p_near p_far = postFilter $ traceAbsorbtion (const $ scattering_model) linearSamples p_near p_far 1
           postFilter = case atmosphere_composition l of
 	                    Air -> maximizeRGB
@@ -124,7 +124,7 @@ atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphe
 
 -- | Calculate the amount of scattering along a specific ray inside a single 'AtmosphereLayer' given the position and color of a single sun.
 atmosphereLayerScattering :: AtmosphereLayer -> (Vector3D,RGB) -> Ray3D -> RGB
-atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (gray 0) scatterF r
+atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (grayscale 0) scatterF r
     where scatterF p_near p_far = fst $ traceScattering (const scattering_model) 
               (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) adaptiveSamples p_near p_far $
                   round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
@@ -135,12 +135,12 @@ atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin
 
 -- | Aggrigated absorbtion from multiple 'AtmosphereLayers'.
 atmosphereAbsorbtion :: Atmosphere -> Point3D -> Vector3D -> RGB
-atmosphereAbsorbtion atm p v = foldr filterRGB (gray 1) $ map ($ Ray3D p v) absorbFs
+atmosphereAbsorbtion atm p v = foldr filterRGB (grayscale 1) $ map ($ Ray3D p v) absorbFs
     where absorbFs = map atmosphereLayerAbsorbtion atm
 
 -- | Aggrigated scattering from multiple 'AtmosphereLayers' and multiple suns.
 atmosphereScattering :: Atmosphere -> [(Vector3D,RGB)] -> Point3D -> Vector3D -> RGB
-atmosphereScattering atm_ suns p v_ = foldr addRGB (gray 0) $ map ($ v_) scatterFs
+atmosphereScattering atm_ suns p v_ = foldr addRGB (grayscale 0) $ map ($ v_) scatterFs
      where atm = reverse $ sortBy (comparing atmosphere_altitude) atm_
            scatterFs = 
               do (this_layer,sun_absorbtion_layers,post_absorbtion_layers) <- zip3 atm (inits atm) (drop 1 $ tails atm)

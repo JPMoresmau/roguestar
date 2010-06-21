@@ -67,8 +67,8 @@ phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
                    Just t | t < 1.0 -> PointLight {
                        lightsource_position = Point3D 0 0 $ 0.15 + t*t*realToFrac weapon_size,
                        lightsource_radius = measure (Point3D 0 0 $ 0.5*realToFrac weapon_size) (Point3D 0 0 0),
-                       lightsource_color = gray $ 1.0 - t,
-                       lightsource_ambient = gray $ (1.0 - t)^2 }
+                       lightsource_color = grayscale $ 1.0 - t,
+                       lightsource_ambient = grayscale $ (1.0 - t)^2 }
                    _ | otherwise -> NoLight)
                returnA -< ()
 

@@ -63,7 +63,7 @@ medium_atmosphere :: Atmosphere
 medium_atmosphere = [
     AtmosphereLayer Air   0.75 9.0e-4,
     AtmosphereLayer Vapor 0.25 2.5e-4,
-    AtmosphereLayer (Dust $ gray 0.5) 0.01 1.0e-4 ]
+    AtmosphereLayer (Dust $ grayscale 0.5) 0.01 1.0e-4 ]
 
 thin_atmosphere :: Atmosphere
 thin_atmosphere = [
@@ -74,7 +74,7 @@ thick_atmosphere :: Atmosphere
 thick_atmosphere = [
     AtmosphereLayer Air 1.5 9.0e-4,
     AtmosphereLayer Vapor 1.0 2.5e-4,
-    AtmosphereLayer (Dust $ gray 0.5) 0.02 1.0e-4 ]
+    AtmosphereLayer (Dust $ grayscale 0.5) 0.02 1.0e-4 ]
 
 arid_atmosphere :: Atmosphere
 arid_atmosphere = [
@@ -104,7 +104,7 @@ sunVector sky_info =
 -- | Apparent temperature of a color in kelvins.
 temperatureColor :: Integer -> RGB
 temperatureColor kelvins = lerpBetweenClamped (770,realToFrac kelvins,1060) 
-                                         (gray 0,maximizeRGB $ blackBodyRGB $ realToFrac kelvins)
+                                         (grayscale 0,maximizeRGB $ blackBodyRGB $ realToFrac kelvins)
 
 -- | Apparent color of light comming from the sun.
 sunColor :: SunInfo -> RGB
@@ -190,7 +190,7 @@ makeSun sun_info = model $
                [(0.0,pure $ temperatureColor $ t + 700),(0.5,pure $ temperatureColor t),(1.0,pure $ temperatureColor $ t - 700)]
        perspectiveSphere (Point3D 0 (-10) 0) size origin_point_3d
        material $ 
-           do pigment $ pure $ gray 0
+           do pigment $ pure $ grayscale 0
 	      emissive $ pattern (spherical (Point3D 0 (size-10) 0) size) [(0.0,temperaturePattern temp),
                                                                            (0.5,temperaturePattern $ temp - 200),
                                                                            (0.75,temperaturePattern $ temp - 500),

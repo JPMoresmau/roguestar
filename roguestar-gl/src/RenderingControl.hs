@@ -117,13 +117,13 @@ planarGameplayDispatch = proc () ->
                     mapLightSource (mapBoth $ scaleRGB artificial_light_intensity) $ PointLight {
                         lightsource_position = camera_position planar_camera,
                         lightsource_radius = measure (camera_position planar_camera) lookat,
-                        lightsource_color = gray 0.8,
-                        lightsource_ambient = gray 0.2 }
+                        lightsource_color = grayscale 0.8,
+                        lightsource_ambient = grayscale 0.2 }
            () | artificial_light_intensity > 0.05 -> PointLight {
                         lightsource_position = camera_position planar_camera,
                         lightsource_radius = measure (camera_position planar_camera) lookat,
-                        lightsource_color = gray 0.5,
-                        lightsource_ambient = gray 0.5 }
+                        lightsource_color = grayscale 0.5,
+                        lightsource_ambient = grayscale 0.5 }
            () | otherwise -> NoLight)
        returnA -< roguestarSceneLayerInfo (skyAbsorbtionFilter sky_info) planar_camera
 

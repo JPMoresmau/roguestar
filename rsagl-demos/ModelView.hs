@@ -329,5 +329,5 @@ sky :: Modeling ()
 sky = model $
     do skyHemisphere (Point3D 0 0 0) (Vector3D 0 1 0) 1.0
        affine $ scale $ Vector3D 5 1 5
-       material $ atmosphereScatteringMaterial earth_atmosphere [(rotate (Vector3D 0 0 1) (fromTimeOfDayHMS 0 15 0) $ Vector3D 1 0 0,gray 1)] (dynamicSkyFilter 0.2 1.0)
+       material $ atmosphereScatteringMaterial earth_atmosphere [(rotate (Vector3D 0 0 1) (fromTimeOfDayHMS 0 15 0) $ Vector3D 1 0 0,grayscale 1)] (dynamicSkyFilter 0.2 1.0)
 
