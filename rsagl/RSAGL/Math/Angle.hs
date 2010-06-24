@@ -38,10 +38,10 @@ import RSAGL.Math.AbstractVector
 import RSAGL.Types
 
 -- | An angular value.
-newtype Angle = Radians RSdouble deriving (Show)
+newtype Angle = Radians RSdouble deriving (Read,Show)
 
 -- | An angular value.  'BoundAngle's are always in the range between -180 and 180 degrees, inclusive.
-newtype BoundAngle = BoundAngle Angle deriving (Show)
+newtype BoundAngle = BoundAngle Angle deriving (Read,Show)
 
 zero_angle :: Angle
 zero_angle = Radians 0
