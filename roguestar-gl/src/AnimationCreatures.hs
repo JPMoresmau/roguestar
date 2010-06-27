@@ -7,7 +7,7 @@ module AnimationCreatures
 import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Animation
-import RSAGL.Modeling.RSAGLColors
+import RSAGL.Color.RSAGLColors
 import Animation
 import Control.Arrow
 import Data.Maybe

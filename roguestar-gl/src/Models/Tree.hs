@@ -3,6 +3,7 @@ module Models.Tree
     where
 
 import RSAGL.Modeling
+import RSAGL.Color.RSAGLColors
 import RSAGL.Math
 
 leafy_blob :: ModelingM () ()

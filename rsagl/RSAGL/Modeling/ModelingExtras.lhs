@@ -26,7 +26,6 @@ module RSAGL.Modeling.ModelingExtras
      ColorFunction,
      Pattern,
      dropRandomElements,
-     module RSAGL.Modeling.RSAGLColors,
      module RSAGL.Modeling.Material,
      module RSAGL.Auxiliary.ApplicativeWrapper,
      module Control.Applicative)
@@ -34,7 +33,8 @@ module RSAGL.Modeling.ModelingExtras
 
 import Graphics.Rendering.OpenGL.GL hiding (translate,rotate,scale,specular)
 import RSAGL.Modeling.Noise
-import RSAGL.Modeling.RSAGLColors
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
 import RSAGL.Math.Vector
@@ -47,6 +47,7 @@ import Data.Monoid
 import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Angle
 import RSAGL.Math.Ray
+import RSAGL.Math.AbstractVector
 import RSAGL.Types
 \end{code}
 
@@ -115,7 +116,7 @@ type ColorFunction a = ApplicativeWrapper ((->) SurfaceVertex3D) a
 
 type Pattern = SurfaceVertex3D -> RSdouble
 
-pattern :: (ColorClass a) => Pattern -> [(GLfloat,ColorFunction a)] -> ColorFunction a
+pattern :: (AbstractVector a) => Pattern -> [(RSfloat,ColorFunction a)] -> ColorFunction a
 pattern _ [(_,constant_pattern)] = constant_pattern
 pattern f color_map = wrapApplicative (\sv3d -> toApplicative (lerpMap color_map $ f2f $ f sv3d) $ sv3d)
 
@@ -147,7 +148,7 @@ gradient center vector (SurfaceVertex3D p _) = distanceAlong (Ray3D center vecto
 \begin{code}
 glass :: RGBFunction -> MaterialM attr ()
 glass rgbf =
-    do transparent $ (alpha 0.05) <$> rgbf
+    do transparent $ (alpha 0.05 . transformColor) <$> rgbf
        specular 100 $ (\rgb_color -> curry (lerp (subjectiveBrightness rgb_color)) rgb_color white) <$> rgbf
 
 plastic :: RGBFunction -> MaterialM attr ()

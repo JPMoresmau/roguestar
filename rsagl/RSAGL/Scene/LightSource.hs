@@ -13,8 +13,9 @@ module RSAGL.Scene.LightSource
     where
 
 import RSAGL.Math.Vector
-import RSAGL.Modeling.Color as Color
+import RSAGL.Color as Color
 import RSAGL.Math.Affine
+import RSAGL.Math.AbstractVector
 import RSAGL.Scene.CoordinateSystems
 import Graphics.Rendering.OpenGL as GL
 import RSAGL.Types
@@ -43,8 +44,8 @@ data LightSource =
 skylight :: Vector3D -> Color.RGB -> LightSource
 skylight v c = DirectionalLight {
     lightsource_direction = v,
-    lightsource_color = scaleRGB 0.7208681020859709 c,
-    lightsource_ambient = scaleRGB 0.27913189791402915 c }
+    lightsource_color = scalarMultiply 0.7208681020859709 c,
+    lightsource_ambient = scalarMultiply 0.27913189791402915 c }
 
 -- | 'True' if a light is 'NoLight'.
 isNoLight :: LightSource -> Bool
@@ -91,8 +92,8 @@ infiniteLightSourceOf NoLight = NoLight
 infiniteLightSourceOf (d@(DirectionalLight {})) = d
 infiniteLightSourceOf (p@PointLight {}) = DirectionalLight {
     lightsource_direction = vectorToFrom (lightsource_position p) origin_point_3d,
-    lightsource_color = scaleRGB scale_factor $ lightsource_color p,
-    lightsource_ambient = scaleRGB scale_factor $ lightsource_ambient p }
+    lightsource_color = scalarMultiply scale_factor $ lightsource_color p,
+    lightsource_ambient = scalarMultiply scale_factor $ lightsource_ambient p }
         where scale_factor = f2f $ (distanceSquared $ lightsource_radius p) / (distanceBetweenSquared origin_point_3d (lightsource_position p))
 
 instance AffineTransformable LightSource where

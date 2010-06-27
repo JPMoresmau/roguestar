@@ -26,9 +26,10 @@ module RSAGL.RayTrace.Scattering
     where
 
 import RSAGL.Math.Vector
-import RSAGL.Modeling.Color
+import RSAGL.Color
 import RSAGL.Math.Angle
 import RSAGL.Math.Interpolation
+import RSAGL.Math.AbstractVector
 import RSAGL.Auxiliary.Auxiliary
 import Data.Monoid
 import Data.List
@@ -51,7 +52,7 @@ will absorb 50% of light passing through 6 units of distance.
 adjustDistance :: RSdouble -> Scattering -> Scattering
 adjustDistance d s = Scattering {
     scattering_absorb = mapRGB (** (recip d)) $ scattering_absorb s,
-    scattering_scatter = scaleRGB (recip d) . scattering_scatter s }
+    scattering_scatter = scalarMultiply (recip d) . scattering_scatter s }
 
 mapAbsorbtion :: (RGB -> RGB) -> Scattering -> Scattering
 mapAbsorbtion f s = s { scattering_absorb = f $ scattering_absorb s }
@@ -96,7 +97,7 @@ through a distance of 1, and answers the resulting light being emitted through t
 
 \begin{code}
 emissionOverDistance :: RSdouble -> RGB -> RGB
-emissionOverDistance trace_distance emit_rgb = scaleRGB trace_distance emit_rgb
+emissionOverDistance trace_distance emit_rgb = scalarMultiply trace_distance emit_rgb
 \end{code}
 
 \texttt{traceScattering} generates a pair (scattered light color,absorbtion filter color) by taking many samples of a
@@ -115,7 +116,7 @@ The second element of the result is normally the same as would be generated from
 \begin{code}
 traceScattering :: (Point3D -> Scattering) -> (Point3D -> (Vector3D,RGB)) -> SamplingAlgorithm (RGB,RGB) -> Point3D -> Point3D -> Samples (RGB,RGB)
 traceScattering scatteringF lightingF samplingF source destination number_of_samples = 
-    foldl' (\(summed_scattering,summed_absorbtion) (this_scattering,this_absorbtion) -> (addRGB summed_scattering (filterRGB summed_absorbtion this_scattering),
+    foldl' (\(summed_scattering,summed_absorbtion) (this_scattering,this_absorbtion) -> (add summed_scattering (filterRGB summed_absorbtion this_scattering),
                                                                                          filterRGB summed_absorbtion this_absorbtion))
 	   (grayscale 0,grayscale 1) $ sampleScattering scatteringF lightingF samplingF source destination number_of_samples
 
@@ -216,7 +217,7 @@ This is an inelastic medium that always features achromatic absorbtion.
 dust :: RSdouble -> RGB -> Scattering
 dust d c = adjustDistance d $ Scattering {
     scattering_absorb = grayscale 0.5,
-    scattering_scatter = flip scaleRGB c . (*0.5) . (1-) . (*2) . f2f . toRotations_ }
+    scattering_scatter = flip scalarMultiply c . (*0.5) . (1-) . (*2) . f2f . toRotations_ }
 \end{code}
 
 \texttt{fog} is a colored media that scatters and absorbs the same color.  \texttt{fog}
@@ -240,7 +241,7 @@ rayleigh_sky = rgb 0.06 0.10 0.23
 rayleigh :: RSdouble -> RGB -> Scattering
 rayleigh d c = adjustDistance d $ Scattering {
     scattering_absorb = invertRGB c,
-    scattering_scatter = \theta -> scaleRGB ((1 + f2f (cosine theta)^2)*0.75 ) c }
+    scattering_scatter = \theta -> scalarMultiply ((1 + f2f (cosine theta)^2)*0.75 ) c }
 \end{code}
 
 \texttt{elasticBackScatter} throws light back at the light source within a spcified cone.
@@ -252,11 +253,11 @@ as much energy as other \texttt{Scattering} media.
 elasticBackScatter :: RSdouble -> Angle -> RGB -> Scattering
 elasticBackScatter d a c_ = adjustDistance d $ Scattering {
     scattering_absorb = invertRGB c,
-    scattering_scatter = \theta -> scaleRGB (f2f $ max 0 $ n*(r - (toRadians_ theta)^2)) c }
+    scattering_scatter = \theta -> scalarMultiply (f2f $ max 0 $ n*(r - (toRadians_ theta)^2)) c }
         where r_ = toRadians a
               r = r_^2
 	      n = recip $ (1 + r/2 - sin(r_)*r_ - cos(r_))
-	      c = scaleRGB (f2f $ (toRotations a * 4)^2) c_
+	      c = scalarMultiply (f2f $ (toRotations a * 4)^2) c_
 \end{code}
 
 \texttt{elasticForwardScatter} is the reverse of \texttt{elasticBackScatter}.  Use this
@@ -287,7 +288,7 @@ instance Monoid Scattering where
         scattering_scatter = const $ grayscale 0 }
     x `mappend` y = Scattering {
         scattering_absorb = scattering_absorb x `filterRGB` scattering_absorb y,
-        scattering_scatter = \u -> scattering_scatter x u `addRGB` scattering_scatter y u }
+        scattering_scatter = \u -> scattering_scatter x u `add` scattering_scatter y u }
     mconcat [] = mempty
     mconcat [x] = x
     mconcat xs = mconcat a `mappend` mconcat b

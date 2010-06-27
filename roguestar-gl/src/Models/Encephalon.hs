@@ -6,6 +6,7 @@ import Quality
 import RSAGL.Math
 import RSAGL.Math.CurveExtras
 import RSAGL.Modeling
+import RSAGL.Color.RSAGLColors
 import Models.Materials
 
 encephalon_head :: Quality -> Modeling ()

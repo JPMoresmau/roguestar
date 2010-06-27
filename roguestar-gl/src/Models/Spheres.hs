@@ -9,12 +9,14 @@ import RSAGL.Modeling
 import RSAGL.Math
 import Models.Materials
 import Models.LibraryData
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 
 -- | An empty (or transparent) gas sphere.
 gasSphere :: Quality -> Modeling ()
 gasSphere _ = model $
     do sphere (Point3D 0 0.06 0) 0.06
-       material $ 
+       material $
            do transparent $ pure $ rgba 0.9 0.9 0.9 0.25
               specular 10 $ pure white
 

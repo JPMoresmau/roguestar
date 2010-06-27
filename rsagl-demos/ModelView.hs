@@ -16,6 +16,8 @@ import RSAGL.Math
 import RSAGL.RayTrace.RayTrace as RT
 import RSAGL.Extras.Sky
 import RSAGL.Math.CurveExtras
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 import Control.Monad
 import System.Exit
 import Control.Arrow
@@ -56,7 +58,7 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
            accumulateSceneA -< (std_scene_layer_local,
                lightSource $ PointLight (Point3D 0 0 0)
                                         (measure (Point3D 0 0 0) (Point3D 0 6 0))
-                                        (scaleRGB 0.5 white)
+                                        (scalarMultiply 0.5 white)
                                         blackbody)
            orb_legs -< ()
            returnA -< ()
@@ -120,7 +122,7 @@ testScene =
                          sceneObject $ return qo_sky
                      accumulateSceneM (std_scene_layer_infinite+1) $
                          lightSource $ skylight (Vector3D 0 1 0)
-                                                (scaleRGB 0.25 periwinkle)
+                                                (scalarMultiply 0.25 periwinkle)
                      accumulateSceneM (std_scene_layer_infinite+1) $
                          sceneObject $ return qo_ground
               transformM (affineOf $ Affine.translate (Vector3D 0 1 (-4)) .
@@ -140,7 +142,7 @@ testScene =
                              Vector3D 1 (-1) (-1)) white blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $
 		         lightSource $ DirectionalLight (vectorNormalize $
-                             Vector3D (-1) 1 1) (scaleRGB 0.5 red) blackbody
+                             Vector3D (-1) 1 1) (scalarMultiply 0.5 red) blackbody
                      accumulateSceneM (std_scene_layer_infinite+2) $
 		         sceneObject $ return qo_ring
                      runAnimationObject ao_moon_orbit $ return qo_moon
@@ -208,7 +210,7 @@ rsaglTimerCallback window =
 ring :: Modeling ()
 ring = model $ do openDisc origin_point_3d (Vector3D 0 1 0) 0.75 1.0
                   material $
-		      do transparent $ pure $ alpha 0.25 purple
+		      do transparent $ pure $ alpha 0.25 $ transformColor purple
                          specular 2 $ pure purple
                   bumps $ waves 0.2 0.01
                   twoSided True
@@ -228,7 +230,7 @@ planet = model $
                   [(0.0,inner_core),(0.25,inner_core),(0.5,outer_core),(0.95,outer_core),(1.0,crust)]
        material $
            do pigment $ planet_interior (pure blackbody) (pure blackbody) $ cities (pure black) planet_surface
-              emissive $ planet_interior (pure yellow) (pure red) $ cities (pure $ scaleRGB 0.2 white) (pure blackbody)
+              emissive $ planet_interior (pure yellow) (pure red) $ cities (pure $ scalarMultiply 0.2 white) (pure blackbody)
               specular 20 $ planet_interior (pure blackbody) (pure blackbody) $ land_vs_water (pure blackbody) (pure white)
 
 moon :: Modeling ()
@@ -308,7 +310,7 @@ orb = model $
 glow_orb :: Modeling ()
 glow_orb = translate (Vector3D 0 1 0) $
     do closedDisc (Point3D 0 0 0) (Vector3D 0 1 0) 1
-       material $ emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scaleRGB 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
+       material $ emissive $ pattern (spherical (Point3D 0 0 0) 1) [(0.0,pure $ scalarMultiply 1.5 white),(0.25,pure white),(0.95,pure blackbody)]
 
 orb_upper_leg :: Modeling ()
 orb_upper_leg = model $

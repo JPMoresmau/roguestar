@@ -8,6 +8,7 @@ import Globals
 import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Modeling
+import RSAGL.Color
 import Animation
 import Control.Arrow
 import Data.Maybe
@@ -114,7 +115,7 @@ planarGameplayDispatch = proc () ->
        sky_on <- readGlobal global_sky_on -< ()
        accumulateSceneA -< (scene_layer_local, lightSource $ case () of
            () | artificial_light_intensity > 0.05 && sky_on ->
-                    mapLightSource (mapBoth $ scaleRGB artificial_light_intensity) $ PointLight {
+                    mapLightSource (mapBoth $ scalarMultiply artificial_light_intensity) $ PointLight {
                         lightsource_position = camera_position planar_camera,
                         lightsource_radius = measure (camera_position planar_camera) lookat,
                         lightsource_color = grayscale 0.8,

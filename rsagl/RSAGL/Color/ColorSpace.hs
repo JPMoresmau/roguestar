@@ -1,11 +1,12 @@
 module RSAGL.Color.ColorSpace
     (ColorSpace(..),
-     Color(..),
+     ImportColorCoordinates(..),
+     ExportColorCoordinates(..),
      AffineColorSpace,
      ColorWheel,
      color_space_rgb,
      color_wheel_rgbl,
-     transformColorToFrom,
+     transformColorFromTo,
      transformColor)
     where
 
@@ -18,12 +19,22 @@ newtype AffineColorSpace = AffineColorSpace Matrix
 -- | A rotatable color space.
 newtype ColorWheel = ColorWheel Matrix
 
+-- | A color space specification or color type that has an associated
+-- color space.
 class ColorSpace cs where
     affineColorSpaceOf :: cs -> AffineColorSpace
 
-class (ColorSpace c) => Color c where
-    toColorCoordinates :: c -> (RSdouble,RSdouble,RSdouble)
-    fromColorCoordinates :: (RSdouble,RSdouble,RSdouble) -> c
+-- | A color type that can export its color coordinates.
+-- An easy implementation is
+-- @transformColorFromTo your_color_space your_color_coordinates@
+class ExportColorCoordinates c where
+    exportColorCoordinates ::
+        c -> AffineColorSpace -> (RSdouble,RSdouble,RSdouble)
+
+-- | A color type that can import its color coordinates.
+class ImportColorCoordinates c where
+    importColorCoordinates ::
+        (AffineColorSpace -> (RSdouble,RSdouble,RSdouble)) -> c
 
 instance ColorSpace AffineColorSpace where
     affineColorSpaceOf = id
@@ -46,22 +57,24 @@ color_wheel_rgbl = ColorWheel $ matrixInverse $ matrix $
 color_space_rgb :: AffineColorSpace
 color_space_rgb = AffineColorSpace $ identity_matrix
 
--- | Transform order triples between color spaces.
-transformColorToFrom :: AffineColorSpace ->
-                        AffineColorSpace ->
+-- | Transform ordered triples between color spaces.
+transformColorFromTo :: AffineColorSpace ->
                         (RSdouble,RSdouble,RSdouble) ->
+                        AffineColorSpace ->
                         (RSdouble,RSdouble,RSdouble)
-transformColorToFrom (AffineColorSpace destination)
-                     (AffineColorSpace source)
-                     (u,v,w) =
+transformColorFromTo (AffineColorSpace source)
+                     (u,v,w)
+                     (AffineColorSpace destination) =
     transformHomogenous u v w 1.0
                         (\u' v' w' -> (u',v',w'))
                         (matrixInverse destination `matrixMultiply` source)
 
-transformColor :: (Color source,Color dest) => source -> dest
-transformColor source = result
-    where triple = transformColorToFrom (affineColorSpaceOf result)
-                                        (affineColorSpaceOf source)
-                                        (toColorCoordinates source)
-          result = fromColorCoordinates triple
+{-# RULES
+"transformColor::a->a"    transformColor = id
+  #-}
+-- | Transform colors between color spaces.
+transformColor :: (ExportColorCoordinates source,
+                   ImportColorCoordinates dest) =>
+                  source -> dest
+transformColor = importColorCoordinates . exportColorCoordinates
 

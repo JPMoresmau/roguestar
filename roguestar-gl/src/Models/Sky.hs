@@ -19,6 +19,8 @@ import RSAGL.Extras.Sky
 import RSAGL.Extras.ColorPhysics
 import RSAGL.Modeling
 import RSAGL.Modeling.Noise
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 import Scene
 import Data.Monoid
 import RSAGL.Types
@@ -137,7 +139,7 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
     case () of
         () | entering_layer == scene_layer_sky_sphere || isNoLight ls -> NoLight
 	() | originating_layer <= scene_layer_sky_sphere || entering_layer > scene_layer_sky_sphere || originating_layer <= entering_layer -> ls
-	() | originating_layer == scene_layer_distant && entering_layer == scene_layer_orbit -> mapLightSource (mapBoth $ scaleRGB $ sunlightFadeFactor (fromDegrees 30) v) ls
+	() | originating_layer == scene_layer_distant && entering_layer == scene_layer_orbit -> mapLightSource (mapBoth $ scalarMultiply $ sunlightFadeFactor (fromDegrees 30) v) ls
 	() | entering_layer == scene_layer_far_sky -> sunFade (fromDegrees 10) v ls
 	() | entering_layer == scene_layer_clouds -> sunFade (fromDegrees 5) v ls
 	() | entering_layer == scene_layer_near_sky -> sunFade (fromDegrees 2) v ls
@@ -146,7 +148,7 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
 	direction (PointLight { lightsource_position = p }) = vectorToFrom p origin_point_3d
 	direction (DirectionalLight { lightsource_direction = d }) = d
 	direction NoLight = Vector3D 0 1 0
-	sunFade tolerance v = mapLightSource (mapBoth (absorbtion v) `mappend` mapBoth (scaleRGB $ sunlightFadeFactor tolerance v))
+	sunFade tolerance v = mapLightSource (mapBoth (absorbtion v) `mappend` mapBoth (scalarMultiply $ sunlightFadeFactor tolerance v))
 
 -- | The amount of fade of the sun based on falling below the horizon.
 sunlightFadeFactor :: Angle -> Vector3D -> RSdouble

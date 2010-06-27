@@ -18,7 +18,7 @@ import RSAGL.Math.Ray
 import RSAGL.RayTrace.RayTrace
 import RSAGL.RayTrace.Scattering
 import RSAGL.Math.Vector
-import RSAGL.Modeling.Color
+import RSAGL.Color
 import RSAGL.Math.Angle
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Data.Monoid
@@ -27,6 +27,7 @@ import Data.Ord
 import System.Random
 import RSAGL.Modeling.Model hiding (sphere)
 import RSAGL.Types
+import RSAGL.Math.AbstractVector
 
 -- | An atmosphere that is fairly typical of the earth.
 earth_atmosphere :: Atmosphere
@@ -126,7 +127,7 @@ atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphe
 atmosphereLayerScattering :: AtmosphereLayer -> (Vector3D,RGB) -> Ray3D -> RGB
 atmosphereLayerScattering l (sun_vector,sun_color) r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (grayscale 0) scatterF r
     where scatterF p_near p_far = fst $ traceScattering (const scattering_model) 
-              (\p -> (sun_vector,scaleRGB (lightingF p) sun_color)) adaptiveSamples p_near p_far $
+              (\p -> (sun_vector,scalarMultiply (lightingF p) sun_color)) adaptiveSamples p_near p_far $
                   round $ max 20 $ (* 800) $ toRotations $ angleBetween (Vector3D 0 1 0) (ray_vector r)
           scattering_model = achromaticAbsorbtion $ atmosphereLayerToScatteringModel l
 	  lightingF p = f2f $ castSkyRay UnitSphere 1 
@@ -140,7 +141,7 @@ atmosphereAbsorbtion atm p v = foldr filterRGB (grayscale 1) $ map ($ Ray3D p v)
 
 -- | Aggrigated scattering from multiple 'AtmosphereLayers' and multiple suns.
 atmosphereScattering :: Atmosphere -> [(Vector3D,RGB)] -> Point3D -> Vector3D -> RGB
-atmosphereScattering atm_ suns p v_ = foldr addRGB (grayscale 0) $ map ($ v_) scatterFs
+atmosphereScattering atm_ suns p v_ = foldr add (grayscale 0) $ map ($ v_) scatterFs
      where atm = reverse $ sortBy (comparing atmosphere_altitude) atm_
            scatterFs = 
               do (this_layer,sun_absorbtion_layers,post_absorbtion_layers) <- zip3 atm (inits atm) (drop 1 $ tails atm)
@@ -156,7 +157,7 @@ atmosphereScattering atm_ suns p v_ = foldr addRGB (grayscale 0) $ map ($ v_) sc
 -- In particular, atmosphereScatteringMaterial uses this.
 --
 absorbtionFilter :: RGB -> RGB
-absorbtionFilter c = scaleRGB (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
+absorbtionFilter c = scalarMultiply (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
 
 -- | Generate a material for a sky sphere.  This material includes both scattering and absorbtion information.
 -- The material assumes the origin as the eye point, tracing to the geometric point at each vertex.  Therefore,

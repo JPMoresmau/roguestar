@@ -9,6 +9,7 @@ import RSAGL.Math.CurveExtras
 import RSAGL.Modeling
 import Quality
 import Models.Materials
+import RSAGL.Color.RSAGLColors
 
 caduceator :: Quality -> Modeling ()
 caduceator _ = model $

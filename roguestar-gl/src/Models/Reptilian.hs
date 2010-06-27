@@ -10,6 +10,7 @@ import RSAGL.Math
 import RSAGL.Modeling
 import Quality
 import Models.Materials
+import RSAGL.Color.RSAGLColors
 import RSAGL.Math.CurveExtras
 
 reptilian :: Quality -> Modeling ()

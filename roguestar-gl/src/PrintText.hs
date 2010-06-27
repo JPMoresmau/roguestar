@@ -26,8 +26,8 @@ import Control.Monad
 import Control.Concurrent.Chan
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
-import RSAGL.Modeling.Color
-import RSAGL.Modeling.RSAGLColors
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],

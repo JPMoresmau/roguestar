@@ -7,6 +7,7 @@ import RSAGL.Math
 import Quality
 import Data.Monoid
 import Models.Materials
+import RSAGL.Color.RSAGLColors
 
 energyCylinder :: (Monoid attr) => EnergyColor -> Quality -> Modeling attr
 energyCylinder c _ = model $

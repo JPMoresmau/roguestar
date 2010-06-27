@@ -25,8 +25,8 @@ Library
     exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math, RSAGL.Math.FMod,
                          RSAGL.RayTrace.RayTrace, RSAGL.Math.Ray,
                          RSAGL.Modeling.Material, RSAGL.Modeling.BoundingBox,
-                         RSAGL.Math.Vector, RSAGL.Animation.KinematicSensors, RSAGL.Modeling.RSAGLColors,
-                         RSAGL.Modeling.Extrusion, RSAGL.Modeling.Color,
+                         RSAGL.Math.Vector, RSAGL.Animation.KinematicSensors,
+                         RSAGL.Color.RSAGLColors, RSAGL.Modeling.Extrusion,
                          RSAGL.FRP.Time, RSAGL.Math.Matrix,
                          RSAGL.Animation.Joint,
                          RSAGL.Math.Affine, RSAGL.Math.WrappedAffine, RSAGL.Math.CurveExtras,
@@ -42,8 +42,13 @@ Library
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
                          RSAGL.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
+                         RSAGL.Color.ColorSpace, RSAGL.Color.RGB, RSAGL.Color.HCL,
+                         RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color
 
-    other-modules:       RSAGL.Modeling.OpenGLPrimitives, RSAGL.Auxiliary.Auxiliary, RSAGL.Auxiliary.ApplicativeWrapper
+    other-modules:       RSAGL.Modeling.OpenGLPrimitives,
+                         RSAGL.Auxiliary.Auxiliary,
+                         RSAGL.Auxiliary.ApplicativeWrapper,
+                         RSAGL.Color.Auxiliary
 
     ghc-options:         -fno-warn-type-defaults -fexcess-precision
     ghc-prof-options:    -prof -auto-all

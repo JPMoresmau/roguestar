@@ -5,8 +5,7 @@
 -- as bumpiness.  Materials are handled using layers.
 --
 module RSAGL.Modeling.Material
-    (module RSAGL.Modeling.Color,
-     MaterialLayer,MaterialSurface,Material,materialIsEmpty,
+    (MaterialLayer,MaterialSurface,Material,materialIsEmpty,
      toLayers,materialLayerSurface,materialLayerRelevant,materialComplexity,materialLayerToOpenGLWrapper,
      isOpaqueLayer,
      diffuseLayer,RSAGL.Modeling.Material.specularLayer,transparentLayer,emissiveLayer,filteringLayer)
@@ -15,12 +14,13 @@ module RSAGL.Modeling.Material
 import Data.Maybe
 import Data.Monoid
 import Control.Applicative
-import RSAGL.Modeling.Color
+import RSAGL.Color
 import RSAGL.Math.Curve
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Control.Parallel.Strategies
-import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA)
+import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA,Alpha)
 import RSAGL.Types
+import RSAGL.Math.AbstractVector
 
 -- | A 'MaterialSurface' is parameterized either on RGB or RGBA, depending
 -- on whether or not the 'MaterialLayer' is capable of transparency.
@@ -82,10 +82,10 @@ combine2Layers (DiffuseLayer msrgb) (SpecularLayer specular_rgb shininess) | isP
 combine2Layers (DiffuseLayer msrgb) (EmissiveLayer emissive_rgb) | isPure emissive_rgb =
     Just $ CompoundLayer msrgb (RGB 0 0 0) (fromJust $ fromPure $ emissive_rgb) 0
 -- emissive + emissive
-combine2Layers (EmissiveLayer x) (EmissiveLayer y) = Just $ EmissiveLayer $ addRGB <$> x <*> y
+combine2Layers (EmissiveLayer x) (EmissiveLayer y) = Just $ EmissiveLayer $ add <$> x <*> y
 -- compound + pure emissive
 combine2Layers (CompoundLayer msrgb specular_rgb emissive_rgb1 shininess) (EmissiveLayer emissive_rgb2) | isPure emissive_rgb2 =
-    Just $ CompoundLayer msrgb specular_rgb (addRGB emissive_rgb1 (fromJust $ fromPure $ emissive_rgb2)) shininess
+    Just $ CompoundLayer msrgb specular_rgb (add emissive_rgb1 (fromJust $ fromPure $ emissive_rgb2)) shininess
 -- compound + pure specular
 combine2Layers (CompoundLayer msrgb (RGB 0 0 0) emissive_rgb 0) (SpecularLayer specular_rgb shininess) | isPure specular_rgb =
     Just $ CompoundLayer msrgb (fromJust $ fromPure $ specular_rgb) emissive_rgb shininess
@@ -130,7 +130,7 @@ materialComplexity (Material layers) = maximum $ map materialLayerComplexity lay
 -- | True if the 'MaterialLayer' is completely opaque.  A layer under an opaque layer is not visible.
 isOpaqueLayer :: MaterialLayer -> Bool
 isOpaqueLayer (DiffuseLayer _) = True
-isOpaqueLayer (TransparentLayer ms) | fmap rgba_a (fromPure ms) == Just 1.0 = True
+isOpaqueLayer (TransparentLayer ms) | fmap alpha_alpha (fromPure ms) == Just 1.0 = True
 isOpaqueLayer (CompoundLayer _ _ _ _) = True
 isOpaqueLayer _ = False
 
@@ -150,17 +150,17 @@ isFilterRelevant _ = True
 -- | True if the color is not perfectly transparent.  Perfectly transparent materials are invisible, and can therefore
 -- be eleminated from a model.
 isTransparentRelevant :: RGBA -> Bool
-isTransparentRelevant (RGBA 0 _) = False
+isTransparentRelevant (Alpha x _) | x < 0.01 = False
 isTransparentRelevant _ = True
 
 -- | Get the color information for a 'MaterialLayer'.
 materialLayerSurface :: MaterialLayer -> MaterialSurface RGBA
-materialLayerSurface (DiffuseLayer msrgb) = fmap toRGBA msrgb
+materialLayerSurface (DiffuseLayer msrgb) = fmap transformColor msrgb
 materialLayerSurface (TransparentLayer msrgba) = msrgba
-materialLayerSurface (EmissiveLayer msrgb) = fmap toRGBA msrgb
-materialLayerSurface (SpecularLayer msrgb _) = fmap toRGBA msrgb
-materialLayerSurface (CompoundLayer msrgb _ _ _) = fmap toRGBA msrgb
-materialLayerSurface (FilterLayer msrgb) = fmap toRGBA msrgb
+materialLayerSurface (EmissiveLayer msrgb) = fmap transformColor msrgb
+materialLayerSurface (SpecularLayer msrgb _) = fmap transformColor msrgb
+materialLayerSurface (CompoundLayer msrgb _ _ _) = fmap transformColor msrgb
+materialLayerSurface (FilterLayer msrgb) = fmap transformColor msrgb
 
 -- | Get a relevance layer for a surface.  Purely irrelevant materials can be removed without changing the
 -- appearance of a model.  Irrelevant triangles can also be selectively culled from a model.
@@ -179,7 +179,7 @@ materialLayerToOpenGLWrapper (DiffuseLayer ms) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        materialSpecular FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
-       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        io
        colorMaterial $= cm
 materialLayerToOpenGLWrapper (TransparentLayer ms) io = 
@@ -187,13 +187,13 @@ materialLayerToOpenGLWrapper (TransparentLayer ms) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        materialSpecular FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
-       maybe (return ()) (color . rgbaToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        alphaBlendWrapper io
        colorMaterial $= cm
 materialLayerToOpenGLWrapper (EmissiveLayer ms) io = 
     do l <- get lighting
        lighting $= Disabled
-       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        additiveBlendWrapper io
        lighting $= l
 materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io = 
@@ -204,7 +204,7 @@ materialLayerToOpenGLWrapper (SpecularLayer ms shininess) io =
        materialEmission FrontAndBack $= Color4 0 0 0 1
        colorMaterial $= Just (FrontAndBack,Specular)
        lightModelLocalViewer $= Enabled
-       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        additiveBlendWrapper io
        colorMaterial $= cm
        lightModelLocalViewer $= lmlv
@@ -216,14 +216,14 @@ materialLayerToOpenGLWrapper (CompoundLayer ms specular_rgb emissive_rgb shinine
        materialEmission FrontAndBack $= (\(RGB r g b) -> Color4 (f2f r) (f2f g) (f2f b) 1) emissive_rgb
        colorMaterial $= Just (FrontAndBack,AmbientAndDiffuse)
        lightModelLocalViewer $= Enabled
-       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        io
        colorMaterial $= cm
        lightModelLocalViewer $= lmlv
 materialLayerToOpenGLWrapper (FilterLayer ms) io =
     do l <- get lighting
        lighting $= Disabled
-       maybe (return ()) (color . rgbToOpenGL) $ fromPure ms
+       maybe (return ()) (color . colorToOpenGL) $ fromPure ms
        filterBlendWrapper io
        lighting $= l
 

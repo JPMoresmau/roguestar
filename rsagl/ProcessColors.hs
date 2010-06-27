@@ -1,6 +1,7 @@
 #!/usr/bin/runghc
 
 import RSAGL.Modeling.Material
+import RSAGL.Color
 import Control.Monad
 import Data.List
 import Numeric
@@ -18,9 +19,10 @@ cteToHaskell :: ColorTableEntry -> String
 cteToHaskell (ColorTableEntry s r g b) = s ++ " :: RGB\n" ++ s ++ " = rgb256 " ++ (show r) ++ " " ++ (show g) ++ " " ++ (show b) ++ "\n"
 
 wrapHaskellModule :: [ColorTableEntry] -> String -> String
-wrapHaskellModule cte s = ("module RSAGL.Modeling.RSAGLColors (" ++ (listColors cte) ++ ") where") ++ 
+wrapHaskellModule cte s = ("module RSAGL.Color.RSAGLColors (" ++ (listColors cte) ++ ") where") ++ 
                           "\n\nimport Prelude ()" ++
-                          "\nimport RSAGL.Modeling.Material\n\n" ++ s
+                          "\nimport RSAGL.Modeling.Material" ++
+                          "\nimport RSAGL.Color\n\n" ++ s
 
 listColors :: [ColorTableEntry] -> String
 listColors = concat . intersperse "," . map cte_name
@@ -43,12 +45,11 @@ colorTablesToHTML color_tables =
    cteSubtable "By Red" (takeHalf $ sortBy byred color_tables) ++
    cteSubtable "By Green" (takeHalf $ sortBy bygreen color_tables) ++
    cteSubtable "By Blue" (takeHalf $ sortBy byblue color_tables)
-       where luminance x y = compare (cteBrightness x) (cteBrightness y)
+       where luminance x y = compare (flatBrightness x) (flatBrightness y)
              byred x y = compare (toRed y ^ 2 / flatBrightness y) (toRed x ^ 2 / flatBrightness x)
              bygreen x y = compare (toGreen y ^ 2 / flatBrightness y) (toGreen x ^ 2 / flatBrightness x)
              byblue x y = compare (toBlue y ^ 2 / flatBrightness y) (toBlue x ^ 2 / flatBrightness x)
-             cteBrightness = realToFrac . (1 +) . brightness . cteToColor
-             flatBrightness x = toRed x * toGreen x * toBlue x
+             flatBrightness x = toRed x * toGreen x * toBlue x + 1
              toRed = realToFrac . cte_red
              toGreen = realToFrac . cte_green
              toBlue = realToFrac . cte_blue
@@ -60,5 +61,5 @@ isComment s = ["#"] == (map (take 1) $ take 1 $ words s)
 
 main :: IO ()
 main = do color_tables <- liftM (map readColorTableEntry . filter (not . isComment) . lines) $ readFile "rsagl-rgb.txt"
-          writeFile "RSAGL/Modeling/RSAGLColors.hs" $ wrapHaskellModule color_tables $ (unlines . map cteToHaskell) color_tables
+          writeFile "RSAGL/Color/RSAGLColors.hs" $ wrapHaskellModule color_tables $ (unlines . map cteToHaskell) color_tables
           writeFile "rsagl-rgb.html" $ wrapHTMLFile $ colorTablesToHTML color_tables

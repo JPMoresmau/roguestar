@@ -78,6 +78,7 @@ import RSAGL.Modeling.BakedModel hiding (tesselatedElementToOpenGL)
 import Data.IORef
 import Control.Monad
 import RSAGL.Types
+import RSAGL.Color
 \end{code}
 
 \subsection{Modeling Monad}
@@ -439,7 +440,7 @@ layerInfo imlayer = "\n    Layer:" ++
 instance OpenGLPrimitive SingleMaterialSurfaceVertex3D where
     getVertex (SingleMaterialSurfaceVertex3D (SurfaceVertex3D (Point3D x y z) _) _) = Vertex3 (f2f x) (f2f y) (f2f z)
     getNormal (SingleMaterialSurfaceVertex3D (SurfaceVertex3D _ (Vector3D x y z)) _) = Normal3 (f2f x) (f2f y) (f2f z)
-    getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = rgbaToOpenGL c
+    getColor  (SingleMaterialSurfaceVertex3D _ (MaterialVertex3D c _)) = colorToOpenGL c
 
 class ModelType m where
     toIntermediateModel :: m -> IntermediateModel

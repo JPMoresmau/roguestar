@@ -22,6 +22,9 @@ module Models.Materials
     where
 
 import RSAGL.Modeling
+import RSAGL.Math.AbstractVector
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 import Models.LibraryData
 
 {---------------------------------------------------------
@@ -48,7 +51,7 @@ treaty_energy_field = material $
 
 alliance_metal :: Modeling ()
 alliance_metal = material $
-    do pigment $ pure $ scaleRGB 0.6 yellow
+    do pigment $ pure $ scalarMultiply 0.6 yellow
        specular 7 $ pure yellow
 
 -- Concordance Materials  (violet solid colors, blue energy colors)
@@ -85,7 +88,7 @@ cyborg_metal = metallic $ pure beige
 cyborg_glow :: MaterialM attr ()
 cyborg_glow = 
     do pigment $ pure blackbody
-       emissive $ pure $ scaleRGB 1.0 pale_green
+       emissive $ pure $ scalarMultiply 1.0 pale_green
 
 {-------------------------------------------------------
  - Materials by Species
@@ -126,7 +129,7 @@ energyColor Green = bright_green
 
 energyMaterial :: EnergyColor -> Modeling ()
 energyMaterial c = material $
-    do pigment $ pure $ scaleRGB 0.33 $ energyColor c
-       specular 1.0 $ pure $ scaleRGB 0.33 $ energyColor c
-       emissive $ pure $ scaleRGB 0.33 $ energyColor c
+    do pigment $ pure $ scalarMultiply 0.33 $ energyColor c
+       specular 1.0 $ pure $ scalarMultiply 0.33 $ energyColor c
+       emissive $ pure $ scalarMultiply 0.33 $ energyColor c
 

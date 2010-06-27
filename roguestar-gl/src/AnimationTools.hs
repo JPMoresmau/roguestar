@@ -9,7 +9,7 @@ import Scene
 import Animation
 import RSAGL.Animation
 import RSAGL.FRP
-import RSAGL.Modeling.Color
+import RSAGL.Color
 import Control.Arrow
 import VisibleObject
 import Models.LibraryData

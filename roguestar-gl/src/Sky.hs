@@ -21,6 +21,8 @@ import RSAGL.FRP
 import Data.Maybe
 import Control.Arrow
 import RSAGL.Modeling
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
 import RSAGL.Animation
 import System.Random ()
 import Control.Monad.Random
@@ -63,7 +65,7 @@ sky = proc sky_info ->
        skylight_color <- clingy HashedDiscrete (==) ambientSkyRadiation -< sky_info
        accumulateSceneA -< (scene_layer_local,lightSource $ case () of
            () | nightlight_intensity > 0.05 && sky_on ->
-                    mapLightSource (mapBoth $ scaleRGB nightlight_intensity) $
+                    mapLightSource (mapBoth $ scalarMultiply nightlight_intensity) $
                         DirectionalLight {
                             lightsource_direction = Vector3D 0 1 0,
                             lightsource_color = rgb 0.1 0.1 0.2,
@@ -71,7 +73,7 @@ sky = proc sky_info ->
            () | otherwise -> NoLight)
        accumulateSceneA -< (scene_layer_local,lightSource $ case () of
            () | skylight_intensity > 0.05 && sky_on ->
-                    mapLightSource (mapBoth $ scaleRGB skylight_intensity) $
+                    mapLightSource (mapBoth $ scalarMultiply skylight_intensity) $
                         skylight (Vector3D 0 1 0) skylight_color
            () | lighting_artificial lighting_configuration <= 0.05 &&
                 not sky_on ->

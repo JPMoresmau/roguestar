@@ -4,7 +4,7 @@ module RSAGL.Extras.ColorPhysics
      blackBodyRGB,
      spectralRGB) where
 
-import RSAGL.Modeling.Color
+import RSAGL.Color
 import RSAGL.Math.AbstractVector
 import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Interpolation

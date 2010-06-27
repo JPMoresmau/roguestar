@@ -5,9 +5,11 @@ module Models.Terrain
      terrainTile)
     where
 
+import Prelude hiding (tan)
 import Quality
 import Models.RecreantFactory
 import RSAGL.Modeling
+import RSAGL.Color.RSAGLColors
 import RSAGL.Math
 import RSAGL.Types
 import qualified Data.ByteString.Char8 as B
@@ -77,7 +79,7 @@ terrainTile "downstairs" q = model $
               box (Point3D (-0.5) 0 0.5) (Point3D 0.5 0.05 0.45)
               box (Point3D (-0.5) 0 0.5) (Point3D (-0.45) 0.05 (-0.5))
               box (Point3D 0.5 0 0.5) (Point3D 0.45 0.05 (-0.5))
-              material $ pigment $ pure RSAGL.Modeling.tan
+              material $ pigment $ pure tan
 terrainTile s q = basicTerrainTile s q
 
 -- |
@@ -114,7 +116,7 @@ terrainTexture "water" =
     do pigment $ pure blue
        specular 100 $ pure white
 terrainTexture "deepwater" =
-    do pigment $ pure $ scaleRGB 0.8 blue
+    do pigment $ pure royal_blue
        specular 100 $ pure white
 terrainTexture "sand" = pigment $ pure beige
 terrainTexture "desert" = pigment $ pure $ lerp 0.5 (light_brown,white)

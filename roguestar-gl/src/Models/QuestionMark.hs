@@ -3,6 +3,7 @@ module Models.QuestionMark
     where
     
 import RSAGL.Modeling
+import RSAGL.Color.RSAGLColors
 import RSAGL.Math
 import RSAGL.Math.CurveExtras
 

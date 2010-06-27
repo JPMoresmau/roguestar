@@ -1,12 +1,15 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module RSAGL.Color.HCL
     (HCL(..))
     where
 
+import RSAGL.Math.AbstractVector
 import RSAGL.Types
 import RSAGL.Math.Angle
 import RSAGL.Color.ColorSpace
 
 -- | A color in the hue-chroma-luminance color space.
+-- This is an additive color system (like RGB).
 data HCL = HCL { hcl_hue        :: {-# UNPACK #-} !Angle,
                  hcl_chroma     :: {-# UNPACK #-} !RSdouble,
                  hcl_luminance  :: {-# UNPACK #-} !RSdouble }
@@ -15,9 +18,13 @@ data HCL = HCL { hcl_hue        :: {-# UNPACK #-} !Angle,
 instance ColorSpace HCL where
     affineColorSpaceOf _ = affineColorSpaceOf color_wheel_rgbl
 
-instance Color HCL where
-    toColorCoordinates (HCL h c l) = (u,v,l)
+instance ExportColorCoordinates HCL where
+    exportColorCoordinates (HCL h c l) =
+        transformColorFromTo (affineColorSpaceOf color_wheel_rgbl) (u,v,l)
         where (u,v) = polarToCartesian (h,c)
-    fromColorCoordinates (u,v,l) = HCL h c l
+
+instance ImportColorCoordinates HCL where
+    importColorCoordinates f = HCL h c l
         where (h,c) = cartesianToPolar (u,v)
+              (u,v,l) = f $ affineColorSpaceOf $ color_wheel_rgbl
 

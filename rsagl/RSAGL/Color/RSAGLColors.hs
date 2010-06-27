@@ -1,7 +1,8 @@
-module RSAGL.Modeling.RSAGLColors (light_pink,mustard,indigo,lime,sea_green,periwinkle,dark_pink,olive_green,peach,pale_green,light_brown,hot_pink,black,lilac,navy_blue,royal_blue,beige,salmon,olive,maroon,bright_green,dark_purple,mauve,forest_green,aqua,cyan,tan,dark_blue,lavender,turquoise,dark_green,violet,light_purple,lime_green,grey,sky_blue,yellow,magenta,light_green,orange,teal,light_blue,red,brown,pink,blue,green,purple,white,blackbody) where
+module RSAGL.Color.RSAGLColors (light_pink,mustard,indigo,lime,sea_green,periwinkle,dark_pink,olive_green,peach,pale_green,light_brown,hot_pink,black,lilac,navy_blue,royal_blue,beige,salmon,olive,maroon,bright_green,dark_purple,mauve,forest_green,aqua,cyan,tan,dark_blue,lavender,turquoise,dark_green,violet,light_purple,lime_green,grey,sky_blue,yellow,magenta,light_green,orange,teal,light_blue,red,brown,pink,blue,green,purple,white,blackbody) where
 
 import Prelude ()
 import RSAGL.Modeling.Material
+import RSAGL.Color
 
 light_pink :: RGB
 light_pink = rgb256 255 209 209
