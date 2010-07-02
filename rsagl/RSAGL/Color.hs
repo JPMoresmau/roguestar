@@ -3,6 +3,7 @@ module RSAGL.Color
     (module RSAGL.Color.RGB,
      module RSAGL.Color.Alpha,
      module RSAGL.Color.HCL,
+     module RSAGL.Color.Spaces,
      module RSAGL.Color.Channels,
      module RSAGL.Color.ColorSpace,
      module RSAGL.Color.OpenGL,
@@ -21,6 +22,7 @@ import RSAGL.Color.RGB
 import RSAGL.Color.Alpha
 import RSAGL.Color.HCL
 import RSAGL.Color.ColorSpace
+import RSAGL.Color.Spaces
 import RSAGL.Color.Channels
 import RSAGL.Color.OpenGL
 import Control.Parallel.Strategies

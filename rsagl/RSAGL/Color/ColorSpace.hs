@@ -12,6 +12,7 @@ module RSAGL.Color.ColorSpace
      channel_u,
      channel_v,
      channel_w,
+     newColorSpace,
      color_space_rgb,
      color_wheel_rgbl,
      transformColorFromTo,
@@ -150,6 +151,23 @@ instance ExportColorCoordinates Color where
 
 instance ImportColorCoordinates Color where
     importColorCoordinates = Color
+
+-- | Construct a new color space.  This requires a minimal point
+-- (the black point in an additive color space, or the white point
+-- in a subtractive color space), and three primary colors.
+-- The three primary color correspond to the 'channel_u',
+-- 'channel_v', and 'channel_w' respectively.
+newColorSpace :: (ExportColorCoordinates c) =>
+    c -> c -> c -> c -> AffineColorSpace
+newColorSpace k u v w = AffineColorSpace $ matrix
+              [ [u1-k1,u2-k1,u3-k1,k1],
+                [v1-k2,v2-k2,v3-k2,k2],
+                [w1-k3,w2-k3,w3-k3,k3],
+                [    0,    0,    0, 1] ]
+    where (k1,k2,k3) = exportColorCoordinates k color_space_rgb
+          (u1,u2,u3) = exportColorCoordinates u color_space_rgb
+          (v1,v2,v3) = exportColorCoordinates v color_space_rgb
+          (w1,w2,w3) = exportColorCoordinates w color_space_rgb
 
 -- | A color wheel constructed with red, green and blue device primaries
 -- and a luminance component.  This is the basis of the HCL color system.
