@@ -43,7 +43,8 @@ Library
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
                          RSAGL.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
                          RSAGL.Color.ColorSpace, RSAGL.Color.RGB, RSAGL.Color.HCL,
-                         RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color
+                         RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color,
+                         RSAGL.Color.Channels
 
     other-modules:       RSAGL.Modeling.OpenGLPrimitives,
                          RSAGL.Auxiliary.Auxiliary,

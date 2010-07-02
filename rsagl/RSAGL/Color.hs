@@ -3,11 +3,11 @@ module RSAGL.Color
     (module RSAGL.Color.RGB,
      module RSAGL.Color.Alpha,
      module RSAGL.Color.HCL,
+     module RSAGL.Color.Channels,
      module RSAGL.Color.ColorSpace,
      module RSAGL.Color.OpenGL,
      RGBA,
      rgba,
-     subjectiveBrightness,
      meanBrightness,
      maxRGB,
      minRGB,
@@ -21,6 +21,7 @@ import RSAGL.Color.RGB
 import RSAGL.Color.Alpha
 import RSAGL.Color.HCL
 import RSAGL.Color.ColorSpace
+import RSAGL.Color.Channels
 import RSAGL.Color.OpenGL
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.Raw.Core31 (GLdouble,GLfloat)
@@ -37,9 +38,6 @@ rgba r g b a = Alpha a $ RGB r g b
 
 meanBrightness :: RGB -> RSdouble
 meanBrightness (RGB r g b) = (r+g+b)/3
-
-subjectiveBrightness :: RGB -> RSdouble
-subjectiveBrightness = hcl_luminance . transformColor
 
 -- | maps an RGB color between a black point and a white point.
 -- The first parameter, the black point, will map to RGB 0 0 0.

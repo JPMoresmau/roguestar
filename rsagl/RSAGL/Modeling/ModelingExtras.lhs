@@ -149,7 +149,9 @@ gradient center vector (SurfaceVertex3D p _) = distanceAlong (Ray3D center vecto
 glass :: RGBFunction -> MaterialM attr ()
 glass rgbf =
     do transparent $ (alpha 0.05 . transformColor) <$> rgbf
-       specular 100 $ (\rgb_color -> curry (lerp (subjectiveBrightness rgb_color)) rgb_color white) <$> rgbf
+       specular 100 $ (\rgb_color ->
+           curry (lerp $ linear_value $ viewChannel channel_luminance rgb_color)
+                      rgb_color white) <$> rgbf
 
 plastic :: RGBFunction -> MaterialM attr ()
 plastic rgbf =
