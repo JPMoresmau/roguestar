@@ -13,6 +13,7 @@ module RSAGL.Color.ColorSpace
      channel_v,
      channel_w,
      newColorSpace,
+     newColorWheel,
      color_space_rgb,
      color_wheel_rgbl,
      transformColorFromTo,
@@ -22,6 +23,7 @@ module RSAGL.Color.ColorSpace
 import RSAGL.Types
 import RSAGL.Math.Matrix
 import Data.Vec (nearZero)
+import RSAGL.Math.Angle
 
 -- | An affine transformation of the default RGB color space.
 newtype AffineColorSpace = AffineColorSpace Matrix
@@ -155,7 +157,7 @@ instance ImportColorCoordinates Color where
 -- | Construct a new color space.  This requires a minimal point
 -- (the black point in an additive color space, or the white point
 -- in a subtractive color space), and three primary colors.
--- The three primary color correspond to the 'channel_u',
+-- The three primarys color correspond to the 'channel_u',
 -- 'channel_v', and 'channel_w' respectively.
 newColorSpace :: (ExportColorCoordinates c) =>
     c -> c -> c -> c -> AffineColorSpace
@@ -168,6 +170,27 @@ newColorSpace k u v w = AffineColorSpace $ matrix
           (u1,u2,u3) = exportColorCoordinates u color_space_rgb
           (v1,v2,v3) = exportColorCoordinates v color_space_rgb
           (w1,w2,w3) = exportColorCoordinates w color_space_rgb
+
+-- | Construct a new color wheel.  This requires a minimal point,
+-- (the black point in an additive color space, or the white point
+-- in a subtractive color space), and three primary colors with
+-- assigned hue angles and value parameters.
+-- The hue angle maps onto 'channel_u' and 'channel_v', while
+-- the value parameter maps directly and additively onto
+-- 'channel_w'.
+newColorWheel :: (ExportColorCoordinates c) =>
+    c -> (c,Angle,RSdouble) ->
+         (c,Angle,RSdouble) ->
+         (c,Angle,RSdouble) ->
+         ColorWheel
+newColorWheel k (u,theta_u,u') (v,theta_v,v') (w,theta_w,w') =
+        ColorWheel $ uvw_to_rgb `matrixMultiply` matrixInverse uvw_to_wheel
+    where uvw_to_wheel = matrix $
+              [ [cosine theta_u, cosine theta_v, cosine theta_w, 0 ],
+                [  sine theta_u,   sine theta_v,   sine theta_w, 0 ],
+                [            u',             v',             w', 0 ],
+                [             0,              0,              0, 1 ] ]
+          AffineColorSpace uvw_to_rgb = newColorSpace k u v w
 
 -- | A color wheel constructed with red, green and blue device primaries
 -- and a luminance component.  This is the basis of the HCL color system.

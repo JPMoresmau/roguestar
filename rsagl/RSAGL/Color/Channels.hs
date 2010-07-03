@@ -5,7 +5,8 @@ module RSAGL.Color.Channels
      channel_luminance,
      channel_cyan,
      channel_magenta,
-     channel_yellow)
+     channel_yellow,
+     channel_brightness)
     where
 
 import RSAGL.Color.ColorSpace
@@ -38,4 +39,9 @@ channel_magenta = newChannel channel_v color_space_cmy
 -- | The yellow channel of the CMY color space.
 channel_yellow :: ColorChannel
 channel_yellow = newChannel channel_w color_space_cmy
+
+-- | The brightness channel in simple device interpretation.
+-- That is, (red + green + blue) / 3.
+channel_brightness :: ColorChannel
+channel_brightness = newChannel channel_w color_wheel_rgb_brightness
 

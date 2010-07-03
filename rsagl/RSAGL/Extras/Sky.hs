@@ -92,8 +92,10 @@ atmosphereLayerToScatteringModel :: AtmosphereLayer -> Scattering
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Air }) = 
      rayleigh (atmosphere_altitude l / atmosphere_thickness l) rayleigh_sky
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Vapor }) = mconcat [
-    elasticOmnidirectionalScatter (atmosphere_altitude l / atmosphere_thickness l) (grayscale $ meanBrightness rayleigh_sky),
-    elasticForwardScatter (atmosphere_altitude l / atmosphere_thickness l) (fromDegrees 30) (grayscale $ meanBrightness rayleigh_sky)]
+    elasticOmnidirectionalScatter (atmosphere_altitude l / atmosphere_thickness l)
+                                  (grayscale $ linear_value $ viewChannel channel_brightness rayleigh_sky),
+    elasticForwardScatter (atmosphere_altitude l / atmosphere_thickness l) (fromDegrees 30)
+                          (grayscale $ linear_value $ viewChannel channel_brightness rayleigh_sky)]
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Dust c }) = 
     dust (f2f $ atmosphere_altitude l / atmosphere_thickness l) c
 atmosphereLayerToScatteringModel l@(AtmosphereLayer { atmosphere_composition = Fog c }) = 

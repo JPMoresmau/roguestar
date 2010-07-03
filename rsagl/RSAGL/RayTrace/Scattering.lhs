@@ -67,7 +67,8 @@ model absorbed light isn't re-scattered, resulting in wrong colors.
 
 \begin{code}
 achromaticAbsorbtion :: Scattering -> Scattering
-achromaticAbsorbtion = mapAbsorbtion (grayscale . meanBrightness)
+achromaticAbsorbtion = mapAbsorbtion
+    (grayscale . linear_value . viewChannel channel_brightness)
 \end{code}
 
 \texttt{withoutAbsorbtion} removes all absorbtion from a \texttt{Scattering} media.

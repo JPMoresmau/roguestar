@@ -9,7 +9,6 @@ module RSAGL.Color
      module RSAGL.Color.OpenGL,
      RGBA,
      rgba,
-     meanBrightness,
      maxRGB,
      minRGB,
      maximizeRGB,
@@ -37,9 +36,6 @@ type RGBA = Alpha RGB
 -- | Construct an RGBA color.
 rgba :: RSdouble -> RSdouble -> RSdouble -> RSdouble -> RGBA
 rgba r g b a = Alpha a $ RGB r g b
-
-meanBrightness :: RGB -> RSdouble
-meanBrightness (RGB r g b) = (r+g+b)/3
 
 -- | maps an RGB color between a black point and a white point.
 -- The first parameter, the black point, will map to RGB 0 0 0.
