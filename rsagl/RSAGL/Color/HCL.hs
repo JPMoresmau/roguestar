@@ -5,6 +5,7 @@ module RSAGL.Color.HCL
 
 import RSAGL.Math.AbstractVector
 import RSAGL.Types
+import RSAGL.Math.Vector
 import RSAGL.Math.Angle
 import RSAGL.Color.ColorSpace
 
@@ -20,11 +21,11 @@ instance ColorSpace HCL where
 
 instance ExportColorCoordinates HCL where
     exportColorCoordinates (HCL h c l) =
-        transformColorFromTo (affineColorSpaceOf color_wheel_rgbl) (u,v,l)
+        transformColorFromTo (affineColorSpaceOf color_wheel_rgbl) $ Point3D u v l
         where (u,v) = polarToCartesian (h,c)
 
 instance ImportColorCoordinates HCL where
     importColorCoordinates f = HCL h c l
         where (h,c) = cartesianToPolar (u,v)
-              (u,v,l) = f $ affineColorSpaceOf $ color_wheel_rgbl
+              Point3D u v l = f $ affineColorSpaceOf $ color_wheel_rgbl
 

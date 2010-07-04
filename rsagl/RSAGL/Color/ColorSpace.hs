@@ -25,6 +25,7 @@ import RSAGL.Types
 import RSAGL.Math.Matrix
 import RSAGL.Math.Vector
 import RSAGL.Math.AbstractVector
+import RSAGL.Math.Affine
 import Data.Vec (nearZero)
 import RSAGL.Math.Angle
 
@@ -105,17 +106,18 @@ viewChannel (LinearChannel m) c = LinearMetric {
                   [] -> Nothing
                   is -> Just (minimum is,maximum is),
               linear_color_function = \x -> importColorCoordinates $
-                  transformColorFromTo (AffineColorSpace m) (x,v,w),
+                  transformColorFromTo (AffineColorSpace m) (Point3D x v w),
               linear_value = u }
-    where (u,v,w) = exportColorCoordinates c $ AffineColorSpace m
-          (r,g,b) = exportColorCoordinates c color_space_rgb
-          (r',g',b') = colorVectorOf (AffineColorSpace m) (1,0,0)
+    where Point3D u v w = exportColorCoordinates c $ AffineColorSpace m
+          rgb@(Point3D r g b) = exportColorCoordinates c color_space_rgb
+          rgb'@(Vector3D r' g' b') = colorVectorOf (AffineColorSpace m)
+                                                   (Vector3D 1 0 0)
           intersections = map (+u) $ filter gamutValid $
                map (uncurry (/)) $ filter (not . nearZero . snd)
                    [(1-r,r'),(1-g,g'),(1-b,b'),
                     (-r,r'),(-g,g'),(-b,b')]
-          colorFunction x = (r+r'*x,g+g'*x,b+b'*x)
-          gamutValid x = let (r'',g'',b'') = colorFunction x
+          colorFunction x = rgb `add` scalarMultiply x rgb'
+          gamutValid x = let Point3D r'' g'' b'' = colorFunction x
               in (>=3) $ length $ filter (>= (-0.001)) $ filter (<= 1.001) $ [r'',g'',b'']
 
 -- | A color space specification or color type that has an associated
@@ -127,7 +129,8 @@ viewChannel (LinearChannel m) c = LinearMetric {
 -- @importColorCoordinates f =
 --     (let c = importColorCoordinates (const $ f $ affineColorSpaceOf c) in c)@
 --
--- Note that the color space is defined using value recursion.
+-- This is not hard -- all that is required is that
+-- @affineColorSpaceOf undefined@ is defined.
 --
 class ColorSpace cs where
     affineColorSpaceOf :: cs -> AffineColorSpace
@@ -143,12 +146,12 @@ class ColorSpace cs where
 --
 class ExportColorCoordinates c where
     exportColorCoordinates ::
-        c -> AffineColorSpace -> (RSdouble,RSdouble,RSdouble)
+        c -> AffineColorSpace -> Point3D
 
 -- | A color type that can import its color coordinates.
 class ImportColorCoordinates c where
     importColorCoordinates ::
-        (AffineColorSpace -> (RSdouble,RSdouble,RSdouble)) -> c
+        (AffineColorSpace -> Point3D) -> c
 
 instance ColorSpace AffineColorSpace where
     affineColorSpaceOf = id
@@ -158,7 +161,7 @@ instance ColorSpace ColorWheel where
 
 -- | A generic representation of Color.
 newtype Color = Color { fromColor ::
-    AffineColorSpace -> (RSdouble,RSdouble,RSdouble) }
+    AffineColorSpace -> Point3D }
 
 instance ExportColorCoordinates Color where
     exportColorCoordinates = fromColor
@@ -173,15 +176,14 @@ instance ImportColorCoordinates Color where
 -- 'channel_v', and 'channel_w' respectively.
 newColorSpace :: (ExportColorCoordinates c) =>
     c -> c -> c -> c -> AffineColorSpace
-newColorSpace k u v w = AffineColorSpace $ matrix
-              [ [u1-k1,u2-k1,u3-k1,k1],
-                [v1-k2,v2-k2,v3-k2,k2],
-                [w1-k3,w2-k3,w3-k3,k3],
-                [    0,    0,    0, 1] ]
-    where (k1,k2,k3) = exportColorCoordinates k color_space_rgb
-          (u1,u2,u3) = exportColorCoordinates u color_space_rgb
-          (v1,v2,v3) = exportColorCoordinates v color_space_rgb
-          (w1,w2,w3) = exportColorCoordinates w color_space_rgb
+newColorSpace k u v w = AffineColorSpace $
+    xyzMatrix (u' `sub` k')
+              (v' `sub` k')
+              (w' `sub` k')
+    where k' = exportColorCoordinates k color_space_rgb
+          u' = exportColorCoordinates u color_space_rgb
+          v' = exportColorCoordinates v color_space_rgb
+          w' = exportColorCoordinates w color_space_rgb
 
 -- | Construct a new color wheel.  This requires a minimal point,
 -- (the black point in an additive color space, or the white point
@@ -221,24 +223,21 @@ color_space_rgb = AffineColorSpace $ identity_matrix
 
 -- | Transform ordered triples between color spaces.
 transformColorFromTo :: AffineColorSpace ->
-                        (RSdouble,RSdouble,RSdouble) ->
+                        Point3D ->
                         AffineColorSpace ->
-                        (RSdouble,RSdouble,RSdouble)
+                        Point3D
 transformColorFromTo (AffineColorSpace source)
-                     (u,v,w)
+                     uvw
                      (AffineColorSpace destination) =
-    transformHomogenous u v w 1.0
-                        (\u' v' w' -> (u',v',w'))
-                        (matrixInverse destination `matrixMultiply` source)
+    transform (matrixInverse destination `matrixMultiply` source)
+              uvw
 
 -- | Transform a color vector into RGB space.
 colorVectorOf :: AffineColorSpace ->
-                 (RSdouble,RSdouble,RSdouble) ->
-                 (RSdouble,RSdouble,RSdouble)
-colorVectorOf (AffineColorSpace m) (u,v,w) =
-    transformHomogenous u v w 0.0
-                        (\u' v' w' -> (u',v',w'))
-                        m
+                 Vector3D ->
+                 Vector3D
+colorVectorOf (AffineColorSpace m) uvw =
+    transform m uvw
 
 {-# RULES
 "transformColor::a->a"    transformColor = id

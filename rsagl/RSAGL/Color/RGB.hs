@@ -15,6 +15,7 @@ module RSAGL.Color.RGB
 import RSAGL.Types
 import RSAGL.Color.ColorSpace
 import RSAGL.Color.Auxiliary
+import RSAGL.Math.Vector
 import RSAGL.Math.AbstractVector
 import Control.Parallel.Strategies
 
@@ -31,10 +32,10 @@ instance ColorSpace RGB where
 
 instance ExportColorCoordinates RGB where
     exportColorCoordinates (RGB r g b) =
-        transformColorFromTo color_space_rgb (r,g,b)
+        transformColorFromTo color_space_rgb $ Point3D r g b
 instance ImportColorCoordinates RGB where
     importColorCoordinates f = RGB r g b
-        where (r,g,b) = f color_space_rgb
+        where Point3D r g b = f color_space_rgb
 
 -- | Construct a color from an RGB triple in the range \[0.0..1.0\].
 rgb :: (ImportColorCoordinates c) => RSdouble -> RSdouble -> RSdouble -> c
