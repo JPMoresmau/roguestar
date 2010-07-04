@@ -8,6 +8,7 @@ module RSAGL.Color.ColorSpace
      ChannelIndex,
      LinearMetric(..),
      newChannel,
+     newAngularChannel,
      viewChannel,
      channel_u,
      channel_v,
@@ -22,6 +23,8 @@ module RSAGL.Color.ColorSpace
 
 import RSAGL.Types
 import RSAGL.Math.Matrix
+import RSAGL.Math.Vector
+import RSAGL.Math.AbstractVector
 import Data.Vec (nearZero)
 import RSAGL.Math.Angle
 
@@ -38,7 +41,7 @@ newtype ColorChannel = LinearChannel Matrix
     deriving (Show)
 
 -- | 'channel_u', 'channel_v', 'channel_w', of a 3-channel color space.
-data ChannelIndex = ChannelIndex Matrix
+data ChannelIndex = ChannelIndex { channel_index :: Matrix }
 
 -- | The first channel of a color space represented by the ordered tripple,
 -- @(u,v,w)@.
@@ -68,6 +71,15 @@ newChannel :: (ColorSpace cs) => ChannelIndex -> cs -> ColorChannel
 newChannel (ChannelIndex ch_ix) cs = LinearChannel $ m `matrixMultiply` ch_ix
     where (AffineColorSpace m) = affineColorSpaceOf cs
 
+-- | Construct a 'ColorChannel' that runs along a hue angle.
+-- The meaning of the hue angle depends on the primary colors
+-- used in the construction of the color wheel.
+newAngularChannel :: ColorWheel -> Angle -> ColorChannel
+newAngularChannel (ColorWheel m) a = LinearChannel $
+        m
+    `matrixMultiply`
+        rotationMatrix (Vector3D 0 0 1) (scalarMultiply (-1) a)
+
 -- | A view of a specific color channel, such as red, or luminance.
 data LinearMetric = LinearMetric {
     -- | The range of a color channel that is within gamut.
@@ -93,7 +105,7 @@ viewChannel (LinearChannel m) c = LinearMetric {
                   [] -> Nothing
                   is -> Just (minimum is,maximum is),
               linear_color_function = \x -> importColorCoordinates $
-                  transformColorFromTo color_space_rgb (x,v,w),
+                  transformColorFromTo (AffineColorSpace m) (x,v,w),
               linear_value = u }
     where (u,v,w) = exportColorCoordinates c $ AffineColorSpace m
           (r,g,b) = exportColorCoordinates c color_space_rgb

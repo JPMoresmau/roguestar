@@ -6,10 +6,14 @@ module RSAGL.Color.Channels
      channel_cyan,
      channel_magenta,
      channel_yellow,
-     channel_brightness)
+     channel_brightness,
+     channel_red_cyan,
+     channel_blue_yellow,
+     channel_green_magenta)
     where
 
 import RSAGL.Color.ColorSpace
+import RSAGL.Math.Angle
 import RSAGL.Color.Spaces
 
 -- | The red channel of the RGB color space.
@@ -44,4 +48,18 @@ channel_yellow = newChannel channel_w color_space_cmy
 -- That is, (red + green + blue) / 3.
 channel_brightness :: ColorChannel
 channel_brightness = newChannel channel_w color_wheel_rgb_brightness
+
+-- | A red (1.0) vs. cyan (-1.0) channel.
+channel_red_cyan :: ColorChannel
+channel_red_cyan = newAngularChannel color_wheel_red_cyan_iso (fromDegrees 0)
+
+-- | A blue (1.0) vs. yellow (-1.0) channel.
+channel_blue_yellow :: ColorChannel
+channel_blue_yellow = newAngularChannel color_wheel_blue_yellow_iso (fromDegrees 240)
+
+-- | A green (1.0) vs. magenta (-1.0) channel.
+channel_green_magenta :: ColorChannel
+channel_green_magenta = newAngularChannel color_wheel_green_magenta_iso (fromDegrees 120)
+
+
 
