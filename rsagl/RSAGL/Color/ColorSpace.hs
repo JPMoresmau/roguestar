@@ -9,6 +9,7 @@ module RSAGL.Color.ColorSpace
      LinearMetric(..),
      newChannel,
      newAngularChannel,
+     newRadialChannel,
      viewChannel,
      channel_u,
      channel_v,
@@ -38,8 +39,8 @@ newtype ColorWheel = ColorWheel Matrix
     deriving (Show)
 
 -- | A specific component of a 3-channel color space.
-newtype ColorChannel = LinearChannel Matrix
-    deriving (Show)
+data ColorChannel = LinearChannel Matrix
+                  | Preconfigure (Color -> ColorChannel)
 
 -- | 'channel_u', 'channel_v', 'channel_w', of a 3-channel color space.
 data ChannelIndex = ChannelIndex { channel_index :: Matrix }
@@ -72,14 +73,24 @@ newChannel :: (ColorSpace cs) => ChannelIndex -> cs -> ColorChannel
 newChannel (ChannelIndex ch_ix) cs = LinearChannel $ m `matrixMultiply` ch_ix
     where (AffineColorSpace m) = affineColorSpaceOf cs
 
--- | Construct a 'ColorChannel' that runs along a hue angle.
--- The meaning of the hue angle depends on the primary colors
--- used in the construction of the color wheel.
+-- | Construct an isotropic 'ColorChannel' that runs along a
+-- hue angle.  The meaning of the hue angle depends on the
+-- primary colors used in the construction of the color wheel.
 newAngularChannel :: ColorWheel -> Angle -> ColorChannel
 newAngularChannel (ColorWheel m) a = LinearChannel $
         m
     `matrixMultiply`
-        rotationMatrix (Vector3D 0 0 1) (scalarMultiply (-1) a)
+        rotationMatrix (Vector3D 0 0 1) a
+
+-- | Construct an isotropic 'ColorChannel' along the radii
+-- of a color wheel.  This is exactly like calling
+-- 'newAngularChannel' knowing in advance the specific
+-- hue of the color in question.
+newRadialChannel :: ColorWheel -> ColorChannel
+newRadialChannel (ColorWheel m) = Preconfigure $ \c ->
+    let Point3D u v w = exportColorCoordinates c $ AffineColorSpace m
+        (a,_) = cartesianToPolar (u,v)
+        in newAngularChannel (ColorWheel m) a
 
 -- | A view of a specific color channel, such as red, or luminance.
 data LinearMetric = LinearMetric {
@@ -110,15 +121,25 @@ viewChannel (LinearChannel m) c = LinearMetric {
               linear_value = u }
     where Point3D u v w = exportColorCoordinates c $ AffineColorSpace m
           rgb@(Point3D r g b) = exportColorCoordinates c color_space_rgb
+          -- The vector describinb an adjustment of the specified
+          -- color channel.
           rgb'@(Vector3D r' g' b') = colorVectorOf (AffineColorSpace m)
                                                    (Vector3D 1 0 0)
+          -- Find the intersections between the vector describing an
+          -- adjustment of the specified channel and the boundaries
+          -- of the RGB gamut's color cube.
           intersections = map (+u) $ filter gamutValid $
                map (uncurry (/)) $ filter (not . nearZero . snd)
                    [(1-r,r'),(1-g,g'),(1-b,b'),
                     (-r,r'),(-g,g'),(-b,b')]
+          -- Construct the color with a particular linear adjustment of the
+          -- specified color channel
           colorFunction x = rgb `add` scalarMultiply x rgb'
+          -- Test that a color is within the RGB device gamut.
           gamutValid x = let Point3D r'' g'' b'' = colorFunction x
               in (>=3) $ length $ filter (>= (-0.001)) $ filter (<= 1.001) $ [r'',g'',b'']
+viewChannel (Preconfigure f) c =
+    viewChannel (f $ transformColor c) c
 
 -- | A color space specification or color type that has an associated
 -- color space.

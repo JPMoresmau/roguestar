@@ -3,6 +3,7 @@ module RSAGL.Color.Channels
      channel_green,
      channel_blue,
      channel_luminance,
+     channel_chroma,
      channel_cyan,
      channel_magenta,
      channel_yellow,
@@ -28,7 +29,11 @@ channel_green = newChannel channel_v color_space_rgb
 channel_blue :: ColorChannel
 channel_blue = newChannel channel_w color_space_rgb
 
--- | Luminance of a channel as percieved by the human eye.
+-- | The Chroma (colorfulness) of a color, isotropic to luminance.
+channel_chroma :: ColorChannel
+channel_chroma = newRadialChannel color_wheel_rgbl
+
+-- | Luminance of a color as percieved by the human eye.
 channel_luminance :: ColorChannel
 channel_luminance = newChannel channel_w color_wheel_rgbl
 
