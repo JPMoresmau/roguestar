@@ -12,7 +12,6 @@ The binary packages:
 And the library packages:
 
 * rsagl (RogueStar Animation and Graphics Library)
-* priority-sync
 
 The library packages must be installed before the binary packages can
 even be configured.
@@ -55,13 +54,12 @@ build-bin     [-e OPTS=cabal build opts]
 :             build the binaries
 
 copy-libs     [-e OPTS=cabal copy opts]
-:             install the libraries
+:             copy the libraries
 :             by default, they will end up in your ~/.cabal
-:             by default, uses --reinstall
 
 copy-bins     [-e OPTS=cabal copy opts]
-:             install the binaries
-:             by default, uses --reinstall
+:             copy the binaries
+:             by default, they will end up in your ./roguestar-local
 
 install-libs  [-e OPTS=cabal install opts]
 :             install the libraries
@@ -76,10 +74,10 @@ install       [-e OPTS=cabal install opts]
 :             install everything
 
 from-scratch  (uses default opts)
-:             clean, configure, build, and install that whole thing
+:             clean, configure, build, and copy the whole thing
 
 from-libs     (uses default opts)
-:             rebuild and install the libs, clean, configure, build, and install the binaries
+:             rebuild and install the libs, clean, configure, build, and copy the binaries
 
 sdist         [-e OPTS=cabal sdist opts]
 :             perform a cabal sdist, and gather everything under roguestar-sdist
