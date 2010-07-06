@@ -106,7 +106,8 @@ sunVector sky_info =
 -- | Apparent temperature of a color in kelvins.
 temperatureColor :: Integer -> RGB
 temperatureColor kelvins = lerpBetweenClamped (770,realToFrac kelvins,1060) 
-                                         (grayscale 0,maximizeRGB $ blackBodyRGB $ realToFrac kelvins)
+    (grayscale 0,adjustColor channel_value maximize $
+                                 blackBodyRGB $ realToFrac kelvins)
 
 -- | Apparent color of light comming from the sun.
 sunColor :: SunInfo -> RGB
@@ -128,12 +129,15 @@ makeSky sky_info = model $
            do let v = sunVector sky_info
               skyHemisphere origin_point_3d (Vector3D 0 1 0) 5.0
               affine $ scale (Vector3D 2 1 2)
-              material $ atmosphereScatteringMaterial (snd $ biomeAtmosphere $ sky_info_biome sky_info)
-                                                      [(v,maximizeRGB $ blackBodyRGB $ realToFrac $ sky_info_solar_kelvins sky_info)] 
-					              (dynamicSkyFilter 0.05 0.5)
+              material $ atmosphereScatteringMaterial
+                  (snd $ biomeAtmosphere $ sky_info_biome sky_info)
+                  [(v,adjustColor channel_value maximize $
+                          blackBodyRGB $ realToFrac $
+                              sky_info_solar_kelvins sky_info)]
+                  (dynamicSkyFilter 0.05 0.5)
 
--- | Implements absorbtion of light sources passing through the sky sphere.  In particular, this turns off all lights
--- inside 'scene_layer_sky_sphere'.
+-- | Implements absorbtion of light sources passing through the sky sphere.
+-- In particular, this turns off all lights inside 'scene_layer_sky_sphere'.
 skyAbsorbtionFilter :: SkyInfo -> LightSourceLayerTransform
 skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer originating_layer ls -> let v = direction ls in
     case () of
