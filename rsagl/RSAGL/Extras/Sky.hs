@@ -121,7 +121,7 @@ atmosphereLayerAbsorbtion :: AtmosphereLayer -> Ray3D -> RGB
 atmosphereLayerAbsorbtion l r = castSkyRay (sphere origin_point_3d (1 + atmosphere_altitude l)) (grayscale 1) absorbF r
     where absorbF p_near p_far = postFilter $ traceAbsorbtion (const $ scattering_model) linearSamples p_near p_far 1
           postFilter = case atmosphere_composition l of
-	                    Air -> maximizeRGB
+	                    Air -> adjustColor channel_value maximize
 			    _ -> id
           scattering_model = atmosphereLayerToScatteringModel l
 
@@ -159,7 +159,12 @@ atmosphereScattering atm_ suns p v_ = foldr add (grayscale 0) $ map ($ v_) scatt
 -- In particular, atmosphereScatteringMaterial uses this.
 --
 absorbtionFilter :: RGB -> RGB
-absorbtionFilter c = scalarMultiply (recip $ 1 + (abs $ log (maxRGB c) / log 2)) $ maximizeRGB c
+absorbtionFilter c =
+    let maximal_rgb = linear_value $ viewChannel channel_value c
+        maximized_rgb = adjustColor channel_value maximize c
+        in scalarMultiply
+               (recip $ 1 + (abs $ log maximal_rgb / log 2))
+               maximized_rgb
 
 -- | Generate a material for a sky sphere.  This material includes both scattering and absorbtion information.
 -- The material assumes the origin as the eye point, tracing to the geometric point at each vertex.  Therefore,
@@ -167,8 +172,10 @@ absorbtionFilter c = scalarMultiply (recip $ 1 + (abs $ log (maxRGB c) / log 2))
 --
 atmosphereScatteringMaterial :: Atmosphere -> [(Vector3D,RGB)] -> SkyFilter -> MaterialM attr ()
 atmosphereScatteringMaterial [] _ _ = return ()
-atmosphereScatteringMaterial _ suns _ | all ((== 0) . maxRGB . snd) suns = return ()
-atmosphereScatteringMaterial atm suns sky_filter = material $ 
+atmosphereScatteringMaterial _ suns _ |
+    all ((== 0) . linear_value . viewChannel channel_value . snd) suns =
+        return ()
+atmosphereScatteringMaterial atm suns sky_filter = material $
     do filtering $ ApplicativeWrapper $ Left $
            \(SurfaceVertex3D p _) -> absorbtionFilter $ atmosphereAbsorbtion atm (Point3D 0 1 0) (vectorToFrom p origin_point_3d)
        case m_skyFilterF of

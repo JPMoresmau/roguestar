@@ -10,7 +10,10 @@ module RSAGL.Color.Channels
      channel_brightness,
      channel_red_cyan,
      channel_blue_yellow,
-     channel_green_magenta)
+     channel_green_magenta,
+     channel_value,
+     channel_boldness,
+     channel_intensity)
     where
 
 import RSAGL.Color.ColorSpace
@@ -66,5 +69,19 @@ channel_blue_yellow = newAngularChannel color_wheel_blue_yellow_iso (fromDegrees
 channel_green_magenta :: ColorChannel
 channel_green_magenta = newAngularChannel color_wheel_green_magenta_iso (fromDegrees 120)
 
+-- | The maximum channel of the additive RGB color space.
+-- This is identical to the value channel of the HSB color model.
+-- This channel represents the device gamut: it should be between 0 and 1.
+channel_value :: ColorChannel
+channel_value = newMaximalChannel color_space_rgb
 
+-- | The maximum channel of the subtractive CMY color space.
+-- This channel represents the device gamut: it should be between 0 and 1.
+channel_boldness :: ColorChannel
+channel_boldness = newMaximalChannel color_space_cmy
+
+-- | The maximum channel of the neutral RGB color space.
+-- This channel represents the device gamut: it should be between -1 and 1.
+channel_intensity :: ColorChannel
+channel_intensity = newMaximalChannel color_space_neutral
 

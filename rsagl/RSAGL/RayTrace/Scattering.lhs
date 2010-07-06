@@ -158,7 +158,9 @@ instance AdaptiveSample RGB where
     conspicuous = recip . minRGB
 
 instance AdaptiveSample (RGB,RGB) where
-    conspicuous (scattering_color,absorbtion_color) = maxRGB scattering_color / minRGB absorbtion_color
+    conspicuous (scattering_color,absorbtion_color) =
+        linear_value (viewChannel channel_value scattering_color) /
+        minRGB absorbtion_color
 
 data Sample a = Sample {
     sample_conspic :: RSdouble,

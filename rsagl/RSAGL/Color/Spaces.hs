@@ -1,5 +1,6 @@
 module RSAGL.Color.Spaces
-    (color_space_cmy,
+    (color_space_neutral,
+     color_space_cmy,
      color_wheel_rgb_brightness,
      color_wheel_cmyk,
      color_wheel_red_cyan_iso,
@@ -10,6 +11,14 @@ module RSAGL.Color.Spaces
 import RSAGL.Color.ColorSpace
 import RSAGL.Color.RGB
 import RSAGL.Math.Angle
+
+-- | The RGB color space with neutral gray as the
+-- origin.
+color_space_neutral :: AffineColorSpace
+color_space_neutral = newColorSpace (RGB 0.5 0.5 0.5)
+                                    (RGB 1.0 0.5 0.5)
+                                    (RGB 0.5 1.0 0.5)
+                                    (RGB 0.5 0.5 1.0)
 
 -- | The subtractive Cyan-Magenta-Yellow color space.
 color_space_cmy :: AffineColorSpace

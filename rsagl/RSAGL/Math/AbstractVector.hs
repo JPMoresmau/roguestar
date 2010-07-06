@@ -19,21 +19,35 @@ import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
 import RSAGL.Types
 
+-- | A data type that has an additive identity.
 class AbstractZero a where
     zero :: a
 
+-- | A data type that supports addition.
+--
+-- * @a `add` zero = a@
 class AbstractAdd p v | p -> v where
     add :: p -> v -> p
 
+-- | A data type that supports subtraction.
+--
+-- * @a `sub` a = zero@
 class AbstractSubtract p v | p -> v where
     sub :: p -> p -> v
 
+-- | A data type that supports scalar multiplication.
+--
+-- * @scalarMultiply 0 a = zero@
 class AbstractScale v where
     scalarMultiply :: RSdouble -> v -> v
 
+-- | A data type that supports scalar magnitude.
+--
+-- * @magnitude (scalarMultiply (recip $ magnitude a) a) = 1@
 class AbstractMagnitude v where
     magnitude :: v -> RSdouble
 
+-- | A convenience class for many vector types.
 class (AbstractZero v,AbstractAdd v v,AbstractSubtract v v,AbstractScale v) => AbstractVector v where
 
 -- Integer
@@ -185,19 +199,27 @@ instance AbstractZero RSdouble where
 instance (AbstractScale a) => AbstractScale [a] where
     scalarMultiply d = map (scalarMultiply d)
 
+instance (AbstractMagnitude a) => AbstractMagnitude [a] where
+    magnitude = sqrt . sum . map ((^2) . magnitude)
+
 -- Generic functions.
 
+-- | Force a vector to the specified magnitude.
 abstractScaleTo :: (AbstractScale v,AbstractMagnitude v) => RSdouble -> v -> v
 abstractScaleTo _ v | magnitude v == 0 = v
 abstractScaleTo x v = scalarMultiply (x / magnitude v) v
 
+-- | Sum of a list.
 abstractSum :: (AbstractAdd p v,AbstractZero p) => [v] -> p
 abstractSum = foldr (flip add) zero
 
+-- | Average of a list.
 abstractAverage :: (AbstractAdd p v,AbstractSubtract p v,AbstractVector v,AbstractZero p) => [p] -> p
 abstractAverage vs = zero `add` scalarMultiply (recip $ fromInteger total_count) total_sum
     where f y (i,x) = i `seq` x `seq` (i+1,y `add` x)
           (total_count,total_sum) = foldr f (0,zero) $ map (`sub` zero) vs
 
+-- | Distance between two points, based on the 'magnitude' of the difference.
 abstractDistance :: (AbstractMagnitude v,AbstractSubtract p v) => p -> p -> RSdouble
 abstractDistance x y = magnitude $ x `sub` y
+

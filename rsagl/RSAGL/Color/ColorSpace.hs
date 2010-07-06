@@ -10,6 +10,7 @@ module RSAGL.Color.ColorSpace
      newChannel,
      newAngularChannel,
      newRadialChannel,
+     newMaximalChannel,
      viewChannel,
      channel_u,
      channel_v,
@@ -29,6 +30,7 @@ import RSAGL.Math.AbstractVector
 import RSAGL.Math.Affine
 import Data.Vec (nearZero)
 import RSAGL.Math.Angle
+import Control.Arrow (first,second)
 
 -- | An affine transformation of the default RGB color space.
 newtype AffineColorSpace = AffineColorSpace Matrix
@@ -39,8 +41,11 @@ newtype ColorWheel = ColorWheel Matrix
     deriving (Show)
 
 -- | A specific component of a 3-channel color space.
-data ColorChannel = LinearChannel Matrix
-                  | Preconfigure (Color -> ColorChannel)
+data ColorChannel =
+    -- A color space in which the 'u_channel' is the channel in question.
+    LinearChannel Matrix
+    -- | A channel that depends on the input color.
+  | Preconfigure (Color -> ColorChannel)
 
 -- | 'channel_u', 'channel_v', 'channel_w', of a 3-channel color space.
 data ChannelIndex = ChannelIndex { channel_index :: Matrix }
@@ -92,6 +97,21 @@ newRadialChannel (ColorWheel m) = Preconfigure $ \c ->
         (a,_) = cartesianToPolar (u,v)
         in newAngularChannel (ColorWheel m) a
 
+-- | Construct a 'ColorChannel' representing the maximum
+-- of the three color components.  For example, the
+-- maximum of @RGB 0.25 0.5 0.4@ is 0.5.
+newMaximalChannel :: AffineColorSpace -> ColorChannel
+newMaximalChannel cs@(AffineColorSpace m) = Preconfigure $ \c ->
+    let Point3D u v w = exportColorCoordinates c cs
+        maxi = maximum [abs u,abs v, abs w]
+        in LinearChannel $
+                   m
+               `matrixMultiply`
+                   (scale' (magnitude [u,v,w] /
+                           if nearZero maxi then 1.0 else maxi) $
+                    rotateToFrom (Vector3D u v w) (Vector3D 1 0 0) $
+                    identity_matrix)
+
 -- | A view of a specific color channel, such as red, or luminance.
 data LinearMetric = LinearMetric {
     -- | The range of a color channel that is within gamut.
@@ -104,10 +124,14 @@ data LinearMetric = LinearMetric {
     linear_color_function :: RSdouble -> Color,
     -- | The value of the particular color channel for the
     -- particular color.
-    linear_value :: RSdouble }
+    linear_value :: RSdouble,
+    -- | The original color.
+    linear_original :: Color }
 
 instance Show LinearMetric where
-    show x = show (linear_gamut_bounds x, linear_value x)
+    show x = show (linear_gamut_bounds x,
+                   linear_value x,
+                   exportColorCoordinates (linear_original x) color_space_rgb)
 
 -- | Read a specific channel of a color.
 viewChannel :: (ExportColorCoordinates c) =>
@@ -118,7 +142,8 @@ viewChannel (LinearChannel m) c = LinearMetric {
                   is -> Just (minimum is,maximum is),
               linear_color_function = \x -> importColorCoordinates $
                   transformColorFromTo (AffineColorSpace m) (Point3D x v w),
-              linear_value = u }
+              linear_value = u,
+              linear_original = transformColor c }
     where Point3D u v w = exportColorCoordinates c $ AffineColorSpace m
           rgb@(Point3D r g b) = exportColorCoordinates c color_space_rgb
           -- The vector describinb an adjustment of the specified
@@ -198,9 +223,11 @@ instance ImportColorCoordinates Color where
 newColorSpace :: (ExportColorCoordinates c) =>
     c -> c -> c -> c -> AffineColorSpace
 newColorSpace k u v w = AffineColorSpace $
-    xyzMatrix (u' `sub` k')
-              (v' `sub` k')
-              (w' `sub` k')
+            translationMatrix (vectorToFrom k' zero)
+        `matrixMultiply`
+            xyzMatrix (u' `sub` k')
+                      (v' `sub` k')
+                      (w' `sub` k')
     where k' = exportColorCoordinates k color_space_rgb
           u' = exportColorCoordinates u color_space_rgb
           v' = exportColorCoordinates v color_space_rgb
