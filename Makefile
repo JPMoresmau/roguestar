@@ -1,5 +1,5 @@
 CONFIG_LIB_OPTS=--ghc-option=-Wall
-CONFIG_BIN_OPTS=--prefix=./roguestar-local --ghc-option=-Wall
+CONFIG_BIN_OPTS=--prefix="${PWD}/roguestar-local" --ghc-option=-Wall
 
 warning:
 	@echo "See README."
