@@ -22,6 +22,7 @@ import RSAGL.Animation.Joint
 import Data.Maybe
 import Control.Monad
 import RSAGL.Types
+import RSAGL.Color
 
 instance Arbitrary RSdouble where
     arbitrary = fmap f2f (arbitrary :: Gen Double)
@@ -86,7 +87,7 @@ spawnPlusAndMinusAndDie = frpContext forbidDuplicates [(0,step1)] >>>
 -- Sanity test of ArrowState instance of FRP.
 --
 addFive :: Integer -> IO Integer
-addFive x = 
+addFive x =
     do p <- newFRP1Program (countingArrow x)
        _ <- updateFRPProgram Nothing (1,()) p
        _ <- updateFRPProgram Nothing (3,()) p
@@ -321,12 +322,58 @@ quickCheckCachedMatrixValues =
                                 else all sensible [mat,matrixInverse mat,matrixTranspose mat,matrixInverse $ matrixTranspose mat,matrixTranspose $ matrixInverse mat]
 
 --
+-- Tests taking the maximal value of a color system.
+--
+quickCheckColorMaximals :: IO ()
+quickCheckColorMaximals =
+    do putStr "quickCheckColorMaximals: "
+       quickCheck _qccm
+           where _qccm :: (RSdouble,RSdouble,RSdouble) -> Bool
+                 _qccm (r,g,b) = ((maximum [r,g,b]
+                     `equalClose`
+                         (linear_value $ viewChannel channel_value $ RGB r g b))
+                     &&
+                         ((1-minimum [r,g,b])
+                     `equalClose`
+                         (linear_value $ viewChannel channel_boldness $ RGB r g b)))
+                     ||
+                         (r > 1 || r < 0 || g > 1 || g < 0 || b > 1 || b < 0)
+
+--
+-- Tests measuring the luminance of a color.
+--
+quickCheckMeasureLuminance :: IO ()
+quickCheckMeasureLuminance =
+    do putStr "quickCheckMeasureLuminance: "
+       quickCheck _qcml
+  where _qcml :: (RSdouble,RSdouble,RSdouble) -> Bool
+        _qcml (r,g,b) =
+            let luminance = (r*0.2126 + g*0.7152 + b*0.0722)
+                in luminance `equalClose` (linear_value $ viewChannel channel_luminance $ RGB r g b) &&
+                   luminance `equalClose` hcl_luminance (transformColor $ RGB r g b)
+
+--
+-- Tests maximizing the amount of blue in a color.
+--
+quickCheckAdjustToBlue :: IO ()
+quickCheckAdjustToBlue =
+    do putStr "quickCheckAdjustToBlue: "
+       quickCheck _qcatb
+  where _qcatb :: (RSdouble,RSdouble,RSdouble) -> Bool
+        _qcatb (r,g,b) =
+            let (RGB r' g' b') = adjustColor channel_blue_yellow
+                                             ((+0.1) . linear_value)
+                                             (RGB r g b)
+                in abs (((r'+g')/2+b') - ((r+g)/2+b)) < 1.0e-4 &&
+                       b' >= b && r' <= r && g' <= g
+
+--
 -- Test harness.
 --
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
-test name actual expected | actual == expected = 
+test name actual expected | actual == expected =
                        do putStrLn $ "Test Case Passed: " ++ name
-test name actual expected = 
+test name actual expected =
                        do putStrLn ""
                           putStrLn $ "TEST CASE FAILED: " ++ name
                           putStrLn $ "expected: " ++ show expected
@@ -447,4 +494,7 @@ main = do testIO "add five test (sanity test of accumulation)"
           quickCheckCachedMatrixValues
           testJoint
           testRK4
+          quickCheckColorMaximals
+          quickCheckMeasureLuminance
+          quickCheckAdjustToBlue
 
