@@ -32,7 +32,8 @@ import Data.Vec (nearZero)
 import RSAGL.Math.Angle
 import Control.Arrow (first,second)
 
--- | An affine transformation of the default RGB color space.
+-- | An affine transformation from the default RGB color space
+-- to the specified color space.
 newtype AffineColorSpace = AffineColorSpace Matrix
     deriving (Show)
 
@@ -75,7 +76,7 @@ channel_w = ChannelIndex $ matrix
 
 -- | Pick a channel from a color space.
 newChannel :: (ColorSpace cs) => ChannelIndex -> cs -> ColorChannel
-newChannel (ChannelIndex ch_ix) cs = LinearChannel $ m `matrixMultiply` ch_ix
+newChannel (ChannelIndex ch_ix) cs = LinearChannel $ ch_ix `matrixMultiply` m
     where (AffineColorSpace m) = affineColorSpaceOf cs
 
 -- | Construct an isotropic 'ColorChannel' that runs along a
@@ -83,9 +84,9 @@ newChannel (ChannelIndex ch_ix) cs = LinearChannel $ m `matrixMultiply` ch_ix
 -- primary colors used in the construction of the color wheel.
 newAngularChannel :: ColorWheel -> Angle -> ColorChannel
 newAngularChannel (ColorWheel m) a = LinearChannel $
-        m
+        rotationMatrix (Vector3D 0 0 1) (scalarMultiply (-1) a)
     `matrixMultiply`
-        rotationMatrix (Vector3D 0 0 1) a
+        m
 
 -- | Construct an isotropic 'ColorChannel' along the radii
 -- of a color wheel.  This is exactly like calling
@@ -104,13 +105,11 @@ newMaximalChannel :: AffineColorSpace -> ColorChannel
 newMaximalChannel cs@(AffineColorSpace m) = Preconfigure $ \c ->
     let Point3D u v w = exportColorCoordinates c cs
         maxi = maximum [abs u,abs v, abs w]
+        magn = magnitude [u,v,w]
         in LinearChannel $
-                   m
-               `matrixMultiply`
-                   (scale' (magnitude [u,v,w] /
-                           if nearZero maxi then 1.0 else maxi) $
-                    rotateToFrom (Vector3D u v w) (Vector3D 1 0 0) $
-                    identity_matrix)
+               scale' (maxi / if nearZero magn then 1.0 else magn) $
+                   rotateToFrom (Vector3D 1 0 0) (Vector3D u v w) $
+                       transform m identity_matrix
 
 -- | A view of a specific color channel, such as red, or luminance.
 data LinearMetric = LinearMetric {
@@ -222,7 +221,7 @@ instance ImportColorCoordinates Color where
 -- 'channel_v', and 'channel_w' respectively.
 newColorSpace :: (ExportColorCoordinates c) =>
     c -> c -> c -> c -> AffineColorSpace
-newColorSpace k u v w = AffineColorSpace $
+newColorSpace k u v w = AffineColorSpace $ matrixInverse $
             translationMatrix (vectorToFrom k' zero)
         `matrixMultiply`
             xyzMatrix (u' `sub` k')
@@ -246,7 +245,7 @@ newColorWheel :: (ExportColorCoordinates c) =>
          (c,Angle,RSdouble) ->
          ColorWheel
 newColorWheel k (u,theta_u,u') (v,theta_v,v') (w,theta_w,w') =
-        ColorWheel $ uvw_to_rgb `matrixMultiply` matrixInverse uvw_to_wheel
+        ColorWheel $ uvw_to_wheel `matrixMultiply` matrixInverse uvw_to_rgb
     where uvw_to_wheel = matrix $
               [ [cosine theta_u, cosine theta_v, cosine theta_w, 0 ],
                 [  sine theta_u,   sine theta_v,   sine theta_w, 0 ],
@@ -258,7 +257,7 @@ newColorWheel k (u,theta_u,u') (v,theta_v,v') (w,theta_w,w') =
 -- and a luminance component.  This is the basis of the HCL color system.
 {-# NOINLINE color_wheel_rgbl #-}
 color_wheel_rgbl :: ColorWheel
-color_wheel_rgbl = ColorWheel $ matrixInverse $ matrix $
+color_wheel_rgbl = ColorWheel $ matrix $
   [ [1.0    , -0.5       , -0.5                  , 0.0],
     [0.0    , (sqrt 3/2) , (negate $ sqrt 3 / 2) , 0.0],
     [0.2126 , 0.7152     , 0.0722                , 0.0],
@@ -277,7 +276,7 @@ transformColorFromTo :: AffineColorSpace ->
 transformColorFromTo (AffineColorSpace source)
                      uvw
                      (AffineColorSpace destination) =
-    transform (matrixInverse destination `matrixMultiply` source)
+    transform (destination `matrixMultiply` matrixInverse source)
               uvw
 
 -- | Transform a color vector into RGB space.
