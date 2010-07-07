@@ -1,7 +1,7 @@
 {-# LANGUAGE Arrows #-}
 
 --
--- Some basic tests of the FRP arrow system.
+-- Assorted test cases for RSAGL.
 --
 
 module Main
@@ -34,8 +34,8 @@ instance Arbitrary RSfloat where
 --
 -- State machine that adds its input to its state
 --
-countingArrow :: (FRPModel m) => Integer -> 
-                                 FRP e 
+countingArrow :: (FRPModel m) => Integer ->
+                                 FRP e
                                      (SimpleSwitch k t s i o m)
                                      Integer
                                      Integer
@@ -129,8 +129,8 @@ testInitial = testCloseIO "testInitial"
 testSticky :: IO ()
 testSticky = testCloseIO "testSticky"
                   (frpTest [sticky odd 1]
-		           [0,1,2,3,4,5,6,7,8,9,10,11])
-		  [[1],[1],[1],[3],[3],[5],[5],[7],[7],[9],[9],[11]]
+                       [0,1,2,3,4,5,6,7,8,9,10,11])
+                  [[1],[1],[1],[3],[3],[5],[5],[7],[7],[9],[9],[11]]
                   (==)
 
 testRadiansToDegrees :: IO ()
@@ -169,7 +169,9 @@ testDistanceBetween = testClose "testDistanceBetween"
                       (sqrt 3)
                       equalClose
 
--- we just test that the right-hand rule is observed
+--
+-- We just test that the right-hand rule is observed
+--
 testCrossProduct :: IO ()
 testCrossProduct =
     do let (x,y,z) = toXYZ $ crossProduct (vector3d (1,0,0)) (vector3d (0,1,0))
@@ -177,7 +179,9 @@ testCrossProduct =
        testClose "testCrossProduct(y)" y 0.0 equalClose
        testClose "testCrossProduct(z)" z 1.0 equalClose
 
+--
 -- crossProduct always yields a vector orthogonal to the parameters.
+--
 quickCheckCrossProductByAngleBetween :: IO ()
 quickCheckCrossProductByAngleBetween = 
     do putStr "quickCheckCrossProductByAngleBetween: "
@@ -186,7 +190,9 @@ quickCheckCrossProductByAngleBetween =
                                         in (toDegrees $ angleBetween a c) `equalClose` 90 &&
                                            (toDegrees $ angleBetween b c) `equalClose` 90
 
--- orthos always yields two vectors orthogonal to the parameters
+--
+-- Orthos always yields two vectors orthogonal to the parameter.
+--
 quickCheckOrthos :: IO ()
 quickCheckOrthos =
     do putStr "quickCheckOrthos: "
@@ -197,6 +203,9 @@ quickCheckOrthos =
                                  (toDegrees $ angleBetween b c) `equalClose` 90 &&
                                  (toDegrees $ angleBetween a c) `equalClose` 90
 
+--
+-- Single test case for vectorAverage.
+--
 testVectorAverage :: IO ()
 testVectorAverage =
     do let (x,y,z) = toXYZ $ vectorAverage [vector3d (0.1,0,0),vector3d (0,-2,0),vector3d (0,0,5)]
@@ -204,6 +213,9 @@ testVectorAverage =
        testClose "testVectorAverage(y)" y (-0.57735) equalClose
        testClose "testVectorAverage(z)" z 0.57735 equalClose
 
+--
+-- Single test case for newell.
+--
 testNewell :: IO ()
 testNewell =
     do let (x,y,z) = toXYZ $ fromMaybe (error "testNewell: Nothing") $ newell [point3d (1,0,0),point3d (0,1,0),point3d (0,0,-1)]
@@ -211,62 +223,88 @@ testNewell =
        testClose "testNewell(y)" y (-0.57735) equalClose
        testClose "testNewell(z)" z 0.57735 equalClose
 
+-- An ad-hoc vector type.
 type RSdouble4 = (RSdouble,RSdouble,RSdouble,RSdouble)
+-- An ad-hoc matrix type.
 type RSdouble44 = (RSdouble4,RSdouble4,RSdouble4,RSdouble4)
 
 d4ToMatrix :: RSdouble44 -> Matrix
 d4ToMatrix ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = matrix $ [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
+--
+-- A single test of the determinant fuction.
+--
 testDeterminant4 :: IO ()
 testDeterminant4 =
    do test "testDeterminant4-1"
            (determinant $ matrix [[1.5,-1.0,0.5,-2.0],[1.0,1.5,1.0,1.0],[1.5,1.0,0.5,-0.5],[1.0,1.5,1.0,0.0]])
            2
 
-testJoint :: IO () 
+--
+-- A single test of constructing an articulated joint.
+--
+testJoint :: IO ()
 testJoint = testClose "testJoint"
     (joint_elbow $ joint (Vector3D 0 1 1) (Point3D 0 1 0) 3 (Point3D 0 0 1))
     (Point3D 0 1.43541 1.43541)
     xyzEqualClose
 
+--
+-- A matrix multiplied by the identity matrix should be itself.
+--
 quickCheckMatrixIdentity4 :: IO ()
 quickCheckMatrixIdentity4 =
     do putStr "quickCheckMatrixIdentity4: "
        quickCheck _qcmi
            where _qcmi :: RSdouble44 -> Bool
-	         _qcmi m = (identity_matrix `matrixMultiply` mat) `matrixEqualClose` mat
-		     where mat = d4ToMatrix m
+                 _qcmi m = (identity_matrix `matrixMultiply` mat) `matrixEqualClose` mat
+                     where mat = d4ToMatrix m
 
+--
+-- The determinant of a matrix is equal to the determinant of its transpose.
+--
 quickCheckMatrixDeterminant4 :: IO ()
 quickCheckMatrixDeterminant4 =
     do putStr "quickCheckMatrixDeterminant4: "
        quickCheck _qcmi
            where _qcmi :: RSdouble44 -> Bool
-                 _qcmi m = 
+                 _qcmi m =
                      determinant (matrixTransposePrim mat) `equalClose` determinant mat
                          where mat = d4ToMatrix m
 
+--
+-- The product of the determinants of two matrices is equal to the determinant
+-- of the product of the two matrices.
+--
 quickCheckMatrixMultiplyDeterminant4 :: IO ()
 quickCheckMatrixMultiplyDeterminant4 =
     do putStr "quickCheckMatrixMultiplyDeterminant4: "
-       quickCheck _qcmmd 
+       quickCheck _qcmmd
             where _qcmmd :: (RSdouble44,RSdouble44) -> Bool
                   _qcmmd (m1,m2) =
                        (determinant (mat1 `matrixMultiply` mat2)) `equalClose` (determinant mat1 * determinant mat2)
                            where mat1 = d4ToMatrix m1
                                  mat2 = d4ToMatrix m2
 
+--
+-- The inverse of the inverse of a matrix is equal to the original.
+--
 quickCheckMatrixInverse4 :: IO ()
 quickCheckMatrixInverse4 =
     do putStr "quickCheckMatrixInverse4: "
        quickCheck _qcmi
            where _qcmi :: RSdouble44 -> Bool
-                 _qcmi ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) = 
+                 _qcmi ((a,b,c,d),(e,f,g,h),(i,j,k,l),(m,n,o,p)) =
                      if determinant mat `equalClose` 0
                      then True
                      else matrixInversePrim (matrixInversePrim mat) `matrixEqualClose` mat
                          where mat = matrix [[a,b,c,d],[e,f,g,h],[i,j,k,l],[m,n,o,p]]
 
+--
+-- RSAGL matrices do considerable caching of inverses and transposes.  Test that
+-- the cached values are consistent with the values derived from direct
+-- manipulation.
+--
 quickCheckCachedMatrixValues :: IO ()
 quickCheckCachedMatrixValues =
     do putStr "quickCheckCachedMatrixValues: "
@@ -282,6 +320,9 @@ quickCheckCachedMatrixValues =
                          in if determinant mat `equalClose` 0 then True
                                 else all sensible [mat,matrixInverse mat,matrixTranspose mat,matrixInverse $ matrixTranspose mat,matrixTranspose $ matrixInverse mat]
 
+--
+-- Test harness.
+--
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
 test name actual expected | actual == expected = 
                        do putStrLn $ "Test Case Passed: " ++ name
@@ -292,12 +333,18 @@ test name actual expected =
                           putStrLn $ "actual:   " ++ show actual
                           putStrLn ""
 
+--
+-- Test harness for IO actions.
+--
 testIO :: (Eq a,Show a) => String -> IO a -> a -> IO ()
 testIO name actualIO expected =
     do putStrLn $ "Running IO: " ++ name
        actual <- actualIO
        test name actual expected
 
+--
+-- Test approximate equality.
+--
 equalClose :: (Eq a,Num a,Ord a,Fractional a,Floating a) => a -> a -> Bool
 equalClose actual expected | actual == expected = True
 equalClose actual expected | signum actual /= signum expected = False
@@ -306,47 +353,66 @@ equalClose _ 0 = False
 equalClose 0 _ = False
 equalClose actual expected = abs (log (abs actual) - log (abs expected)) < 0.01
 
+--
+-- Test approximate equality with lists.
+--
 listEqualClose :: (a -> a -> Bool) -> [a] -> [a] -> Bool
 listEqualClose f xs ys | length xs == length ys = and $ zipWith f xs ys
 listEqualClose _ _ _ = False
 
+--
+-- Test approximate equality with matrices.
+--
 matrixEqualClose :: Matrix -> Matrix -> Bool
 matrixEqualClose m n = and $ List.map and $ zipWith (zipWith equalClose)
     (rowMajorForm m) (rowMajorForm n)
 
+--
+-- Test approximate equality with 3-tuples.
+--
 xyzEqualClose :: (Xyz xyz) => xyz -> xyz -> Bool
 xyzEqualClose a b = equalClose ax bx && equalClose ay by && equalClose az bz
     where (ax,ay,az) = toXYZ a
           (bx,by,bz) = toXYZ b
 
+--
+-- Test harness using an approximate equality test.
+--
 testClose :: (Show a) => String -> a -> a -> (a -> a -> Bool) -> IO ()
 testClose name actual expected f | f actual expected =
     do putStrLn $ "Test Case Passed: " ++ name
-testClose name actual expected _ = 
+testClose name actual expected _ =
     do putStrLn ""
        putStrLn $ "TEST CASE FAILED: " ++ name
        putStrLn $ "expected: " ++ show expected
        putStrLn $ "actual: " ++ show actual
        putStrLn ""
 
+--
+-- Test harness using an approximate equality test using an IO action.
+--
 testCloseIO :: (Show a) => String -> IO a -> a -> (a -> a -> Bool) -> IO ()
 testCloseIO name actualIO expected f =
     do putStrLn $ "Running IO: " ++ name
        actual <- actualIO
        testClose name actual expected f
 
+--
+-- Single test of the RK4 algorithm.
+--
 testRK4 :: IO ()
-testRK4 = testClose "testRK4" 
-                    (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0 (fromSeconds 0) (fromSeconds 1) 100)
+testRK4 = testClose "testRK4"
+                    (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0
+                                      (fromSeconds 0) (fromSeconds 1) 100)
                     (sin 1.0 :: RSdouble)
                     equalClose
 
 main :: IO ()
-main = do testIO "add five test (sanity test of accumulation)" 
+main = do testIO "add five test (sanity test of accumulation)"
                (addFive 2) 7
-          testIO "even zeroes test (sanity test of switching)" 
+          testIO "even zeroes test (sanity test of switching)"
                (evenZeroes [True,True,False,True,False]) True
-          testIO "odd zeroes test (sanity test of switching)" 
+          testIO "odd zeroes test (sanity test of switching)"
                (evenZeroes [True,True,True,False,False,True,False,True]) False
           testIO "spawning test 1 (sanity test of threading)"
                (spawnPMD 0) (Set.fromList [0])
@@ -361,7 +427,7 @@ main = do testIO "add five test (sanity test of accumulation)"
           testIntegral
           testDerivative
           testInitial
-	  testSticky
+          testSticky
           testRadiansToDegrees
           testDegreesToRadians
           testAngleAdd
@@ -374,7 +440,7 @@ main = do testIO "add five test (sanity test of accumulation)"
           testVectorAverage
           testNewell
           testDeterminant4
-	  quickCheckMatrixIdentity4
+          quickCheckMatrixIdentity4
           quickCheckMatrixDeterminant4
           quickCheckMatrixMultiplyDeterminant4
           quickCheckMatrixInverse4
