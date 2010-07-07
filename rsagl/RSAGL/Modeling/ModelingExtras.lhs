@@ -31,7 +31,6 @@ module RSAGL.Modeling.ModelingExtras
      module Control.Applicative)
     where
 
-import Graphics.Rendering.OpenGL.GL hiding (translate,rotate,scale,specular)
 import RSAGL.Modeling.Noise
 import RSAGL.Color
 import RSAGL.Color.RSAGLColors
