@@ -25,7 +25,7 @@ import RSAGL.Scene.Scene
 import RSAGL.Modeling.Model
 import RSAGL.Scene.WrappedAffine
 import Control.Monad
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Answers a continuous rotation.
 rotationA :: Vector3D -> Rate Angle -> FRP e m ignored AffineTransformation

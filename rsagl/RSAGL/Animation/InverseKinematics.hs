@@ -23,7 +23,7 @@ import RSAGL.Animation.Joint
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Angle
 import RSAGL.Math.FMod
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | This simulates a single foot that hops along by itself whenever its
 -- coordinate system moves.  A foot always trys to walk on the plane @y == 0@.

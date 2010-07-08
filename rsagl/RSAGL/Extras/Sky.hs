@@ -26,7 +26,7 @@ import Data.List as List
 import Data.Ord
 import System.Random
 import RSAGL.Modeling.Model hiding (sphere)
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Math.AbstractVector
 
 -- | An atmosphere that is fairly typical of the earth.

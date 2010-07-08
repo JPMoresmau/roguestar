@@ -23,7 +23,7 @@ module RSAGL.Color.ColorSpace
      transformColor)
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Math.Matrix
 import RSAGL.Math.Vector
 import RSAGL.Math.AbstractVector

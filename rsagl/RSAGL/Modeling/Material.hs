@@ -19,7 +19,7 @@ import RSAGL.Math.Curve
 import RSAGL.Auxiliary.ApplicativeWrapper
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA,Alpha)
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Math.AbstractVector
 
 -- | A 'MaterialSurface' is parameterized either on RGB or RGBA, depending

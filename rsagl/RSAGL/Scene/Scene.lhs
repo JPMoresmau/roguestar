@@ -54,7 +54,7 @@ import qualified Data.Set as Set
 import Data.Monoid
 import RSAGL.Auxiliary.RecombinantState
 import Data.MemoCombinators
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Cameras}

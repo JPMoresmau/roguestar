@@ -8,7 +8,7 @@ module RSAGL.Modeling.BoundingBox
 import RSAGL.Math.Vector
 import RSAGL.Math.Interpolation
 import RSAGL.Math.Affine
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | A simple bounding box.  Operations on bounding boxes
 -- are designed to be fast, not accurate.  The only

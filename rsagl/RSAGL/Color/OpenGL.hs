@@ -3,7 +3,7 @@ module RSAGL.Color.OpenGL
     (ColorToOpenGL(..))
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Color.RGB
 import RSAGL.Color.Alpha
 import Graphics.Rendering.OpenGL.Raw.Core31 (GLdouble,GLfloat)

@@ -2,7 +2,7 @@ module RSAGL.Math.FMod
     (FMod(..))
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 
 class FMod f where
     fmod :: f -> f -> f

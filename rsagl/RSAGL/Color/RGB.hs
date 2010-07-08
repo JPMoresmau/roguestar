@@ -12,7 +12,7 @@ module RSAGL.Color.RGB
      zipRGB3)
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Color.ColorSpace
 import RSAGL.Color.Auxiliary
 import RSAGL.Math.Vector

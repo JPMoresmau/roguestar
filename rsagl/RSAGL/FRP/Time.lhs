@@ -38,7 +38,7 @@ module RSAGL.FRP.Time
 import RSAGL.Math.AbstractVector
 import System.Time
 import RSAGL.Math.Affine
-import RSAGL.Types
+import RSAGL.Math.Types
 
 {-# INLINE time_resolution #-}
 time_resolution :: (Num n) => n

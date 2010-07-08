@@ -35,7 +35,7 @@ module RSAGL.Math.Angle
 
 import RSAGL.Math.FMod
 import RSAGL.Math.AbstractVector
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | An angular value.
 newtype Angle = Radians RSdouble deriving (Read,Show)

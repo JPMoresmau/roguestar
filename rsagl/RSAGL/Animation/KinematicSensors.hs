@@ -8,7 +8,7 @@ import Control.Arrow
 import RSAGL.Math.Vector
 import RSAGL.FRP
 import RSAGL.Scene.CoordinateSystems
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Measures the distance traveled, by the origin of the local coordinate
 -- system, as measured in a remote coordinate system, in terms

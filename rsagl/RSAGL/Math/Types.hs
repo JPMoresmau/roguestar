@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module RSAGL.Types
+module RSAGL.Math.Types
     (RSfloat,
      RSdouble,
      toGLfloat,

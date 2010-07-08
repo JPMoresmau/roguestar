@@ -54,7 +54,7 @@ import Debug.Trace
 import RSAGL.Modeling.BoundingBox
 import RSAGL.Math.Interpolation
 import RSAGL.Math.FMod
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | A parametric function that is aware of it's own sampling interval.  The first parameter is the sampling interval, while the second is the curve input parameter.
 type CurveF a = (RSdouble,RSdouble) -> a

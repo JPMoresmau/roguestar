@@ -77,7 +77,7 @@ import RSAGL.Modeling.OpenGLPrimitives
 import RSAGL.Modeling.BakedModel hiding (tesselatedElementToOpenGL)
 import Data.IORef
 import Control.Monad
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Color
 \end{code}
 

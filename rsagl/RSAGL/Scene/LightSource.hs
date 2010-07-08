@@ -18,7 +18,7 @@ import RSAGL.Math.Affine
 import RSAGL.Math.AbstractVector
 import RSAGL.Scene.CoordinateSystems
 import Graphics.Rendering.OpenGL as GL
-import RSAGL.Types
+import RSAGL.Math.Types
 import Data.List as List
 import Data.Monoid
 

@@ -18,7 +18,7 @@ import System.CPUTime
 import Control.Parallel
 import Control.Parallel.Strategies
 import Debug.Trace
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- doubles transforms a list to a list of adjacent elements.
 

@@ -6,7 +6,7 @@ import RSAGL.Math.Interpolation
 import RSAGL.Math.Vector
 import Data.Array.Unboxed
 import Data.Fixed
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Turbulence function.
 perlinTurbulence :: RSdouble ->

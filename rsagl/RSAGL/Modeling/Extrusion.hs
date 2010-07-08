@@ -12,7 +12,7 @@ import Control.Applicative
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Orthogonal
 import Data.Maybe
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | The most general form of an extrusion.  Requires first a
 -- control curve for orientation, for example the center of

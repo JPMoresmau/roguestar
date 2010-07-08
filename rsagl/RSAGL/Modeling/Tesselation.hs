@@ -24,7 +24,7 @@ import Text.Parsec.Prim
 import Text.Parsec.String ()
 import Data.Ord
 import Control.Monad
-import RSAGL.Types
+import RSAGL.Math.Types
 
 type TesselatedSurface a = [TesselatedElement a]
 

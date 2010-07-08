@@ -2,7 +2,7 @@ module RSAGL.Color.Auxiliary
     (i2f256)
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Convert a value in the range \[0..255\] to the range
 -- \[0.0..1.0\].

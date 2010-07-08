@@ -3,7 +3,7 @@ module RSAGL.Color.Alpha
     (Alpha(..),alpha,alpha256)
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Color.Auxiliary
 import RSAGL.Math.AbstractVector
 import Control.Parallel.Strategies

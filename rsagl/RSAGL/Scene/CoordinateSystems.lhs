@@ -46,7 +46,7 @@ import Control.Arrow.Operations
 import RSAGL.Math.Matrix
 import RSAGL.Math.Affine
 import RSAGL.Math.Vector
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Coordinate Systems}

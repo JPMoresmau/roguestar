@@ -8,7 +8,7 @@ import RSAGL.Color
 import RSAGL.Math.AbstractVector
 import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Interpolation
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Evaluates planck's law respecting blackbody radiation.
 -- Accepts temperature in Kelvins (K) and wavelength in nanometers (nm).

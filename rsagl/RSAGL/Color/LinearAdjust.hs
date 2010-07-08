@@ -7,7 +7,7 @@ module RSAGL.Color.LinearAdjust
     where
 
 import Data.Maybe
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Color.ColorSpace
 
 type LinearAdjustment = LinearMetric -> RSdouble

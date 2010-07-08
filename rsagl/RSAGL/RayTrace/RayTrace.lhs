@@ -22,7 +22,7 @@ import RSAGL.Math.Ray
 import Data.Ord
 import Data.List
 import Data.Maybe
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Geometry}

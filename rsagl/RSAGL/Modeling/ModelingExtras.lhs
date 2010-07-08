@@ -47,7 +47,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Angle
 import RSAGL.Math.Ray
 import RSAGL.Math.AbstractVector
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Colors}

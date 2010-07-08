@@ -14,7 +14,7 @@ import Graphics.Rendering.OpenGL.GL as GL hiding (R)
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
 import RSAGL.Math.Angle
-import RSAGL.Types
+import RSAGL.Math.Types
 import Data.Maybe
 
 -- | 'AffineTransformable' objects are subject to affine transformations using matrix multiplication.

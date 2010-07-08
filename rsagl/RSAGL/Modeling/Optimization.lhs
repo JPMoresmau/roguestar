@@ -11,7 +11,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Curve
 import Data.List as List
 import RSAGL.Modeling.Tesselation
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Surface Configurations}

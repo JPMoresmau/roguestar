@@ -4,7 +4,7 @@ module RSAGL.Color.HCL
     where
 
 import RSAGL.Math.AbstractVector
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.Math.Vector
 import RSAGL.Math.Angle
 import RSAGL.Color.ColorSpace

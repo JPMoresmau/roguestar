@@ -29,7 +29,7 @@ import Graphics.Rendering.OpenGL.Raw.Core31 (GLdouble,GLfloat)
 import Graphics.Rendering.OpenGL hiding (RGB,RGBA,Alpha)
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Interpolation
-import RSAGL.Types
+import RSAGL.Math.Types
 
 type RGBA = Alpha RGB
 

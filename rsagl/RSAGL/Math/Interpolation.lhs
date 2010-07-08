@@ -15,7 +15,7 @@ module RSAGL.Math.Interpolation
 import RSAGL.Math.AbstractVector
 import Data.Map as Map
 import Data.Maybe
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{The Lerpable typeclass}

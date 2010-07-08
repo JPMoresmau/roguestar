@@ -7,7 +7,7 @@ import RSAGL.Math.Affine
 import RSAGL.Math.Interpolation
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Orthogonal
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | The result of computing a joint.  It provides AffineTransformations that
 -- describe the orientations of the components of the joint.

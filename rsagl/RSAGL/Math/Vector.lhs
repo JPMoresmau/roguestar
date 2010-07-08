@@ -45,7 +45,7 @@ import RSAGL.Math.Angle
 import RSAGL.Auxiliary.Auxiliary
 import System.Random
 import RSAGL.Math.AbstractVector
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Generic 3-dimensional types and operations}

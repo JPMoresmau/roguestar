@@ -9,7 +9,7 @@ module RSAGL.Math.Ray
 import RSAGL.Math.Vector
 import RSAGL.Math.Angle
 import RSAGL.Math.Affine
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Rays with endpoints and vectors.
 --

@@ -25,7 +25,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Affine
 import Control.Arrow
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \subsection{Alternate Coordinate Systems for Models}

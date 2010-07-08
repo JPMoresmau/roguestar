@@ -17,7 +17,7 @@ module RSAGL.Math.AbstractVector
 import Data.Fixed
 import Control.Applicative
 import RSAGL.Auxiliary.ApplicativeWrapper
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | A data type that has an additive identity.
 class AbstractZero a where

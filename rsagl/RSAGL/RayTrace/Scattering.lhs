@@ -33,7 +33,7 @@ import RSAGL.Math.AbstractVector
 import RSAGL.Auxiliary.Auxiliary
 import Data.Monoid
 import Data.List
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 \section{Scattering}

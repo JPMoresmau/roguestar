@@ -30,7 +30,7 @@ import Data.List as List
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import Data.Vec as Vec
-import RSAGL.Types
+import RSAGL.Math.Types
 \end{code}
 
 A 4-by-4 matrix with cached inverse, transpose, inverse transpose, and determinant.

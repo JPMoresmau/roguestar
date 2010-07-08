@@ -41,7 +41,7 @@ Library
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
-                         RSAGL.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
+                         RSAGL.Math.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
                          RSAGL.Color.ColorSpace, RSAGL.Color.RGB, RSAGL.Color.HCL,
                          RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color,
                          RSAGL.Color.Channels, RSAGL.Color.Spaces, RSAGL.Color.LinearAdjust
