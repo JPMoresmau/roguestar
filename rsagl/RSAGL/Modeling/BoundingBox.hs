@@ -1,8 +1,3 @@
-\section{Bounding Boxes}
-
-Implements simple bounding boxes and spheres.
-
-\begin{code}
 module RSAGL.Modeling.BoundingBox
     (BoundingBox,
      Bound3D(..),
@@ -15,15 +10,25 @@ import RSAGL.Math.Interpolation
 import RSAGL.Math.Affine
 import RSAGL.Types
 
+-- | A simple bounding box.  Operations on bounding boxes
+-- are designed to be fast, not accurate.  The only
+-- guarantee on any bounding box operation is that
+-- objects reported to be outside a bounding box,
+-- are.
 data BoundingBox = BoundingBox {
-    bbox_bottom, bbox_top, bbox_left, bbox_right, bbox_far, bbox_near :: !RSdouble }
+    bbox_bottom, bbox_top, bbox_left,
+    bbox_right, bbox_far, bbox_near :: !RSdouble }
         deriving (Show)
 
+-- | A convenience class for any finite geometry.
+-- In particular, it's easy to concatenate the bounding
+-- box of multiple geometries by placing them in a list
+-- and taking the bounding box of the entire list.
 class Bound3D a where
     boundingBox :: a -> BoundingBox
 
 instance Bound3D Point3D where
-    boundingBox (Point3D x y z) = BoundingBox { 
+    boundingBox (Point3D x y z) = BoundingBox {
                                       bbox_bottom = y,
                                       bbox_top = y,
                                       bbox_right = x,
@@ -67,12 +72,16 @@ boundingBoxToPointCloud bbox =
      Point3D (bbox_left bbox)  (bbox_top bbox)    (bbox_far bbox),
      Point3D (bbox_right bbox) (bbox_top bbox)    (bbox_far bbox)]
 
+-- | View of a bounding box in the form of a bounding spehre.
 boundingCenterRadius :: BoundingBox -> (Point3D,RSdouble)
 boundingCenterRadius bbox = (lerp 0.5 (nlb,frt),distanceBetween nlb frt / 2)
     where nlb = Point3D (bbox_near bbox) (bbox_left bbox) (bbox_bottom bbox)
           frt = Point3D (bbox_far bbox) (bbox_right bbox) (bbox_top bbox)
 
+-- | Estimates distance between a point and the outside surface of a bounding
+-- box.  If the value is negative, then the point lies inside the bound
+-- region.
 minimalDistanceToBoundingBox :: Point3D -> BoundingBox -> RSdouble
 minimalDistanceToBoundingBox p bbox = distanceBetween p c - r
     where (c,r) = boundingCenterRadius bbox
-\end{code}
+
