@@ -1,7 +1,3 @@
-\section{Generating Noise: RSAGL.Noise}
-\ref{RSAGLNoise}
-
-\begin{code}
 module RSAGL.Modeling.Noise
     (perlinTurbulence,perlinNoise)
     where
@@ -12,13 +8,17 @@ import Data.Array.Unboxed
 import Data.Fixed
 import RSAGL.Types
 
-perlinTurbulence :: RSdouble -> Point3D -> Point3D
+-- | Turbulence function.
+perlinTurbulence :: RSdouble ->
+                    -- ^ Amplitude of the turbulence function.
+                    Point3D ->
+                    Point3D
 perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perlinNoise y') (z + s*perlinNoise z')
     where x' = Point3D (x+100) y z
           y' = Point3D x (y+100) z
           z' = Point3D x y (z+100)
 
--- |
+--
 -- Intellectual property note:
 --
 -- This is based on Perlin's improved noise reference implementation.
@@ -26,6 +26,10 @@ perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perli
 -- of the term "reference implementation" that it was intended to be
 -- the basis of derivative code such as this.
 --
+
+-- |
+-- Generates an arbitrary, smoothly varying value
+-- between @-1@ and @1@.
 perlinNoise :: Point3D -> RSdouble
 perlinNoise (Point3D x0 y0 z0) =
    let (x,x') = divMod' x0 1 :: (Int,RSdouble)
@@ -77,7 +81,3 @@ grad hash x y z =
                        11 -> (-z) + (-x)
                        _ -> error "grad: impossible case"
 
---
--- End of the Perlin noise functions derived from the reference implementation.
---
-\end{code}
