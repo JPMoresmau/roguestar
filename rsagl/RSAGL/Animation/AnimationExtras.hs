@@ -23,7 +23,7 @@ import RSAGL.Math.Affine
 import RSAGL.Math.Angle
 import RSAGL.Scene.Scene
 import RSAGL.Modeling.Model
-import RSAGL.Math.WrappedAffine
+import RSAGL.Scene.WrappedAffine
 import Control.Monad
 import RSAGL.Types
 

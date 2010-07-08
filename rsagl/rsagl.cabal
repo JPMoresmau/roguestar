@@ -29,7 +29,7 @@ Library
                          RSAGL.Color.RSAGLColors, RSAGL.Modeling.Extrusion,
                          RSAGL.FRP.Time, RSAGL.Math.Matrix,
                          RSAGL.Animation.Joint,
-                         RSAGL.Math.Affine, RSAGL.Math.WrappedAffine, RSAGL.Math.CurveExtras,
+                         RSAGL.Math.Affine, RSAGL.Scene.WrappedAffine, RSAGL.Math.CurveExtras,
                          RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics, RSAGL.FRP.FRP,
                          RSAGL.FRP.RK4, RSAGL.Animation.AnimationExtras, RSAGL.Math.Interpolation,
                          RSAGL.Modeling.Model, RSAGL.Modeling.Deformation,

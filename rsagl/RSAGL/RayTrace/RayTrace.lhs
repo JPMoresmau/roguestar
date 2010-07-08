@@ -5,7 +5,7 @@ This section implements functions that could form the basis of a ray tracer.
 \begin{code}
 module RSAGL.RayTrace.RayTrace
     (Geometry(..),
-     Plane, 
+     Plane,
      plane,
      plane3,
      UnitSphere(..), Sphere,
@@ -16,7 +16,7 @@ module RSAGL.RayTrace.RayTrace
 
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Math.Affine
-import RSAGL.Math.WrappedAffine
+import RSAGL.Scene.WrappedAffine
 import RSAGL.Math.Vector
 import RSAGL.Math.Ray
 import Data.Ord

@@ -1,4 +1,4 @@
-module RSAGL.Math.WrappedAffine
+module RSAGL.Scene.WrappedAffine
     (WrappedAffine(..),
      wrapAffine,
      unwrapAffine)
@@ -7,8 +7,10 @@ module RSAGL.Math.WrappedAffine
 import RSAGL.Math.Affine
 import RSAGL.Scene.CoordinateSystems
 
--- | WrappedAffine stores up affine transformations that are commited only when the entity is unwrapped.  In this way we can store affine transformations 
--- for entities that can not be directly transformed, or for which delaying transformation an optimization.
+-- | WrappedAffine stores up affine transformations that are commited only when
+-- the entity is unwrapped.  In this way we can store affine transformations
+-- for entities that can not be directly transformed, or for which delaying
+-- transformation an optimization.
 data WrappedAffine a = WrappedAffine CoordinateSystem a
 
 wrapAffine :: a -> WrappedAffine a

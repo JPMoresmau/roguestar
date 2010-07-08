@@ -46,7 +46,7 @@ import Control.Arrow
 import Control.Arrow.Operations
 import Graphics.Rendering.OpenGL as GL
 import Data.Maybe
-import RSAGL.Math.WrappedAffine
+import RSAGL.Scene.WrappedAffine
 import RSAGL.Math.Orthogonal
 import RSAGL.Scene.LightSource
 import qualified Data.Map as Map
