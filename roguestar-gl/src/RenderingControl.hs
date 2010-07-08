@@ -28,7 +28,7 @@ import AnimationMenus
 import AnimationExtras
 import AnimationEvents
 import Strings
-import RSAGL.Types
+import RSAGL.Math.Types
 import PrintTextData
 import qualified Data.ByteString.Char8 as B
 

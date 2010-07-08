@@ -5,7 +5,7 @@ module AnimationTerrain
     where
 
 import Data.List
-import RSAGL.Types
+import RSAGL.Math.Types
 import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Animation.InverseKinematics

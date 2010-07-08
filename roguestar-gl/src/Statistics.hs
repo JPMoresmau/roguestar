@@ -12,7 +12,7 @@ import System.IO
 import System.IO.Unsafe
 import RSAGL.Math.AbstractVector
 import Control.Monad
-import RSAGL.Types
+import RSAGL.Math.Types
 import Text.Printf
 import Control.Exception
 

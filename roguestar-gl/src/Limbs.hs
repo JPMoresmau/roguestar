@@ -14,7 +14,7 @@ import Control.Arrow
 import RSAGL.Scene
 import RSAGL.FRP
 import EventUtils
-import RSAGL.Types
+import RSAGL.Math.Types
 
 -- | Animate an arbitrary articulated joint.
 libraryJointAnimation :: (FRPModel m, StateOf m ~ AnimationState) => RSdouble -> LibraryModel -> LibraryModel -> FRP e m Joint ()

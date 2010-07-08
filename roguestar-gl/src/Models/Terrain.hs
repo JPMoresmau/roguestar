@@ -11,7 +11,7 @@ import Models.RecreantFactory
 import RSAGL.Modeling
 import RSAGL.Color.RSAGLColors
 import RSAGL.Math
-import RSAGL.Types
+import RSAGL.Math.Types
 import qualified Data.ByteString.Char8 as B
 
 -- |

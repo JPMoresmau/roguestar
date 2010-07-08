@@ -23,7 +23,7 @@ import RSAGL.Color
 import RSAGL.Color.RSAGLColors
 import Scene
 import Data.Monoid
-import RSAGL.Types
+import RSAGL.Math.Types
 import qualified Data.ByteString as B
 
 data SkyInfo = SkyInfo {

@@ -3,7 +3,7 @@ module Globals
      defaultGlobals)
     where
 
-import RSAGL.Types
+import RSAGL.Math.Types
 import Quality
 import Control.Concurrent.STM
 import Control.Applicative

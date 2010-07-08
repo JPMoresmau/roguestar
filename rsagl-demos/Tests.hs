@@ -12,16 +12,15 @@ import RSAGL.FRP as FRP
 import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Matrix
+import RSAGL.Math.Types
 import Control.Arrow
 import Data.Set as Set
 import Data.List as List
 import Data.Monoid
 import Test.QuickCheck
-import RSAGL.Math.RK4
 import RSAGL.Animation.Joint
 import Data.Maybe
 import Control.Monad
-import RSAGL.Types
 import RSAGL.Color
 
 instance Arbitrary RSdouble where

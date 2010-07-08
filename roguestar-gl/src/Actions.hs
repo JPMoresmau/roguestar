@@ -21,7 +21,7 @@ import PrintText
 import Tables
 import Data.Maybe
 import Globals
-import RSAGL.Types
+import RSAGL.Math.Types
 import Control.Concurrent.STM
 import Quality
 import Data.Char

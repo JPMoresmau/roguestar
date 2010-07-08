@@ -16,7 +16,7 @@ import RSAGL.Math
 import RSAGL.FRP
 import RSAGL.Scene
 import Control.Arrow
-import RSAGL.Types
+import RSAGL.Math.Types
 import Data.List ((\\))
 import qualified Data.ByteString.Char8 as B
 
