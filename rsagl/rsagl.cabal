@@ -31,7 +31,7 @@ Library
                          RSAGL.Animation.Joint,
                          RSAGL.Math.Affine, RSAGL.Math.WrappedAffine, RSAGL.Math.CurveExtras,
                          RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics, RSAGL.FRP.FRP,
-                         RSAGL.Math.RK4, RSAGL.Animation.AnimationExtras, RSAGL.Math.Interpolation,
+                         RSAGL.FRP.RK4, RSAGL.Animation.AnimationExtras, RSAGL.Math.Interpolation,
                          RSAGL.Modeling.Model, RSAGL.Modeling.Deformation,
                          RSAGL.Modeling.Noise, RSAGL.Modeling.Tesselation,
                          RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,

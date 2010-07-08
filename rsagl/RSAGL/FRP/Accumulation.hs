@@ -19,7 +19,7 @@ module RSAGL.FRP.Accumulation
 
 import RSAGL.FRP.FRP
 import RSAGL.FRP.Time
-import RSAGL.Math.RK4
+import RSAGL.FRP.RK4
 import System.Mem.StableName
 import Control.Arrow
 import RSAGL.Math.AbstractVector

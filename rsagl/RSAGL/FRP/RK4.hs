@@ -1,4 +1,4 @@
-module RSAGL.Math.RK4
+module RSAGL.FRP.RK4
     (rk4,
      integrateRK4,
      rk4',

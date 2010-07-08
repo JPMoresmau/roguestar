@@ -7,7 +7,6 @@ module RSAGL.Math (
     module RSAGL.Math.Matrix,
     module RSAGL.Math.Orthogonal,
     module RSAGL.Math.Ray,
-    module RSAGL.Math.RK4,
     module RSAGL.Math.Vector)
   where
 
@@ -19,5 +18,4 @@ import RSAGL.Math.Interpolation
 import RSAGL.Math.Matrix
 import RSAGL.Math.Orthogonal
 import RSAGL.Math.Ray
-import RSAGL.Math.RK4
 import RSAGL.Math.Vector
