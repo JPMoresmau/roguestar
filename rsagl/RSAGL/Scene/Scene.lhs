@@ -52,7 +52,7 @@ import RSAGL.Scene.LightSource
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Monoid
-import RSAGL.Auxiliary.RecombinantState
+import RSAGL.FRP.RecombinantState
 import Data.MemoCombinators
 import RSAGL.Math.Types
 \end{code}

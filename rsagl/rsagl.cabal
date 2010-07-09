@@ -5,7 +5,7 @@ license-file:        LICENSE
 author:              Christopher Lane Hinson
 maintainer:          Christopher Lane Hinson <lane@downstairspeople.org>
 
-category:            Graphics, FRP
+category:            Graphics
 synopsis:            The RogueStar Animation and Graphics Library
 description:         RSAGL, the RogueStar Animation and Graphics Library,
                      was specifically designed for a computer game called
@@ -22,16 +22,15 @@ build-type:          Simple
 tested-with:         GHC==6.12.1
 
 Library
-    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene,
+    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.Scene,
                          RSAGL.RayTrace.RayTrace,
                          RSAGL.Modeling.Material,
                          RSAGL.Animation.KinematicSensors,
                          RSAGL.Color.RSAGLColors, RSAGL.Modeling.Extrusion,
-                         RSAGL.FRP.Time,
                          RSAGL.Animation.Joint,
                          RSAGL.Scene.WrappedAffine,
-                         RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics, RSAGL.FRP.FRP,
-                         RSAGL.FRP.RK4, RSAGL.Animation.AnimationExtras,
+                         RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics,
+                         RSAGL.Animation.AnimationExtras,
                          RSAGL.Modeling.Model, RSAGL.Modeling.Deformation,
                          RSAGL.Modeling.Noise, RSAGL.Modeling.Tesselation,
                          RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,
@@ -39,8 +38,7 @@ Library
                          RSAGL.Scene.CoordinateSystems,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
-                         RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
-                         RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
+                         RSAGL.Modeling.BakedModel,
                          RSAGL.Color.ColorSpace, RSAGL.Color.RGB, RSAGL.Color.HCL,
                          RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color,
                          RSAGL.Color.Channels, RSAGL.Color.Spaces, RSAGL.Color.LinearAdjust
@@ -55,6 +53,7 @@ Library
 
     build-depends:       base>=4 && <5,
                          rsagl-math==0.5,
+                         rsagl-frp==0.5,
                          old-time>= 1.0.0.3 && < 1.1,
                          random>= 1.0.0.2 && < 1.1,
                          array>= 0.3.0.0 && < 0.4,

@@ -25,6 +25,7 @@ clean:
 
 clean-libs:
 	(cd rsagl-math && cabal clean ${OPTS})
+	(cd rsagl-frp && cabal clean ${OPTS})
 	(cd rsagl && cabal clean ${OPTS})
 
 clean-bins:
@@ -32,8 +33,13 @@ clean-bins:
 	(cd roguestar-engine && cabal clean ${OPTS})
 	(cd roguestar-gl && cabal clean ${OPTS})
 
-config-libs:
+config-libs1:
 	(cd rsagl-math && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
+
+config-libs2:
+	(cd rsagl-frp && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
+
+config-libs3:
 	(cd rsagl && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 
 config-bins:
@@ -42,8 +48,13 @@ config-bins:
 	(cd roguestar-engine && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
 	(cd roguestar-gl && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
 
-build-libs:
+build-libs1:
 	(cd rsagl-math && cabal build ${OPTS})
+
+build-libs2:
+	(cd rsagl-frp && cabal build ${OPTS})
+
+build-libs3:
 	(cd rsagl && cabal build ${OPTS})
 
 build-bins:
@@ -53,6 +64,7 @@ build-bins:
 
 install-libs:
 	(cd rsagl-math && cabal install --reinstall ${OPTS})
+	(cd rsagl-frp && cabal install --reinstall ${OPTS})
 	(cd rsagl && cabal install --reinstall ${OPTS})
 
 install-bins:
@@ -60,9 +72,14 @@ install-bins:
 	(cd roguestar-engine && cabal install --reinstall ${OPTS})
 	(cd roguestar-gl && cabal install --reinstall ${OPTS})
 
-copy-libs:
-	(cd rsagl-math && cabal copy ${OPTS})
-	(cd rsagl && cabal copy ${OPTS})
+copy-libs1:
+	(cd rsagl-math && cabal copy ${OPTS} && cabal register ${OPTS})
+
+copy-libs2:
+	(cd rsagl-frp && cabal copy ${OPTS} && cabal register ${OPTS})
+
+copy-libs3:
+	(cd rsagl && cabal copy ${OPTS} && cabal register ${OPTS})
 
 copy-bins:
 	(cd rsagl-demos && cabal copy ${OPTS})
@@ -75,29 +92,29 @@ install:
 
 from-scratch:
 	${MAKE} clean -e OPTS=""
-	${MAKE} config-libs -e OPTS=""
-	${MAKE} build-libs -e OPTS=""
-	${MAKE} copy-libs -e OPTS=""
-	${MAKE} config-bins -e OPTS=""
-	${MAKE} build-bins -e OPTS=""
-	${MAKE} copy-bins -e OPTS=""
-
-from-libs:
-	${MAKE} build-libs -e OPTS=""
-	${MAKE} copy-libs -e OPTS=""
-	${MAKE} clean-bins -e OPTS=""
+	${MAKE} config-libs1 -e OPTS=""
+	${MAKE} build-libs1 -e OPTS=""
+	${MAKE} copy-libs1 -e OPTS=""
+	${MAKE} config-libs2 -e OPTS=""
+	${MAKE} build-libs2 -e OPTS=""
+	${MAKE} copy-libs2 -e OPTS=""
+	${MAKE} config-libs3 -e OPTS=""
+	${MAKE} build-libs3 -e OPTS=""
+	${MAKE} copy-libs3 -e OPTS=""
 	${MAKE} config-bins -e OPTS=""
 	${MAKE} build-bins -e OPTS=""
 	${MAKE} copy-bins -e OPTS=""
 
 sdist:
 	(cd rsagl-math && cabal check && cabal sdist ${OPTS})
+	(cd rsagl-frp && cabal check && cabal sdist ${OPTS})
 	(cd rsagl && cabal check && cabal sdist ${OPTS})
 	(cd rsagl-demos && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-engine && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-gl && cabal check && cabal sdist ${OPTS})
 	mkdir -p ./roguestar-sdist
 	cp rsagl-math/dist/*.tar.gz ./roguestar-sdist
+	cp rsagl-frp/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
@@ -105,10 +122,12 @@ sdist:
 	(cd roguestar-sdist && tar xzf roguestar-engine-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf roguestar-gl-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-math-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf rsagl-frp-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-demos-${VERSION}.tar.gz)
 	(cd roguestar-sdist/roguestar-engine-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-math-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/rsagl-frp-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-demos-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/roguestar-gl-${VERSION} && cabal configure && cabal install)

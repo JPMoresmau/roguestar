@@ -43,7 +43,7 @@ import RSAGL.Math.AbstractVector
 import Data.List
 import Data.Maybe
 import Control.Exception
-import RSAGL.Auxiliary.RecombinantState
+import RSAGL.FRP.RecombinantState
 
 {--------------------------------------------------------------------------------}
 --    FRP Data Structures

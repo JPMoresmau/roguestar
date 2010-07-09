@@ -29,7 +29,6 @@ import RSAGL.Math.Angle
 import RSAGL.Math.Vector
 import RSAGL.Math.Affine
 import RSAGL.FRP
-import RSAGL.Auxiliary.RecombinantState
 
 -- | A time-aware scene accumulator.
 newtype TimePlusSceneAccumulator m = TimePlusSceneAccumulator (Time,SceneAccumulator m)

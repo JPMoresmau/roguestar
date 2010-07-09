@@ -27,7 +27,7 @@ Executable _rsagl_modelview
                          mtl,
                          OpenGL>=2.4.0.1&&<2.5,
                          GLUT>=2.2.2.0&&<2.3,
-                         rsagl-math==0.5, rsagl==0.5
+                         rsagl-math==0.5, rsagl-frp==0.5, rsagl==0.5
 
 Executable _rsagl_tests
     main-is:             Tests.hs
@@ -40,5 +40,6 @@ Executable _rsagl_tests
                          parallel,
                          QuickCheck,
                          rsagl-math==0.5,
+                         rsagl-frp==0.5,
                          rsagl==0.5
 

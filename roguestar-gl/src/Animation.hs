@@ -42,7 +42,7 @@ import RSAGL.Scene hiding (std_scene_layer_hud,
                            std_scene_layer_local,
                            std_scene_layer_infinite)
 import RSAGL.Animation
-import RSAGL.Auxiliary.RecombinantState
+import RSAGL.FRP.RecombinantState
 import Control.Monad.State
 import Control.Arrow
 import Control.Arrow.Operations

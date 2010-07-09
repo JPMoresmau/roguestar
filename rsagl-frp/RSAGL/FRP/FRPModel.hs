@@ -17,7 +17,7 @@ module RSAGL.FRP.FRPModel
      SimpleSwitch)
     where
 
-import RSAGL.Auxiliary.RecombinantState
+import RSAGL.FRP.RecombinantState
 
 class RSAGL_FRP_FRPMODEL a where
 
