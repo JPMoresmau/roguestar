@@ -66,7 +66,7 @@ import RSAGL.Modeling.Tesselation
 import RSAGL.Modeling.Optimization
 import RSAGL.Scene.CoordinateSystems
 import RSAGL.Modeling.Extrusion
-import RSAGL.Modeling.BoundingBox
+import RSAGL.Math.BoundingBox
 import Data.List as List
 import Data.Maybe
 import qualified Control.Monad.State as State

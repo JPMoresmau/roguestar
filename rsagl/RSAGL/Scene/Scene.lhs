@@ -34,7 +34,7 @@ module RSAGL.Scene.Scene
     where
 
 import Data.Ord
-import RSAGL.Modeling.BoundingBox
+import RSAGL.Math.BoundingBox
 import RSAGL.Math.Vector
 import RSAGL.Math.Affine as Affine
 import RSAGL.Math.Angle as Angle

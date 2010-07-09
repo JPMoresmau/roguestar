@@ -2,6 +2,7 @@ module RSAGL.Math (
     module RSAGL.Math.AbstractVector,
     module RSAGL.Math.Affine,
     module RSAGL.Math.Angle,
+    module RSAGL.Math.BoundingBox,
     module RSAGL.Math.Curve,
     module RSAGL.Math.Interpolation,
     module RSAGL.Math.Matrix,
@@ -14,6 +15,7 @@ module RSAGL.Math (
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Affine
 import RSAGL.Math.Angle
+import RSAGL.Math.BoundingBox
 import RSAGL.Math.Curve
 import RSAGL.Math.Interpolation
 import RSAGL.Math.Matrix

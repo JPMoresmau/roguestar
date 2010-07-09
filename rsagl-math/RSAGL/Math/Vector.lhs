@@ -42,10 +42,10 @@ module RSAGL.Math.Vector
 
 import Control.Parallel.Strategies
 import RSAGL.Math.Angle
-import RSAGL.Auxiliary.Auxiliary
 import System.Random
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Types
+import RSAGL.Math.ListUtils
 \end{code}
 
 \subsection{Generic 3-dimensional types and operations}
@@ -249,9 +249,9 @@ The result is a normalized vector.
 
 \begin{code}
 newell :: [Point3D] -> Maybe Vector3D
-newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ $ loopedRSdoubles points
+newell points = fmap vectorNormalize $ aNonZeroVector $ vectorSum $ map newell_ $ loopedDoubles points
     where newell_ (Point3D x0 y0 z0,Point3D x1 y1 z1) =
-              (Vector3D 
+              (Vector3D
                ((y0 - y1)*(z0 + z1))
                ((z0 - z1)*(x0 + x1))
                ((x0 - x1)*(y0 + y1)))

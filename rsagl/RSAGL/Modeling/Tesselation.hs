@@ -14,7 +14,7 @@ module RSAGL.Modeling.Tesselation
 import RSAGL.Math.Curve
 import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Affine
-import RSAGL.Modeling.BoundingBox
+import RSAGL.Math.BoundingBox
 import Data.List
 import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow

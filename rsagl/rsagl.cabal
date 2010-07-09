@@ -22,26 +22,25 @@ build-type:          Simple
 tested-with:         GHC==6.12.1
 
 Library
-    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene, RSAGL.Math, RSAGL.Math.FMod,
-                         RSAGL.RayTrace.RayTrace, RSAGL.Math.Ray,
-                         RSAGL.Modeling.Material, RSAGL.Modeling.BoundingBox,
-                         RSAGL.Math.Vector, RSAGL.Animation.KinematicSensors,
+    exposed-modules:     RSAGL.Animation, RSAGL.Modeling, RSAGL.FRP, RSAGL.Scene,
+                         RSAGL.RayTrace.RayTrace,
+                         RSAGL.Modeling.Material,
+                         RSAGL.Animation.KinematicSensors,
                          RSAGL.Color.RSAGLColors, RSAGL.Modeling.Extrusion,
-                         RSAGL.FRP.Time, RSAGL.Math.Matrix,
+                         RSAGL.FRP.Time,
                          RSAGL.Animation.Joint,
-                         RSAGL.Math.Affine, RSAGL.Scene.WrappedAffine, RSAGL.Math.CurveExtras,
+                         RSAGL.Scene.WrappedAffine,
                          RSAGL.Scene.Scene, RSAGL.Animation.InverseKinematics, RSAGL.FRP.FRP,
-                         RSAGL.FRP.RK4, RSAGL.Animation.AnimationExtras, RSAGL.Math.Interpolation,
+                         RSAGL.FRP.RK4, RSAGL.Animation.AnimationExtras,
                          RSAGL.Modeling.Model, RSAGL.Modeling.Deformation,
                          RSAGL.Modeling.Noise, RSAGL.Modeling.Tesselation,
                          RSAGL.Modeling.ModelingExtras, RSAGL.Animation.Animation,
-                         RSAGL.Math.Curve, RSAGL.Math.Angle, RSAGL.Modeling.Optimization,
-                         RSAGL.Scene.CoordinateSystems, RSAGL.Math.Orthogonal,
-                         RSAGL.Math.AbstractVector,
+                         RSAGL.Modeling.Optimization,
+                         RSAGL.Scene.CoordinateSystems,
                          RSAGL.Scene.LightSource, RSAGL.RayTrace.Scattering,
                          RSAGL.Extras.Sky, RSAGL.Extras.ColorPhysics,
                          RSAGL.Modeling.BakedModel, RSAGL.FRP.FactoryArrow, RSAGL.Auxiliary.RecombinantState,
-                         RSAGL.Math.Types, RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
+                         RSAGL.FRP.Accumulation, RSAGL.FRP.FRPModel
                          RSAGL.Color.ColorSpace, RSAGL.Color.RGB, RSAGL.Color.HCL,
                          RSAGL.Color.Alpha, RSAGL.Color.OpenGL, RSAGL.Color,
                          RSAGL.Color.Channels, RSAGL.Color.Spaces, RSAGL.Color.LinearAdjust
@@ -55,6 +54,7 @@ Library
     ghc-prof-options:    -prof -auto-all
 
     build-depends:       base>=4 && <5,
+                         rsagl-math==0.5,
                          old-time>= 1.0.0.3 && < 1.1,
                          random>= 1.0.0.2 && < 1.1,
                          array>= 0.3.0.0 && < 0.4,

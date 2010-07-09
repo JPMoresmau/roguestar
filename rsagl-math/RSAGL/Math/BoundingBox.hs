@@ -1,4 +1,4 @@
-module RSAGL.Modeling.BoundingBox
+module RSAGL.Math.BoundingBox
     (BoundingBox,
      Bound3D(..),
      boundingCenterRadius,

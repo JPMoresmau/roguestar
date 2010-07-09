@@ -116,3 +116,4 @@ debugTime msg io_action =
 
 waitParList :: Strategy a -> Strategy [a]
 waitParList s a = parList s a `pseq` seqList s a
+

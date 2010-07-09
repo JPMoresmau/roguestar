@@ -16,7 +16,6 @@ module RSAGL.Math.AbstractVector
 
 import Data.Fixed
 import Control.Applicative
-import RSAGL.Auxiliary.ApplicativeWrapper
 import RSAGL.Math.Types
 
 -- | A data type that has an additive identity.
@@ -120,22 +119,6 @@ instance (HasResolution a) => AbstractMagnitude (Fixed a) where
     magnitude = abs . realToFrac
 
 instance (HasResolution a) => AbstractVector (Fixed a)
-
--- | ApplicativeWrapper
-
-instance (Applicative f,AbstractZero p) => AbstractZero (ApplicativeWrapper f p) where
-    zero = pure zero
-
-instance (Applicative f,AbstractAdd p v) => AbstractAdd (ApplicativeWrapper f p) (ApplicativeWrapper f v) where
-    add p v = add <$> p <*> v
-
-instance (Applicative f,AbstractSubtract p v) => AbstractSubtract (ApplicativeWrapper f p) (ApplicativeWrapper f v) where
-    sub x y = sub <$> x <*> y
-
-instance (Applicative f,AbstractScale v) => AbstractScale (ApplicativeWrapper f v) where
-    scalarMultiply d v = scalarMultiply d <$> v
-
-instance (Applicative f,AbstractVector v) => AbstractVector (ApplicativeWrapper f v)
 
 -- Tuples
 

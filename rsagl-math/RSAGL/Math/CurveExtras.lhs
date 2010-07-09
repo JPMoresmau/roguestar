@@ -21,9 +21,9 @@ import RSAGL.Math.Curve
 import RSAGL.Math.Interpolation
 import RSAGL.Math.Vector
 import RSAGL.Math.Angle
-import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.AbstractVector
 import RSAGL.Math.Affine
+import RSAGL.Math.ListUtils
 import Control.Arrow
 import RSAGL.Math.Types
 \end{code}

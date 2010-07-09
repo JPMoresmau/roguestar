@@ -24,6 +24,7 @@ clean:
 	${MAKE} clean-bins
 
 clean-libs:
+	(cd rsagl-math && cabal clean ${OPTS})
 	(cd rsagl && cabal clean ${OPTS})
 
 clean-bins:
@@ -32,6 +33,7 @@ clean-bins:
 	(cd roguestar-gl && cabal clean ${OPTS})
 
 config-libs:
+	(cd rsagl-math && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 	(cd rsagl && cabal configure --user ${CONFIG_LIB_OPTS} ${OPTS})
 
 config-bins:
@@ -41,6 +43,7 @@ config-bins:
 	(cd roguestar-gl && cabal configure --user ${CONFIG_BIN_OPTS} ${OPTS})
 
 build-libs:
+	(cd rsagl-math && cabal build ${OPTS})
 	(cd rsagl && cabal build ${OPTS})
 
 build-bins:
@@ -49,6 +52,7 @@ build-bins:
 	(cd roguestar-gl && cabal build ${OPTS})
 
 install-libs:
+	(cd rsagl-math && cabal install --reinstall ${OPTS})
 	(cd rsagl && cabal install --reinstall ${OPTS})
 
 install-bins:
@@ -57,6 +61,7 @@ install-bins:
 	(cd roguestar-gl && cabal install --reinstall ${OPTS})
 
 copy-libs:
+	(cd rsagl-math && cabal copy ${OPTS})
 	(cd rsagl && cabal copy ${OPTS})
 
 copy-bins:
@@ -86,20 +91,24 @@ from-libs:
 	${MAKE} copy-bins -e OPTS=""
 
 sdist:
+	(cd rsagl-math && cabal check && cabal sdist ${OPTS})
 	(cd rsagl && cabal check && cabal sdist ${OPTS})
 	(cd rsagl-demos && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-engine && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-gl && cabal check && cabal sdist ${OPTS})
 	mkdir -p ./roguestar-sdist
+	cp rsagl-math/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-gl/dist/*.tar.gz ./roguestar-sdist
 	(cd roguestar-sdist && tar xzf roguestar-engine-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf roguestar-gl-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf rsagl-math-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-demos-${VERSION}.tar.gz)
 	(cd roguestar-sdist/roguestar-engine-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/rsagl-math-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-demos-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/roguestar-gl-${VERSION} && cabal configure && cabal install)
