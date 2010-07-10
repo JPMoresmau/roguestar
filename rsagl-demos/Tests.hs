@@ -22,6 +22,7 @@ import RSAGL.Animation.Joint
 import Data.Maybe
 import Control.Monad
 import RSAGL.Color
+import RSAGL.FRP.Message
 
 instance Arbitrary RSdouble where
     arbitrary = fmap f2f (arbitrary :: Gen Double)
@@ -367,6 +368,29 @@ quickCheckAdjustToBlue =
                        b' >= b && r' <= r && g' <= g
 
 --
+-- Single test of the RK4 algorithm.
+--
+testRK4 :: IO ()
+testRK4 = testClose "testRK4"
+                    (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0
+                                      (fromSeconds 0) (fromSeconds 1) 100)
+                    (sin 1.0 :: RSdouble)
+                    equalClose
+
+--
+-- Simple tests of the FRP.Message algorithm.
+--
+testMessages :: IO ()
+testMessages =
+    do t <- newTransmitterBy $ \a b -> fst a == fst b
+       r <- newReceiver
+       f <- send $ \(n,s) -> (n, "Test case " ++ s)
+       print . snd =<< receive r . (f <<*>>) =<< transmit t (1,"Passed: testMessages(1)")
+       receive r . (f <<*>>) =<< transmit t (2,"Passed: testMessages(2)")
+       print . snd =<< receive r . (f <<*>>) =<< transmit t (2,"FAILED: testMessages(2)")
+       print . snd =<< receive r . (f <<*>>) =<< transmit t (3,"Passed: testMessages(3)")
+
+--
 -- Test harness.
 --
 test :: (Eq a,Show a) => String -> a -> a -> IO ()
@@ -443,16 +467,6 @@ testCloseIO name actualIO expected f =
        actual <- actualIO
        testClose name actual expected f
 
---
--- Single test of the RK4 algorithm.
---
-testRK4 :: IO ()
-testRK4 = testClose "testRK4"
-                    (integrateRK4 (+) (\t _ -> perSecond $ cos $ toSeconds t) 0
-                                      (fromSeconds 0) (fromSeconds 1) 100)
-                    (sin 1.0 :: RSdouble)
-                    equalClose
-
 main :: IO ()
 main = do testIO "add five test (sanity test of accumulation)"
                (addFive 2) 7
@@ -496,4 +510,4 @@ main = do testIO "add five test (sanity test of accumulation)"
           quickCheckColorMaximals
           quickCheckMeasureLuminance
           quickCheckAdjustToBlue
-
+          testMessages

@@ -25,7 +25,10 @@ module RSAGL.FRP.FRP
      frpContext,
      frp1Context,
      whenJust,
-     ioAction)
+     ioAction,
+     outgoingBy,
+     outgoing,
+     incoming)
     where
 
 import Prelude hiding ((.),id)
@@ -44,6 +47,7 @@ import Data.List
 import Data.Maybe
 import Control.Exception
 import RSAGL.FRP.RecombinantState
+import RSAGL.FRP.Message
 
 {--------------------------------------------------------------------------------}
 --    FRP Data Structures
@@ -277,13 +281,13 @@ accumulateThreads _ _ [] = []
 accumulateThreads rule ts (x:xs) | rule (`elem` ts) (frp_thread_identity x) = x : accumulateThreads rule (frp_thread_identity x : ts) xs
 accumulateThreads rule ts (_:xs) | otherwise = accumulateThreads rule ts xs
 
--- | Get the current thread's identity. 
+-- | Get the current thread's identity.
 threadIdentity :: FRP e m () (ThreadIDOf m)
 threadIdentity = frpxOf $ \frpinit () -> return $ frp_thread_identity frpinit
 
 -- | Construct an arrow from its thread identity.
 withThreadIdentity :: (ThreadIDOf m -> FRP e m j p) -> FRP e m j p
-withThreadIdentity (actionF) = FRP $ \frp_init -> 
+withThreadIdentity (actionF) = FRP $ \frp_init ->
     let (FRP actionA) = actionF $ frp_thread_identity frp_init
             in actionA frp_init
 
@@ -369,4 +373,22 @@ whenJust actionA = frp1Context whenJust_
 -- | Perform an arbitrary IO action.
 ioAction :: (j -> IO p) -> FRP e m j p
 ioAction action = frpxOf $ \_ j -> lift $ action j
+
+-- | Send tagged information.
+outgoingBy :: (j -> j -> Bool) ->
+              -- ^ Equality predicate as described in 'newTransmitterBy'.
+              FRP e m j (Message j)
+outgoingBy f = FRP $ \_ -> FactoryArrow $
+    do t <- newTransmitterBy f
+       return $ Kleisli $ lift . transmit t
+
+-- | Send tagged information.
+outgoing :: (Eq j) => FRP e m j (Message j)
+outgoing = outgoingBy (==)
+
+-- | Receive tagged information, with memoization.
+incoming :: FRP e m (Message j) j
+incoming = FRP $ \_ -> FactoryArrow $
+    do r <- newReceiver
+       return $ Kleisli $ lift . receive r
 

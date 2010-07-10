@@ -28,6 +28,7 @@ Library
                          RSAGL.FRP.FactoryArrow
                          RSAGL.FRP.FRP
                          RSAGL.FRP.FRPModel
+                         RSAGL.FRP.Message
                          RSAGL.FRP.RecombinantState
                          RSAGL.FRP.RK4
                          RSAGL.FRP.Time
@@ -42,5 +43,6 @@ Library
                          array>= 0.3.0.0 && < 0.4,
                          arrows>= 0.4.1.2 && < 0.5,
                          containers>= 0.3.0.0 && < 0.4,
-                         mtl>= 1.1.0.2 && < 1.2
+                         mtl>= 1.1.0.2 && < 1.2,
+                         stm>= 2.1.1.2 && < 2.2
 
