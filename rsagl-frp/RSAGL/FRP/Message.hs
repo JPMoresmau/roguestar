@@ -59,8 +59,6 @@ data Source =
   | Apply Source Source
     deriving (Eq,Ord)
 
-data Builtin = Nest deriving (Eq,Ord)
-
 send_ :: a -> STM (Message a)
 send_ a =
     do u <- uniqueInteger
