@@ -25,6 +25,7 @@ module RSAGL.FRP.FRP
      frpContext,
      frp1Context,
      whenJust,
+     ioInit,
      ioAction,
      outgoingBy,
      outgoing,
@@ -370,10 +371,16 @@ whenJust :: (FRPModel m) => (forall x y. FRP e (FRP1Context x y m) j p) -> FRP e
 whenJust actionA = frp1Context whenJust_
     where whenJust_ = proc i ->
               do switchContinue -< (maybe (Just whenNothing_) (const Nothing) i,i)
-	         arr (Just) <<< actionA -< fromMaybe (error "whenJust: impossible case") i
-	  whenNothing_ = proc i ->
-	      do switchContinue -< (fmap (const whenJust_) i,i)
-	         returnA -< Nothing
+                 arr (Just) <<< actionA -< fromMaybe (error "whenJust: impossible case") i
+          whenNothing_ = proc i ->
+              do switchContinue -< (fmap (const whenJust_) i,i)
+                 returnA -< Nothing
+
+-- | Perform an IO action when a stream is first initialized.
+ioInit :: (InputOutputOf m ~ Enabled) => (IO p) -> FRP e m () p
+ioInit action = FRP $ \_ -> FactoryArrow $
+    do p <- action
+       return $ Kleisli $ const $ return p
 
 -- | Perform an arbitrary IO action.
 ioAction :: (InputOutputOf m ~ Enabled) => (j -> IO p) -> FRP e m j p
