@@ -26,6 +26,10 @@ Unfortunately, cabal doesn't seem to be reliable enough when used
 with `--package-db` to consistantly get roguestar to build and install
 from scratch in a throwaway directory without touching the user's `~/.cabal`.
 
+Installing the libraries is a 3-phase process, corresponding to the numbers
+at the end of ACTION-libsN.  These phases must be run in order.  Usually
+you don't want to do this, just run 'make install-libs'.
+
 The makefile accepts the following actions:
 
 install-deps  [-e OPTS=cabal install opts]
@@ -38,7 +42,7 @@ clean         [-e OPTS=cabal clean opts]
 clean-bin     [-e OPTS=cabal clean opts]
 :             clean the binaries
 
-config-libs   [-e OPTS=cabal configure opts]
+config-libsN  [-e OPTS=cabal configure opts]
 :             (re)configure the libraries
 :             by default, uses --user
 
@@ -47,14 +51,14 @@ config-bin    [-e OPTS=cabal configure opts]
 :             by default, uses --user
 :             by default, the prefix is ./roguestar-local
 
-build-libs    [-e OPTS=cabal build opts]
+build-libsN   [-e OPTS=cabal build opts]
 :             build the libraries
 
 build-bin     [-e OPTS=cabal build opts]
 :             build the binaries
 
-copy-libs     [-e OPTS=cabal copy opts]
-:             copy the libraries
+copy-libsN    [-e OPTS=cabal copy/register opts]
+:             copy and register the libraries
 :             by default, they will end up in your ~/.cabal
 
 copy-bins     [-e OPTS=cabal copy opts]
@@ -63,15 +67,18 @@ copy-bins     [-e OPTS=cabal copy opts]
 
 install-libs  [-e OPTS=cabal install opts]
 :             install the libraries
+:             this uses cabal install, and overrides the configuration step
 :             by default, they will end up in your ~/.cabal
 :             by default, uses --reinstall
 
 install-bins  [-e OPTS=cabal install opts]
 :             install the binaries
+:             this uses cabal install, and overrides the configuration step
 :             by default, uses --reinstall
 
 install       [-e OPTS=cabal install opts]
 :             install everything
+:             this uses cabal install, and overrides the configuration step
 
 from-scratch  (uses default opts)
 :             clean, configure, build, and copy the whole thing
