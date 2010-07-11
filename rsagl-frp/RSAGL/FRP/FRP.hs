@@ -28,7 +28,8 @@ module RSAGL.FRP.FRP
      ioAction,
      outgoingBy,
      outgoing,
-     incoming)
+     incoming,
+     randomA)
     where
 
 import Prelude hiding ((.),id)
@@ -48,6 +49,7 @@ import Data.Maybe
 import Control.Exception
 import RSAGL.FRP.RecombinantState
 import RSAGL.FRP.Message
+import System.Random
 
 {--------------------------------------------------------------------------------}
 --    FRP Data Structures
@@ -177,7 +179,10 @@ getFRPState :: FRPInit s t i o -> IO (FRPState i o)
 getFRPState = readIORef . frp_state
 
 -- | Shorthand for simple operations in the ContT monad.
-frpxOf :: (FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) -> j -> ContT (Maybe (SwitchOutputOf m)) IO p) -> FRP e m j p
+frpxOf :: (FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) ->
+              j ->
+              ContT (Maybe (SwitchOutputOf m)) IO p) ->
+          FRP e m j p
 frpxOf action = FRP $ \frpinit -> FactoryArrow $ return $ Kleisli $ action frpinit
 
 -- | Framewise accumulation of signals.
@@ -371,7 +376,7 @@ whenJust actionA = frp1Context whenJust_
 	         returnA -< Nothing
 
 -- | Perform an arbitrary IO action.
-ioAction :: (j -> IO p) -> FRP e m j p
+ioAction :: (InputOutputOf m ~ Enabled) => (j -> IO p) -> FRP e m j p
 ioAction action = frpxOf $ \_ j -> lift $ action j
 
 -- | Send tagged information.
@@ -391,4 +396,10 @@ incoming :: FRP e m (Message j) j
 incoming = FRP $ \_ -> FactoryArrow $
     do r <- newReceiver
        return $ Kleisli $ lift . receive r
+
+-- | Get a bounded random value, as 'randomRIO'.  A new value is pulled for each
+-- frame of animation.
+randomA :: (Random a) => FRP e m (a,a) a
+randomA = frpxOf $ \_ ->
+    lift . randomRIO
 

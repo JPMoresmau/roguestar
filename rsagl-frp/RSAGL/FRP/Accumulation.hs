@@ -20,7 +20,6 @@ module RSAGL.FRP.Accumulation
 import RSAGL.FRP.FRP
 import RSAGL.FRP.Time
 import RSAGL.FRP.RK4
-import System.Mem.StableName
 import Control.Arrow
 import RSAGL.Math.AbstractVector
 import Data.Maybe
@@ -72,7 +71,7 @@ threadTime = summation zero <<< deltaTime
 -- | The edge detection mode.  If 'Discrete', detect edge between subsequent frames only.
 -- If 'Fuzzy' detect edge since the most recent previous detected edge.
 -- If 'HashedDiscrete', the comparison function is itself expensive, and the FRP runtime will compare by 'StableName's as a short-circuit optimization.
-data EdgeDetectionMode = Fuzzy | Discrete | HashedDiscrete
+data EdgeDetectionMode = Fuzzy | Discrete
 
 -- | Answer the most recent input that satisfies the predicate.
 -- Accepts an initial value, which need not itself satisfy the predicate.
@@ -91,10 +90,6 @@ edge :: EdgeDetectionMode -> (x -> x -> Bool) -> FRP e m x Bool
 edge Discrete predicateF = proc x ->
     do d_x <- delay Nothing -< Just x
        returnA -< maybe True (not . predicateF x) d_x
-edge HashedDiscrete predicateF = proc x ->
-    do x_stable <- ioAction makeStableName -< x
-       stable_edge <- edge Discrete (==) -< x_stable
-       edge Discrete (\(a_stable,a) (b_stable,b) -> if a_stable == b_stable then True else predicateF a b) -< (stable_edge,x)
 edge Fuzzy predicateF = arr snd <<< accumulate (Nothing,error "changed: impossible")
                                     (\x_now (x_old,_) -> if maybe True (predicateF x_now) x_old
                                                          then (x_old,False)

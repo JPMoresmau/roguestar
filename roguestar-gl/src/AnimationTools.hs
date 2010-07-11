@@ -60,7 +60,7 @@ phaseWeaponAvatar phase_weapon_model weapon_size = proc tti ->
        t_now <- threadTime -< ()
        whenJust (transformA displayA) -< fmap (\o -> (o,(m_atk_time,t_now))) m_orientation
        returnA -< ()
-  where displayA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m (Maybe Time,Time) ()
+  where displayA :: (FRPModel m, FRPModes m ~ RoguestarModes) => FRP e m (Maybe Time,Time) ()
         displayA = proc (m_atk_time,t_now) ->
             do libraryA -< (scene_layer_local,phase_weapon_model)
                accumulateSceneA -< (scene_layer_local,lightSource $ case fmap (toSeconds . (t_now `sub`)) m_atk_time of
@@ -91,7 +91,7 @@ energySwordAvatar energy_color sword_size = proc tti ->
            do orientation <- m_orientation
               return (orientation,(Affine id,is_being_wielded))
        returnA -< ()
-  where displayA :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m Bool ()
+  where displayA :: (FRPModel m, FRPModes m ~ RoguestarModes) => FRP e m Bool ()
         displayA = scale' (1/75) $ proc is_being_wielded ->
             do blade_length <- approachFrom 1 (perSecond 65) 0 -< if is_being_wielded then 10 * realToFrac sword_size else 0
                libraryA -< (scene_layer_local,

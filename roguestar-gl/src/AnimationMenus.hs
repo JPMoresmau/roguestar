@@ -61,7 +61,8 @@ menuClassSelection = proc () ->
        printTextA -< Just (Query,"Select a Class:")
        returnA -< result
 
-printCharacterStats :: (FRPModel m, StateOf m ~ AnimationState) => Integer -> FRP e m () ()
+printCharacterStats :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
+                       Integer -> FRP e m () ()
 printCharacterStats unique_id = proc () ->
     do m_player_stats <- driverGetTableA -< ("player-stats",B.pack $ show unique_id)
        print1CharacterStat -< (m_player_stats,"str")

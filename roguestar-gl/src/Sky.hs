@@ -30,7 +30,8 @@ import Globals
 import qualified Data.ByteString.Char8 as B
 
 -- | Get the current SkyInfo data for the current planet.
-getSkyInfo :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m () SkyInfo
+getSkyInfo :: (FRPModel m,StateOf m ~ AnimationState,
+               InputOutputOf m ~ Enabled) => FRP e m () SkyInfo
 getSkyInfo = proc () ->
     do random_id <- sticky isJust Nothing <<< driverGetAnswerA -< "plane-random-id"
        m_biome <- sticky isJust Nothing <<< driverGetAnswerA -< "biome"
@@ -50,7 +51,8 @@ generateSkyInfo random_id m_biome = fst $ flip runRand (mkStdGen $ fromInteger $
                                sky_info_degrees_axial_tilt = degrees_axial_tilt,
                                sky_info_degrees_orbital = degrees_orbital }
 
-sky :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m SkyInfo ()
+sky :: (FRPModel m,StateOf m ~ AnimationState,
+        InputOutputOf m ~ Enabled) => FRP e m SkyInfo ()
 sky = proc sky_info ->
     do sky_on <- readGlobal global_sky_on -< ()
        libraryA -< (scene_layer_sky_sphere,if sky_on then SkySphere sky_info else NullModel)
@@ -62,7 +64,7 @@ sky = proc sky_info ->
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
        let nightlight_intensity = lighting_nightlight lighting_configuration
        let skylight_intensity = lighting_skylight lighting_configuration
-       skylight_color <- clingy HashedDiscrete (==) ambientSkyRadiation -< sky_info
+       skylight_color <- clingy Discrete (==) ambientSkyRadiation -< sky_info
        accumulateSceneA -< (scene_layer_local,lightSource $ case () of
            () | nightlight_intensity > 0.05 && sky_on ->
                     mapLightSource (mapBoth $ scalarMultiply nightlight_intensity) $
@@ -80,7 +82,8 @@ sky = proc sky_info ->
                         skylight (Vector3D 0 1 0) white
            () | otherwise -> NoLight)
 
-sun :: (FRPModel m,StateOf m ~ AnimationState) => FRP e m SkyInfo ()
+sun :: (FRPModel m,StateOf m ~ AnimationState,
+        InputOutputOf m ~ Enabled) => FRP e m SkyInfo ()
 sun = proc sky_info ->
     do libraryA -< (scene_layer_distant,SunDisc $ sunInfoOf sky_info)
        lighting_configuration <- Sky.lightingConfiguration -< sky_info

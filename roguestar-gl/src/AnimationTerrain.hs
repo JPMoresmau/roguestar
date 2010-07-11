@@ -43,10 +43,12 @@ terrainTile (tid@(ProtocolTypes.TerrainTile terrain_type (x,y))) = proc () ->
                (scene_layer_local,Models.LibraryData.TerrainTile terrain_type))
        returnA -< ()
 
-terrainElements :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () [ProtocolTypes.TerrainTile]
-terrainElements = arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<< driverGetTableA <<< arr (const ("visible-terrain","0"))
+terrainElements :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
+                   FRP e m () [ProtocolTypes.TerrainTile]
+terrainElements = arr (maybe [] tableSelectTyped) <<< sticky isJust Nothing <<<
+                      driverGetTableA <<< arr (const ("visible-terrain","0"))
 
-terrainDecoration :: (FRPModel m, StateOf m ~ AnimationState) =>
+terrainDecoration :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
                      ProtocolTypes.TerrainTile ->
                      FRP e m () ()
 terrainDecoration (ProtocolTypes.TerrainTile "forest" (x,y)) =
@@ -57,7 +59,7 @@ terrainDecoration (ProtocolTypes.TerrainTile "deepforest" (x,y)) =
                   (mkStdGen $ fromInteger $ 2*x + 1001*y + 7)
 terrainDecoration _ = proc () -> returnA -< ()
 
-leafyTree :: (FRPModel m, StateOf m ~ AnimationState) =>
+leafyTree :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
              Int -> Bool -> Rand StdGen (FRP e m () ())
 leafyTree recursion has_leaves =
     do dead_tree <- liftM (== 1) $ getRandomR (1,4 :: Integer)
@@ -72,7 +74,7 @@ leafyTree recursion has_leaves =
                        recursion
                        (has_leaves && not dead_tree)
 
-leafyTreeBranch :: (FRPModel m, StateOf m ~ AnimationState) =>
+leafyTreeBranch :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
                    Point3D ->
                    Vector3D ->
                    RSdouble ->
@@ -96,7 +98,7 @@ leafyTreeBranch point vector thickness recursion has_leaves =
                    scale (Vector3D thickness (vectorLength vector) thickness) $
                        proc () -> libraryA -< (scene_layer_local,TreeBranch)
        return $ this_branch >>> continue_trunk >>> foldr1 (>>>) other_branches
-  where leafyTreeBranchFrom :: (FRPModel m, StateOf m ~ AnimationState) =>
+  where leafyTreeBranchFrom :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
                                Bool -> RSdouble -> Rand StdGen (FRP e m () ())
         leafyTreeBranchFrom pass_leaves u =
             do let new_vector_constraint = vectorLength vector / 1.5

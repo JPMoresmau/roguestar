@@ -10,7 +10,10 @@ import RSAGL.FRP
 import Data.Maybe
 
 -- | Indicates the most recent time at which the specified creature performed an attack, in thread time.
-recentAttack :: (FRPModel m, StateOf m ~ AnimationState, ThreadIDOf m ~ Maybe Integer) => VisibleObjectReference -> FRP e m () (Maybe Time)
+recentAttack :: (FRPModel m,
+                 FRPModes m ~ RoguestarModes,
+                 ThreadIDOf m ~ Maybe Integer) =>
+                VisibleObjectReference -> FRP e m () (Maybe Time)
 recentAttack obj = proc () ->
     do state <- driverGetAnswerA -< "state"
        count <- driverGetAnswerA -< "action-count"

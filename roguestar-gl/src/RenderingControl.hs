@@ -138,7 +138,8 @@ planarCamera camera_distance look_at = PerspectiveCamera {
     camera_fov = fromDegrees $ 40 + 30 / camera_distance }
 
 -- | Retrieve the look-at point from the engine.
-centerCoordinates :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () (Maybe (Integer,Integer))
+centerCoordinates :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
+                     FRP e m () (Maybe (Integer,Integer))
 centerCoordinates = proc () ->
     do m_center_coordinates_table <- sticky isJust Nothing <<< driverGetTableA -< ("center-coordinates","0")
        returnA -< do center_coordinates_table <- m_center_coordinates_table

@@ -21,7 +21,8 @@ import Data.List ((\\))
 import qualified Data.ByteString.Char8 as B
 
 -- | Switch out if the driver \"state\" does match the specified predicate.
-genericStateHeader :: (FRPModel m, StateOf m ~ AnimationState) => 
+genericStateHeader :: (FRPModel m, StateOf m ~ AnimationState,
+                       InputOutputOf m ~ Enabled) => 
                       (B.ByteString -> FRP e m (SwitchInputOf m) (SwitchOutputOf m)) -> 
                       (B.ByteString -> Bool) -> 
                       FRP e m (SwitchInputOf m) ()

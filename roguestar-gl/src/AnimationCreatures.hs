@@ -67,7 +67,9 @@ androsynthAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-glower :: (FRPModel m, StateOf m ~ AnimationState, ThreadIDOf m ~ Maybe Integer) => Point3D -> Vector3D -> FRP e m () ()
+glower :: (FRPModel m, FRPModes m ~ RoguestarModes,
+           ThreadIDOf m ~ Maybe Integer) =>
+          Point3D -> Vector3D -> FRP e m () ()
 glower p_init v_init = proc () ->
     do local_origin <- exportToA root_coordinate_system -< origin_point_3d
        transformA
