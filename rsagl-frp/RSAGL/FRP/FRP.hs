@@ -30,6 +30,7 @@ module RSAGL.FRP.FRP
      outgoingBy,
      outgoing,
      incoming,
+     StreamFunctor(..),
      randomA)
     where
 
@@ -403,6 +404,19 @@ incoming :: FRP e m (Message j) j
 incoming = FRP $ \_ -> FactoryArrow $
     do r <- newReceiver
        return $ Kleisli $ lift . receive r
+
+-- | An FRP-embedded functor.
+class StreamFunctor s where
+    streampure :: a -> FRP e m () (s a)
+    streammap :: (a -> b) -> FRP e m (s a) (s b)
+
+instance StreamFunctor Message where
+    streampure a = FRP $ \_ -> FactoryArrow $
+        do a' <- send a
+           return $ Kleisli $ const $ return a'
+    streammap f = proc m ->
+        do f' <- streampure f -< ()
+           returnA -< f' <<*>> m
 
 -- | Get a bounded random value, as 'randomRIO'.  A new value is pulled for each
 -- frame of animation.
