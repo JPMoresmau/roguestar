@@ -7,7 +7,7 @@ module Main
 import System.IO
 import PrintText
 import Data.Maybe
-import Graphics.UI.GLUT
+import Graphics.UI.GLUT hiding (initialize)
 import Control.Monad
 import Actions
 import Keymaps.Keymaps
@@ -25,6 +25,7 @@ import Control.Concurrent.STM
 import Control.Concurrent
 import Statistics
 import Config
+import Initialization
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -36,27 +37,34 @@ timer_callback_millis = 30
 
 main :: IO ()
 main =
-    do (_, command_line) <- getArgsAndInitialize
-       let command_line_options = parseCommandLine command_line
-       let keymap = findKeymapOrDefault $ keymap_name command_line_options
-       scene_var <- newTVarIO Nothing
-       globals <- defaultGlobals
-       driver_object <- newDriverObject
-       print_text_object <- newPrintTextObject
-       animation_object <- newRoguestarAnimationObject mainAnimationLoop
-       lib <- newLibrary
+    do (_, args) <- getArgsAndInitialize
+       init <- initialize args
        let (width,height) = default_window_size
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
        window <- createWindow window_name
        reshapeCallback $= Just roguestarReshapeCallback
-       display_statistics <- newStatistics "rendering"
-       displayCallback $= roguestarDisplayCallback display_statistics scene_var print_text_object
+       displayCallback $= roguestarDisplayCallback
+           (init_display_statistics init)
+           (init_scene_var init)
+           (init_print_text_object init)
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
-       keyboardMouseCallback $= (Just $ keyCallback print_text_object)
-       addTimerCallback timer_callback_millis (roguestarTimerCallback scene_var globals driver_object print_text_object keymap window)
-       scene_statistics <- newStatistics "scene"
-       sceneLoop scene_statistics scene_var lib globals driver_object print_text_object animation_object
+       keyboardMouseCallback $=
+           (Just $ keyCallback $ init_print_text_object init)
+       addTimerCallback timer_callback_millis $
+           roguestarTimerCallback (init_scene_var init)
+                                  (init_globals init)
+                                  (init_driver_object init)
+                                  (init_print_text_object init)
+                                  (init_keymap init)
+                                  window
+       sceneLoop (init_scene_statistics init)
+                 (init_scene_var init)
+                 (init_library init)
+                 (init_globals init)
+                 (init_driver_object init)
+                 (init_print_text_object init)
+                 (init_animation_object init)
        mainLoop
 
 watchQuit :: Globals -> IO ()
