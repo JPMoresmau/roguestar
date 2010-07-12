@@ -54,12 +54,8 @@ main =
                                   (init_keymap init_vars)
                                   window
        sceneLoop init_vars
+       watchQuit init_vars
        mainLoop
-
-watchQuit :: Globals -> IO ()
-watchQuit g =
-    do q <- atomically $ readTVar $ global_should_quit g
-       when q $ exitWith ExitSuccess
 
 roguestarDisplayCallback :: Statistics -> TVar (Maybe Scene) -> PrintTextObject -> IO ()
 roguestarDisplayCallback stats scene_var print_text_object =
@@ -82,8 +78,7 @@ roguestarDisplayCallback stats scene_var print_text_object =
 
 roguestarTimerCallback :: TVar (Maybe Scene) -> Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
 roguestarTimerCallback scene_var globals driver_object print_text_object keymap window =
-    do watchQuit globals
-       result <- timeout 20000000 $
+    do result <- timeout 20000000 $
         do addTimerCallback timer_callback_millis $ roguestarTimerCallback scene_var globals driver_object print_text_object keymap window
            postRedisplay $ Just window
            maybeExecuteKeymappedAction globals driver_object print_text_object keymap

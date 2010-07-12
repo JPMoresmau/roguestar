@@ -1,9 +1,11 @@
 module Processes
     (sceneLoop,
-     reshape)
+     reshape,
+     watchQuit)
     where
 
 import Initialization
+import Globals
 import Control.Concurrent
 import Control.Concurrent.STM
 import System.Timeout
@@ -43,6 +45,14 @@ reshape (Size width height) =
        loadIdentity
        viewport $= (Position 0 0,Size width height)
 
-
-
+-- | Monitors the 'global_should_quit' variable,
+-- and forcably terminates the application if
+-- it is ever set.
+watchQuit :: Initialization -> IO ()
+watchQuit init_values = liftM (const ()) $ forkIO $ forever $
+    do q <- atomically $
+           do q <- readTVar $ global_should_quit $ init_globals init_values
+              when (not q) retry
+              return q
+       when q $ exitWith ExitSuccess
 
