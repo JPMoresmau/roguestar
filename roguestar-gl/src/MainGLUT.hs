@@ -11,21 +11,16 @@ import Graphics.UI.GLUT hiding (initialize)
 import Control.Monad
 import Actions
 import Keymaps.Keymaps
-import CommandLine
-import Keymaps.BuiltinKeymaps
-import RenderingControl
 import Driver
-import Animation
 import RSAGL.Scene
-import Models.Library
 import System.Timeout
 import System.Exit
 import Globals
 import Control.Concurrent.STM
-import Control.Concurrent
 import Statistics
 import Config
 import Initialization
+import Processes
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -38,52 +33,33 @@ timer_callback_millis = 30
 main :: IO ()
 main =
     do (_, args) <- getArgsAndInitialize
-       init <- initialize args
+       init_vars <- initialize args
        let (width,height) = default_window_size
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
        window <- createWindow window_name
        reshapeCallback $= Just roguestarReshapeCallback
        displayCallback $= roguestarDisplayCallback
-           (init_display_statistics init)
-           (init_scene_var init)
-           (init_print_text_object init)
+           (init_display_statistics init_vars)
+           (init_scene_var init_vars)
+           (init_print_text_object init_vars)
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $=
-           (Just $ keyCallback $ init_print_text_object init)
+           (Just $ keyCallback $ init_print_text_object init_vars)
        addTimerCallback timer_callback_millis $
-           roguestarTimerCallback (init_scene_var init)
-                                  (init_globals init)
-                                  (init_driver_object init)
-                                  (init_print_text_object init)
-                                  (init_keymap init)
+           roguestarTimerCallback (init_scene_var init_vars)
+                                  (init_globals init_vars)
+                                  (init_driver_object init_vars)
+                                  (init_print_text_object init_vars)
+                                  (init_keymap init_vars)
                                   window
-       sceneLoop (init_scene_statistics init)
-                 (init_scene_var init)
-                 (init_library init)
-                 (init_globals init)
-                 (init_driver_object init)
-                 (init_print_text_object init)
-                 (init_animation_object init)
+       sceneLoop init_vars
        mainLoop
 
 watchQuit :: Globals -> IO ()
 watchQuit g =
     do q <- atomically $ readTVar $ global_should_quit g
        when q $ exitWith ExitSuccess
-
-sceneLoop :: Statistics -> TVar (Maybe Scene) -> Library -> Globals -> DriverObject -> PrintTextObject -> RoguestarAnimationObject -> IO ()
-sceneLoop stats scene_var lib globals driver_object print_text_object animation_object = liftM (const ()) $ forkIO $ forever $
-    do atomically $
-           do b <- liftM isJust $ readTVar scene_var
-              when b retry
-       result <- timeout 20000000 $
-           do scene <- runStatistics stats $ runRoguestarAnimationObject lib globals driver_object print_text_object animation_object 
-              atomically $ writeTVar scene_var $ Just scene
-       if isNothing result
-           then do hPutStrLn stderr "roguestar-gl: aborting due to stalled simulation run (timed out after 20 seconds)"
-                   exitWith $ ExitFailure 1
-           else return ()
 
 roguestarReshapeCallback :: Size -> IO ()
 roguestarReshapeCallback (Size width height) = 
