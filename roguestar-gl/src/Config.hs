@@ -1,7 +1,8 @@
 module Config
     (short_version_string,
      version_string,
-     window_name)
+     window_name,
+     default_window_size)
     where
 
 import Paths_roguestar_gl
@@ -19,4 +20,7 @@ version_string = short_version_string ++ if null (versionTags version)
 
 window_name :: String
 window_name = "Roguestar-GL " ++ version_string
+
+default_window_size :: (Integral i) => (i,i)
+default_window_size = (800,600)
 

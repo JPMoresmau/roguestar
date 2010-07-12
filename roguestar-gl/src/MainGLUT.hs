@@ -26,9 +26,6 @@ import Control.Concurrent
 import Statistics
 import Config
 
-default_window_size :: Size
-default_window_size = Size 800 600
-
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
                 WithDepthBuffer,
@@ -48,7 +45,8 @@ main =
        print_text_object <- newPrintTextObject
        animation_object <- newRoguestarAnimationObject mainAnimationLoop
        lib <- newLibrary
-       initialWindowSize $= default_window_size
+       let (width,height) = default_window_size
+       initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
        window <- createWindow window_name
        reshapeCallback $= Just roguestarReshapeCallback
