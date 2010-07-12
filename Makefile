@@ -1,5 +1,5 @@
 CONFIG_LIB_OPTS=--ghc-option=-Wall
-CONFIG_BIN_OPTS=--prefix=./roguestar-local --ghc-option=-Wall
+CONFIG_BIN_OPTS=--prefix=${PWD}/roguestar-local --ghc-option=-Wall
 
 warning:
 	@echo "See README."
@@ -48,7 +48,7 @@ build-bins:
 	(cd roguestar-gl && cabal build ${OPTS})
 
 copy-libs:
-	(cd rsagl && cabal copy ${OPTS})
+	(cd rsagl && cabal copy ${OPTS} && cabal register ${OPTS})
 
 copy-bins:
 	(cd rsagl-demos && cabal copy ${OPTS})
