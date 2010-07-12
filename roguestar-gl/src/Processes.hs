@@ -1,5 +1,6 @@
 module Processes
-    (sceneLoop)
+    (sceneLoop,
+     reshape)
     where
 
 import Initialization
@@ -12,6 +13,7 @@ import Statistics
 import Animation
 import System.IO
 import System.Exit
+import Graphics.Rendering.OpenGL.GL
 
 -- | Performs the listen-animate loop.  Should be called
 -- exactly once per program instance.
@@ -33,5 +35,14 @@ sceneLoop init = liftM (const ()) $ forkIO $ forever $
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled simulation run (timed out after 20 seconds)"
                    exitWith $ ExitFailure 1
            else return ()
+
+-- | Update aspect ration, when it changes.
+reshape :: Size -> IO ()
+reshape (Size width height) =
+    do matrixMode $= Projection
+       loadIdentity
+       viewport $= (Position 0 0,Size width height)
+
+
 
 

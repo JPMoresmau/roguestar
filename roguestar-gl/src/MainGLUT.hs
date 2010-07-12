@@ -38,7 +38,7 @@ main =
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
        window <- createWindow window_name
-       reshapeCallback $= Just roguestarReshapeCallback
+       reshapeCallback $= Just reshape
        displayCallback $= roguestarDisplayCallback
            (init_display_statistics init_vars)
            (init_scene_var init_vars)
@@ -60,12 +60,6 @@ watchQuit :: Globals -> IO ()
 watchQuit g =
     do q <- atomically $ readTVar $ global_should_quit g
        when q $ exitWith ExitSuccess
-
-roguestarReshapeCallback :: Size -> IO ()
-roguestarReshapeCallback (Size width height) = 
-    do matrixMode $= Projection
-       loadIdentity
-       viewport $= (Position 0 0,Size width height)
 
 roguestarDisplayCallback :: Statistics -> TVar (Maybe Scene) -> PrintTextObject -> IO ()
 roguestarDisplayCallback stats scene_var print_text_object =
