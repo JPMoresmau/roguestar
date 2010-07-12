@@ -9,9 +9,13 @@ import HierarchicalDatabase
 import TerrainData
 import Protocol
 import GridRayCaster
+import Data.Version
+import Paths_roguestar_engine
+import Data.List (intersperse)
 
 roguestar_version_number :: String
-roguestar_version_number = "0.3"
+roguestar_version_number = concat $
+    intersperse "." $ map show $ versionBranch version
 
 roguestar_program_name :: String
 roguestar_program_name = "roguestar-engine"
