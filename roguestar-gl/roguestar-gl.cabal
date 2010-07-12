@@ -35,7 +35,7 @@ build-type:          Simple
 tested-with:         GHC==6.12.1
 
 executable:          roguestar-gl
-main-is:             Main.hs
+main-is:             MainGLUT.hs
 hs-source-dirs:      src
 other-modules:       Quality, ProtocolTypes, VisibleObject,
                      Strings, WordGenerator, Driver,
@@ -51,7 +51,7 @@ other-modules:       Quality, ProtocolTypes, VisibleObject,
                      Models.EnergySwords, Models.EnergyThings, Models.CyborgType4,
                      AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,
                      AnimationExtras, AnimationCreatures, AnimationBuildings, MaybeArrow,
-                     EventUtils, Sky
+                     EventUtils, Sky, Config
 
 ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all

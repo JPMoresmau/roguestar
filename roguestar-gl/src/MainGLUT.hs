@@ -24,9 +24,7 @@ import Globals
 import Control.Concurrent.STM
 import Control.Concurrent
 import Statistics
-
-roguestar_client_version :: String
-roguestar_client_version = "0.3"
+import Config
 
 default_window_size :: Size
 default_window_size = Size 800 600
@@ -52,7 +50,7 @@ main =
        lib <- newLibrary
        initialWindowSize $= default_window_size
        initialDisplayMode $= display_mode
-       window <- createWindow $ "RogueStar GL " ++ roguestar_client_version
+       window <- createWindow window_name
        reshapeCallback $= Just roguestarReshapeCallback
        display_statistics <- newStatistics "rendering"
        displayCallback $= roguestarDisplayCallback display_statistics scene_var print_text_object
