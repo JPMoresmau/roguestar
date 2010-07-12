@@ -12,7 +12,6 @@ import Control.Monad
 import Actions
 import Keymaps.Keymaps
 import Driver
-import RSAGL.Scene
 import System.Timeout
 import System.Exit
 import Globals
@@ -21,6 +20,7 @@ import Statistics
 import Config
 import Initialization
 import Processes
+import RSAGL.Scene
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -39,10 +39,7 @@ main =
        initialDisplayMode $= display_mode
        window <- createWindow window_name
        reshapeCallback $= Just reshape
-       displayCallback $= roguestarDisplayCallback
-           (init_display_statistics init_vars)
-           (init_scene_var init_vars)
-           (init_print_text_object init_vars)
+       displayCallback $= theDisplayCallback init_vars
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $=
            (Just $ keyCallback $ init_print_text_object init_vars)
@@ -57,24 +54,11 @@ main =
        watchQuit init_vars
        mainLoop
 
-roguestarDisplayCallback :: Statistics -> TVar (Maybe Scene) -> PrintTextObject -> IO ()
-roguestarDisplayCallback stats scene_var print_text_object =
-  do scene <- atomically $
-         do result <- maybe retry return =<< readTVar scene_var
-            writeTVar scene_var Nothing
-            return result
-     result <- timeout 20000000 $
-         do color (Color4 0 0 0 0 :: Color4 GLfloat)
-            clear [ColorBuffer]
-            (Size width height) <- get windowSize
-            runStatistics stats $
-                do sceneToOpenGL (fromIntegral width / fromIntegral height) (0.1,80.0) scene
-                   renderText print_text_object
-                   swapBuffers
-     if isNothing result
-         then do hPutStrLn stderr "roguestar-gl: aborting due to stalled display callback (timed out after 20 seconds)"
-                 exitWith $ ExitFailure 1
-         else return ()
+theDisplayCallback :: Initialization -> IO ()
+theDisplayCallback init_vars =
+    do sz <- get windowSize
+       display sz init_vars
+       swapBuffers
 
 roguestarTimerCallback :: TVar (Maybe Scene) -> Globals -> DriverObject -> PrintTextObject -> Keymap -> Window -> IO ()
 roguestarTimerCallback scene_var globals driver_object print_text_object keymap window =

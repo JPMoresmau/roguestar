@@ -1,7 +1,8 @@
 module Processes
     (sceneLoop,
      reshape,
-     watchQuit)
+     watchQuit,
+     display)
     where
 
 import Initialization
@@ -16,6 +17,8 @@ import Animation
 import System.IO
 import System.Exit
 import Graphics.Rendering.OpenGL.GL
+import RSAGL.Scene
+import PrintText
 
 -- | Performs the listen-animate loop.  Should be called
 -- exactly once per program instance.
@@ -55,4 +58,28 @@ watchQuit init_values = liftM (const ()) $ forkIO $ forever $
               when (not q) retry
               return q
        when q $ exitWith ExitSuccess
+
+-- | Performs the display action.  This must
+-- be executed in the event loop of the widget toolkit,
+-- since OpenGL isn't thread safe.
+display :: Size -> Initialization -> IO ()
+display (Size width height) init_vars =
+  do scene <- atomically $
+         do result <- maybe retry return =<< readTVar (init_scene_var init_vars)
+            writeTVar (init_scene_var init_vars) Nothing
+            return result
+     result <- timeout 20000000 $
+         do color (Color4 0 0 0 0 :: Color4 GLfloat)
+            clear [ColorBuffer]
+            runStatistics (init_display_statistics init_vars) $
+                do sceneToOpenGL (fromIntegral width / fromIntegral height)
+                                 (0.1,80.0)
+                                 scene
+                   renderText $ init_print_text_object init_vars
+     if isNothing result
+          then do hPutStrLn stderr "roguestar-gl: aborting due to stalled display callback (timed out after 20 seconds)"
+                  exitWith $ ExitFailure 1
+          else return ()
+
+
 
