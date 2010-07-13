@@ -2,7 +2,8 @@ module Processes
     (sceneLoop,
      reshape,
      watchQuit,
-     display)
+     display,
+     dispatchKeyInput)
     where
 
 import Initialization
@@ -19,6 +20,8 @@ import System.Exit
 import Graphics.Rendering.OpenGL.GL
 import RSAGL.Scene
 import PrintText
+import Actions
+import Keymaps.Keymaps
 
 -- | Performs the listen-animate loop.  Should be called
 -- exactly once per program instance.
@@ -53,11 +56,10 @@ reshape (Size width height) =
 -- it is ever set.
 watchQuit :: Initialization -> IO ()
 watchQuit init_values = liftM (const ()) $ forkIO $ forever $
-    do q <- atomically $
+    do atomically $
            do q <- readTVar $ global_should_quit $ init_globals init_values
               when (not q) retry
-              return q
-       when q $ exitWith ExitSuccess
+       exitWith ExitSuccess
 
 -- | Performs the display action.  This must
 -- be executed in the event loop of the widget toolkit,
@@ -81,5 +83,32 @@ display (Size width height) init_vars =
                   exitWith $ ExitFailure 1
           else return ()
 
-
+dispatchKeyInput :: Initialization -> IO ()
+dispatchKeyInput init_vars =
+    do result <- timeout 20000000 $
+           do let action_input = ActionInput (init_globals init_vars)
+                                             (init_driver_object init_vars)
+                                             (init_print_text_object init_vars)
+              pullInputBuffer (init_print_text_object init_vars)
+              buffer_contents <- getInputBuffer (init_print_text_object init_vars)
+              (id =<<) $ atomically $
+                  do synced_with_engine <- liftM (not . null) $
+                         getValidActions action_input Nothing
+                     worked <- if synced_with_engine
+                               then takeUserInputAction action_input =<<
+                                        keysToActionNames action_input
+                                                          (init_keymap init_vars)
+                                                          buffer_contents
+                               else return False
+                     filtered <- filterKeySequence action_input
+                                                   (init_keymap init_vars)
+                                                   buffer_contents
+                     return $ if worked
+                              then clearInputBuffer (init_print_text_object init_vars)
+                              else setInputBuffer (init_print_text_object init_vars)
+                                                  filtered
+       if isNothing result
+           then do hPutStrLn stderr "roguestar-gl: aborting due to stalled timer callback (timed out after 20 seconds)"
+                   exitWith $ ExitFailure 1
+           else return ()
 
