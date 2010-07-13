@@ -7,7 +7,7 @@ module Main
 import System.IO
 import PrintText
 import Data.Maybe
-import Graphics.UI.GLUT hiding (initialize)
+import Graphics.UI.GLUT as GLUT hiding (initialize)
 import Control.Monad
 import Actions
 import Keymaps.Keymaps
@@ -21,6 +21,7 @@ import Config
 import Initialization
 import Processes
 import RSAGL.Scene
+import KeyStroke as KeyStroke
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -62,4 +63,19 @@ roguestarTimerCallback init_vars window =
        postRedisplay $ Just window
        dispatchKeyInput init_vars
        watchQuit init_vars
+
+keyCallback :: PrintTextObject -> KeyboardMouseCallback
+keyCallback pto (Char char) Down _ _ =
+    pushInputBuffer pto (Stroke char)
+keyCallback pto (SpecialKey GLUT.KeyDown) Down _ _ =
+    pushInputBuffer pto KeyStroke.KeyDown
+keyCallback pto (SpecialKey GLUT.KeyUp) Down _ _ =
+    pushInputBuffer pto KeyStroke.KeyUp
+keyCallback pto (SpecialKey GLUT.KeyLeft) Down _ _ =
+    pushInputBuffer pto KeyStroke.KeyLeft
+keyCallback pto (SpecialKey GLUT.KeyRight) Down _ _ =
+    pushInputBuffer pto KeyStroke.KeyRight
+keyCallback _ (SpecialKey s) Down _ _ =
+    hPutStrLn stderr $ "Unrecognized key (GLUT): " ++ show s
+keyCallback _ _ _ _ _ = return ()
 

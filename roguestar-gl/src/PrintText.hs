@@ -11,12 +11,12 @@ module PrintText
      PrintTextMode(..),
      TextType(..),
      getInputBuffer,
+     pushInputBuffer,
      pullInputBuffer,
      setInputBuffer,
      setPrintTextMode,
      clearOutputBuffer,
-     clearInputBuffer,
-     keyCallback)
+     clearInputBuffer)
     where
 
 import Control.Concurrent.STM
@@ -28,6 +28,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import RSAGL.Color
 import RSAGL.Color.RSAGLColors
+import KeyStroke
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],
@@ -35,7 +36,7 @@ data PrintTextData = PrintTextData {
     text_status_lines :: Map.Map StatusField B.ByteString,
     text_output_mode :: PrintTextMode }
 
-data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan B.ByteString)
+data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan KeyString)
 
 font_width_pixels :: Int
 font_width_pixels = 9
@@ -77,12 +78,8 @@ setStatus p@(PrintTextObject pto _) status_lines =
            printText p Update $ onChange field string
        writeTVar pto . (\x -> x { text_status_lines = status_lines }) =<< readTVar pto
 
-keyCallback :: PrintTextObject -> KeyboardMouseCallback
-keyCallback (PrintTextObject _ chan) (Char char) Down _ _ =
-    writeChan chan $ B.pack [char]
-keyCallback (PrintTextObject _ chan) (SpecialKey special) Down _ _ =
-    writeChan chan $ ":::" `B.append` (B.pack $ show special)
-keyCallback _ _ _ _ _ = return ()
+pushInputBuffer :: PrintTextObject -> KeyStroke -> IO ()
+pushInputBuffer (PrintTextObject _ chan) stroke = writeChan chan [stroke]
 
 getInputBuffer :: PrintTextObject -> IO B.ByteString
 getInputBuffer (PrintTextObject pto _) =
@@ -93,12 +90,12 @@ pullInputBuffer :: PrintTextObject -> IO ()
 pullInputBuffer (PrintTextObject pto chan) =
     do e <- isEmptyChan chan
        when (not e) $
-           do r <- readChan chan
+           do stroke <- readChan chan
               atomically $
                   do print_text <- readTVar pto
                      writeTVar pto $ print_text {
                          text_input_buffer = text_input_buffer print_text
-                                             `B.append` r }
+                             `B.append` B.pack (asString stroke) }
               return ()
 
 setInputBuffer :: PrintTextObject -> B.ByteString -> IO ()

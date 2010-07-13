@@ -4,6 +4,7 @@ module Keymaps.CommonKeymap
     (common_keymap)
     where
 
+import PrintTextData
 import Keymaps.Keymaps
 
 common_keymap :: Keymap
