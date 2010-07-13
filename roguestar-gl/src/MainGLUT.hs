@@ -47,7 +47,6 @@ main =
            roguestarTimerCallback init_vars
                                   window
        sceneLoop init_vars
-       watchQuit init_vars
        mainLoop
 
 theDisplayCallback :: Initialization -> IO ()
@@ -62,4 +61,5 @@ roguestarTimerCallback init_vars window =
            roguestarTimerCallback init_vars window
        postRedisplay $ Just window
        dispatchKeyInput init_vars
+       watchQuit init_vars
 

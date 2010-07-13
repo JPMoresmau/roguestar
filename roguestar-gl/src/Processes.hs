@@ -53,13 +53,14 @@ reshape (Size width height) =
 
 -- | Monitors the 'global_should_quit' variable,
 -- and forcably terminates the application if
--- it is ever set.
+-- it is set.
+--
+-- Needs to be called from the main thread, or has
+-- no effect.
 watchQuit :: Initialization -> IO ()
-watchQuit init_values = liftM (const ()) $ forkIO $ forever $
-    do atomically $
-           do q <- readTVar $ global_should_quit $ init_globals init_values
-              when (not q) retry
-       exitWith ExitSuccess
+watchQuit init_values =
+    do q <- atomically $ readTVar $ global_should_quit $ init_globals init_values
+       when q $ exitWith ExitSuccess
 
 -- | Performs the display action.  This must
 -- be executed in the event loop of the widget toolkit,
