@@ -22,6 +22,7 @@ import Initialization
 import Processes
 import RSAGL.Scene
 import KeyStroke as KeyStroke
+import DrawString
 
 display_mode :: [DisplayMode]
 display_mode = [RGBAMode,
@@ -31,7 +32,7 @@ display_mode = [RGBAMode,
 main :: IO ()
 main =
     do (_, args) <- getArgsAndInitialize
-       init_vars <- initialize args
+       init_vars <- initialize glutDrawString args
        let (width,height) = default_window_size
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode

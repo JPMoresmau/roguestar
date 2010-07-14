@@ -13,6 +13,7 @@ import System.Environment
 import Graphics.Rendering.OpenGL
 import System.IO
 import Graphics.UI.GLUT as GLUT
+import DrawString
 
 main :: IO ()
 main =
@@ -21,7 +22,7 @@ main =
        initGUI
        GLUT.initialize prog_name args
        mapM_ (hPutStrLn stderr) =<< initGL
-       init_vars <- Init.initialize args
+       init_vars <- Init.initialize glutDrawString args
        window <- windowNew
        gl_config <- glConfigNew [GLModeRGB,GLModeDouble,GLModeDepth]
        gl_port <- glDrawingAreaNew gl_config
@@ -43,6 +44,7 @@ main =
 theDisplayCallback :: GLDrawingArea -> Initialization -> IO ()
 theDisplayCallback draw_area init_vars = withGLDrawingArea draw_area $ \win ->
     do (width, height) <- glDrawableGetSize win
+       reshape (Size (fromIntegral width) (fromIntegral height))
        display (Size (fromIntegral width) (fromIntegral height)) init_vars
        glDrawableSwapBuffers win
 

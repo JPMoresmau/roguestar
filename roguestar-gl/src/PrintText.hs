@@ -29,34 +29,25 @@ import qualified Data.Map as Map
 import RSAGL.Color
 import RSAGL.Color.RSAGLColors
 import KeyStroke
+import DrawString
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],
     text_input_buffer :: B.ByteString,
     text_status_lines :: Map.Map StatusField B.ByteString,
-    text_output_mode :: PrintTextMode }
+    text_output_mode :: PrintTextMode,
+    text_draw_strategy :: DrawString }
 
 data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan KeyString)
 
-font_width_pixels :: Int
-font_width_pixels = 9
-
-font_height_pixels :: Int
-font_height_pixels = 15
-
-padding_pixels :: Int
-padding_pixels = 5
-
-font :: GLUT.BitmapFont
-font = GLUT.Fixed9By15
-
-newPrintTextObject :: IO PrintTextObject
-newPrintTextObject =
+newPrintTextObject :: DrawString -> IO PrintTextObject
+newPrintTextObject draw_strategy =
     do pt_data <- newTVarIO $ PrintTextData {
            text_output_buffer = [],
            text_input_buffer = B.empty,
            text_status_lines = Map.empty,
-           text_output_mode = Unlimited }
+           text_output_mode = Unlimited,
+           text_draw_strategy = draw_strategy }
        pt_chan <- newChan
        return $ PrintTextObject pt_data pt_chan
 
@@ -121,12 +112,13 @@ clearInputBuffer (PrintTextObject pto _) = atomically $
 renderText :: Size -> PrintTextObject -> IO ()
 renderText (Size width height) (PrintTextObject pto _) =
     do ptd <- atomically $ readTVar pto
+       let draw_strategy = text_draw_strategy ptd
        let max_characters_height =
-               (fromIntegral height - 2 * fromIntegral padding_pixels) `div`
-               (fromIntegral font_height_pixels)
+               (fromIntegral height - 2 * fromIntegral (draw_string_padding draw_strategy)) `div`
+               (fromIntegral (draw_string_font_height draw_strategy))
        let max_characters_width =
-               (fromIntegral width - 2 * fromIntegral padding_pixels) `div`
-               (fromIntegral font_width_pixels)
+               (fromIntegral width - 2 * fromIntegral (draw_string_padding draw_strategy)) `div`
+               (fromIntegral (draw_string_font_width draw_strategy))
        let lines_to_print =
                restrictLines max_characters_height max_characters_width $
                    (case (text_output_mode ptd) of
@@ -140,13 +132,17 @@ renderText (Size width height) (PrintTextObject pto _) =
                        else [])
        let status_lines = flip map (Map.toAscList $ text_status_lines ptd) $
                \(field,string) -> (Update,whileActive field string)
-       drawLines (Size width height) (reverse lines_to_print) Log
-       drawLines (Size width height) (reverse status_lines) Status
+       drawLines (Size width height) (reverse lines_to_print) Log draw_strategy
+       drawLines (Size width height) (reverse status_lines) Status draw_strategy
 
 data PrintTextPosition = Status | Log
 
-drawLines :: Size -> [(TextType,B.ByteString)] -> PrintTextPosition -> IO ()
-drawLines (Size width height) lines_to_print position =
+drawLines :: Size ->
+             [(TextType,B.ByteString)] ->
+             PrintTextPosition ->
+             DrawString ->
+             IO ()
+drawLines (Size width height) lines_to_print position draw_strategy =
     do save_depth_func <- get depthFunc
        save_depth_mask <- get depthMask
        save_blend <- get blend
@@ -159,37 +155,38 @@ drawLines (Size width height) lines_to_print position =
        matrixMode $= Modelview 0
        loadIdentity
        let actual_width_pixels :: Int
-           actual_width_pixels = font_width_pixels *
+           actual_width_pixels = draw_string_font_width draw_strategy *
                                  (maximum $ map (B.length . snd) $ (undefined,""):lines_to_print)
        let actual_height_pixels :: Int
-           actual_height_pixels = font_height_pixels * (length lines_to_print)
+           actual_height_pixels = draw_string_font_height draw_strategy * (length lines_to_print)
        let y_position :: Int
            y_position = case position of
-               Status -> fromIntegral height - actual_height_pixels - padding_pixels
-               Log -> padding_pixels
+               Status -> fromIntegral height - actual_height_pixels - (draw_string_padding draw_strategy)
+               Log -> draw_string_padding draw_strategy
        color $ (Color4 0 0 0 0.92 :: Color4 GLfloat)
        (rect :: Vertex2 GLfloat -> Vertex2 GLfloat -> IO ())
-           (Vertex2 (fromIntegral padding_pixels)
+           (Vertex2 (fromIntegral (draw_string_padding draw_strategy))
                     (fromIntegral y_position))
            (Vertex2 (fromIntegral (actual_width_pixels +
-                                   padding_pixels))
+                                   (draw_string_padding draw_strategy)))
                     (fromIntegral (actual_height_pixels +
                                    y_position +
-                                   padding_pixels*2)))
-       currentRasterPosition $= (Vertex4 (fromIntegral padding_pixels)
-                                         (fromIntegral $ y_position + padding_pixels)
+                                   (draw_string_padding draw_strategy)*2)))
+       currentRasterPosition $= (Vertex4 (fromIntegral $ draw_string_padding draw_strategy)
+                                         (fromIntegral $ y_position + draw_string_padding draw_strategy)
                                          0 1)
-       mapM_ drawLine lines_to_print
+       mapM_ (drawLine draw_strategy) lines_to_print
        blend $= save_blend
        depthMask $= save_depth_mask
        depthFunc $= save_depth_func
 
-drawLine :: (TextType,B.ByteString) -> IO ()
-drawLine (textType,str) = do (Vertex4 x y _ _) <- get currentRasterPosition
-                             color $ colorToOpenGL $ textTypeToColor textType
-                             currentRasterPosition $= (Vertex4 x y 0 1)
-                             GLUT.renderString font $ B.unpack str
-                             currentRasterPosition $= (Vertex4 x (y + fromIntegral font_height_pixels) 0 1)
+drawLine :: DrawString -> (TextType,B.ByteString) -> IO ()
+drawLine draw_strategy (textType,str) =
+    do (Vertex4 x y _ _) <- get currentRasterPosition
+       color $ colorToOpenGL $ textTypeToColor textType
+       currentRasterPosition $= (Vertex4 x y 0 1)
+       drawString draw_strategy $ B.unpack str
+       currentRasterPosition $= (Vertex4 x (y + fromIntegral (draw_string_font_height draw_strategy)) 0 1)
 
 restrictLines :: Int -> Int -> [(TextType,B.ByteString)] -> [(TextType,B.ByteString)]
 restrictLines height width text_lines = reverse $ take height $ reverse $ concatMap splitLongLines text_lines

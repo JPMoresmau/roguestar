@@ -25,6 +25,7 @@ import Control.Concurrent.STM
 import Control.Concurrent
 import Statistics
 import Config
+import DrawString
 
 data Initialization = Initialization {
     init_opts :: CommandLineOptions,
@@ -38,14 +39,14 @@ data Initialization = Initialization {
     init_display_statistics :: Statistics,
     init_scene_statistics :: Statistics }
 
-initialize :: [String] -> IO Initialization
-initialize args =
+initialize :: DrawString -> [String] -> IO Initialization
+initialize draw_strategy args =
     do let opts = parseCommandLine args
        let keymap = findKeymapOrDefault $ keymap_name opts
        scene_var <- newTVarIO Nothing
        globals <- defaultGlobals
        driver_object <- newDriverObject
-       print_text_object <- newPrintTextObject
+       print_text_object <- newPrintTextObject draw_strategy
        animation_object <- newRoguestarAnimationObject mainAnimationLoop
        lib <- newLibrary
        display_statistics <- newStatistics "rendering"
