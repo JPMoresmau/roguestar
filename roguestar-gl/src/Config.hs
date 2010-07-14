@@ -1,5 +1,6 @@
 module Config
-    (short_version_string,
+    (timer_callback_millis,
+     short_version_string,
      version_string,
      window_name,
      default_window_size)
@@ -8,6 +9,9 @@ module Config
 import Paths_roguestar_gl
 import Data.List
 import Data.Version
+
+timer_callback_millis :: Int
+timer_callback_millis = 30
 
 short_version_string :: String
 short_version_string =

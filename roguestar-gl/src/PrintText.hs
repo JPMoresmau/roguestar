@@ -20,7 +20,7 @@ module PrintText
     where
 
 import Control.Concurrent.STM
-import Graphics.UI.GLUT as GLUT
+import Graphics.Rendering.OpenGL as GL
 import PrintTextData
 import Control.Monad
 import Control.Concurrent.Chan
@@ -47,8 +47,8 @@ font_height_pixels = 15
 padding_pixels :: Int
 padding_pixels = 5
 
-font :: BitmapFont
-font = Fixed9By15
+font :: GLUT.BitmapFont
+font = GLUT.Fixed9By15
 
 newPrintTextObject :: IO PrintTextObject
 newPrintTextObject =
@@ -118,10 +118,9 @@ clearInputBuffer (PrintTextObject pto _) = atomically $
     do print_text <- readTVar pto
        writeTVar pto $ print_text { text_input_buffer = B.empty }
 
-renderText :: PrintTextObject -> IO ()
-renderText (PrintTextObject pto _) =
+renderText :: Size -> PrintTextObject -> IO ()
+renderText (Size width height) (PrintTextObject pto _) =
     do ptd <- atomically $ readTVar pto
-       (Size width height) <- get windowSize
        let max_characters_height =
                (fromIntegral height - 2 * fromIntegral padding_pixels) `div`
                (fromIntegral font_height_pixels)
@@ -141,19 +140,18 @@ renderText (PrintTextObject pto _) =
                        else [])
        let status_lines = flip map (Map.toAscList $ text_status_lines ptd) $
                \(field,string) -> (Update,whileActive field string)
-       drawLines (reverse lines_to_print) Log
-       drawLines (reverse status_lines) Status
+       drawLines (Size width height) (reverse lines_to_print) Log
+       drawLines (Size width height) (reverse status_lines) Status
 
 data PrintTextPosition = Status | Log
 
-drawLines :: [(TextType,B.ByteString)] -> PrintTextPosition -> IO ()
-drawLines lines_to_print position =
-    do (Size width height) <- get windowSize
-       save_depth_func <- get depthFunc
+drawLines :: Size -> [(TextType,B.ByteString)] -> PrintTextPosition -> IO ()
+drawLines (Size width height) lines_to_print position =
+    do save_depth_func <- get depthFunc
        save_depth_mask <- get depthMask
        save_blend <- get blend
        depthFunc $= Nothing
-       depthMask $= GLUT.Disabled
+       depthMask $= GL.Disabled
        blend $= Enabled
        matrixMode $= Projection
        loadIdentity
@@ -188,10 +186,10 @@ drawLines lines_to_print position =
 
 drawLine :: (TextType,B.ByteString) -> IO ()
 drawLine (textType,str) = do (Vertex4 x y _ _) <- get currentRasterPosition
-			     color $ colorToOpenGL $ textTypeToColor textType
-			     currentRasterPosition $= (Vertex4 x y 0 1)
-			     renderString font $ B.unpack str
-			     currentRasterPosition $= (Vertex4 x (y + fromIntegral font_height_pixels) 0 1)
+                             color $ colorToOpenGL $ textTypeToColor textType
+                             currentRasterPosition $= (Vertex4 x y 0 1)
+                             GLUT.renderString font $ B.unpack str
+                             currentRasterPosition $= (Vertex4 x (y + fromIntegral font_height_pixels) 0 1)
 
 restrictLines :: Int -> Int -> [(TextType,B.ByteString)] -> [(TextType,B.ByteString)]
 restrictLines height width text_lines = reverse $ take height $ reverse $ concatMap splitLongLines text_lines

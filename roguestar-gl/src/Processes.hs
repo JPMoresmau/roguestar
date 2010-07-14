@@ -78,7 +78,8 @@ display (Size width height) init_vars =
                 do sceneToOpenGL (fromIntegral width / fromIntegral height)
                                  (0.1,80.0)
                                  scene
-                   renderText $ init_print_text_object init_vars
+                   renderText (Size width height) $
+                              init_print_text_object init_vars
      if isNothing result
           then do hPutStrLn stderr "roguestar-gl: aborting due to stalled display callback (timed out after 20 seconds)"
                   exitWith $ ExitFailure 1

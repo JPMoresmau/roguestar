@@ -28,9 +28,6 @@ display_mode = [RGBAMode,
                 WithDepthBuffer,
                 DoubleBuffered]
 
-timer_callback_millis :: Int
-timer_callback_millis = 30
-
 main :: IO ()
 main =
     do (_, args) <- getArgsAndInitialize
