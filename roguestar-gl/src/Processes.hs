@@ -26,19 +26,20 @@ import Keymaps.Keymaps
 -- | Performs the listen-animate loop.  Should be called
 -- exactly once per program instance.
 sceneLoop :: Initialization -> IO ()
-sceneLoop init = liftM (const ()) $ forkIO $ forever $
-    do atomically $
-           do b <- liftM isJust $ readTVar $ init_scene_var init
+sceneLoop init_vars = liftM (const ()) $ forkIO $ forever $
+    do dispatchKeyInput init_vars
+       atomically $
+           do b <- liftM isJust $ readTVar $ init_scene_var init_vars
               when b retry
        result <- timeout 20000000 $
-           do scene <- runStatistics (init_scene_statistics init) $
+           do scene <- runStatistics (init_scene_statistics init_vars) $
                   runRoguestarAnimationObject
-                      (init_library init)
-                      (init_globals init)
-                      (init_driver_object init)
-                      (init_print_text_object init)
-                      (init_animation_object init)
-              atomically $ writeTVar (init_scene_var init) $ Just scene
+                      (init_library init_vars)
+                      (init_globals init_vars)
+                      (init_driver_object init_vars)
+                      (init_print_text_object init_vars)
+                      (init_animation_object init_vars)
+              atomically $ writeTVar (init_scene_var init_vars) $ Just scene
        if isNothing result
            then do hPutStrLn stderr "roguestar-gl: aborting due to stalled simulation run (timed out after 20 seconds)"
                    exitWith $ ExitFailure 1

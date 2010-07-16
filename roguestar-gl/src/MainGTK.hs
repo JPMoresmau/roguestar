@@ -3,6 +3,7 @@ module Main
     where
 
 import Graphics.UI.Gtk as Gtk
+import Graphics.UI.Gtk.Gdk.Events as GdkEvents
 import Graphics.UI.Gtk.OpenGL as Gtkglext
 import Config
 import Processes
@@ -14,6 +15,8 @@ import Graphics.Rendering.OpenGL
 import System.IO
 import Graphics.UI.GLUT as GLUT
 import DrawString
+import PrintText
+import KeyStroke
 
 main :: IO ()
 main =
@@ -35,6 +38,15 @@ main =
             containerChild := gl_port]
        onDestroy window $ atomically $ writeTVar
            (global_should_quit $ init_globals init_vars) True
+       widgetAddEvents window [KeyPressMask]
+       onKeyPress window $ \event -> case event of
+           Key {} -> do case (GdkEvents.eventKeyName event,eventKeyChar event) of
+                            (_,Just c) -> pushInputBuffer
+                                              (init_print_text_object init_vars)
+                                              (Stroke c)
+                            _ -> return ()
+                        return True
+           _ -> return False
        widgetShowAll window
        sceneLoop init_vars
        timeoutAdd (theDisplayCallback gl_port init_vars >> return True)
@@ -47,4 +59,5 @@ theDisplayCallback draw_area init_vars = withGLDrawingArea draw_area $ \win ->
        reshape (Size (fromIntegral width) (fromIntegral height))
        display (Size (fromIntegral width) (fromIntegral height)) init_vars
        glDrawableSwapBuffers win
+
 
