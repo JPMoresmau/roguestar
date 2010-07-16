@@ -1,7 +1,7 @@
 {-# LANGUAGE Arrows, OverloadedStrings #-}
 
-module Main
-    (main)
+module MainGLUT
+    (mainGLUT)
     where
 
 import System.IO
@@ -29,8 +29,8 @@ display_mode = [RGBAMode,
                 WithDepthBuffer,
                 DoubleBuffered]
 
-main :: IO ()
-main =
+mainGLUT :: IO ()
+mainGLUT =
     do (_, args) <- getArgsAndInitialize
        init_vars <- initialize glutDrawString args
        let (width,height) = default_window_size
