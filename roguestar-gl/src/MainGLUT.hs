@@ -37,7 +37,6 @@ mainGLUT =
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
        window <- createWindow window_name
-       reshapeCallback $= Just reshape
        displayCallback $= theDisplayCallback init_vars
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $=
@@ -59,7 +58,6 @@ roguestarTimerCallback init_vars window =
     do addTimerCallback timer_callback_millis $
            roguestarTimerCallback init_vars window
        postRedisplay $ Just window
-       dispatchKeyInput init_vars
        watchQuit init_vars
 
 keyCallback :: PrintTextObject -> KeyboardMouseCallback

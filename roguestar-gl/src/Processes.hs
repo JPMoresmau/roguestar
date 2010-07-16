@@ -1,9 +1,7 @@
 module Processes
     (sceneLoop,
-     reshape,
      watchQuit,
-     display,
-     dispatchKeyInput)
+     display)
     where
 
 import Initialization
@@ -48,9 +46,11 @@ sceneLoop init_vars = liftM (const ()) $ forkIO $ forever $
 -- | Update aspect ration, when it changes.
 reshape :: Size -> IO ()
 reshape (Size width height) =
-    do matrixMode $= Projection
+    do mat_mode <- get matrixMode
+       matrixMode $= Projection
        loadIdentity
        viewport $= (Position 0 0,Size width height)
+       matrixMode $= mat_mode
 
 -- | Monitors the 'global_should_quit' variable,
 -- and forcably terminates the application if
@@ -68,7 +68,8 @@ watchQuit init_values =
 -- since OpenGL isn't thread safe.
 display :: Size -> Initialization -> IO ()
 display (Size width height) init_vars =
-  do scene <- atomically $
+  do reshape (Size width height)
+     scene <- atomically $
          do result <- maybe retry return =<< readTVar (init_scene_var init_vars)
             writeTVar (init_scene_var init_vars) Nothing
             return result

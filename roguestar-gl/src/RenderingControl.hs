@@ -135,7 +135,7 @@ planarCamera camera_distance look_at = PerspectiveCamera {
     camera_position = translate (vectorScaleTo camera_distance $ Vector3D 0 (7*(camera_distance/10)**2) camera_distance) look_at,
     camera_lookat = translate (Vector3D 0 (1/camera_distance) 0) look_at,
     camera_up = Vector3D 0 1 0,
-    camera_fov = fromDegrees $ 40 + 30 / camera_distance }
+    camera_fov = fromDegrees 75 }
 
 -- | Retrieve the look-at point from the engine.
 centerCoordinates :: (FRPModel m, FRPModes m ~ RoguestarModes) =>

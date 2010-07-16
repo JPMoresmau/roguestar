@@ -56,7 +56,6 @@ mainGTK =
 theDisplayCallback :: GLDrawingArea -> Initialization -> IO ()
 theDisplayCallback draw_area init_vars = withGLDrawingArea draw_area $ \win ->
     do (width, height) <- glDrawableGetSize win
-       reshape (Size (fromIntegral width) (fromIntegral height))
        display (Size (fromIntegral width) (fromIntegral height)) init_vars
        glDrawableSwapBuffers win
 
