@@ -28,23 +28,24 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import RSAGL.Color
 import RSAGL.Color.RSAGLColors
-import KeyStroke
+import qualified KeyStroke as K
 import DrawString
+import Data.Monoid
 
 data PrintTextData = PrintTextData {
     text_output_buffer :: [(TextType,B.ByteString)],
-    text_input_buffer :: B.ByteString,
+    text_input_buffer :: K.KeyString,
     text_status_lines :: Map.Map StatusField B.ByteString,
     text_output_mode :: PrintTextMode,
     text_draw_strategy :: DrawString }
 
-data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan KeyString)
+data PrintTextObject = PrintTextObject (TVar PrintTextData) (Chan K.KeyString)
 
 newPrintTextObject :: DrawString -> IO PrintTextObject
 newPrintTextObject draw_strategy =
     do pt_data <- newTVarIO $ PrintTextData {
            text_output_buffer = [],
-           text_input_buffer = B.empty,
+           text_input_buffer = mempty,
            text_status_lines = Map.empty,
            text_output_mode = Unlimited,
            text_draw_strategy = draw_strategy }
@@ -69,10 +70,10 @@ setStatus p@(PrintTextObject pto _) status_lines =
            printText p Update $ onChange field string
        writeTVar pto . (\x -> x { text_status_lines = status_lines }) =<< readTVar pto
 
-pushInputBuffer :: PrintTextObject -> KeyStroke -> IO ()
-pushInputBuffer (PrintTextObject _ chan) stroke = writeChan chan [stroke]
+pushInputBuffer :: PrintTextObject -> K.KeyStroke -> IO ()
+pushInputBuffer (PrintTextObject _ chan) stroke = writeChan chan (K.keyStroke stroke)
 
-getInputBuffer :: PrintTextObject -> IO B.ByteString
+getInputBuffer :: PrintTextObject -> IO K.KeyString
 getInputBuffer (PrintTextObject pto _) =
     liftM text_input_buffer $ atomically $ readTVar pto
 
@@ -86,10 +87,10 @@ pullInputBuffer (PrintTextObject pto chan) =
                   do print_text <- readTVar pto
                      writeTVar pto $ print_text {
                          text_input_buffer = text_input_buffer print_text
-                             `B.append` B.pack (asString stroke) }
+                                                 `mappend` stroke }
               return ()
 
-setInputBuffer :: PrintTextObject -> B.ByteString -> IO ()
+setInputBuffer :: PrintTextObject -> K.KeyString -> IO ()
 setInputBuffer (PrintTextObject pto _) new_input_buffer = atomically $
     do print_text <- readTVar pto
        writeTVar pto $ print_text { text_input_buffer = new_input_buffer }
@@ -107,7 +108,7 @@ setPrintTextMode (PrintTextObject pto _) pt_mode =
 clearInputBuffer :: PrintTextObject -> IO ()
 clearInputBuffer (PrintTextObject pto _) = atomically $
     do print_text <- readTVar pto
-       writeTVar pto $ print_text { text_input_buffer = B.empty }
+       writeTVar pto $ print_text { text_input_buffer = mempty }
 
 renderText :: Size -> PrintTextObject -> IO ()
 renderText (Size width height) (PrintTextObject pto _) =
@@ -126,9 +127,9 @@ renderText (Size width height) (PrintTextObject pto _) =
                        Limited -> reverse $ take 5 $ reverse $
                                       text_output_buffer ptd
                        Unlimited -> (text_output_buffer ptd)) ++
-                   (if B.length (text_input_buffer ptd) > 0 ||
+                   (if K.length (text_input_buffer ptd) > 0 ||
                                 text_output_mode ptd /= PrintTextData.Disabled
-                       then [(Input,"> " `B.append` (text_input_buffer ptd))]
+                       then [(Input,"> " `B.append` (B.pack $ K.prettyString $ text_input_buffer ptd))]
                        else [])
        let status_lines = flip map (Map.toAscList $ text_status_lines ptd) $
                \(field,string) -> (Update,whileActive field string)

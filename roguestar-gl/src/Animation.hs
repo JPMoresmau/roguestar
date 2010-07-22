@@ -64,8 +64,9 @@ import Globals
 import PrintText
 import PrintTextData
 import Control.Concurrent.STM
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
+import qualified KeyStroke as K
 
 data AnimationState = AnimationState {
     animstate_scene_accumulator :: SceneAccumulator IO,
@@ -224,7 +225,7 @@ debugOnce = onceA debugA
 -- that correctly indicates what keystroke to press for a given action.
 actionNameToKeysA :: (StateOf m ~ AnimationState,
                       InputOutputOf m ~ Enabled) =>
-                     B.ByteString -> FRP e m () [B.ByteString]
+                     B.ByteString -> FRP e m () [K.KeyString]
 actionNameToKeysA action_name = proc () ->
     do animstate <- fetch -< ()
        let action_input = ActionInput (animstate_globals animstate)
@@ -246,7 +247,9 @@ printMenuItemA :: (FRPModel m, StateOf m ~ AnimationState,
                   B.ByteString -> FRP e m () ()
 printMenuItemA action_name = proc () ->
     do keys <- actionNameToKeysA action_name -< ()
-       printTextA -< fmap (\s -> (Query,s `B.append` " - " `B.append` hrstring action_name)) $ listToMaybe $ sortBy (comparing B.length) keys
+       printTextA -< fmap (\s -> (Query,
+           (B.pack $ K.prettyString s) `B.append` " - " `B.append` hrstring action_name)) $
+               listToMaybe $ sortBy (comparing K.length) keys
 
 -- | Clear all printed text once.  This begins a new clean segment of printed text.
 clearPrintTextOnce :: (FRPModel m, StateOf m ~ AnimationState) => FRP e m () ()

@@ -61,6 +61,40 @@ roguestarTimerCallback init_vars window =
        watchQuit init_vars
 
 keyCallback :: PrintTextObject -> KeyboardMouseCallback
+keyCallback pto (Char ' ') Down _ _ =
+    pushInputBuffer pto KeyActivate
+keyCallback pto (Char '\n') Down _ _ =
+    pushInputBuffer pto KeyActivate
+keyCallback pto (Char '\r') Down _ _ =
+    pushInputBuffer pto KeyActivate
+keyCallback pto (Char '\ESC') Down _ _ =
+    pushInputBuffer pto KeyEscape
+keyCallback pto (Char '&') Down _ _ =
+    pushInputBuffer pto KeyAmpersand
+keyCallback pto (Char ';') Down _ _ =
+    pushInputBuffer pto KeySemicolon
+keyCallback pto (Char '\t') Down _ _ =
+    pushInputBuffer pto KeyTab
+keyCallback pto (Char '1') Down _ _ =
+    pushInputBuffer pto NumPad1
+keyCallback pto (Char '2') Down _ _ =
+    pushInputBuffer pto NumPad2
+keyCallback pto (Char '3') Down _ _ =
+    pushInputBuffer pto NumPad3
+keyCallback pto (Char '4') Down _ _ =
+    pushInputBuffer pto NumPad4
+keyCallback pto (Char '5') Down _ _ =
+    pushInputBuffer pto NumPad5
+keyCallback pto (Char '6') Down _ _ =
+    pushInputBuffer pto NumPad6
+keyCallback pto (Char '7') Down _ _ =
+    pushInputBuffer pto NumPad7
+keyCallback pto (Char '8') Down _ _ =
+    pushInputBuffer pto NumPad8
+keyCallback pto (Char '9') Down _ _ =
+    pushInputBuffer pto NumPad9
+keyCallback pto (Char '0') Down _ _ =
+    pushInputBuffer pto NumPad0
 keyCallback pto (Char char) Down _ _ =
     pushInputBuffer pto (Stroke char)
 keyCallback pto (SpecialKey GLUT.KeyDown) Down _ _ =
