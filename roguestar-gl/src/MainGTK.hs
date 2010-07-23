@@ -37,8 +37,11 @@ mainGTK =
             windowDefaultHeight := height,
             containerBorderWidth := 0,
             containerChild := gl_port]
-       onDestroy window $ atomically $ writeTVar
-           (global_should_quit $ init_globals init_vars) True
+       onDelete window $ const $
+           do atomically $ writeTVar
+                  (global_should_quit $ init_globals init_vars)
+                  True
+              return True
        widgetAddEvents window [KeyPressMask]
        onKeyPress window $ \event -> case event of
            Key {} -> do pushInputBuffer (init_print_text_object init_vars) $
@@ -82,15 +85,16 @@ mainGTK =
                                  _ -> KeyIgnored
                         return True
            _ -> return False
-       widgetShowAll window
-       sceneLoop init_vars
        timeoutAdd (theDisplayCallback gl_port init_vars >> return True)
                   timer_callback_millis
+       widgetShowAll window
+       sceneLoop init_vars
        mainGUI
 
 theDisplayCallback :: GLDrawingArea -> Initialization -> IO ()
 theDisplayCallback draw_area init_vars = withGLDrawingArea draw_area $ \win ->
-    do (width, height) <- glDrawableGetSize win
+    do watchQuit init_vars
+       (width, height) <- glDrawableGetSize win
        display (Size (fromIntegral width) (fromIntegral height)) init_vars
        glDrawableSwapBuffers win
 
