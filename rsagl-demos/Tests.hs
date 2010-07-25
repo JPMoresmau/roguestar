@@ -340,6 +340,15 @@ quickCheckColorMaximals =
                          (r > 1 || r < 0 || g > 1 || g < 0 || b > 1 || b < 0)
 
 --
+-- Tests maximizing an RGB color.
+--
+testMaximizeRGB :: IO ()
+testMaximizeRGB = testClose "testMaximizeRGB"
+                      (adjustColor channel_value maximize $ RGB 0.25 0.1 0.5)
+                      (RGB 0.5 0.2 1.0)
+                      xyzEqualClose
+
+--
 -- Tests measuring the luminance of a color.
 --
 quickCheckMeasureLuminance :: IO ()
@@ -510,4 +519,5 @@ main = do testIO "add five test (sanity test of accumulation)"
           quickCheckColorMaximals
           quickCheckMeasureLuminance
           quickCheckAdjustToBlue
+          testMaximizeRGB
           testMessages

@@ -284,7 +284,7 @@ colorVectorOf :: AffineColorSpace ->
                  Vector3D ->
                  Vector3D
 colorVectorOf (AffineColorSpace m) uvw =
-    transform m uvw
+    inverseTransform m uvw
 
 {-# RULES
 "transformColor::a->a"    transformColor = id

@@ -27,6 +27,10 @@ data RGB = RGB { rgb_red   :: {-# UNPACK #-} !RSdouble,
 
 instance NFData RGB where
 
+instance Xyz RGB where
+    toXYZ c = (rgb_red c,rgb_green c,rgb_blue c)
+    fromXYZ (r,g,b) = RGB r g b
+
 instance ColorSpace RGB where
     affineColorSpaceOf _ = color_space_rgb
 
