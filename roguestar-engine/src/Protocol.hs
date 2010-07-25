@@ -409,10 +409,14 @@ dbDispatchQuery ["menu","0"] =
     liftM (showToolMenuTable "menu" "0") $ toolsToMenuTable =<< toolMenuElements
 
 dbDispatchQuery ["menu",s] | Just window_size <- readNumber s =
-    do n <- liftM (fromMaybe 0) menuState
+    do -- constructs a scrolling window of menu items
+       -- FIXME!  This should be done client side.
+       n <- liftM (fromMaybe 0) menuState
+       l <- menuLength
        let half_window = window_size `div` 2
-       let windowF (x,_,_) = abs (x - (max half_window n)) <= half_window
-       liftM (showToolMenuTable "menu" s . filter windowF) $ toolsToMenuTable =<< toolMenuElements
+       let window_top = max 0 $ min (l-window_size-1) (n - half_window)
+       let windowFilter (x,_,_) = x >= window_top && x <= window_top + window_size
+       liftM (showToolMenuTable "menu" s . filter windowFilter) $ toolsToMenuTable =<< toolMenuElements
 
 dbDispatchQuery ["wielded-objects","0"] =
     do m_plane_ref <- dbGetCurrentPlane
@@ -654,6 +658,9 @@ toolsToMenuTable raw_uids =
     do let uids = sortBy (comparing toUID) raw_uids
        tool_names <- mapM (liftM toolName . dbGetTool) uids
        return $ zip3 [0..] uids tool_names
+
+menuLength :: (DBReadable db) => db Integer
+menuLength = liftM genericLength toolMenuElements
 
 -- |
 -- Generate a tool menu table in text form, with the specified name and element list.
