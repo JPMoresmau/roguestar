@@ -9,9 +9,11 @@ import Prelude hiding (tan)
 import Quality
 import Models.RecreantFactory
 import RSAGL.Modeling
-import RSAGL.Color.RSAGLColors
 import RSAGL.Math
 import RSAGL.Math.Types
+import RSAGL.Color
+import RSAGL.Color.RSAGLColors
+import RSAGL.Extras.ColorPhysics
 import qualified Data.ByteString.Char8 as B
 
 -- |
@@ -80,6 +82,33 @@ terrainTile "downstairs" q = model $
               box (Point3D (-0.5) 0 0.5) (Point3D (-0.45) 0.05 (-0.5))
               box (Point3D 0.5 0 0.5) (Point3D 0.45 0.05 (-0.5))
               material $ pigment $ pure tan
+terrainTile "upstairs" q = model $
+    do basicTerrainTile "rockyground" q
+       model $
+           do quadralateral (Point3D (-0.5) 0 (-0.5))
+                            (Point3D 0.5 0 (-0.5))
+                            (Point3D 0.5 4 (-0.5))
+                            (Point3D (-0.5) 4 (-0.5))
+              quadralateral (Point3D (-0.5) 0 0.5)
+                            (Point3D 0.5 0 0.5)
+                            (Point3D 0.5 4 0.5)
+                            (Point3D (-0.5) 4 0.5)
+              quadralateral (Point3D (-0.5) 0 (-0.5))
+                            (Point3D (-0.5) 0 0.5)
+                            (Point3D (-0.5) 4 0.5)
+                            (Point3D (-0.5) 4 (-0.5))
+              quadralateral (Point3D 0.5 0 (-0.5))
+                            (Point3D 0.5 0 0.5)
+                            (Point3D 0.5 4 0.5)
+                            (Point3D 0.5 4 (-0.5))
+              twoSided True
+              material $ emissive $ pattern
+                  (gradient (Point3D 0 0 0) (Vector3D 0 4 0))
+                  [(0.00,pure $ scalarMultiply 0.4 $ adjustColor channel_value maximize $ blackBodyRGB 4800),
+                   (0.25,pure $ scalarMultiply 0.3 $ adjustColor channel_value maximize $ blackBodyRGB 5050),
+                   (0.50,pure $ scalarMultiply 0.2 $ adjustColor channel_value maximize $ blackBodyRGB 5300),
+                   (0.75,pure $ scalarMultiply 0.1 $ adjustColor channel_value maximize $ blackBodyRGB 5550),
+                   (1.00,pure $ scalarMultiply 0.0 $ adjustColor channel_value maximize $ blackBodyRGB 5800)]
 terrainTile s q = basicTerrainTile s q
 
 -- |
