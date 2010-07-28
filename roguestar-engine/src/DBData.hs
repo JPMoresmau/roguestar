@@ -22,6 +22,7 @@ module DBData
      Wielded(..),
      Constructed(..),
      Subsequent(..),
+     Beneath(..),
      _nullary,
      _creature,
      _tool,
@@ -110,6 +111,9 @@ _constructed = Type $ error "_constructed: undefined"
 
 _subsequent :: Type Subsequent
 _subsequent = Type $ error "_subsequent: undefined"
+
+_beneath :: Type Beneath
+_beneath = Type $ error "_subsequent: undefined"
 
 _position :: Type Position
 _position = Type $ error "_position: undefined"
@@ -216,6 +220,7 @@ getLocation (IsWielded _ c) = unsafeReference $ wielded_creature c
 getLocation (IsConstructed _ c) = unsafeReference $ constructed_plane c
 getLocation (InTheUniverse _) = unsafeReference UniverseRef
 getLocation (IsSubsequent _ b) = unsafeReference $ subsequent_to b
+getLocation (IsBeneath _ b) = unsafeReference $ beneath_of b
 
 getEntity :: Location m e t -> Reference ()
 getEntity (IsStanding r _) = unsafeReference r
@@ -225,6 +230,7 @@ getEntity (IsWielded r _) = unsafeReference r
 getEntity (IsConstructed r _) = unsafeReference r
 getEntity (InTheUniverse r) = unsafeReference r
 getEntity (IsSubsequent r _) = unsafeReference r
+getEntity (IsBeneath r _) = unsafeReference r
 
 asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
@@ -303,6 +309,11 @@ instance LocationType Subsequent where
     extractLocation _ = Nothing
     extractEntity = const Nothing
 
+instance LocationType Beneath where
+    extractLocation (IsBeneath _ i) = Just i
+    extractLocation _ = Nothing
+    extractEntity = const Nothing
+
 instance LocationType () where
     extractLocation = const $ Just ()
     extractEntity = const Nothing
@@ -315,6 +326,7 @@ instance LocationType Position where
     extractLocation (IsConstructed _ c) = Just $ constructed_position c
     extractLocation (InTheUniverse {}) = Nothing
     extractLocation (IsSubsequent {}) = Nothing
+    extractLocation (IsBeneath {}) = Nothing
     extractEntity = const Nothing
 
 instance LocationType MultiPosition where
@@ -330,6 +342,7 @@ instance LocationType Facing where
     extractLocation (IsConstructed {}) = Nothing
     extractLocation (InTheUniverse {}) = Nothing
     extractLocation (IsSubsequent {}) = Nothing
+    extractLocation (IsBeneath {}) = Nothing
     extractEntity = const Nothing
 
 instance ReferenceType a => LocationType (Reference a) where
