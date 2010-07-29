@@ -2,7 +2,6 @@
 module VisibilityData
     (distanceCostForSight,
      terrainHideMultiplier,
-     terrainSpotMultiplier,
      terrainOpacity,
      maximumRangeForSpotCheck)
     where
@@ -31,13 +30,8 @@ terrainHideMultiplier Ice = 0
 terrainHideMultiplier Lava = 0  -- you definitely can't hide on lava
 terrainHideMultiplier Glass = 0
 terrainHideMultiplier RecreantFactory = 0
-
--- |
--- We multiply a creature's spot check by this number if it is standing on this terrain.
---
-terrainSpotMultiplier :: TerrainPatch -> Integer
-terrainSpotMultiplier RockFace = 3
-terrainSpotMultiplier _ = 1
+terrainHideMultiplier Downstairs = 2
+terrainHideMultiplier Upstairs = 0
 
 -- |
 -- We cast a ray between the spotter and the hider.  This indicates to what extent each terrain type
@@ -60,6 +54,8 @@ terrainOpacity Ice = 0
 terrainOpacity Lava = 0
 terrainOpacity Glass = 0
 terrainOpacity RecreantFactory = 0
+terrainOpacity Downstairs = 0
+terrainOpacity Upstairs = 0
 
 -- |
 -- The difficulty to spot an object at the given relative coordinates, taking facing into account.

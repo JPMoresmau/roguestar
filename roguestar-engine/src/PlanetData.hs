@@ -2,7 +2,6 @@
 module PlanetData
     (PlanetInfo(..),
      addTown,
-     addPriority,
      all_planets,
      pgto_planets)
     where
@@ -25,51 +24,54 @@ data PlanetInfo = PlanetInfo {
     planet_info_priority :: Double,
     -- | Some planets have names.
     planet_info_name :: Maybe B.ByteString,
+    -- | Number of dungeon levels on the planet.
+    planet_info_depth :: Integer,
     planet_info_biome :: Biome,
+    planet_info_dungeon :: Biome,
     planet_info_town :: [(Rational,BuildingType)] }
         deriving (Read,Show)
 
-pgto :: B.ByteString -> Biome -> PlanetInfo
-pgto "" biome = PlanetInfo {
-    planet_info_priority = 0.25,
-    planet_info_name = Nothing,
+pgto :: Integer -> B.ByteString -> Biome -> PlanetInfo
+pgto x name biome = PlanetInfo {
+    planet_info_priority = fromInteger x / 3,
+    planet_info_name = case name of
+                           "" -> Nothing
+                           _  -> Just name,
+    planet_info_depth = x,
     planet_info_biome = biome,
-    planet_info_town = [(1,Portal),(1%2,Monolith),(1%2,Monolith)] }
-pgto name biome = PlanetInfo {
-    planet_info_priority = 0.0,
-    planet_info_name = Just name,
-    planet_info_biome = biome,
+    planet_info_dungeon = case () of
+        () | biome == OceanBiome -> AbyssalDungeon
+        () | x == 1 -> ShallowDungeon
+        () -> DeepDungeon,
     planet_info_town = [(1,Portal)] }
 
 addTown :: PlanetInfo -> [(Rational,BuildingType)] -> PlanetInfo
 addTown planet_info town = planet_info { planet_info_town = planet_info_town planet_info ++ town }
-
-addPriority :: PlanetInfo -> Double -> PlanetInfo
-addPriority planet_info prio = planet_info { planet_info_priority = planet_info_priority planet_info + prio }
 
 all_planets :: [PlanetInfo]
 all_planets = concat [pgto_planets]
 
 pgto_planets :: [PlanetInfo]
 pgto_planets = [
-    pgto "" RockBiome,
-    pgto "" IcyRockBiome,
-    pgto "" TundraBiome,
-    pgto "" DesertBiome,
-    pgto "" MountainBiome,
-    pgto "roanoke" SwampBiome,
-    pgto "pamlico" SwampBiome,
-    pgto "pungo" ForestBiome,
-    pgto "neuse" ForestBiome,
-    pgto "crabtree" SwampBiome,
-    pgto "eno" SwampBiome `addTown` [(1%20,Monolith)],
-    pgto "yadkin" SwampBiome,
-    pgto "catawba" ForestBiome,
-    pgto "pasquotank" ForestBiome,
-    pgto "dogwood" GrasslandBiome `addPriority` 0.75,
-    pgto "emerald" GrasslandBiome `addPriority` 0.75,
-    pgto "cardinal" GrasslandBiome `addPriority` 0.75,
-    pgto "currituck" OceanBiome `addPriority` 1.5,
-    pgto "hatteras" OceanBiome `addPriority` 1.5,
-    pgto "lookout" OceanBiome `addPriority` 1.5,
-    pgto "ocracoke" OceanBiome `addPriority` 1.5]
+    pgto 1 "" RockBiome,
+    pgto 1 "" IcyRockBiome,
+    pgto 1 "" TundraBiome,
+    pgto 1 "" DesertBiome,
+    pgto 1 "" MountainBiome,
+    pgto 2 "roanoke" SwampBiome,
+    pgto 2 "pamlico" SwampBiome,
+    pgto 2 "pungo" ForestBiome,
+    pgto 2 "neuse" ForestBiome,
+    pgto 2 "crabtree" SwampBiome,
+    pgto 2 "eno" SwampBiome `addTown` [(1%20,Monolith)],
+    pgto 2 "yadkin" SwampBiome,
+    pgto 2 "catawba" ForestBiome,
+    pgto 2 "pasquotank" ForestBiome,
+    pgto 3 "dogwood" GrasslandBiome,
+    pgto 3 "emerald" GrasslandBiome,
+    pgto 3 "cardinal" GrasslandBiome,
+    pgto 4 "currituck" OceanBiome,
+    pgto 4 "hatteras" OceanBiome,
+    pgto 4 "lookout" OceanBiome,
+    pgto 4 "ocracoke" OceanBiome]
+

@@ -278,6 +278,9 @@ instance PlaneLocation TheUniverse where
 instance PlaneLocation Subsequent where
     planeLocation a l = IsSubsequent a l
 
+instance PlaneLocation Beneath where
+    planeLocation a l = IsBeneath a l
+
 -- |
 -- Adds something to a map in the database using a new object reference.
 --

@@ -6,6 +6,8 @@ module TerrainData
      TerrainGenerationData(..),
      TerrainPlacement,
      recreantFactories,
+     stairsUp,
+     stairsDown,
      generateTerrain,
      generateExampleTerrain,
      prettyPrintTerrain,
@@ -24,7 +26,12 @@ import Data.Ratio
 -- Most automatically generated surface maps belong to a Biome, representing the kind of terrain
 -- and plant life that dwells in terrain generated for the map.
 --
-data Biome = RockBiome
+data Biome = ShallowDungeon
+           | DeepDungeon
+           | FrozenDungeon
+           | AbyssalDungeon
+           | InfernalDungeon
+           | RockBiome
            | IcyRockBiome
            | GrasslandBiome
 	   | ForestBiome
@@ -58,6 +65,8 @@ data TerrainPatch = RockFace
 		  | Lava
 		  | Glass -- what sand becomes when struck by intense heat
 		  | RecreantFactory
+                  | Upstairs
+                  | Downstairs
                     deriving (Read,Show,Eq,Ord)
 
 data TerrainGenerationData = TerrainGenerationData
@@ -93,6 +102,28 @@ recreantFactories seed = TerrainPlacement {
         [(1,RecreantFactory)],
     placement_seed = seed }
 
+stairsUp :: Integer -> Integer -> TerrainPlacement
+stairsUp seed depth = TerrainPlacement {
+    placement_sources =
+        [(1%(30+15*depth),RockyGround),
+         (1%(30+25*depth),Ice)],
+    placement_replacements =
+        [(1,Upstairs)],
+    placement_seed = seed }
+
+stairsDown :: Integer -> Integer -> TerrainPlacement
+stairsDown seed depth = TerrainPlacement {
+    placement_sources =
+        [(1%(30+15*depth),RockyGround),
+         (1%(30+25*depth),Ice),
+         (1%100,Grass),
+         (1%200,Dirt),
+         (1%50,Forest),
+         (1%500,Glass)],
+    placement_replacements =
+        [(1,Downstairs)],
+    placement_seed = seed }
+
 -- |
 -- A list of TerrainPatches that are considered "difficult", either for traveling
 -- or for constructing buildings.
@@ -108,6 +139,11 @@ impassable_terrains :: [TerrainPatch]
 impassable_terrains = [RockFace,Forest,DeepForest]
 
 terrainFrequencies :: Biome -> [(Integer,TerrainPatch)]
+terrainFrequencies ShallowDungeon = [(40,RockFace),(50,RockyGround),(5,Sand),(5,Dirt)]
+terrainFrequencies DeepDungeon = [(50,RockFace),(25,Rubble),(25,RockyGround)]
+terrainFrequencies FrozenDungeon = [(75,RockFace),(5,Rubble),(10,RockyGround),(10,Ice)]
+terrainFrequencies AbyssalDungeon = [(60,RockFace),(10,Rubble),(10,RockyGround),(20,Water)]
+terrainFrequencies InfernalDungeon = [(70,RockFace),(15,Rubble),(15,Lava)]
 terrainFrequencies RockBiome = [(15,RockFace),(15,Rubble),(55,RockyGround),(15,Sand)]
 terrainFrequencies IcyRockBiome = [(10,RockFace),(10,Rubble),(20,RockyGround),(60,Ice)]
 terrainFrequencies GrasslandBiome = [(5,RockFace),(5,RockyGround),(10,Dirt),(10,Sand),(10,Forest),(10,Water),(50,Grass)]
@@ -184,6 +220,8 @@ terrainPatchToASCII Ice = '^'
 terrainPatchToASCII Glass = '_'
 terrainPatchToASCII Lava = '^'
 terrainPatchToASCII RecreantFactory = 'o'
+terrainPatchToASCII Upstairs = '<'
+terrainPatchToASCII Downstairs = '>'
 
 exampleTerrainGenerator :: TerrainGenerationData
 exampleTerrainGenerator = TerrainGenerationData
