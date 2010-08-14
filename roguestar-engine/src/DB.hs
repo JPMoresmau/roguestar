@@ -59,7 +59,7 @@ import BuildingData
 import RNG
 import Data.Map as Map
 import Data.List as List
-import HierarchicalDatabase
+import qualified HierarchicalDatabase as HD
 import SpeciesData
 import Data.Maybe
 import ToolData
@@ -88,7 +88,7 @@ data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
 				 db_planes :: Map PlaneRef Plane,
 				 db_tools :: Map ToolRef Tool,
 				 db_buildings :: Map BuildingRef Building,
-				 db_hierarchy :: HierarchicalDatabase (Location S (Reference ()) ()),
+				 db_hierarchy :: HD.HierarchicalDatabase (Location S (Reference ()) ()),
 				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
 				 db_error_flag :: String,
 				 db_prior_snapshot :: Maybe DB_BaseType,
@@ -210,7 +210,7 @@ initial_db = DB_BaseType {
     db_planes = Map.fromList [],
     db_tools = Map.fromList [],
     db_buildings = Map.fromList [],
-    db_hierarchy = HierarchicalDatabase.fromList [],
+    db_hierarchy = HD.fromList [],
     db_error_flag = [],
     db_time_coordinates = Map.fromList [(generalizeReference the_universe, zero_time)],
     db_prior_snapshot = Nothing,
@@ -293,7 +293,7 @@ dbAddObjectComposable constructReference updateObject constructLocation thing lo
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
-       parent_ref <- liftM (getLocation) $ dbWhere ref
+       parent_ref <- liftM parent $ dbWhere ref
        dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference parent_ref)
        return ref
 
@@ -336,7 +336,7 @@ dbUnsafeDeleteObject f ref =
            db_creatures = Map.delete (unsafeReference ref) $ db_creatures db,
            db_planes = Map.delete (unsafeReference ref) $ db_planes db,
            db_tools = Map.delete (unsafeReference ref) $ db_tools db,
-           db_hierarchy = HierarchicalDatabase.delete (toUID ref)  $ db_hierarchy db,
+           db_hierarchy = HD.delete (toUID ref) $ db_hierarchy db,
            db_time_coordinates = Map.delete (generalizeReference ref) $ db_time_coordinates db }
 
 -- |
@@ -446,7 +446,7 @@ dbSetLocation loc =
            (Just (Wielded c),_) -> dbUnwieldCreature c
            (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
 	   (_,_) -> return ()
-       modify (\db -> db { db_hierarchy=HierarchicalDatabase.insert (unsafeLocation loc) $ db_hierarchy db })
+       modify (\db -> db { db_hierarchy = HD.insert (unsafeLocation loc) $ db_hierarchy db })
 
 -- |
 -- Shunt any wielded objects into inventory.
@@ -466,8 +466,8 @@ dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
        dbSetLocation $ generalizeLocationRecord $ unsafeLocation new
-       when (getLocation old =/= getLocation new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
-           dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (getLocation new)
+       when (parent old =/= parent new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
+           dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (parent new)
        return (unsafeLocation old, unsafeLocation new)
 
 dbMoveAllWithin :: (forall m. DBReadable m => 
@@ -481,14 +481,14 @@ dbMoveAllWithin f ref = mapM (liftM (first unsafeLocation) . dbMove (f . unsafeL
 -- Verifies that a reference is in the database.
 --
 dbVerify :: (DBReadable db) => Reference e -> db Bool
-dbVerify ref = asks (isJust . HierarchicalDatabase.parentOf (toUID ref) . db_hierarchy)
+dbVerify ref = asks (isJust . HD.parentOf (toUID ref) . db_hierarchy)
 
 -- |
 -- Returns the location of this object.
 --
 dbWhere :: (DBReadable db) => Reference e -> db (Location S (Reference e) ())
 dbWhere item = asks (unsafeLocation . fromMaybe (error "dbWhere: has no location") .
-                       HierarchicalDatabase.lookupParent (toUID item) . db_hierarchy)
+                       HD.lookupParent (toUID item) . db_hierarchy)
 
 -- |
 -- Returns all ancestor Locations of this element starting with the location
@@ -498,14 +498,14 @@ dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location
 dbGetAncestors ref | isReferenceTyped _the_universe ref = return []
 dbGetAncestors ref =
     do this <- dbWhere $ generalizeReference ref
-       rest <- dbGetAncestors $ getLocation this
+       rest <- dbGetAncestors $ parent this
        return $ this : rest
 
 -- |
 -- Returns the location records of this object.
 --
 dbGetContents :: (DBReadable db,GenericReference a S) => Reference t -> db [a]
-dbGetContents item = asks (Data.Maybe.mapMaybe fromLocation . HierarchicalDatabase.lookupChildren 
+dbGetContents item = asks (Data.Maybe.mapMaybe fromLocation . HD.lookupChildren 
                                (toUID item) . db_hierarchy)
 
 -- |

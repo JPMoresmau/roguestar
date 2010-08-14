@@ -11,7 +11,6 @@ module DBData
      the_universe,
      (=:=), (=/=),
      GenericReference(..),
-     locationsOf,
      ReferenceType(..),
      LocationType(..),
      Location,
@@ -52,8 +51,8 @@ module DBData
      coerceLocationRecord,
      coerceLocation,
      coerceEntity,
-     getLocation,
-     getEntity,
+     parent,
+     child,
      generalizeLocation,
      generalizeEntity,
      generalizeLocationRecord,
@@ -147,10 +146,7 @@ instance (ReferenceType a) => GenericReference (Reference a) m where
 
 instance (LocationType a,LocationType b) => GenericReference (Location m a b) m where
     fromLocation = coerceLocationRecord
-    generalizeReference = getEntity
-
-locationsOf :: (Monad m,LocationType a) => m [Location S (Reference ()) a] -> m [a]
-locationsOf = liftM (map location)
+    generalizeReference = child
 
 --
 -- Reference Equality
@@ -212,25 +208,25 @@ generalizeLocation = unsafeLocation
 generalizeEntity :: Location m e t -> Location m (Reference ()) t
 generalizeEntity = unsafeLocation
 
-getLocation :: Location m e t -> Reference ()
-getLocation (IsStanding _ s) = unsafeReference $ standing_plane s
-getLocation (IsDropped _ d) = unsafeReference $ dropped_plane d
-getLocation (InInventory _ c) = unsafeReference $ inventory_creature c
-getLocation (IsWielded _ c) = unsafeReference $ wielded_creature c
-getLocation (IsConstructed _ c) = unsafeReference $ constructed_plane c
-getLocation (InTheUniverse _) = unsafeReference UniverseRef
-getLocation (IsSubsequent _ b) = unsafeReference $ subsequent_to b
-getLocation (IsBeneath _ b) = unsafeReference $ beneath_of b
+parent :: Location m e t -> Reference ()
+parent (IsStanding _ s) = unsafeReference $ standing_plane s
+parent (IsDropped _ d) = unsafeReference $ dropped_plane d
+parent (InInventory _ c) = unsafeReference $ inventory_creature c
+parent (IsWielded _ c) = unsafeReference $ wielded_creature c
+parent (IsConstructed _ c) = unsafeReference $ constructed_plane c
+parent (InTheUniverse _) = unsafeReference UniverseRef
+parent (IsSubsequent _ b) = unsafeReference $ subsequent_to b
+parent (IsBeneath _ b) = unsafeReference $ beneath_of b
 
-getEntity :: Location m e t -> Reference ()
-getEntity (IsStanding r _) = unsafeReference r
-getEntity (IsDropped r _) = unsafeReference r
-getEntity (InInventory r _) = unsafeReference r
-getEntity (IsWielded r _) = unsafeReference r
-getEntity (IsConstructed r _) = unsafeReference r
-getEntity (InTheUniverse r) = unsafeReference r
-getEntity (IsSubsequent r _) = unsafeReference r
-getEntity (IsBeneath r _) = unsafeReference r
+child :: Location m e t -> Reference ()
+child (IsStanding r _) = unsafeReference r
+child (IsDropped r _) = unsafeReference r
+child (InInventory r _) = unsafeReference r
+child (IsWielded r _) = unsafeReference r
+child (IsConstructed r _) = unsafeReference r
+child (InTheUniverse r) = unsafeReference r
+child (IsSubsequent r _) = unsafeReference r
+child (IsBeneath r _) = unsafeReference r
 
 asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
@@ -346,8 +342,8 @@ instance LocationType Facing where
     extractEntity = const Nothing
 
 instance ReferenceType a => LocationType (Reference a) where
-    extractLocation = coerceReference . getLocation
-    extractEntity = coerceReference . getEntity
+    extractLocation = coerceReference . parent
+    extractEntity = coerceReference . child
 
 instance (LocationType a,LocationType b) => LocationType (a,b) where
     extractLocation l = liftM2 (,) (extractLocation l) (extractLocation l)

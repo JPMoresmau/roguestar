@@ -40,7 +40,7 @@ dbWieldTool l =
 
 dbDropTool :: (DBReadable db,LocationType a) => Location s ToolRef a -> db (Location s ToolRef Dropped)
 dbDropTool l =
-    do lp <- liftM extractLocation $ dbWhere (getLocation l)
+    do lp <- liftM extractLocation $ dbWhere (parent l)
        flip (maybe (throwError $ DBErrorFlag NotStanding)) lp $ \(creature_position,plane_ref) ->
            do return $ toDropped (Dropped plane_ref creature_position) l
 

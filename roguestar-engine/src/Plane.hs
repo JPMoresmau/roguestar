@@ -107,7 +107,8 @@ pickRandomClearSite_withTimeout timeout search_radius object_clear terrain_clear
            (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
-       (clutter_locations :: [MultiPosition]) <- locationsOf $ dbGetContents plane_ref
+       clutter_locations <- liftM (map (location .
+           asLocationTyped _nullary _multiposition)) $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 
                all terrainPredicate $
                    concat [[gridAt terrain (x',y') | 
