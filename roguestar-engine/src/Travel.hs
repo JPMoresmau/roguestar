@@ -23,7 +23,7 @@ import CreatureData
 walkCreature :: (DBReadable db) => Facing -> (Integer,Integer) -> 
                                      Location m CreatureRef () -> db (Location m CreatureRef ())
 walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
-    do (plane_ref,Position (x,y)) <- MaybeT $ return $ extractLocation l
+    do (plane_ref,Position (x,y)) <- MaybeT $ return $ extractParent l
        let standing = Standing { standing_plane = plane_ref,
                                  standing_position = Position (x+x',y+y'),
                                  standing_facing = face } 
@@ -60,7 +60,7 @@ resolveTeleportJump :: (DBReadable db) => CreatureRef -> Facing -> db TeleportJu
 resolveTeleportJump creature_ref face = liftM (fromMaybe TeleportJumpFailed) $ runMaybeT $
     do start_location <- lift $ dbWhere creature_ref
        jump_roll <- liftM roll_log $ lift $ rollCreatureAbilityScore JumpSkill 0 (entity start_location)
-       standing_location <- MaybeT $ return $ extractLocation start_location
+       standing_location <- MaybeT $ return $ extractParent start_location
        landing_position <- lift $ randomTeleportLanding jump_roll (standing_plane standing_location) (standing_position standing_location) $
            offsetPosition (facingToRelative7 face) $ standing_position standing_location
        case () of

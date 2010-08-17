@@ -327,9 +327,9 @@ dbDispatchQuery ["visible-objects","0"] =
        return ("begin-table visible-objects 0 object-unique-id x y facing\n" `B.append`
                (B.unlines $ table_rows) `B.append`
                "end-table")
-        where dbObjectToTableRow obj_ref = 
+        where dbObjectToTableRow obj_ref =
                 do l <- dbWhere obj_ref
-                   return $ case (extractLocation l,extractLocation l) of
+                   return $ case (extractParent l,extractParent l) of
                                  (Just (Position (x,y)),maybe_face) -> B.unwords $ map B.pack $ [show $ toUID obj_ref,show x,show y,show $ fromMaybe Here maybe_face]
                                  _ -> ""
 
@@ -713,7 +713,7 @@ baseClassesTable creature =
 dbQueryCenterCoordinates :: (DBReadable db) => CreatureRef -> db B.ByteString
 dbQueryCenterCoordinates creature_ref =
     do l <- dbWhere creature_ref
-       case (extractLocation l,extractLocation l :: Maybe Facing) of
+       case (extractParent l,extractParent l :: Maybe Facing) of
 		(Just (Position (x,y)),Nothing) -> 
                     return (begin_table `B.append`
 			    "x " `B.append` B.pack (show x) `B.append` "\n" `B.append`

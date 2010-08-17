@@ -23,7 +23,7 @@ buildingSize = liftM (genericLength . buildingOccupies) . buildingType
 
 buildingType :: (DBReadable db) => BuildingRef -> db BuildingType
 buildingType building_ref =
-    do constructed <- liftM extractLocation $ dbWhere building_ref
+    do constructed <- liftM extractParent $ dbWhere building_ref
        case constructed of
            Just (Constructed _ _ building_type) -> return building_type
            _ -> error "buildingSize: impossible case"
@@ -31,7 +31,7 @@ buildingType building_ref =
 -- | Activate the facing building, returns True iff any building was actually activated.
 activateFacingBuilding :: Facing -> CreatureRef -> DB Bool
 activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
-    do (plane_ref,position) <- MaybeT $ liftM extractLocation $ dbWhere creature_ref
+    do (plane_ref,position) <- MaybeT $ liftM extractParent $ dbWhere creature_ref
        buildings <- lift $ whatIsOccupying plane_ref $ offsetPosition (facingToRelative face) position
        liftM or $ lift $ forM buildings $ \building_ref ->
            do building_type <- buildingType building_ref
@@ -40,8 +40,8 @@ activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
 activateBuilding :: BuildingType -> CreatureRef -> BuildingRef -> DB Bool
 activateBuilding Monolith _ _ = return False
 activateBuilding Portal creature_ref building_ref =
-    do m_creature_position :: Maybe (PlaneRef,Position) <- liftM extractLocation $ dbWhere creature_ref
-       m_portal_position :: Maybe (PlaneRef,Position) <- liftM extractLocation $ dbWhere building_ref
+    do m_creature_position :: Maybe (PlaneRef,Position) <- liftM extractParent $ dbWhere creature_ref
+       m_portal_position :: Maybe (PlaneRef,Position) <- liftM extractParent $ dbWhere building_ref
        when (fmap fst m_creature_position /= fmap fst m_portal_position) $ throwError $ DBError "activateBuilding: creature and portal on different planes"
        case (m_creature_position,m_portal_position) of
            (Just (plane_ref,Position (_,cy)),Just (_,Position (_,py))) ->
@@ -52,7 +52,7 @@ activateBuilding Portal creature_ref building_ref =
                               Just loc -> (portalCreatureTo 1 creature_ref $ entity loc) >> return True
                               _ -> throwError $ DBErrorFlag NoStargateAddress
                    () | cy > py ->
-                       do m_previous_loc :: Maybe Subsequent <- liftM extractLocation $ dbWhere plane_ref
+                       do m_previous_loc :: Maybe Subsequent <- liftM extractParent $ dbWhere plane_ref
                           case m_previous_loc of
                               Just loc -> (portalCreatureTo (-1) creature_ref $ subsequent_to loc) >> return True
                               _ -> throwError $ DBErrorFlag NoStargateAddress
@@ -68,7 +68,7 @@ portalCreatureTo offset creature_ref plane_ref =
        ideal_position <- if null portals
            then liftM2 (\x y -> Position (x,y)) (getRandomR (-100,100)) (getRandomR (-100,100))
            else do portal <- pickM portals
-                   m_position <- liftM (fmap (offsetPosition (0,offset)) . extractLocation) $ dbWhere portal
+                   m_position <- liftM (fmap (offsetPosition (0,offset)) . extractParent) $ dbWhere portal
                    return $ fromMaybe (Position (0,0)) m_position
        position <- pickRandomClearSite 1 0 0 ideal_position (not . (`elem` impassable_terrains)) plane_ref
        dbPushSnapshot $ TeleportEvent creature_ref

@@ -48,7 +48,8 @@ randomPlanetName faction =
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
 -- returns the position of this object on that plane.
 --
-getPlanarPosition :: (DBReadable db,ReferenceType a,LocationType p) => Reference a -> db (Maybe (Location S (Reference ()) p))
+getPlanarPosition :: (DBReadable db,ReferenceType a,LocationParent p) =>
+                     Reference a -> db (Maybe (Location S (Reference ()) p))
 getPlanarPosition ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
 

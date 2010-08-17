@@ -102,7 +102,7 @@ dbBehave (Unwield) creature_ref =
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
 
 dbBehave (Drop tool_ref) creature_ref =
-    do tool_parent <- liftM extractLocation $ dbWhere tool_ref
+    do tool_parent <- liftM extractParent $ dbWhere tool_ref
        already_wielded <- dbGetWielded creature_ref
        when (tool_parent /= Just creature_ref) $ throwError $ DBErrorFlag ToolIs_NotInInventory
        _ <- dbMove dbDropTool tool_ref
@@ -168,7 +168,7 @@ dbBehave (ActivateBuilding face) creature_ref =
 -- | A value indicating the degree of difficulty a creature suffers on account of the inventory it is carrying.
 inventoryBurden :: (DBReadable db) => CreatureRef -> db Rational
 inventoryBurden creature_ref =
-    do inventory_size <- liftM (genericLength . map (asReferenceTyped _tool)) $ dbGetContents creature_ref
+    do inventory_size <- liftM (genericLength . map (asType _tool)) $ dbGetContents creature_ref
        inventory_skill <- liftM roll_ideal $ rollCreatureAbilityScore InventorySkill 0 creature_ref
        return $ (inventory_size ^ 2) % inventory_skill
 

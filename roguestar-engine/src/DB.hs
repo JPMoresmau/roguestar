@@ -245,16 +245,16 @@ dbNextObjectRef :: DB Integer
 dbNextObjectRef = do modify $ \db -> db { db_next_object_ref = succ $ db_next_object_ref db }
                      gets db_next_object_ref
 
-class (LocationType l) => CreatureLocation l where
+class (LocationParent l) => CreatureLocation l where
     creatureLocation :: CreatureRef -> l -> Location m CreatureRef l
 
-class (LocationType l) => ToolLocation l where
+class (LocationParent l) => ToolLocation l where
     toolLocation :: ToolRef -> l -> Location m ToolRef l
 
-class (LocationType l) => BuildingLocation l where
+class (LocationParent l) => BuildingLocation l where
     buildingLocation :: BuildingRef -> l -> Location m BuildingRef l
 
-class (LocationType l) => PlaneLocation l where
+class (LocationParent l) => PlaneLocation l where
     planeLocation :: PlaneRef -> l -> Location m PlaneRef l
 
 instance CreatureLocation Standing where
@@ -284,10 +284,12 @@ instance PlaneLocation Beneath where
 -- |
 -- Adds something to a map in the database using a new object reference.
 --
-dbAddObjectComposable :: (ReferenceType a,LocationType (Reference a),LocationType l) =>
-                         (Integer -> (Reference a)) -> 
-                         (Reference a -> a -> DB ()) -> 
-                         (Reference a -> l -> Location S (Reference a) l) -> 
+dbAddObjectComposable :: (ReferenceType a,
+                          LocationChild (Reference a),
+                          LocationParent l) =>
+                         (Integer -> (Reference a)) ->
+                         (Reference a -> a -> DB ()) ->
+                         (Reference a -> l -> Location S (Reference a) l) ->
                          a -> l -> DB (Reference a)
 dbAddObjectComposable constructReference updateObject constructLocation thing loc = 
     do ref <- liftM constructReference $ dbNextObjectRef
@@ -440,8 +442,8 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 -- This is where we handle making sure that a creature can only wield one tool, and
 -- a Plane can point to only one subsequent Plane.
 --
-dbSetLocation :: (LocationType e,LocationType t) => Location S e t -> DB ()
-dbSetLocation loc = 
+dbSetLocation :: (LocationChild c,LocationParent p) => Location S c p -> DB ()
+dbSetLocation loc =
     do case (fmap location $ coerceLocationTyped _wielded loc,fmap location $ coerceLocationTyped _subsequent loc) of
            (Just (Wielded c),_) -> dbUnwieldCreature c
            (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
@@ -458,8 +460,9 @@ dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<< dbGetContent
 -- Moves an object, returning the location of the object before and after
 -- the move.
 --
-dbMove :: (ReferenceType e, LocationType (Reference e),LocationType b) =>
-          (forall m. DBReadable m => Location M (Reference e) () -> m (Location M (Reference e) b)) -> 
+dbMove :: (ReferenceType e, LocationChild (Reference e),LocationParent b) =>
+          (forall m. DBReadable m => Location M (Reference e) () ->
+                                     m (Location M (Reference e) b)) ->
           (Reference e) ->
           DB (Location S (Reference e) (),Location S (Reference e) b)
 dbMove moveF ref =

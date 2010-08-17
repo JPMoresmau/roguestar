@@ -71,7 +71,7 @@ visibleObjects :: (DBReadable db,GenericReference a S) => (forall m. DBReadable 
 visibleObjects filterF =
     do me <- whoAmI
        faction <- myFaction
-       liftDB $ maybe (return []) (dbGetVisibleObjectsForFaction (\a -> runPerception me $ filterF a) faction) =<< liftM extractLocation (dbWhere me)
+       liftDB $ maybe (return []) (dbGetVisibleObjectsForFaction (\a -> runPerception me $ filterF a) faction) =<< liftM extractParent (dbWhere me)
 
 myFaction :: (DBReadable db) => DBPerception db Faction
 myFaction = Perception.getCreatureFaction =<< whoAmI
@@ -80,10 +80,10 @@ getCreatureFaction :: (DBReadable db) => CreatureRef -> DBPerception db Faction
 getCreatureFaction creature_ref = liftDB $ Creature.getCreatureFaction creature_ref
 
 whereAmI :: (DBReadable db) => DBPerception db (Facing,Position)
-whereAmI = liftM (fromMaybe (error "whereAmI: I'm not on a plane") . extractLocation) $ whereIs =<< whoAmI
+whereAmI = liftM (fromMaybe (error "whereAmI: I'm not on a plane") . extractParent) $ whereIs =<< whoAmI
 
 whatPlaneAmIOn :: (DBReadable db) => DBPerception db PlaneRef
-whatPlaneAmIOn = liftM (fromMaybe (error "whatPlaneAmIOn: I'm not on a plane") . extractLocation) $ whereIs =<< whoAmI
+whatPlaneAmIOn = liftM (fromMaybe (error "whatPlaneAmIOn: I'm not on a plane") . extractParent) $ whereIs =<< whoAmI
 
 whereIs :: (DBReadable db) => Reference a -> DBPerception db (Location S (Reference a) ())
 whereIs ref = liftDB $ dbWhere ref

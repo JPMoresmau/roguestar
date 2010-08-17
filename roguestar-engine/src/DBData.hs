@@ -12,7 +12,8 @@ module DBData
      (=:=), (=/=),
      GenericReference(..),
      ReferenceType(..),
-     LocationType(..),
+     LocationChild(..),
+     LocationParent(..),
      Location,
      Position(..),
      Standing(..),
@@ -38,7 +39,7 @@ module DBData
      _facing,
      _the_universe,
      asLocationTyped,
-     asReferenceTyped,
+     asType,
      DBPrivate.S,
      location,
      entity,
@@ -141,10 +142,10 @@ instance (GenericReference a m,GenericReference b m) => GenericReference (Either
     generalizeReference = either generalizeReference generalizeReference
 
 instance (ReferenceType a) => GenericReference (Reference a) m where
-    fromLocation = coerceReference . entity
+    fromLocation = coerceReference . child
     generalizeReference = unsafeReference
 
-instance (LocationType a,LocationType b) => GenericReference (Location m a b) m where
+instance (LocationChild c,LocationParent p) => GenericReference (Location m c p) m where
     fromLocation = coerceLocationRecord
     generalizeReference = child
 
@@ -228,143 +229,142 @@ child (InTheUniverse r) = unsafeReference r
 child (IsSubsequent r _) = unsafeReference r
 child (IsBeneath r _) = unsafeReference r
 
-asLocationTyped :: (LocationType e,LocationType t) => Type e -> Type t -> Location m e t -> Location m e t
+asLocationTyped :: (LocationChild e,LocationParent t) => Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
 
-asReferenceTyped :: (LocationType e) => Type e -> e -> e
-asReferenceTyped _ = id
+asType :: Type e -> e -> e
+asType _ = id
 
-coerceLocationTyped :: (LocationType e,LocationType t) => Type t -> Location m e x -> Maybe (Location m e t)
+coerceLocationTyped :: (LocationChild c, LocationParent p) =>
+                       Type p -> Location m c x -> Maybe (Location m c p)
 coerceLocationTyped = const coerceLocation
 
-isLocationTyped :: (LocationType e,LocationType t) => Type t -> Location m e x -> Bool
+isLocationTyped :: (LocationChild c,LocationParent p) => Type p -> Location m c x -> Bool
 isLocationTyped t = isJust . coerceLocationTyped t
 
-coerceEntityTyped :: (LocationType e,LocationType t) => Type e -> Location m x t -> Maybe (Location m e t)
+coerceEntityTyped :: (LocationChild c, LocationParent p) =>
+                     Type c -> Location m x p -> Maybe (Location m c p)
 coerceEntityTyped = const coerceEntity
 
-isEntityTyped :: (LocationType e,LocationType t) => Type e -> Location m x t -> Bool
+isEntityTyped :: (LocationChild c, LocationParent p) => Type c -> Location m x p -> Bool
 isEntityTyped t  = isJust . coerceEntityTyped t
 
-coerceLocation :: (LocationType e,LocationType t) => Location m e x -> Maybe (Location m e t)
+coerceLocation :: (LocationChild e,LocationParent t) => Location m e x -> Maybe (Location m e t)
 coerceLocation = coerceLocationRecord
 
-coerceEntity :: (LocationType e,LocationType t) => Location m x t -> Maybe (Location m e t)
+coerceEntity :: (LocationChild e,LocationParent t) => Location m x t -> Maybe (Location m e t)
 coerceEntity = coerceLocationRecord
 
-coerceLocationRecord :: (LocationType e,LocationType t) => Location m x y -> Maybe (Location m e t)
+coerceLocationRecord :: (LocationChild e,LocationParent t) => Location m x y -> Maybe (Location m e t)
 coerceLocationRecord = fmap fst . coerceUnify
-    where coerceUnify :: (LocationType e,LocationType t) => 
+    where coerceUnify :: (LocationChild e,LocationParent t) =>
                              Location m x y -> Maybe (Location m e t,(e,t))
-          coerceUnify l = do t <- extractLocation l
-                             e <- extractEntity l
+          coerceUnify l = do t <- extractParent l
+                             e <- extractChild l
                              return (unsafeLocation l,(e,t))
 
-location :: (LocationType t) => Location m e t -> t
-location l = fromMaybe (error "location: type error") $ extractLocation l
+location :: (LocationParent p) => Location m c p -> p
+location l = fromMaybe (error "location: type error") $ extractParent l
 
-entity :: (LocationType e) => Location m e t -> e
-entity l = fromMaybe (error "entity: type error") $ extractEntity l
+entity :: (LocationChild c) => Location m c p -> c
+entity l = fromMaybe (error "entity: type error") $ extractChild l
 
-class (Eq a,Ord a) => LocationType a where
-    extractLocation :: Location m e t -> Maybe a
-    extractEntity :: Location m e t -> Maybe a
+class (Eq a,Ord a) => LocationParent a where
+    extractParent :: Location m e t -> Maybe a
 
-instance LocationType Standing where
-    extractLocation (IsStanding _ s) = Just s
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+class (Eq a,Ord a) => LocationChild a where
+    extractChild :: Location m e t -> Maybe a
 
-instance LocationType Dropped where
-    extractLocation (IsDropped _ d) = Just d
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Standing where
+    extractParent (IsStanding _ s) = Just s
+    extractParent _ = Nothing
 
-instance LocationType Inventory where
-    extractLocation (InInventory _ i) = Just i
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Dropped where
+    extractParent (IsDropped _ d) = Just d
+    extractParent _ = Nothing
 
-instance LocationType Wielded where
-    extractLocation (IsWielded _ i) = Just i
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Inventory where
+    extractParent (InInventory _ i) = Just i
+    extractParent _ = Nothing
 
-instance LocationType Constructed where
-    extractLocation (IsConstructed _ i) = Just i
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Wielded where
+    extractParent (IsWielded _ i) = Just i
+    extractParent _ = Nothing
 
-instance LocationType TheUniverse where
-    extractLocation (InTheUniverse {}) = Just TheUniverse
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Constructed where
+    extractParent (IsConstructed _ i) = Just i
+    extractParent _ = Nothing
 
-instance LocationType Subsequent where
-    extractLocation (IsSubsequent _ i) = Just i
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent TheUniverse where
+    extractParent (InTheUniverse {}) = Just TheUniverse
+    extractParent _ = Nothing
 
-instance LocationType Beneath where
-    extractLocation (IsBeneath _ i) = Just i
-    extractLocation _ = Nothing
-    extractEntity = const Nothing
+instance LocationParent Subsequent where
+    extractParent (IsSubsequent _ i) = Just i
+    extractParent _ = Nothing
 
-instance LocationType () where
-    extractLocation = const $ Just ()
-    extractEntity = const Nothing
+instance LocationParent Beneath where
+    extractParent (IsBeneath _ i) = Just i
+    extractParent _ = Nothing
 
-instance LocationType Position where
-    extractLocation (IsStanding _ s) = Just $ standing_position s
-    extractLocation (IsDropped _ d) = Just $ dropped_position d
-    extractLocation (InInventory {}) = Nothing
-    extractLocation (IsWielded {}) = Nothing
-    extractLocation (IsConstructed _ c) = Just $ constructed_position c
-    extractLocation (InTheUniverse {}) = Nothing
-    extractLocation (IsSubsequent {}) = Nothing
-    extractLocation (IsBeneath {}) = Nothing
-    extractEntity = const Nothing
+instance LocationParent () where
+    extractParent = const $ Just ()
 
-instance LocationType MultiPosition where
-    extractLocation (IsConstructed _ c) = Just $ multiPosition (constructed_position c) (buildingOccupies $ constructed_type c)
-    extractLocation x = fmap (toMultiPosition :: Position -> MultiPosition) $ extractLocation x
-    extractEntity = const Nothing
+instance LocationParent Position where
+    extractParent (IsStanding _ s) = Just $ standing_position s
+    extractParent (IsDropped _ d) = Just $ dropped_position d
+    extractParent (InInventory {}) = Nothing
+    extractParent (IsWielded {}) = Nothing
+    extractParent (IsConstructed _ c) = Just $ constructed_position c
+    extractParent (InTheUniverse {}) = Nothing
+    extractParent (IsSubsequent {}) = Nothing
+    extractParent (IsBeneath {}) = Nothing
 
-instance LocationType Facing where
-    extractLocation (IsStanding _ s) = Just $ standing_facing s
-    extractLocation (IsDropped {}) = Nothing
-    extractLocation (InInventory {}) = Nothing
-    extractLocation (IsWielded {}) = Nothing
-    extractLocation (IsConstructed {}) = Nothing
-    extractLocation (InTheUniverse {}) = Nothing
-    extractLocation (IsSubsequent {}) = Nothing
-    extractLocation (IsBeneath {}) = Nothing
-    extractEntity = const Nothing
+instance LocationParent MultiPosition where
+    extractParent (IsConstructed _ c) = Just $ multiPosition (constructed_position c) (buildingOccupies $ constructed_type c)
+    extractParent x = fmap (toMultiPosition :: Position -> MultiPosition) $ extractParent x
 
-instance ReferenceType a => LocationType (Reference a) where
-    extractLocation = coerceReference . parent
-    extractEntity = coerceReference . child
+instance LocationParent Facing where
+    extractParent (IsStanding _ s) = Just $ standing_facing s
+    extractParent (IsDropped {}) = Nothing
+    extractParent (InInventory {}) = Nothing
+    extractParent (IsWielded {}) = Nothing
+    extractParent (IsConstructed {}) = Nothing
+    extractParent (InTheUniverse {}) = Nothing
+    extractParent (IsSubsequent {}) = Nothing
+    extractParent (IsBeneath {}) = Nothing
 
-instance (LocationType a,LocationType b) => LocationType (a,b) where
-    extractLocation l = liftM2 (,) (extractLocation l) (extractLocation l)
-    extractEntity l = liftM2 (,) (extractEntity l) (extractEntity l)
+instance ReferenceType a => LocationParent (Reference a) where
+    extractParent = coerceReference . parent
+
+instance ReferenceType a => LocationChild (Reference a) where
+    extractChild = coerceReference . child
+
+instance (LocationParent a,LocationParent b) => LocationParent (a,b) where
+    extractParent l = liftM2 (,) (extractParent l) (extractParent l)
+
+instance (LocationChild a,LocationChild b) => LocationChild (a,b) where
+    extractChild l = liftM2 (,) (extractChild l) (extractChild l)
 
 --
 -- Manipulating Locations
 --
-toStanding :: (LocationType t) => Standing -> Location m CreatureRef t -> Location m CreatureRef Standing
+toStanding :: (LocationParent t) =>
+              Standing ->
+              Location m CreatureRef t ->
+              Location m CreatureRef Standing
 toStanding s l | isEntityTyped _creature l = IsStanding (entity l) s
 toStanding _ _ = error "toStanding: type error"
 
-toDropped :: (LocationType t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
+toDropped :: (LocationParent t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
 toDropped d l | isEntityTyped _tool l = IsDropped (entity l) d
 toDropped _ _ = error "toDropped: type error"
 
-toInventory :: (LocationType t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
+toInventory :: (LocationParent t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
 toInventory i l | isEntityTyped _tool l = InInventory (entity l) i
 toInventory _ _ = error "toInventory: type error"
 
-toWielded :: (LocationType t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
+toWielded :: (LocationParent t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
 toWielded i l | isEntityTyped _tool l = IsWielded (entity l) i
 toWielded _ _ = error "toWielded: type error"
 

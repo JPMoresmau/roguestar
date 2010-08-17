@@ -18,35 +18,40 @@ import Data.List as List
 import ToolData
 import Substances
 
-dbPickupTool :: (DBReadable db,LocationType a) => CreatureRef -> Location s ToolRef a -> db (Location s ToolRef Inventory)
-dbPickupTool c l = 
-    do (c_where :: Maybe (Position,PlaneRef)) <- liftM extractLocation $ dbWhere c
-       when ((c_where /= extractLocation l && Just c /= extractLocation l) || isNothing c_where) $ 
+dbPickupTool :: (DBReadable db,LocationParent a) =>
+                CreatureRef ->
+                Location s ToolRef a ->
+                db (Location s ToolRef Inventory)
+dbPickupTool c l =
+    do (c_where :: Maybe (Position,PlaneRef)) <- liftM extractParent $ dbWhere c
+       when ((c_where /= extractParent l && Just c /= extractParent l) || isNothing c_where) $ 
 	         throwError (DBErrorFlag ToolIs_NotAtFeet)
        return $ toInventory (Inventory c) l
 
 -- | Move a tool into wielded position for whatever creature is carrying it.
-dbWieldTool :: (DBReadable db,LocationType a) => Location s ToolRef a -> db (Location s ToolRef Wielded)
+dbWieldTool :: (DBReadable db,LocationParent a) =>
+               Location s ToolRef a -> db (Location s ToolRef Wielded)
 dbWieldTool l =
     case () of
         () | Just l' <- coerceLocation l -> return l' -- if it coerces into our return type, then it's already wielded
-        () | Just (Dropped plane_ref position) <- extractLocation l ->
+        () | Just (Dropped plane_ref position) <- extractParent l ->
             do pickupers <- liftM (map entity . filter ((== position) . location)) $ dbGetContents plane_ref
                case pickupers of -- the creature that is standing over the tool -- there can be only one
                    [single_pickuper] -> return $ toWielded (Wielded single_pickuper) l
                    _ -> throwError $ DBError "dbWieldTool: there were multiple creatures in reach of a single tool"
-        () | Just (Inventory c) <- extractLocation l -> return $ toWielded (Wielded c) l
+        () | Just (Inventory c) <- extractParent l -> return $ toWielded (Wielded c) l
         () | otherwise -> throwError $ DBErrorFlag ToolIs_NotWieldable
 
-dbDropTool :: (DBReadable db,LocationType a) => Location s ToolRef a -> db (Location s ToolRef Dropped)
+dbDropTool :: (DBReadable db,LocationParent a) =>
+              Location s ToolRef a -> db (Location s ToolRef Dropped)
 dbDropTool l =
-    do lp <- liftM extractLocation $ dbWhere (parent l)
+    do lp <- liftM extractParent $ dbWhere (parent l)
        flip (maybe (throwError $ DBErrorFlag NotStanding)) lp $ \(creature_position,plane_ref) ->
            do return $ toDropped (Dropped plane_ref creature_position) l
 
 dbAvailablePickups :: (DBReadable db) => CreatureRef -> db [ToolRef]
 dbAvailablePickups creature_ref =
-    do m_creature_where <- liftM extractLocation $ dbWhere creature_ref
+    do m_creature_where <- liftM extractParent $ dbWhere creature_ref
        flip (maybe (return [])) m_creature_where $ \(creature_position :: Position,plane_ref :: PlaneRef) ->
            do contents <- dbGetContents plane_ref
               return $ map entity $ filter ((== creature_position) . location) contents
