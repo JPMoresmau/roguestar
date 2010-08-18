@@ -27,7 +27,7 @@ walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
        let standing = Standing { standing_plane = plane_ref,
                                  standing_position = Position (x+x',y+y'),
                                  standing_facing = face } 
-       flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (entity l) $ standing_position standing)
+       flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (child l) $ standing_position standing)
        return $ generalizeLocation $ toStanding standing l
 
 stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
@@ -59,13 +59,13 @@ data TeleportJumpOutcome =
 resolveTeleportJump :: (DBReadable db) => CreatureRef -> Facing -> db TeleportJumpOutcome
 resolveTeleportJump creature_ref face = liftM (fromMaybe TeleportJumpFailed) $ runMaybeT $
     do start_location <- lift $ dbWhere creature_ref
-       jump_roll <- liftM roll_log $ lift $ rollCreatureAbilityScore JumpSkill 0 (entity start_location)
+       jump_roll <- liftM roll_log $ lift $ rollCreatureAbilityScore JumpSkill 0 (child start_location)
        standing_location <- MaybeT $ return $ extractParent start_location
        landing_position <- lift $ randomTeleportLanding jump_roll (standing_plane standing_location) (standing_position standing_location) $
            offsetPosition (facingToRelative7 face) $ standing_position standing_location
        case () of
            () | jump_roll <= 0 -> return TeleportJumpFailed
-           () | otherwise -> return $ TeleportJumpGood (entity start_location) $ standing_location { standing_position = landing_position, standing_facing = face }
+           () | otherwise -> return $ TeleportJumpGood (child start_location) $ standing_location { standing_position = landing_position, standing_facing = face }
 
 -- | Execute a resolved teleport jump.
 executeTeleportJump :: TeleportJumpOutcome -> DB ()

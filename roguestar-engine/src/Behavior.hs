@@ -51,7 +51,7 @@ data Behavior =
 -- if occupied by a creature this is 'Attack'.
 facingBehavior :: (DBReadable db) => CreatureRef -> Facing -> db Behavior
 facingBehavior creature_ref face =
-    do (m_standing :: Maybe (PlaneRef,Position)) <- liftM (fmap location) $ getPlanarPosition creature_ref
+    do (m_standing :: Maybe (PlaneRef,Position)) <- liftM (fmap parent) $ getPlanarPosition creature_ref
        case m_standing of
            Nothing -> return Wait
            Just (plane_ref,pos) ->
@@ -129,7 +129,7 @@ dbBehave Wait creature_ref = dbAdvanceTime creature_ref =<< quickActionTime crea
 dbBehave Vanish creature_ref = 
     do dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        _ <- runMaybeT $
-           do (plane_ref :: PlaneRef) <- MaybeT $ liftM (fmap location) $ getPlanarPosition creature_ref
+           do (plane_ref :: PlaneRef) <- MaybeT $ liftM (fmap parent) $ getPlanarPosition creature_ref
               lift $
                   do faction <- getCreatureFaction creature_ref
                      is_visible_to_anyone_else <- liftM (any (creature_ref `elem`)) $ 

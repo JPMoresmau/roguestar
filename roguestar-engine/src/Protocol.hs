@@ -320,10 +320,11 @@ dbDispatchQuery ["visible-terrain","0"] =
 
 dbDispatchQuery ["who-player"] = return "answer: who-player 2"
 
-dbDispatchQuery ["visible-objects","0"] = 
+dbDispatchQuery ["visible-objects","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
-       (objects :: [Location S (Reference ()) ()]) <- maybe (return []) (dbGetVisibleObjectsForFaction (return . const True) Player) maybe_plane_ref
-       table_rows <- mapM (dbObjectToTableRow . entity) objects
+       (objects :: [Location S (Reference ()) ()]) <- maybe (return [])
+           (dbGetVisibleObjectsForFaction (return . const True) Player) maybe_plane_ref
+       table_rows <- mapM (dbObjectToTableRow . child) objects
        return ("begin-table visible-objects 0 object-unique-id x y facing\n" `B.append`
                (B.unlines $ table_rows) `B.append`
                "end-table")

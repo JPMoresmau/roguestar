@@ -59,8 +59,8 @@ getPlanarPosition ref =
 --
 dbDistanceBetweenSquared :: (DBReadable db,ReferenceType a,ReferenceType b) => Reference a -> Reference b -> db (Maybe Integer)
 dbDistanceBetweenSquared a_ref b_ref =
-    do m_a <- liftM (fmap location) $ getPlanarPosition a_ref
-       m_b <- liftM (fmap location) $ getPlanarPosition b_ref
+    do m_a <- liftM (fmap parent) $ getPlanarPosition a_ref
+       m_b <- liftM (fmap parent) $ getPlanarPosition b_ref
        return $
            do (p_a :: PlaneRef,a :: MultiPosition) <- m_a
 	      (p_b,b :: MultiPosition) <- m_b
@@ -71,7 +71,7 @@ dbDistanceBetweenSquared a_ref b_ref =
 -- Gets the current plane of interest based on whose turn it is.
 --
 dbGetCurrentPlane :: (DBReadable db) => db (Maybe PlaneRef)
-dbGetCurrentPlane = liftM (fmap location) $ maybe (return Nothing) getPlanarPosition . creatureOf =<< playerState
+dbGetCurrentPlane = liftM (fmap parent) $ maybe (return Nothing) getPlanarPosition . creatureOf =<< playerState
 
 -- |
 -- Selects sites at random until one seems reasonably clear.  It begins at
@@ -108,7 +108,7 @@ pickRandomClearSite_withTimeout timeout search_radius object_clear terrain_clear
            (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
-       clutter_locations <- liftM (map (location .
+       clutter_locations <- liftM (map (parent .
            asLocationTyped _nullary _multiposition)) $ dbGetContents plane_ref
        let terrainIsClear (Position (x,y)) = 
                all terrainPredicate $
@@ -140,7 +140,10 @@ setTerrainAt plane_ref (Position pos) patch = dbModPlane (\p -> p { plane_terrai
 -- Typically this is zero or one creatures, and zero or more tools.
 whatIsOccupying :: (DBReadable db,GenericReference a S) => PlaneRef -> Position -> db [a]
 whatIsOccupying plane_ref position =
-    liftM (mapMaybe fromLocation . filter ((== 0) . (distanceBetweenChessboard position) . location) . map (asLocationTyped _nullary _multiposition)) $ dbGetContents plane_ref
+    liftM (mapMaybe fromLocation . filter ((== 0) .
+                  (distanceBetweenChessboard position) . parent) .
+              map (asLocationTyped _nullary _multiposition)) $
+                  dbGetContents plane_ref
 
 -- | Answers True iff a creature may walk or swim or drop objects at the position.  
 -- Lava is considered passable, but trees are not.

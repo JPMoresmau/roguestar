@@ -99,7 +99,8 @@ compass =
        (_,pos) <- whereAmI
        plane <- whatPlaneAmIOn
        liftDB $
-           do buildings <- liftM (sortBy $ comparing $ distanceBetweenSquared pos . location) $ filterM (liftM (`elem` signalling_building_types) . buildingType . entity) =<< 
+           do buildings <- liftM (sortBy $ comparing $ distanceBetweenSquared pos . parent) $
+                  filterM (liftM (`elem` signalling_building_types) . buildingType . child) =<< 
                                dbGetContents plane
-              return $ maybe Here (faceAt pos . location) $ listToMaybe buildings
+              return $ maybe Here (faceAt pos . parent) $ listToMaybe buildings
        

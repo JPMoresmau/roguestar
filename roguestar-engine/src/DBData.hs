@@ -41,8 +41,8 @@ module DBData
      asLocationTyped,
      asType,
      DBPrivate.S,
-     location,
-     entity,
+     parent,
+     child,
      coerceReferenceTyped,
      isReferenceTyped,
      coerceLocationTyped,
@@ -52,8 +52,8 @@ module DBData
      coerceLocationRecord,
      coerceLocation,
      coerceEntity,
-     parent,
-     child,
+     genericParent,
+     genericChild,
      generalizeLocation,
      generalizeEntity,
      generalizeLocationRecord,
@@ -142,12 +142,12 @@ instance (GenericReference a m,GenericReference b m) => GenericReference (Either
     generalizeReference = either generalizeReference generalizeReference
 
 instance (ReferenceType a) => GenericReference (Reference a) m where
-    fromLocation = coerceReference . child
+    fromLocation = coerceReference . genericChild
     generalizeReference = unsafeReference
 
 instance (LocationChild c,LocationParent p) => GenericReference (Location m c p) m where
     fromLocation = coerceLocationRecord
-    generalizeReference = child
+    generalizeReference = genericChild
 
 --
 -- Reference Equality
@@ -209,27 +209,28 @@ generalizeLocation = unsafeLocation
 generalizeEntity :: Location m e t -> Location m (Reference ()) t
 generalizeEntity = unsafeLocation
 
-parent :: Location m e t -> Reference ()
-parent (IsStanding _ s) = unsafeReference $ standing_plane s
-parent (IsDropped _ d) = unsafeReference $ dropped_plane d
-parent (InInventory _ c) = unsafeReference $ inventory_creature c
-parent (IsWielded _ c) = unsafeReference $ wielded_creature c
-parent (IsConstructed _ c) = unsafeReference $ constructed_plane c
-parent (InTheUniverse _) = unsafeReference UniverseRef
-parent (IsSubsequent _ b) = unsafeReference $ subsequent_to b
-parent (IsBeneath _ b) = unsafeReference $ beneath_of b
+genericParent :: Location m e t -> Reference ()
+genericParent (IsStanding _ s) = unsafeReference $ standing_plane s
+genericParent (IsDropped _ d) = unsafeReference $ dropped_plane d
+genericParent (InInventory _ c) = unsafeReference $ inventory_creature c
+genericParent (IsWielded _ c) = unsafeReference $ wielded_creature c
+genericParent (IsConstructed _ c) = unsafeReference $ constructed_plane c
+genericParent (InTheUniverse _) = unsafeReference UniverseRef
+genericParent (IsSubsequent _ b) = unsafeReference $ subsequent_to b
+genericParent (IsBeneath _ b) = unsafeReference $ beneath_of b
 
-child :: Location m e t -> Reference ()
-child (IsStanding r _) = unsafeReference r
-child (IsDropped r _) = unsafeReference r
-child (InInventory r _) = unsafeReference r
-child (IsWielded r _) = unsafeReference r
-child (IsConstructed r _) = unsafeReference r
-child (InTheUniverse r) = unsafeReference r
-child (IsSubsequent r _) = unsafeReference r
-child (IsBeneath r _) = unsafeReference r
+genericChild :: Location m e t -> Reference ()
+genericChild (IsStanding r _) = unsafeReference r
+genericChild (IsDropped r _) = unsafeReference r
+genericChild (InInventory r _) = unsafeReference r
+genericChild (IsWielded r _) = unsafeReference r
+genericChild (IsConstructed r _) = unsafeReference r
+genericChild (InTheUniverse r) = unsafeReference r
+genericChild (IsSubsequent r _) = unsafeReference r
+genericChild (IsBeneath r _) = unsafeReference r
 
-asLocationTyped :: (LocationChild e,LocationParent t) => Type e -> Type t -> Location m e t -> Location m e t
+asLocationTyped :: (LocationChild e,LocationParent t) =>
+                   Type e -> Type t -> Location m e t -> Location m e t
 asLocationTyped _ _ = id
 
 asType :: Type e -> e -> e
@@ -263,11 +264,11 @@ coerceLocationRecord = fmap fst . coerceUnify
                              e <- extractChild l
                              return (unsafeLocation l,(e,t))
 
-location :: (LocationParent p) => Location m c p -> p
-location l = fromMaybe (error "location: type error") $ extractParent l
+parent :: (LocationParent p) => Location m c p -> p
+parent l = fromMaybe (error "location: type error") $ extractParent l
 
-entity :: (LocationChild c) => Location m c p -> c
-entity l = fromMaybe (error "entity: type error") $ extractChild l
+child :: (LocationChild c) => Location m c p -> c
+child l = fromMaybe (error "entity: type error") $ extractChild l
 
 class (Eq a,Ord a) => LocationParent a where
     extractParent :: Location m e t -> Maybe a
@@ -335,10 +336,10 @@ instance LocationParent Facing where
     extractParent (IsBeneath {}) = Nothing
 
 instance ReferenceType a => LocationParent (Reference a) where
-    extractParent = coerceReference . parent
+    extractParent = coerceReference . genericParent
 
 instance ReferenceType a => LocationChild (Reference a) where
-    extractChild = coerceReference . child
+    extractChild = coerceReference . genericChild
 
 instance (LocationParent a,LocationParent b) => LocationParent (a,b) where
     extractParent l = liftM2 (,) (extractParent l) (extractParent l)
@@ -353,22 +354,22 @@ toStanding :: (LocationParent t) =>
               Standing ->
               Location m CreatureRef t ->
               Location m CreatureRef Standing
-toStanding s l | isEntityTyped _creature l = IsStanding (entity l) s
+toStanding s l | isEntityTyped _creature l = IsStanding (child l) s
 toStanding _ _ = error "toStanding: type error"
 
 toDropped :: (LocationParent t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
-toDropped d l | isEntityTyped _tool l = IsDropped (entity l) d
+toDropped d l | isEntityTyped _tool l = IsDropped (child l) d
 toDropped _ _ = error "toDropped: type error"
 
 toInventory :: (LocationParent t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
-toInventory i l | isEntityTyped _tool l = InInventory (entity l) i
+toInventory i l | isEntityTyped _tool l = InInventory (child l) i
 toInventory _ _ = error "toInventory: type error"
 
 toWielded :: (LocationParent t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
-toWielded i l | isEntityTyped _tool l = IsWielded (entity l) i
+toWielded i l | isEntityTyped _tool l = IsWielded (child l) i
 toWielded _ _ = error "toWielded: type error"
 
 returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory
-returnToInventory l = InInventory (entity l) (Inventory c)
-    where Wielded c = location l
+returnToInventory l = InInventory (child l) (Inventory c)
+    where Wielded c = parent l
 

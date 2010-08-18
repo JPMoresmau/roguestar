@@ -41,7 +41,7 @@ dbGetVisibleTerrainForFaction faction plane_ref =
 --
 dbGetVisibleTerrainForCreature :: (DBReadable db) => CreatureRef -> db [(TerrainPatch,Position)]
 dbGetVisibleTerrainForCreature creature_ref =
-    do loc <- liftM (fmap location) $ getPlanarPosition creature_ref
+    do loc <- liftM (fmap parent) $ getPlanarPosition creature_ref
        spot_check <- dbGetSpotCheck creature_ref
        case loc of
 		Just (plane_ref,creature_at) -> liftM (visibleTerrain creature_at spot_check . plane_terrain) $ dbGetPlane plane_ref
@@ -63,7 +63,7 @@ dbGetVisibleObjectsForFaction filterF faction plane_ref =
 --
 dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> m Bool) -> CreatureRef -> db [a]
 dbGetVisibleObjectsForCreature filterF creature_ref =
-    do (loc :: Maybe PlaneRef) <- liftM (fmap location) $ getPlanarPosition creature_ref
+    do (loc :: Maybe PlaneRef) <- liftM (fmap parent) $ getPlanarPosition creature_ref
        case loc of
 		Just plane_ref -> filterRO (\a -> (&&) <$> filterF a <*> (dbIsPlanarVisible creature_ref $ generalizeReference a)) =<< dbGetContents plane_ref
 		Nothing -> return []
@@ -74,8 +74,8 @@ dbGetVisibleObjectsForCreature filterF creature_ref =
 dbIsPlanarVisible :: (DBReadable db,ReferenceType a) => CreatureRef -> Reference a -> db Bool
 dbIsPlanarVisible creature_ref obj_ref | creature_ref =:= obj_ref = return True
 dbIsPlanarVisible creature_ref obj_ref =
-    do (creature_loc :: Maybe (PlaneRef,Position)) <- liftM (fmap location) $ getPlanarPosition creature_ref
-       (obj_loc :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap location) $ getPlanarPosition obj_ref
+    do (creature_loc :: Maybe (PlaneRef,Position)) <- liftM (fmap parent) $ getPlanarPosition creature_ref
+       (obj_loc :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap parent) $ getPlanarPosition obj_ref
        spot_check <- dbGetOpposedSpotCheck creature_ref obj_ref
        case (creature_loc,obj_loc) of
 		(Nothing,_) -> return False

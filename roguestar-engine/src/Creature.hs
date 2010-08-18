@@ -85,7 +85,7 @@ rollCreatureAbilityScore score other_ideal creature_ref =
 -- | Ability bonus based on being good at working on specific types of terrain.
 getTerrainAffinity :: (DBReadable db) => CreatureRef -> db Integer
 getTerrainAffinity creature_ref =
-    do l <- liftM (fmap location) $ getPlanarPosition creature_ref
+    do l <- liftM (fmap parent) $ getPlanarPosition creature_ref
        terrain_affinity_points <- case l of
            Nothing -> return 0
            Just (plane_ref,pos) -> liftM sum $ forM [minBound..maxBound] $ \face ->

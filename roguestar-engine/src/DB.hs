@@ -295,8 +295,8 @@ dbAddObjectComposable constructReference updateObject constructLocation thing lo
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
-       parent_ref <- liftM parent $ dbWhere ref
-       dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference parent_ref)
+       genericParent_ref <- liftM genericParent $ dbWhere ref
+       dbSetTimeCoordinate (generalizeReference ref) =<< dbGetTimeCoordinate (generalizeReference genericParent_ref)
        return ref
 
 -- |
@@ -444,7 +444,8 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 --
 dbSetLocation :: (LocationChild c,LocationParent p) => Location S c p -> DB ()
 dbSetLocation loc =
-    do case (fmap location $ coerceLocationTyped _wielded loc,fmap location $ coerceLocationTyped _subsequent loc) of
+    do case (fmap parent $ coerceLocationTyped _wielded loc,
+             fmap parent $ coerceLocationTyped _subsequent loc) of
            (Just (Wielded c),_) -> dbUnwieldCreature c
            (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
 	   (_,_) -> return ()
@@ -469,8 +470,8 @@ dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
        dbSetLocation $ generalizeLocationRecord $ unsafeLocation new
-       when (parent old =/= parent new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
-           dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (parent new)
+       when (genericParent old =/= genericParent new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
+           dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (genericParent new)
        return (unsafeLocation old, unsafeLocation new)
 
 dbMoveAllWithin :: (forall m. DBReadable m => 
@@ -501,7 +502,7 @@ dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location
 dbGetAncestors ref | isReferenceTyped _the_universe ref = return []
 dbGetAncestors ref =
     do this <- dbWhere $ generalizeReference ref
-       rest <- dbGetAncestors $ parent this
+       rest <- dbGetAncestors $ genericParent this
        return $ this : rest
 
 -- |
@@ -513,7 +514,7 @@ dbGetContents item = asks (Data.Maybe.mapMaybe fromLocation . HD.lookupChildren
 
 -- |
 -- Gets the time of an object.
--- 
+--
 dbGetTimeCoordinate :: (DBReadable db,ReferenceType a) => Reference a -> db TimeCoordinate
 dbGetTimeCoordinate ref = asks (fromMaybe (error "dbGetTimeCoordinate: missing time coordinate.") . 
                                   Map.lookup (generalizeReference ref) . db_time_coordinates)

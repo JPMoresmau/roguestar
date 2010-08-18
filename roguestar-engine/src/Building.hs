@@ -49,7 +49,7 @@ activateBuilding Portal creature_ref building_ref =
                    () | cy < py ->
                        do m_subsequent_loc :: Maybe (Location S PlaneRef Subsequent) <- liftM listToMaybe $ dbGetContents plane_ref
                           case m_subsequent_loc of
-                              Just loc -> (portalCreatureTo 1 creature_ref $ entity loc) >> return True
+                              Just loc -> (portalCreatureTo 1 creature_ref $ child loc) >> return True
                               _ -> throwError $ DBErrorFlag NoStargateAddress
                    () | cy > py ->
                        do m_previous_loc :: Maybe Subsequent <- liftM extractParent $ dbWhere plane_ref

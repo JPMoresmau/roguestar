@@ -61,11 +61,11 @@ planar_turn_frequency = 100
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
 dbPerform1PlanarAITurn plane_ref = 
     do creature_locations <- dbGetContents plane_ref
-       player_locations <- filterRO (liftM (== Player) . getCreatureFaction . entity) creature_locations
-       native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . entity) creature_locations
+       player_locations <- filterRO (liftM (== Player) . getCreatureFaction . child) creature_locations
+       native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . child) creature_locations
        should_randomly_generate_monster <- liftM (<= 10) $ linearRoll planar_turn_frequency
        when (length native_locations < length player_locations * 2 && should_randomly_generate_monster) $
-           do p <- pickM $ map location player_locations
+           do p <- pickM $ map parent player_locations
 	      m_spawn_position <- pickRandomClearSite_withTimeout (Just 2) 7 0 0 p (== RecreantFactory) plane_ref
 	      maybe (return () )
                     (\spawn_position -> newCreature Pirates Recreant (Standing plane_ref spawn_position Here) >> return ()) $ 
@@ -73,14 +73,14 @@ dbPerform1PlanarAITurn plane_ref =
        dbAdvanceTime plane_ref (1%planar_turn_frequency)
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
-dbPerform1CreatureAITurn creature_ref = 
+dbPerform1CreatureAITurn creature_ref =
     atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
-        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . entity) =<< P.visibleObjects (return . const True)
+        do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . child) =<< P.visibleObjects (return . const True)
            (rand_x :: Integer) <- lift $ getRandomR (1,100)
            rand_face <- lift $ pickM [minBound..maxBound]
            (_,my_position) <- lift P.whereAmI
-	   let face_to_player = faceAt my_position (location player)
-	   return $ case distanceBetweenChessboard my_position (location player) of
+	   let face_to_player = faceAt my_position (parent player)
+	   return $ case distanceBetweenChessboard my_position (parent player) of
                _ | rand_x < 5 -> Wait -- if AI gets stuck, this will make sure they waste time so the game doesn't hang
                _ | rand_x < 20 -> Step rand_face
 	       1 -> Attack face_to_player
