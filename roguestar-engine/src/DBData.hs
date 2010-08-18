@@ -1,4 +1,8 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FunctionalDependencies, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances,
+             MultiParamTypeClasses,
+             FunctionalDependencies,
+             UndecidableInstances,
+             ScopedTypeVariables #-}
 
 module DBData
     (Reference,
@@ -45,13 +49,13 @@ module DBData
      child,
      coerceReferenceTyped,
      isReferenceTyped,
-     coerceLocationTyped,
-     isLocationTyped,
-     coerceEntityTyped,
-     isEntityTyped,
+     coerceParentTyped,
+     isParentTyped,
+     coerceChildTyped,
+     isChildTyped,
      coerceLocationRecord,
-     coerceLocation,
-     coerceEntity,
+     coerceParent,
+     coerceChild,
      genericParent,
      genericChild,
      generalizeLocation,
@@ -236,33 +240,38 @@ asLocationTyped _ _ = id
 asType :: Type e -> e -> e
 asType _ = id
 
-coerceLocationTyped :: (LocationChild c, LocationParent p) =>
+coerceParentTyped :: (LocationParent p) =>
                        Type p -> Location m c x -> Maybe (Location m c p)
-coerceLocationTyped = const coerceLocation
+coerceParentTyped = const coerceParent
 
-isLocationTyped :: (LocationChild c,LocationParent p) => Type p -> Location m c x -> Bool
-isLocationTyped t = isJust . coerceLocationTyped t
+isParentTyped :: (LocationParent p) => Type p -> Location m c x -> Bool
+isParentTyped t = isJust . coerceParentTyped t
 
-coerceEntityTyped :: (LocationChild c, LocationParent p) =>
+coerceChildTyped :: (LocationChild c) =>
                      Type c -> Location m x p -> Maybe (Location m c p)
-coerceEntityTyped = const coerceEntity
+coerceChildTyped = const coerceChild
 
-isEntityTyped :: (LocationChild c, LocationParent p) => Type c -> Location m x p -> Bool
-isEntityTyped t  = isJust . coerceEntityTyped t
+isChildTyped :: (LocationChild c) => Type c -> Location m x p -> Bool
+isChildTyped t  = isJust . coerceChildTyped t
 
-coerceLocation :: (LocationChild e,LocationParent t) => Location m e x -> Maybe (Location m e t)
-coerceLocation = coerceLocationRecord
+coerceParent :: forall m c x p. (LocationParent p) =>
+                Location m c x -> Maybe (Location m c p)
+coerceParent l =
+    do (_ :: p) <- extractParent l
+       return $ unsafeLocation l
 
-coerceEntity :: (LocationChild e,LocationParent t) => Location m x t -> Maybe (Location m e t)
-coerceEntity = coerceLocationRecord
+coerceChild :: forall m x p c. (LocationChild c) =>
+                Location m x p -> Maybe (Location m c p)
+coerceChild l =
+    do (_ :: c) <- extractChild l
+       return $ unsafeLocation l
 
-coerceLocationRecord :: (LocationChild e,LocationParent t) => Location m x y -> Maybe (Location m e t)
-coerceLocationRecord = fmap fst . coerceUnify
-    where coerceUnify :: (LocationChild e,LocationParent t) =>
-                             Location m x y -> Maybe (Location m e t,(e,t))
-          coerceUnify l = do t <- extractParent l
-                             e <- extractChild l
-                             return (unsafeLocation l,(e,t))
+coerceLocationRecord :: forall m x y c p. (LocationChild c,LocationParent p) =>
+                        Location m x y -> Maybe (Location m c p)
+coerceLocationRecord l =
+    do (_ :: p) <- extractParent l
+       (_ :: c) <- extractChild l
+       return $ unsafeLocation l
 
 parent :: (LocationParent p) => Location m c p -> p
 parent l = fromMaybe (error "location: type error") $ extractParent l
@@ -354,19 +363,19 @@ toStanding :: (LocationParent t) =>
               Standing ->
               Location m CreatureRef t ->
               Location m CreatureRef Standing
-toStanding s l | isEntityTyped _creature l = IsStanding (child l) s
+toStanding s l | isChildTyped _creature l = IsStanding (child l) s
 toStanding _ _ = error "toStanding: type error"
 
 toDropped :: (LocationParent t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
-toDropped d l | isEntityTyped _tool l = IsDropped (child l) d
+toDropped d l | isChildTyped _tool l = IsDropped (child l) d
 toDropped _ _ = error "toDropped: type error"
 
 toInventory :: (LocationParent t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
-toInventory i l | isEntityTyped _tool l = InInventory (child l) i
+toInventory i l | isChildTyped _tool l = InInventory (child l) i
 toInventory _ _ = error "toInventory: type error"
 
 toWielded :: (LocationParent t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
-toWielded i l | isEntityTyped _tool l = IsWielded (child l) i
+toWielded i l | isChildTyped _tool l = IsWielded (child l) i
 toWielded _ _ = error "toWielded: type error"
 
 returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory

@@ -33,7 +33,7 @@ dbWieldTool :: (DBReadable db,LocationParent a) =>
                Location s ToolRef a -> db (Location s ToolRef Wielded)
 dbWieldTool l =
     case () of
-        () | Just l' <- coerceLocation l -> return l' -- if it coerces into our return type, then it's already wielded
+        () | Just l' <- coerceParent l -> return l' -- if it coerces into our return type, then it's already wielded
         () | Just (Dropped plane_ref position) <- extractParent l ->
             do pickupers <- liftM (map child . filter ((== position) . parent)) $ dbGetContents plane_ref
                case pickupers of -- the creature that is standing over the tool -- there can be only one

@@ -444,8 +444,8 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 --
 dbSetLocation :: (LocationChild c,LocationParent p) => Location S c p -> DB ()
 dbSetLocation loc =
-    do case (fmap parent $ coerceLocationTyped _wielded loc,
-             fmap parent $ coerceLocationTyped _subsequent loc) of
+    do case (fmap parent $ coerceParentTyped _wielded loc,
+             fmap parent $ coerceParentTyped _subsequent loc) of
            (Just (Wielded c),_) -> dbUnwieldCreature c
            (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
 	   (_,_) -> return ()
