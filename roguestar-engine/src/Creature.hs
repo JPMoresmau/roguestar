@@ -131,8 +131,8 @@ deleteCreature :: CreatureRef -> DB ()
 deleteCreature = dbUnsafeDeleteObject $ \l ->
     do m_dropped_loc <- maybe (return Nothing) (liftM Just . dbDropTool) $ coerceChildTyped _tool l
        return $ case m_dropped_loc of
-           Just dropped_loc -> generalizeLocationRecord dropped_loc
-	   Nothing -> error "dbDeleteCreature: no case for this type of entity"
+           Just dropped_loc -> generalizeLocation dropped_loc
+           Nothing -> error "dbDeleteCreature: no case for this type of entity"
 
 -- | Delete all dead creatures from the database.
 sweepDead :: Reference a -> DB ()

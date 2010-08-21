@@ -469,7 +469,7 @@ dbMove :: (ReferenceType e, LocationChild (Reference e),LocationParent b) =>
 dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
-       dbSetLocation $ generalizeLocationRecord $ unsafeLocation new
+       dbSetLocation (unsafeLocation new :: Location S (Reference ()) ())
        when (genericParent old =/= genericParent new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
            dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (genericParent new)
        return (unsafeLocation old, unsafeLocation new)

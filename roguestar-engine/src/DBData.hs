@@ -58,9 +58,9 @@ module DBData
      coerceChild,
      genericParent,
      genericChild,
+     generalizeParent,
+     generalizeChild,
      generalizeLocation,
-     generalizeEntity,
-     generalizeLocationRecord,
      toStanding,
      toDropped,
      toInventory,
@@ -204,14 +204,14 @@ instance ReferenceType TheUniverse where
 --
 -- Locations
 --
-generalizeLocationRecord :: Location m e t -> Location m (Reference ()) ()
-generalizeLocationRecord = unsafeLocation
-
-generalizeLocation :: Location m e t -> Location m e ()
+generalizeLocation :: Location m e t -> Location m (Reference ()) ()
 generalizeLocation = unsafeLocation
 
-generalizeEntity :: Location m e t -> Location m (Reference ()) t
-generalizeEntity = unsafeLocation
+generalizeParent :: Location m e t -> Location m e ()
+generalizeParent = unsafeLocation
+
+generalizeChild :: Location m e t -> Location m (Reference ()) t
+generalizeChild = unsafeLocation
 
 genericParent :: Location m e t -> Reference ()
 genericParent (IsStanding _ s) = unsafeReference $ standing_plane s
@@ -274,10 +274,10 @@ coerceLocationRecord l =
        return $ unsafeLocation l
 
 parent :: (LocationParent p) => Location m c p -> p
-parent l = fromMaybe (error "location: type error") $ extractParent l
+parent l = fromMaybe (error "parent: type error") $ extractParent l
 
 child :: (LocationChild c) => Location m c p -> c
-child l = fromMaybe (error "entity: type error") $ extractChild l
+child l = fromMaybe (error "child: type error") $ extractChild l
 
 class (Eq a,Ord a) => LocationParent a where
     extractParent :: Location m e t -> Maybe a
