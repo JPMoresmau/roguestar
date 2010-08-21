@@ -44,7 +44,6 @@ module DBData
      _the_universe,
      asLocationTyped,
      asType,
-     DBPrivate.S,
      parent,
      child,
      coerceReferenceTyped,
@@ -134,32 +133,32 @@ _the_universe = Type $ error "_the_universe: undefined"
 --
 -- Getting References generically.
 --
-class GenericReference a m | a -> m where
-    fromLocation :: (ReferenceType x) => Location m (Reference x) b -> Maybe a
+class GenericReference a where
+    fromLocation :: (ReferenceType x) => Location (Reference x) b -> Maybe a
     generalizeReference :: a -> Reference ()
 
-instance (GenericReference a m,GenericReference b m) => GenericReference (Either a b) m where
+instance (GenericReference a,GenericReference b) => GenericReference (Either a b) where
     fromLocation x = case (fromLocation x,fromLocation x) of
             (Just a,_) -> Just $ Left a
             (_,Just b) -> Just $ Right b
             _ | otherwise -> Nothing
     generalizeReference = either generalizeReference generalizeReference
 
-instance (ReferenceType a) => GenericReference (Reference a) m where
+instance (ReferenceType a) => GenericReference (Reference a) where
     fromLocation = coerceReference . genericChild
     generalizeReference = unsafeReference
 
-instance (LocationChild c,LocationParent p) => GenericReference (Location m c p) m where
+instance (LocationChild c,LocationParent p) => GenericReference (Location c p) where
     fromLocation = coerceLocationRecord
     generalizeReference = genericChild
 
 --
 -- Reference Equality
 --
-(=:=) :: (GenericReference a m,GenericReference b n) => a -> b -> Bool
+(=:=) :: (GenericReference a,GenericReference b) => a -> b -> Bool
 a =:= b = generalizeReference a == generalizeReference b
 
-(=/=) :: (GenericReference a m,GenericReference b n) => a -> b -> Bool
+(=/=) :: (GenericReference a,GenericReference b) => a -> b -> Bool
 a =/= b = not $ a =:= b
 
 --
@@ -204,16 +203,16 @@ instance ReferenceType TheUniverse where
 --
 -- Locations
 --
-generalizeLocation :: Location m e t -> Location m (Reference ()) ()
+generalizeLocation :: Location e t -> Location (Reference ()) ()
 generalizeLocation = unsafeLocation
 
-generalizeParent :: Location m e t -> Location m e ()
+generalizeParent :: Location e t -> Location e ()
 generalizeParent = unsafeLocation
 
-generalizeChild :: Location m e t -> Location m (Reference ()) t
+generalizeChild :: Location e t -> Location (Reference ()) t
 generalizeChild = unsafeLocation
 
-genericParent :: Location m e t -> Reference ()
+genericParent :: Location e t -> Reference ()
 genericParent (IsStanding _ s) = unsafeReference $ standing_plane s
 genericParent (IsDropped _ d) = unsafeReference $ dropped_plane d
 genericParent (InInventory _ c) = unsafeReference $ inventory_creature c
@@ -223,7 +222,7 @@ genericParent (InTheUniverse _) = unsafeReference UniverseRef
 genericParent (IsSubsequent _ b) = unsafeReference $ subsequent_to b
 genericParent (IsBeneath _ b) = unsafeReference $ beneath_of b
 
-genericChild :: Location m e t -> Reference ()
+genericChild :: Location e t -> Reference ()
 genericChild (IsStanding r _) = unsafeReference r
 genericChild (IsDropped r _) = unsafeReference r
 genericChild (InInventory r _) = unsafeReference r
@@ -234,56 +233,56 @@ genericChild (IsSubsequent r _) = unsafeReference r
 genericChild (IsBeneath r _) = unsafeReference r
 
 asLocationTyped :: (LocationChild e,LocationParent t) =>
-                   Type e -> Type t -> Location m e t -> Location m e t
+                   Type e -> Type t -> Location e t -> Location e t
 asLocationTyped _ _ = id
 
 asType :: Type e -> e -> e
 asType _ = id
 
 coerceParentTyped :: (LocationParent p) =>
-                       Type p -> Location m c x -> Maybe (Location m c p)
+                       Type p -> Location c x -> Maybe (Location c p)
 coerceParentTyped = const coerceParent
 
-isParentTyped :: (LocationParent p) => Type p -> Location m c x -> Bool
+isParentTyped :: (LocationParent p) => Type p -> Location c x -> Bool
 isParentTyped t = isJust . coerceParentTyped t
 
 coerceChildTyped :: (LocationChild c) =>
-                     Type c -> Location m x p -> Maybe (Location m c p)
+                     Type c -> Location x p -> Maybe (Location c p)
 coerceChildTyped = const coerceChild
 
-isChildTyped :: (LocationChild c) => Type c -> Location m x p -> Bool
+isChildTyped :: (LocationChild c) => Type c -> Location x p -> Bool
 isChildTyped t  = isJust . coerceChildTyped t
 
-coerceParent :: forall m c x p. (LocationParent p) =>
-                Location m c x -> Maybe (Location m c p)
+coerceParent :: forall c x p. (LocationParent p) =>
+                Location c x -> Maybe (Location c p)
 coerceParent l =
     do (_ :: p) <- extractParent l
        return $ unsafeLocation l
 
-coerceChild :: forall m x p c. (LocationChild c) =>
-                Location m x p -> Maybe (Location m c p)
+coerceChild :: forall x p c. (LocationChild c) =>
+                Location x p -> Maybe (Location c p)
 coerceChild l =
     do (_ :: c) <- extractChild l
        return $ unsafeLocation l
 
-coerceLocationRecord :: forall m x y c p. (LocationChild c,LocationParent p) =>
-                        Location m x y -> Maybe (Location m c p)
+coerceLocationRecord :: forall x y c p. (LocationChild c,LocationParent p) =>
+                        Location x y -> Maybe (Location c p)
 coerceLocationRecord l =
     do (_ :: p) <- extractParent l
        (_ :: c) <- extractChild l
        return $ unsafeLocation l
 
-parent :: (LocationParent p) => Location m c p -> p
+parent :: (LocationParent p) => Location c p -> p
 parent l = fromMaybe (error "parent: type error") $ extractParent l
 
-child :: (LocationChild c) => Location m c p -> c
+child :: (LocationChild c) => Location c p -> c
 child l = fromMaybe (error "child: type error") $ extractChild l
 
 class (Eq a,Ord a) => LocationParent a where
-    extractParent :: Location m e t -> Maybe a
+    extractParent :: Location e t -> Maybe a
 
 class (Eq a,Ord a) => LocationChild a where
-    extractChild :: Location m e t -> Maybe a
+    extractChild :: Location e t -> Maybe a
 
 instance LocationParent Standing where
     extractParent (IsStanding _ s) = Just s
@@ -361,24 +360,24 @@ instance (LocationChild a,LocationChild b) => LocationChild (a,b) where
 --
 toStanding :: (LocationParent t) =>
               Standing ->
-              Location m CreatureRef t ->
-              Location m CreatureRef Standing
+              Location CreatureRef t ->
+              Location CreatureRef Standing
 toStanding s l | isChildTyped _creature l = IsStanding (child l) s
 toStanding _ _ = error "toStanding: type error"
 
-toDropped :: (LocationParent t) => Dropped -> Location m ToolRef t -> Location m ToolRef Dropped
+toDropped :: (LocationParent t) => Dropped -> Location ToolRef t -> Location ToolRef Dropped
 toDropped d l | isChildTyped _tool l = IsDropped (child l) d
 toDropped _ _ = error "toDropped: type error"
 
-toInventory :: (LocationParent t) => Inventory -> Location m ToolRef t -> Location m ToolRef Inventory
+toInventory :: (LocationParent t) => Inventory -> Location ToolRef t -> Location ToolRef Inventory
 toInventory i l | isChildTyped _tool l = InInventory (child l) i
 toInventory _ _ = error "toInventory: type error"
 
-toWielded :: (LocationParent t) => Wielded -> Location m ToolRef t -> Location m ToolRef Wielded
+toWielded :: (LocationParent t) => Wielded -> Location ToolRef t -> Location ToolRef Wielded
 toWielded i l | isChildTyped _tool l = IsWielded (child l) i
 toWielded _ _ = error "toWielded: type error"
 
-returnToInventory :: Location m ToolRef Wielded -> Location m ToolRef Inventory
+returnToInventory :: Location ToolRef Wielded -> Location ToolRef Inventory
 returnToInventory l = InInventory (child l) (Inventory c)
     where Wielded c = parent l
 

@@ -49,7 +49,7 @@ randomPlanetName faction =
 -- returns the position of this object on that plane.
 --
 getPlanarPosition :: (DBReadable db,ReferenceType a,LocationParent p) =>
-                     Reference a -> db (Maybe (Location S (Reference ()) p))
+                     Reference a -> db (Maybe (Location (Reference ()) p))
 getPlanarPosition ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
 
@@ -138,7 +138,7 @@ setTerrainAt plane_ref (Position pos) patch = dbModPlane (\p -> p { plane_terrai
 
 -- | Lists all of the entities that are on a specific spot, not including nested entities.
 -- Typically this is zero or one creatures, and zero or more tools.
-whatIsOccupying :: (DBReadable db,GenericReference a S) => PlaneRef -> Position -> db [a]
+whatIsOccupying :: (DBReadable db,GenericReference a) => PlaneRef -> Position -> db [a]
 whatIsOccupying plane_ref position =
     liftM (mapMaybe fromLocation . filter ((== 0) .
                   (distanceBetweenChessboard position) . parent) .

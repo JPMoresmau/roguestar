@@ -52,7 +52,7 @@ dbGetVisibleTerrainForCreature creature_ref =
 -- to the specified faction on the specified plane.  Accepts a filter to
 -- determine what kinds of objects will be tested..
 --
-dbGetVisibleObjectsForFaction :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> m Bool) -> Faction -> PlaneRef -> db [a]
+dbGetVisibleObjectsForFaction :: (DBReadable db,GenericReference a) => (forall m. DBReadable m => a -> m Bool) -> Faction -> PlaneRef -> db [a]
 dbGetVisibleObjectsForFaction filterF faction plane_ref =
     do critters <- dbGetSeersForFaction faction plane_ref
        liftM (nubBy (=:=) . concat) $ mapRO (dbGetVisibleObjectsForCreature filterF) critters
@@ -61,7 +61,7 @@ dbGetVisibleObjectsForFaction filterF faction plane_ref =
 -- Returns a list of all objects that are visible to the specified creature.
 -- Accepts a filter to determine what kinds of objects will be tested.
 --
-dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> m Bool) -> CreatureRef -> db [a]
+dbGetVisibleObjectsForCreature :: (DBReadable db,GenericReference a) => (forall m. DBReadable m => a -> m Bool) -> CreatureRef -> db [a]
 dbGetVisibleObjectsForCreature filterF creature_ref =
     do (loc :: Maybe PlaneRef) <- liftM (fmap parent) $ getPlanarPosition creature_ref
        case loc of

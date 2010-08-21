@@ -67,7 +67,7 @@ whoAmI = DBPerception $ ask
 runPerception :: (DBReadable db) => CreatureRef -> (forall m. DBReadable m => DBPerception m a) -> db a
 runPerception creature_ref perception = dbSimulate $ runReaderT (fromPerception perception) creature_ref
 
-visibleObjects :: (DBReadable db,GenericReference a S) => (forall m. DBReadable m => a -> DBPerception m Bool) -> DBPerception db [a]
+visibleObjects :: (DBReadable db,GenericReference a) => (forall m. DBReadable m => a -> DBPerception m Bool) -> DBPerception db [a]
 visibleObjects filterF =
     do me <- whoAmI
        faction <- myFaction
@@ -85,7 +85,7 @@ whereAmI = liftM (fromMaybe (error "whereAmI: I'm not on a plane") . extractPare
 whatPlaneAmIOn :: (DBReadable db) => DBPerception db PlaneRef
 whatPlaneAmIOn = liftM (fromMaybe (error "whatPlaneAmIOn: I'm not on a plane") . extractParent) $ whereIs =<< whoAmI
 
-whereIs :: (DBReadable db) => Reference a -> DBPerception db (Location S (Reference a) ())
+whereIs :: (DBReadable db) => Reference a -> DBPerception db (Location (Reference a) ())
 whereIs ref = liftDB $ dbWhere ref
 
 localBiome :: (DBReadable db) => DBPerception db Biome

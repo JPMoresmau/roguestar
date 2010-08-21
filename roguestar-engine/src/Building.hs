@@ -47,7 +47,7 @@ activateBuilding Portal creature_ref building_ref =
            (Just (plane_ref,Position (_,cy)),Just (_,Position (_,py))) ->
                case () of
                    () | cy < py ->
-                       do m_subsequent_loc :: Maybe (Location S PlaneRef Subsequent) <- liftM listToMaybe $ dbGetContents plane_ref
+                       do m_subsequent_loc :: Maybe (Location PlaneRef Subsequent) <- liftM listToMaybe $ dbGetContents plane_ref
                           case m_subsequent_loc of
                               Just loc -> (portalCreatureTo 1 creature_ref $ child loc) >> return True
                               _ -> throwError $ DBErrorFlag NoStargateAddress
@@ -62,7 +62,7 @@ activateBuilding Portal creature_ref building_ref =
 
 -- | Deposit a creature in front of (-1) or behind (+1) a random portal on the specified plane.  Returns
 -- the dbMove result from the action.
-portalCreatureTo :: Integer -> CreatureRef -> PlaneRef -> DB (Location S CreatureRef (),Location S CreatureRef Standing)
+portalCreatureTo :: Integer -> CreatureRef -> PlaneRef -> DB (Location CreatureRef (),Location CreatureRef Standing)
 portalCreatureTo offset creature_ref plane_ref =
     do portals <- filterM (liftM (== Portal) . buildingType) =<< dbGetContents plane_ref
        ideal_position <- if null portals

@@ -82,16 +82,16 @@ data DB_History = DB_History {
     db_random :: RNG }
 
 data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
-				 db_next_object_ref :: Integer,
-				 db_starting_race :: Maybe Species,
-			         db_creatures :: Map CreatureRef Creature,
-				 db_planes :: Map PlaneRef Plane,
-				 db_tools :: Map ToolRef Tool,
-				 db_buildings :: Map BuildingRef Building,
-				 db_hierarchy :: HD.HierarchicalDatabase (Location S (Reference ()) ()),
-				 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
-				 db_error_flag :: String,
-				 db_prior_snapshot :: Maybe DB_BaseType,
+                                 db_next_object_ref :: Integer,
+                                 db_starting_race :: Maybe Species,
+                                 db_creatures :: Map CreatureRef Creature,
+                                 db_planes :: Map PlaneRef Plane,
+                                 db_tools :: Map ToolRef Tool,
+                                 db_buildings :: Map BuildingRef Building,
+                                 db_hierarchy :: HD.HierarchicalDatabase (Location (Reference ()) ()),
+                                 db_time_coordinates :: Map (Reference ()) TimeCoordinate,
+                                 db_error_flag :: String,
+                                 db_prior_snapshot :: Maybe DB_BaseType,
                                  db_action_count :: Integer }
     deriving (Read,Show)
 
@@ -246,16 +246,16 @@ dbNextObjectRef = do modify $ \db -> db { db_next_object_ref = succ $ db_next_ob
                      gets db_next_object_ref
 
 class (LocationParent l) => CreatureLocation l where
-    creatureLocation :: CreatureRef -> l -> Location m CreatureRef l
+    creatureLocation :: CreatureRef -> l -> Location CreatureRef l
 
 class (LocationParent l) => ToolLocation l where
-    toolLocation :: ToolRef -> l -> Location m ToolRef l
+    toolLocation :: ToolRef -> l -> Location ToolRef l
 
 class (LocationParent l) => BuildingLocation l where
-    buildingLocation :: BuildingRef -> l -> Location m BuildingRef l
+    buildingLocation :: BuildingRef -> l -> Location BuildingRef l
 
 class (LocationParent l) => PlaneLocation l where
-    planeLocation :: PlaneRef -> l -> Location m PlaneRef l
+    planeLocation :: PlaneRef -> l -> Location PlaneRef l
 
 instance CreatureLocation Standing where
     creatureLocation a l = IsStanding (unsafeReference a) l
@@ -289,7 +289,7 @@ dbAddObjectComposable :: (ReferenceType a,
                           LocationParent l) =>
                          (Integer -> (Reference a)) ->
                          (Reference a -> a -> DB ()) ->
-                         (Reference a -> l -> Location S (Reference a) l) ->
+                         (Reference a -> l -> Location (Reference a) l) ->
                          a -> l -> DB (Reference a)
 dbAddObjectComposable constructReference updateObject constructLocation thing loc = 
     do ref <- liftM constructReference $ dbNextObjectRef
@@ -328,8 +328,8 @@ dbAddBuilding = dbAddObjectComposable BuildingRef dbPutBuilding buildingLocation
 --
 dbUnsafeDeleteObject :: (ReferenceType e) =>
         (forall m. DBReadable m => 
-         Location M (Reference ()) (Reference e) -> 
-	 m (Location M (Reference ()) ())) ->
+         Location (Reference ()) (Reference e) -> 
+	 m (Location (Reference ()) ())) ->
     Reference e -> 
     DB ()
 dbUnsafeDeleteObject f ref =
@@ -378,7 +378,7 @@ dbPutBuilding = dbPutObjectComposable db_buildings (\x db_base_type -> db_base_t
 -- |
 -- Gets an object from the database using getter functions.
 --
-dbGetObjectComposable :: (DBReadable db,Ord a,GenericReference a x) => String -> (DB_BaseType -> Map a b) -> a -> db b
+dbGetObjectComposable :: (DBReadable db,Ord a,GenericReference a) => String -> (DB_BaseType -> Map a b) -> a -> db b
 dbGetObjectComposable type_info get_fn ref = 
     asks (fromMaybe (error $ "dbGetObjectComposable: Nothing.  UID was " ++ show (toUID $ generalizeReference ref) ++ ", type info was " ++ type_info) . Map.lookup ref . get_fn)
 
@@ -442,12 +442,12 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 -- This is where we handle making sure that a creature can only wield one tool, and
 -- a Plane can point to only one subsequent Plane.
 --
-dbSetLocation :: (LocationChild c,LocationParent p) => Location S c p -> DB ()
+dbSetLocation :: (LocationChild c,LocationParent p) => Location c p -> DB ()
 dbSetLocation loc =
     do case (fmap parent $ coerceParentTyped _wielded loc,
              fmap parent $ coerceParentTyped _subsequent loc) of
            (Just (Wielded c),_) -> dbUnwieldCreature c
-           (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location S PlaneRef TheUniverse)) =<< dbGetContents b
+           (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location PlaneRef TheUniverse)) =<< dbGetContents b
 	   (_,_) -> return ()
        modify (\db -> db { db_hierarchy = HD.insert (unsafeLocation loc) $ db_hierarchy db })
 
@@ -462,23 +462,23 @@ dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<< dbGetContent
 -- the move.
 --
 dbMove :: (ReferenceType e, LocationChild (Reference e),LocationParent b) =>
-          (forall m. DBReadable m => Location M (Reference e) () ->
-                                     m (Location M (Reference e) b)) ->
+          (forall m. DBReadable m => Location (Reference e) () ->
+                                     m (Location (Reference e) b)) ->
           (Reference e) ->
-          DB (Location S (Reference e) (),Location S (Reference e) b)
+          DB (Location (Reference e) (),Location (Reference e) b)
 dbMove moveF ref =
     do old <- dbWhere ref
        new <- ro $ moveF (unsafeLocation old)
-       dbSetLocation (unsafeLocation new :: Location S (Reference ()) ())
+       dbSetLocation (unsafeLocation new :: Location (Reference ()) ())
        when (genericParent old =/= genericParent new) $  -- an entity arriving in a new container shouldn't act before, nor be suspended beyond, the next action of the container
            dbSetTimeCoordinate ref =<< dbGetTimeCoordinate (genericParent new)
        return (unsafeLocation old, unsafeLocation new)
 
 dbMoveAllWithin :: (forall m. DBReadable m => 
-                       Location M (Reference ()) (Reference e) ->
-		       m (Location M (Reference ()) ())) ->
+                       Location (Reference ()) (Reference e) ->
+		       m (Location (Reference ()) ())) ->
                    Reference e ->
-		   DB [(Location S (Reference ()) (Reference e),Location S (Reference ()) ())]
+		   DB [(Location (Reference ()) (Reference e),Location (Reference ()) ())]
 dbMoveAllWithin f ref = mapM (liftM (first unsafeLocation) . dbMove (f . unsafeLocation)) =<< dbGetContents ref
 
 -- |
@@ -490,7 +490,7 @@ dbVerify ref = asks (isJust . HD.parentOf (toUID ref) . db_hierarchy)
 -- |
 -- Returns the location of this object.
 --
-dbWhere :: (DBReadable db) => Reference e -> db (Location S (Reference e) ())
+dbWhere :: (DBReadable db) => Reference e -> db (Location (Reference e) ())
 dbWhere item = asks (unsafeLocation . fromMaybe (error "dbWhere: has no location") .
                        HD.lookupParent (toUID item) . db_hierarchy)
 
@@ -498,7 +498,7 @@ dbWhere item = asks (unsafeLocation . fromMaybe (error "dbWhere: has no location
 -- Returns all ancestor Locations of this element starting with the location
 -- of the element and ending with theUniverse.
 --
-dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location S (Reference ()) ()]
+dbGetAncestors :: (DBReadable db,ReferenceType e) => Reference e -> db [Location (Reference ()) ()]
 dbGetAncestors ref | isReferenceTyped _the_universe ref = return []
 dbGetAncestors ref =
     do this <- dbWhere $ generalizeReference ref
@@ -508,7 +508,7 @@ dbGetAncestors ref =
 -- |
 -- Returns the location records of this object.
 --
-dbGetContents :: (DBReadable db,GenericReference a S) => Reference t -> db [a]
+dbGetContents :: (DBReadable db,GenericReference a) => Reference t -> db [a]
 dbGetContents item = asks (Data.Maybe.mapMaybe fromLocation . HD.lookupChildren 
                                (toUID item) . db_hierarchy)
 

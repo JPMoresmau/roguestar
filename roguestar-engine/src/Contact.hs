@@ -38,7 +38,7 @@ instance ContactModeType CreatureInteractionMode where
 -- farthest from the subject, except in the case of area contacts, which are
 -- sorted from the center of the area.  The subject is never a contact of
 -- itself.
-findContacts :: (DBReadable db,ReferenceType x,GenericReference a S,ContactModeType c) =>
+findContacts :: (DBReadable db,ReferenceType x,GenericReference a,ContactModeType c) =>
                 c -> Reference x -> Facing -> db [a]
 findContacts contact_mode attacker_ref face =
     do (m_l :: Maybe (PlaneRef,MultiPosition)) <- liftM (fmap parent) $ getPlanarPosition attacker_ref

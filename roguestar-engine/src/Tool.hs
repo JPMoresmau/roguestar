@@ -20,8 +20,8 @@ import Substances
 
 dbPickupTool :: (DBReadable db,LocationParent a) =>
                 CreatureRef ->
-                Location s ToolRef a ->
-                db (Location s ToolRef Inventory)
+                Location ToolRef a ->
+                db (Location ToolRef Inventory)
 dbPickupTool c l =
     do (c_where :: Maybe (Position,PlaneRef)) <- liftM extractParent $ dbWhere c
        when ((c_where /= extractParent l && Just c /= extractParent l) || isNothing c_where) $ 
@@ -30,7 +30,7 @@ dbPickupTool c l =
 
 -- | Move a tool into wielded position for whatever creature is carrying it.
 dbWieldTool :: (DBReadable db,LocationParent a) =>
-               Location s ToolRef a -> db (Location s ToolRef Wielded)
+               Location ToolRef a -> db (Location ToolRef Wielded)
 dbWieldTool l =
     case () of
         () | Just l' <- coerceParent l -> return l' -- if it coerces into our return type, then it's already wielded
@@ -43,7 +43,7 @@ dbWieldTool l =
         () | otherwise -> throwError $ DBErrorFlag ToolIs_NotWieldable
 
 dbDropTool :: (DBReadable db,LocationParent a) =>
-              Location s ToolRef a -> db (Location s ToolRef Dropped)
+              Location ToolRef a -> db (Location ToolRef Dropped)
 dbDropTool l =
     do lp <- liftM extractParent $ dbWhere (genericParent l)
        flip (maybe (throwError $ DBErrorFlag NotStanding)) lp $ \(creature_position,plane_ref) ->

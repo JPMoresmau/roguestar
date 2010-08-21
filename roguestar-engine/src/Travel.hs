@@ -21,7 +21,7 @@ import Creature
 import CreatureData
 
 walkCreature :: (DBReadable db) => Facing -> (Integer,Integer) -> 
-                                     Location m CreatureRef () -> db (Location m CreatureRef ())
+                                     Location CreatureRef () -> db (Location CreatureRef ())
 walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
     do (plane_ref,Position (x,y)) <- MaybeT $ return $ extractParent l
        let standing = Standing { standing_plane = plane_ref,
@@ -30,10 +30,10 @@ walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
        flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (child l) $ standing_position standing)
        return $ generalizeParent $ toStanding standing l
 
-stepCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
+stepCreature :: (DBReadable db) => Facing -> Location CreatureRef () -> db (Location CreatureRef ())
 stepCreature face = walkCreature face (facingToRelative face)
 
-turnCreature :: (DBReadable db) => Facing -> Location m CreatureRef () -> db (Location m CreatureRef ())
+turnCreature :: (DBReadable db) => Facing -> Location CreatureRef () -> db (Location CreatureRef ())
 turnCreature face = walkCreature face (0,0)
 
 -------------------------------------------------------------------------------------------------------------

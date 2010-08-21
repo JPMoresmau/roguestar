@@ -5,8 +5,6 @@ module DBPrivate
      unsafeReference,
      toUID,
      Location(..),
-     M,
-     S,
      unsafeLocation,
      Position(..),
      Standing(..),
@@ -36,9 +34,8 @@ import Position
 -- to guarantee that such data structures are always consistent with the game logic,
 -- e.g. a planet can not be wielded as a weapon.
 --
--- DB and DBData import and re-export most of DBPrivate.  Other code should not
--- import DBPrivate since it could break the restrictions otherwise placed on
--- the type system.
+-- DB and DBData import and re-export most of DBPrivate.  Other modules should not
+-- import DBPrivate.
 --
 
 -- |
@@ -75,7 +72,7 @@ toUID a = uid a
 -- |
 -- The location of a Creature standing on a Plane.
 --
-data Standing = 
+data Standing =
     Standing { standing_plane :: PlaneRef,
                standing_position :: Position,
                standing_facing :: Facing }
@@ -84,7 +81,7 @@ data Standing =
 -- |
 -- The location of a Tool dropped on a Plane.
 --
-data Dropped = 
+data Dropped =
     Dropped { dropped_plane :: PlaneRef,
               dropped_position :: Position }
     deriving (Read,Show,Eq,Ord)
@@ -128,31 +125,12 @@ data Beneath =
 
 -- |
 -- A relational data structure defining the location of any entity.
--- All of the type variables of Location are phantom types.
 --
--- m represents the modification domain of the Location.  Location M is
--- a location of an moving entity, while Location S is the location of
--- a static entity.
+-- c represents the type of the child entity, such as a Creature or Tool.
 --
--- The M parameter ensures that the entity's identity can not be changed 
--- when moving an entity, e.g. Robert can not turn into Susan by walking across the street.
--- No function Location M e t -> Location M e t can be written that
--- changes the what entity the location references.
+-- p represents the type of the parent location, such as Standing or Dropped.
 --
--- Thus, we accept functions of the type 
--- (Location M e a -> Location M e b) -> DB (),
--- to move an object, a functions of the type
--- DB (Location S () ()) to get the location of an object.
---
--- e represents the type of entity, such as a Creature or Tool.
---
--- t represents the type of location, such as Standing or Dropped.
---
-data M
-
-data S
-
-data Location m e t =
+data Location e t =
      IsStanding CreatureRef Standing
    | IsDropped ToolRef Dropped
    | InInventory ToolRef Inventory
@@ -163,7 +141,7 @@ data Location m e t =
    | IsBeneath PlaneRef Beneath
     deriving (Read,Show,Eq,Ord)
 
-unsafeLocation :: Location a b c -> Location d e f
+unsafeLocation :: Location a b -> Location c d
 unsafeLocation (IsStanding a b) = IsStanding a b
 unsafeLocation (IsDropped a b) = IsDropped a b
 unsafeLocation (InInventory a b) = InInventory a b
@@ -173,7 +151,7 @@ unsafeLocation (InTheUniverse a) = InTheUniverse a
 unsafeLocation (IsSubsequent a b) = IsSubsequent a b
 unsafeLocation (IsBeneath a b) = IsBeneath a b
 
-instance HierarchicalRelation (Location m e t) where
+instance HierarchicalRelation (Location e t) where
     parent (IsStanding _ t) = toUID $ standing_plane t
     parent (IsDropped _ t) = toUID $ dropped_plane t
     parent (InInventory _ t) = toUID $ inventory_creature t
