@@ -16,6 +16,7 @@ install-deps:
 	cabal install statistics ${OPTS}
 	cabal install priority-sync ${OPTS}
 	cabal install Vec-OpenGLRaw ${OPTS}
+	cabal install hslogger ${OPTS}
 
 clean:
 	-rm -rf ./roguestar-local

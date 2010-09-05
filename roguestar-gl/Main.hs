@@ -38,7 +38,11 @@ roguestar_options =
             "Print this help message.",
      Option "v" ["verbose"]
             (NoArg $ \a -> a { arg_verbose = True })
-            "Print debugging information.",
+            "Print extra information.",
+     Option "" ["debug-engine"]
+            (NoArg $ \a -> a { arg_verbose = True,
+                               arg_engine = "debug" : arg_engine a })
+            "Spew debugging information from the engine. (implies --verbose).",
      Option "p" ["prefix","path"]
             (ReqArg (\s a -> a { arg_prefix = s }) "PREFIX")
             ("Path to the directory where the roguestar-engine and " ++

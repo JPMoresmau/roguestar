@@ -37,6 +37,7 @@ module DB
      dbSetStartingRace,
      dbGetStartingRace,
      ro, atomic,
+     logDB,
      mapRO, filterRO, sortByRO,
      dbGetTimeCoordinate,
      dbAdvanceTime,
@@ -76,6 +77,9 @@ import Debug.Trace
 import PlayerState
 import DBErrorFlag
 import Control.Parallel.Strategies
+import System.Log.Logger
+import System.IO.Unsafe
+import Logging
 
 data DB_History = DB_History {
     db_here :: DB_BaseType,
@@ -107,7 +111,7 @@ type DBResult r = Either DBError (r,DB_History)
 data DB a = DB { cycleDB :: forall r. DB_History -> (a -> DB_History -> DBResult r) -> DBResult r }
 
 runDB :: DB a -> DB_BaseType -> IO (Either DBError (a,DB_BaseType))
-runDB dbAction database = 
+runDB dbAction database =
     do hist <- setupDBHistory database
        return $ (either Left (Right . second db_here)) $ cycleDB dbAction hist $ \a h -> Right (a,h)
 
@@ -130,12 +134,12 @@ instance MonadState DB_BaseType DB where
 
 instance MonadReader DB_BaseType DB where
     ask = get
-    local modification actionM = 
+    local modification actionM =
         do split_rng <- dbRandomSplit
            s <- get
-	   modify modification
+           modify modification
            a <- catchError (liftM Right actionM) (return . Left)
-	   DB $ \h f -> f () $ h { db_here = s, db_random = split_rng }
+           DB $ \h f -> f () $ h { db_here = s, db_random = split_rng }
            either throwError return a
 
 instance MonadError DBError DB where
@@ -162,16 +166,18 @@ instance DBReadable DB where
     dbSimulate = local id
     dbPeepSnapshot actionM =
         do s <- DB $ \h f -> f (db_here h) h
-	   m_snapshot <- gets db_prior_snapshot
-	   case m_snapshot of
-	       Just snapshot ->
-	           do split_rng <- dbRandomSplit
+           m_snapshot <- gets db_prior_snapshot
+           case m_snapshot of
+               Just snapshot ->
+                   do split_rng <- dbRandomSplit
                       DB $ \h f -> f () $ h { db_here = snapshot }
-	              a <- dbSimulate actionM
+                      a <- dbSimulate actionM
                       DB $ \h f -> f () $ h { db_here = s, db_random = split_rng }
-	              return $ Just a
+                      return $ Just a
                Nothing ->  return Nothing
-	   
+
+logDB :: (DBReadable db) => String -> Priority -> String -> db ()
+logDB l p s = return $! unsafePerformIO $ logM l p s
 
 ro :: (DBReadable db) => (forall m. DBReadable m => m a) -> db a
 ro db = dbSimulate db
@@ -184,16 +190,16 @@ mapRO f xs = liftM (`using` parList rwhnf) $ mapM (dbSimulate . f) xs
 
 sortByRO :: (DBReadable db,Ord b) => (forall m. DBReadable m => a -> m b) -> [a] -> db [a]
 sortByRO f xs =
-    liftM (List.map fst . sortBy (comparing snd)) $ flip mapRO xs $ \x -> 
+    liftM (List.map fst . sortBy (comparing snd)) $ flip mapRO xs $ \x ->
          do y <- f x
-	    return (x,y)
+            return (x,y)
 
 atomic :: (forall m. DBReadable m => m (DB a)) -> DB a
-atomic transaction = 
+atomic transaction =
     do db_a <- ro transaction
        (a,s) <- dbSimulate $
            do a <- db_a
-	      s <- get
+              s <- get
               return (a,s)
        put s
        return a
@@ -202,7 +208,7 @@ atomic transaction =
 -- Generates an initial DB state.
 --
 initial_db :: DB_BaseType
-initial_db = DB_BaseType { 
+initial_db = DB_BaseType {
     db_player_state = RaceSelectionState,
     db_next_object_ref = 0,
     db_starting_race = Nothing,
@@ -444,7 +450,8 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 --
 dbSetLocation :: (LocationChild c,LocationParent p) => Location c p -> DB ()
 dbSetLocation loc =
-    do case (fmap parent $ coerceParentTyped _wielded loc,
+    do logDB log_database DEBUG $ "setting location: " ++ show loc
+       case (fmap parent $ coerceParentTyped _wielded loc,
              fmap parent $ coerceParentTyped _subsequent loc) of
            (Just (Wielded c),_) -> dbUnwieldCreature c
            (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location PlaneRef TheUniverse)) =<< dbGetContents b
