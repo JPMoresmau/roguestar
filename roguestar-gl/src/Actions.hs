@@ -188,6 +188,9 @@ normal_action = ("normal",
 move_action :: (B.ByteString,Action)
 move_action = stateLinkedAction player_turn_states "move"
 
+down_action :: (B.ByteString,Action)
+down_action = stateLinkedAction player_turn_states "down"
+
 jump_action :: (B.ByteString,Action)
 jump_action = stateLinkedAction player_turn_states "jump"
 
@@ -239,11 +242,11 @@ make_end_action :: (B.ByteString,Action)
 make_end_action = stateLinkedAction ["make-finished"] "make-end"
 
 selectRaceAction :: B.ByteString -> (B.ByteString,Action)
-selectRaceAction s = 
+selectRaceAction s =
     (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
 
 selectBaseClassAction :: B.ByteString -> (B.ByteString,Action)
-selectBaseClassAction s = 
+selectBaseClassAction s =
     (s,selectTableAction ("base-classes","0","class") "class-selection" "select-class" s)
 
 zoomSize :: RSdouble -> RSdouble
@@ -337,18 +340,19 @@ select_base_class_action_names = ["barbarian",
 select_base_class_actions :: [(B.ByteString,Action)]
 select_base_class_actions = map selectBaseClassAction select_base_class_action_names
 
--- | List of every convievable action.
+-- | List of every action in the game.
 all_actions :: [(B.ByteString,Action)]
 all_actions = [continue_action,quit_action,reroll_action,
                pickup_action,drop_action,wield_action,unwield_action,
                next_action,prev_action,normal_action,select_menu_action,
                zoom_in_action,zoom_out_action,sky_on_action,sky_off_action,
                quality_bad,quality_poor,quality_good,quality_super] ++
-              select_race_actions ++ 
+              select_race_actions ++
 	      select_base_class_actions ++
               direction_actions ++
               make_what_actions ++
-	      [move_action,turn_action,fire_action,jump_action,attack_action,clear_terrain_action,activate_action,
+	      [move_action,down_action,turn_action,fire_action,jump_action,
+               attack_action,clear_terrain_action,activate_action,
                make_begin_action,make_end_action]
 
 -- | Find an action with the given name.

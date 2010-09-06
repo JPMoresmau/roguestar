@@ -20,10 +20,13 @@ import Behavior
 import qualified Perception as P
 import Position
 import PlayerState
+import Logging
 
 dbPerformPlayerTurn :: Behavior -> CreatureRef -> DB ()
 dbPerformPlayerTurn beh creature_ref =
-    do dbBehave beh creature_ref
+    do logDB log_turns INFO $ "Beginning player action: " ++ show beh
+       dbBehave beh creature_ref
+       logDB log_turns INFO $ "Finishing AI turns."
        dbFinishPendingAITurns
 
 dbFinishPendingAITurns :: DB ()
@@ -31,7 +34,7 @@ dbFinishPendingAITurns =
     do m_current_plane <- dbGetCurrentPlane
        case m_current_plane of
            Just p -> dbFinishPlanarAITurns p
-	   Nothing -> return ()
+           Nothing -> return ()
 
 dbFinishPlanarAITurns :: PlaneRef -> DB ()
 dbFinishPlanarAITurns plane_ref =
@@ -41,19 +44,19 @@ dbFinishPlanarAITurns plane_ref =
        next_turn <- dbNextTurn $ map generalizeReference all_creatures_on_plane ++ [generalizeReference plane_ref]
        case next_turn of
            _ | not any_players_left ->
-	       do setPlayerState GameOver
-	          return ()
-	   ref | ref =:= plane_ref -> 
-	       do dbPerform1PlanarAITurn plane_ref
-	          dbFinishPlanarAITurns plane_ref
-	   ref | Just creature_ref <- coerceReferenceTyped _creature ref -> 
-	       do faction <- getCreatureFaction creature_ref
-	          if (faction /= Player)
-		      then do dbPerform1CreatureAITurn creature_ref
-		              dbFinishPlanarAITurns plane_ref
-		      else setPlayerState (PlayerCreatureTurn creature_ref NormalMode)
-		  return ()
-	   _ -> error "dbFinishPlanarAITurns: impossible case"
+               do setPlayerState GameOver
+                  return ()
+           ref | ref =:= plane_ref ->
+               do dbPerform1PlanarAITurn plane_ref
+                  dbFinishPlanarAITurns plane_ref
+           ref | Just creature_ref <- coerceReferenceTyped _creature ref ->
+               do faction <- getCreatureFaction creature_ref
+                  if (faction /= Player)
+                      then do dbPerform1CreatureAITurn creature_ref
+                              dbFinishPlanarAITurns plane_ref
+                      else setPlayerState (PlayerCreatureTurn creature_ref NormalMode)
+                  return ()
+           _ -> error "dbFinishPlanarAITurns: impossible case"
 
 planar_turn_frequency :: Integer
 planar_turn_frequency = 100

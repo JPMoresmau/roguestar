@@ -7,6 +7,8 @@ module Plane
      pickRandomClearSite_withTimeout,
      pickRandomClearSite,
      getPlanarPosition,
+     getBeneath,
+     getSubsequent,
      terrainAt,
      setTerrainAt,
      whatIsOccupying,
@@ -25,9 +27,10 @@ import Position
 import PlayerState
 import FactionData
 import qualified Data.ByteString.Char8 as B
+import Logging
 
 dbNewPlane :: (PlaneLocation l) => Maybe B.ByteString -> TerrainGenerationData -> l -> DB PlaneRef
-dbNewPlane name tg_data l = 
+dbNewPlane name tg_data l =
     do rns <- getRandoms
        random_id <- getRandomR (1,1000000)
        random_name <- randomPlanetName PanGalacticTreatyOrganization
@@ -40,7 +43,7 @@ planetName :: (DBReadable db) => PlaneRef -> db B.ByteString
 planetName = liftM plane_planet_name . dbGetPlane
 
 randomPlanetName :: (DBReadable db) => Faction -> db B.ByteString
-randomPlanetName faction = 
+randomPlanetName faction =
     do planet_number <- getRandomR (1000 :: Integer,9999)
        return $ factionPrefix faction `B.append` "-" `B.append` B.pack (show planet_number)
 
@@ -54,6 +57,22 @@ getPlanarPosition ref =
     liftM (listToMaybe . mapMaybe coerceLocationRecord) $ dbGetAncestors ref
 
 -- |
+-- Get the plane beneath this one, if it exists.
+--
+getBeneath :: (DBReadable db) => PlaneRef -> db (Maybe PlaneRef)
+getBeneath item =
+    do (plane_locs :: [Location PlaneRef Beneath]) <- dbGetContents item
+       return $ fmap child $ listToMaybe plane_locs
+
+-- |
+-- Get the plane subsequent to this one, if it exists.
+--
+getSubsequent :: (DBReadable db) => PlaneRef -> db (Maybe PlaneRef)
+getSubsequent item =
+    do (plane_locs :: [Location PlaneRef Subsequent]) <- dbGetContents item
+       return $ fmap child $ listToMaybe plane_locs
+
+-- |
 -- Distance between two entities.  If the entities are not on the same plane, or for some other reason it doesn't make
 -- sense to ask their distance, the Nothing.
 --
@@ -63,9 +82,9 @@ dbDistanceBetweenSquared a_ref b_ref =
        m_b <- liftM (fmap parent) $ getPlanarPosition b_ref
        return $
            do (p_a :: PlaneRef,a :: MultiPosition) <- m_a
-	      (p_b,b :: MultiPosition) <- m_b
-	      guard $ p_a == p_b
-	      return $ distanceBetweenSquared a b
+              (p_b,b :: MultiPosition) <- m_b
+              guard $ p_a == p_b
+              return $ distanceBetweenSquared a b
 
 -- |
 -- Gets the current plane of interest based on whose turn it is.
@@ -92,41 +111,56 @@ dbGetCurrentPlane = liftM (fmap parent) $ maybe (return Nothing) getPlanarPositi
 -- The timeout value should be a small integer greater or equal to one, since this function is exponential in the timeout value.
 --
 pickRandomClearSite :: (DBReadable db) =>
-    Integer -> Integer -> Integer -> 
-    Position -> (TerrainPatch -> Bool) -> PlaneRef -> 
+    Integer -> Integer -> Integer ->
+    Position -> (TerrainPatch -> Bool) -> PlaneRef ->
     db Position
-pickRandomClearSite search_radius object_clear terrain_clear p terrainPredicate plane_ref = liftM (fromMaybe $ error "pickRandomClearSite: impossible") $
-    pickRandomClearSite_withTimeout Nothing search_radius object_clear terrain_clear p terrainPredicate plane_ref
+pickRandomClearSite search_radius
+                    object_clear
+                    terrain_clear
+                    p
+                    terrainPredicate
+                    plane_ref =
+    liftM (fromMaybe $ error "pickRandomClearSite: impossible") $
+        pickRandomClearSite_withTimeout Nothing
+                                        search_radius
+                                        object_clear
+                                        terrain_clear
+                                        p
+                                        terrainPredicate
+                                        plane_ref
 
-pickRandomClearSite_withTimeout :: (DBReadable db) => 
-    Maybe Integer -> Integer -> Integer -> Integer -> 
-    Position -> (TerrainPatch -> Bool) -> PlaneRef -> 
+pickRandomClearSite_withTimeout :: (DBReadable db) =>
+    Maybe Integer -> Integer -> Integer -> Integer ->
+    Position -> (TerrainPatch -> Bool) -> PlaneRef ->
     db (Maybe Position)
 pickRandomClearSite_withTimeout (Just x) _ _ _ _ _ _ | x <= 0 = return Nothing
 pickRandomClearSite_withTimeout timeout search_radius object_clear terrain_clear (Position (start_x,start_y)) terrainPredicate plane_ref =
-    do xys <- liftM2 (\a b -> map Position $ zip a b)
+    do logDB log_plane DEBUG $ "Searching for clear site . . ."
+       xys <- liftM2 (\a b -> map Position $ zip a b)
            (mapM (\x -> liftM (+start_x) $ getRandomR (-x,x)) [1..search_radius])
            (mapM (\x -> liftM (+start_y) $ getRandomR (-x,x)) [1..search_radius])
        terrain <- liftM plane_terrain $ dbGetPlane plane_ref
        clutter_locations <- liftM (map (parent .
            asLocationTyped _nullary _multiposition)) $ dbGetContents plane_ref
-       let terrainIsClear (Position (x,y)) = 
+       let terrainIsClear (Position (x,y)) =
                all terrainPredicate $
-                   concat [[gridAt terrain (x',y') | 
+                   concat [[gridAt terrain (x',y') |
                             x' <- [x-terrain_clear..x+terrain_clear]] |
-			    y' <- [y-terrain_clear..y+terrain_clear]]
+                            y' <- [y-terrain_clear..y+terrain_clear]]
        let clutterIsClear here = not $ any (\p -> distanceBetweenChessboard here p <= object_clear) clutter_locations
        let m_result = find (\p -> terrainIsClear p && clutterIsClear p) xys
        case m_result of
-           Just result -> return $ Just result
+           Just result ->
+               do logDB log_plane DEBUG "Found clear site."
+                  return $ Just result
            Nothing -> pickRandomClearSite_withTimeout
                           (fmap (subtract 1) timeout)
-                          (search_radius*2 + 1) 
-                          object_clear 
-                          (max 0 $ terrain_clear - 1) 
+                          (search_radius*2 + 1)
+                          object_clear
+                          (max 0 $ terrain_clear - 1)
                           (Position (start_x,start_y))
-			  terrainPredicate
-			  plane_ref
+                          terrainPredicate
+                          plane_ref
 
 terrainAt :: (DBReadable db) => PlaneRef -> Position -> db TerrainPatch
 terrainAt plane_ref (Position (x,y)) =

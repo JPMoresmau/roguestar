@@ -26,9 +26,6 @@ type KeymapName = String
 -- * removing erroneous whitespace
 -- * placing \\n and \\r at the end of multi-key keystrokes that should be
 --   activated via the enter key.
--- * passing keystrokes that begin with the escape character '>' as raw
---   keystrokes.
-
 fixKeymap :: Keymap -> Keymap
 fixKeymap = concatMap $ \(keystrokes,action_name) ->
     case () of

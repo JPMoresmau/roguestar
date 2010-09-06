@@ -27,6 +27,7 @@ module DBData
      Constructed(..),
      Subsequent(..),
      Beneath(..),
+     Type,
      _nullary,
      _creature,
      _tool,
@@ -38,6 +39,7 @@ module DBData
      _wielded,
      _constructed,
      _subsequent,
+     _beneath,
      _position,
      _multiposition,
      _facing,
@@ -64,7 +66,8 @@ module DBData
      toDropped,
      toInventory,
      toWielded,
-     returnToInventory)
+     returnToInventory,
+     shuntToTheUniverse)
     where
 
 import Facing
@@ -380,4 +383,9 @@ toWielded _ _ = error "toWielded: type error"
 returnToInventory :: Location ToolRef Wielded -> Location ToolRef Inventory
 returnToInventory l = InInventory (child l) (Inventory c)
     where Wielded c = parent l
+
+shuntToTheUniverse :: Type p ->
+                      Location PlaneRef p ->
+                      Location PlaneRef TheUniverse
+shuntToTheUniverse _ l = InTheUniverse (child l)
 

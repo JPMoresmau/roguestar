@@ -29,9 +29,10 @@ import Building
 --
 -- Every possible behavior that a creature might take, AI or Human.
 --
-data Behavior = 
+data Behavior =
     Step Facing
   | TurnInPlace Facing
+  | StepDown
   | Jump Facing
   | Pickup ToolRef
   | Wield ToolRef
@@ -45,6 +46,7 @@ data Behavior =
   | Make PrepareMake
   | ClearTerrain Facing
   | ActivateBuilding Facing
+        deriving (Show)
 
 -- | Get an appropriate behavior facing in the given direction.
 -- If the adjacent facing square is empty, this is 'Step', but
@@ -75,6 +77,11 @@ dbBehave (Step face) creature_ref =
            () | face == Here -> quickActionTime creature_ref -- counts as turning in place
            () | face `elem` [North,South,East,West] -> move1ActionTime creature_ref
            () | otherwise -> move2ActionTime creature_ref
+
+dbBehave StepDown creature_ref =
+    do (move_from,move_to) <- dbMove stepDown creature_ref
+       when (move_from /= move_to) $
+           dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 dbBehave (Jump face) creature_ref =
     do atomic $ liftM executeTeleportJump $ resolveTeleportJump creature_ref face

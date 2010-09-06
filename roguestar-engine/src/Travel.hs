@@ -1,6 +1,9 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Travel
     (stepCreature,
      turnCreature,
+     stepDown,
      TeleportJumpOutcome,
      resolveTeleportJump,
      executeTeleportJump)
@@ -19,14 +22,15 @@ import TerrainData
 import Data.List (minimumBy)
 import Creature
 import CreatureData
+import Logging
 
-walkCreature :: (DBReadable db) => Facing -> (Integer,Integer) -> 
+walkCreature :: (DBReadable db) => Facing -> (Integer,Integer) ->
                                      Location CreatureRef () -> db (Location CreatureRef ())
 walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
     do (plane_ref,Position (x,y)) <- MaybeT $ return $ extractParent l
        let standing = Standing { standing_plane = plane_ref,
                                  standing_position = Position (x+x',y+y'),
-                                 standing_facing = face } 
+                                 standing_facing = face }
        flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (child l) $ standing_position standing)
        return $ generalizeParent $ toStanding standing l
 
@@ -36,9 +40,33 @@ stepCreature face = walkCreature face (facingToRelative face)
 turnCreature :: (DBReadable db) => Facing -> Location CreatureRef () -> db (Location CreatureRef ())
 turnCreature face = walkCreature face (0,0)
 
--------------------------------------------------------------------------------------------------------------
---	Teleportation/Jumping
--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--      Travel between planes.
+--------------------------------------------------------------------------------
+
+stepDown :: (DBReadable db) => Location CreatureRef () ->
+                           db (Location CreatureRef ())
+stepDown l =
+    do m_new_location <- runMaybeT $
+           do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
+              lift $ logDB log_travel DEBUG $ "Stepping down from: " ++ show (p,pos)
+              let face = fromMaybe Here $ extractParent l
+              p' <- MaybeT $ getBeneath p
+              lift $ logDB log_travel DEBUG $ "Stepping down to: " ++ show p'
+              pos' <- lift $ pickRandomClearSite 10 0 0 pos (== Upstairs) p'
+              return $ generalizeParent $ toStanding
+                  (Standing { standing_plane = p',
+                              standing_position = pos',
+                              standing_facing = face }) l
+       case m_new_location of
+           Just l' -> return l'
+           Nothing ->
+               do logDB log_travel WARNING "stepDown: couldn't find destination"
+                  return l
+
+--------------------------------------------------------------------------------
+--      Teleportation/Jumping
+--------------------------------------------------------------------------------
 
 -- |
 -- Try to teleport the creature to the specified Position.  The teleport attempt can be automatically retried a number of times, and the most accurate attempt will be used.

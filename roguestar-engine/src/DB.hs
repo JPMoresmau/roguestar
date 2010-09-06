@@ -1,4 +1,9 @@
-{-# LANGUAGE MultiParamTypeClasses, ExistentialQuantification, FlexibleContexts, Rank2Types, RelaxedPolyRec #-}
+{-# LANGUAGE MultiParamTypeClasses,
+             ExistentialQuantification,
+             FlexibleContexts,
+             Rank2Types,
+             RelaxedPolyRec,
+             ScopedTypeVariables #-}
 
 module DB
     (DBResult,
@@ -48,8 +53,7 @@ module DB
      dbHasSnapshot,
      module DBData,
      module DBErrorFlag,
-     module Random,
-     dbTrace)
+     module Random)
     where
 
 import DBPrivate
@@ -73,11 +77,9 @@ import Data.Ord
 import Control.Arrow (first,second)
 import Control.Monad.Random as Random
 import Random
-import Debug.Trace
 import PlayerState
 import DBErrorFlag
 import Control.Parallel.Strategies
-import System.Log.Logger
 import System.IO.Unsafe
 import Logging
 
@@ -227,7 +229,7 @@ setupDBHistory db =
     do rng <- randomIO
        return $ DB_History {
            db_here = db,
-	   db_random = rng }
+           db_random = rng }
 
 -- |
 -- Returns the DBState of the database.
@@ -297,7 +299,7 @@ dbAddObjectComposable :: (ReferenceType a,
                          (Reference a -> a -> DB ()) ->
                          (Reference a -> l -> Location (Reference a) l) ->
                          a -> l -> DB (Reference a)
-dbAddObjectComposable constructReference updateObject constructLocation thing loc = 
+dbAddObjectComposable constructReference updateObject constructLocation thing loc =
     do ref <- liftM constructReference $ dbNextObjectRef
        updateObject ref thing
        dbSetLocation $ constructLocation ref loc
@@ -333,10 +335,10 @@ dbAddBuilding = dbAddObjectComposable BuildingRef dbPutBuilding buildingLocation
 -- This deletes an object, but leaves any of it's contents dangling.
 --
 dbUnsafeDeleteObject :: (ReferenceType e) =>
-        (forall m. DBReadable m => 
-         Location (Reference ()) (Reference e) -> 
-	 m (Location (Reference ()) ())) ->
-    Reference e -> 
+        (forall m. DBReadable m =>
+         Location (Reference ()) (Reference e) ->
+         m (Location (Reference ()) ())) ->
+    Reference e ->
     DB ()
 dbUnsafeDeleteObject f ref =
     do _ <- dbMoveAllWithin f ref
@@ -350,36 +352,40 @@ dbUnsafeDeleteObject f ref =
 -- |
 -- Puts an object into the database using getter and setter functions.
 --
-dbPutObjectComposable :: (Ord a) => (DB_BaseType -> Map a b) -> 
-                                    (Map a b -> DB_BaseType -> DB_BaseType) -> 
-                                    a -> b -> 
+dbPutObjectComposable :: (Ord a) => (DB_BaseType -> Map a b) ->
+                                    (Map a b -> DB_BaseType -> DB_BaseType) ->
+                                    a -> b ->
                                     DB ()
-dbPutObjectComposable get_map_fn put_map_fn key thing = 
+dbPutObjectComposable get_map_fn put_map_fn key thing =
     modify (\db -> put_map_fn (Map.insert key thing $ get_map_fn db) db)
 
 -- |
 -- Puts a Creature under an arbitrary CreatureRef.
 --
 dbPutCreature :: CreatureRef -> Creature -> DB ()
-dbPutCreature = dbPutObjectComposable db_creatures (\x db_base_type -> db_base_type { db_creatures = x })
+dbPutCreature = dbPutObjectComposable db_creatures (\x db_base_type ->
+     db_base_type { db_creatures = x })
 
 -- |
 -- Puts a Plane under an arbitrary PlaneRef
 --
 dbPutPlane :: PlaneRef -> Plane -> DB ()
-dbPutPlane = dbPutObjectComposable db_planes (\x db_base_type -> db_base_type { db_planes = x })
+dbPutPlane = dbPutObjectComposable db_planes $
+    \x db_base_type -> db_base_type { db_planes = x }
 
 -- |
 -- Puts a Tool under an arbitrary ToolRef
 --
 dbPutTool :: ToolRef -> Tool -> DB ()
-dbPutTool = dbPutObjectComposable db_tools (\x db_base_type -> db_base_type { db_tools = x })
+dbPutTool = dbPutObjectComposable db_tools $
+    \x db_base_type -> db_base_type { db_tools = x }
 
 -- |
 -- Puts a Building under an arbitrary BuildingRef
 --
 dbPutBuilding :: BuildingRef -> Building -> DB ()
-dbPutBuilding = dbPutObjectComposable db_buildings (\x db_base_type -> db_base_type { db_buildings = x })
+dbPutBuilding = dbPutObjectComposable db_buildings $
+    \x db_base_type -> db_base_type { db_buildings = x }
 
 -- |
 -- Gets an object from the database using getter functions.
@@ -415,7 +421,7 @@ dbGetBuilding = dbGetObjectComposable "BuildingRef" db_buildings
 -- |
 -- Modifies an Object based on an ObjectRef.
 --
-dbModObjectComposable :: (Reference e -> DB e) -> (Reference e -> e -> DB ()) -> 
+dbModObjectComposable :: (Reference e -> DB e) -> (Reference e -> e -> DB ()) ->
                          (e -> e) -> Reference e -> DB ()
 dbModObjectComposable getter putter f ref = (putter ref . f) =<< (getter ref)
 
@@ -445,24 +451,34 @@ dbModBuilding = dbModObjectComposable dbGetBuilding dbPutBuilding
 
 -- |
 -- Set the location of an object.
--- This is where we handle making sure that a creature can only wield one tool, and
--- a Plane can point to only one subsequent Plane.
+-- This is where we handle making sure that a creature can only wield one tool,
+-- and a Plane can point to only one subsequent Plane.
 --
 dbSetLocation :: (LocationChild c,LocationParent p) => Location c p -> DB ()
 dbSetLocation loc =
     do logDB log_database DEBUG $ "setting location: " ++ show loc
        case (fmap parent $ coerceParentTyped _wielded loc,
-             fmap parent $ coerceParentTyped _subsequent loc) of
-           (Just (Wielded c),_) -> dbUnwieldCreature c
-           (_,Just (Subsequent b)) -> mapM_ (dbSetLocation . (InTheUniverse :: PlaneRef -> Location PlaneRef TheUniverse)) =<< dbGetContents b
-	   (_,_) -> return ()
+             fmap parent $ coerceParentTyped _subsequent loc,
+             fmap parent $ coerceParentTyped _beneath loc) of
+           (Just (Wielded c),_,_) -> dbUnwieldCreature c
+           (_,Just (Subsequent s),_) -> shuntPlane _subsequent s
+           (_,_,Just (Beneath b)) -> shuntPlane _beneath b
+           (_,_,_) -> return ()
        modify (\db -> db { db_hierarchy = HD.insert (unsafeLocation loc) $ db_hierarchy db })
 
 -- |
 -- Shunt any wielded objects into inventory.
 --
 dbUnwieldCreature :: CreatureRef -> DB ()
-dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<< dbGetContents c
+dbUnwieldCreature c = mapM_ (dbSetLocation . returnToInventory) =<<
+    dbGetContents c
+
+-- |
+-- Shunt a subordinate plane in the specified position to TheUniverse.
+--
+shuntPlane :: (LocationParent p) => Type p -> PlaneRef -> DB ()
+shuntPlane t p = mapM_ (dbSetLocation . shuntToTheUniverse t) =<<
+    dbGetContents p
 
 -- |
 -- Moves an object, returning the location of the object before and after
@@ -579,14 +595,8 @@ dbHasSnapshot :: (DBReadable db) => db Bool
 dbHasSnapshot = liftM isJust $ dbPeepSnapshot (return ())
 
 popOldestSnapshot :: DB_BaseType -> DB_BaseType
-popOldestSnapshot db = 
+popOldestSnapshot db =
     case isJust $ db_prior_snapshot =<< db_prior_snapshot db of
         False -> db { db_prior_snapshot = Nothing }
-	True  -> db { db_prior_snapshot = fmap popOldestSnapshot $ db_prior_snapshot db }
+        True  -> db { db_prior_snapshot = fmap popOldestSnapshot $ db_prior_snapshot db }
 
--- | Print a debug/trace message from DB.
-{-# NOINLINE dbTrace #-}
-dbTrace :: (DBReadable db) => String -> db ()
-dbTrace s =
-    do db <- ask
-       trace ("trace (object count " ++ show (db_next_object_ref db) ++ ") : " ++ s) $ return ()

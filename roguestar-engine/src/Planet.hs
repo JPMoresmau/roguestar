@@ -21,8 +21,8 @@ makePlanet plane_location planet_info =
           (planet_info_name planet_info)
           (TerrainGenerationData {
                tg_smootheness = 3,
-	       tg_biome = planet_info_biome planet_info,
-	       tg_placements = [recreantFactories seed,
+               tg_biome = planet_info_biome planet_info,
+               tg_placements = [recreantFactories seed,
                                 stairsDown seed_down 0] })
           plane_location
        town <- liftM catMaybes $ forM (planet_info_town planet_info) $ \(r,b) ->
@@ -54,7 +54,7 @@ makeDungeons plane_location i planet_info =
                tg_smootheness = 2,
                tg_biome = planet_info_dungeon planet_info,
                tg_placements =
-                   if i > 0 then [stairsUp seed_up i] else [] ++
+                   [stairsUp seed_up i] ++
                    if i < n then [stairsDown seed_down i] else [] })
            plane_location
        when (i < n) $

@@ -462,6 +462,10 @@ dbDispatchQuery ["compass"] =
 
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" `B.append` B.unwords unrecognized `B.append` "`"
 
+-----------------------------------------------------
+--      Actions
+-----------------------------------------------------
+
 dbDispatchAction :: [B.ByteString] -> DB ()
 dbDispatchAction ["continue"] = dbPopOldestSnapshot
 
@@ -610,18 +614,21 @@ dbDispatchAction ["attack"] =
 
 dbDispatchAction ["attack",direction] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn (Attack $ fromJust $ stringToFacing direction) creature_ref
 
-dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ \creature_ref -> dbPerformPlayerTurn Activate creature_ref
+dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ dbPerformPlayerTurn Activate
+
+dbDispatchAction ["down"] =
+    dbRequiresPlayerTurnState $ dbPerformPlayerTurn StepDown
 
 dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (B.unpack $ B.unwords unrecognized) ++ "`")
 
 dbSelectPlayerRace :: B.ByteString -> DB ()
-dbSelectPlayerRace race_name = 
+dbSelectPlayerRace race_name =
     case find (\s -> B.map toLower (B.pack $ show s) == race_name) player_species of
         Nothing -> throwError $ DBError $ "protocol-error: unrecognized race '" ++ B.unpack race_name ++ "'"
         Just species -> generateInitialPlayerCreature species
 
 dbSelectPlayerClass :: B.ByteString -> Creature -> DB ()
-dbSelectPlayerClass class_name creature = 
+dbSelectPlayerClass class_name creature =
     let eligable_base_classes = getEligableBaseCharacterClasses creature
 	in case find (\x -> (B.map toLower . B.pack . show) x == class_name) eligable_base_classes of
 	       Nothing -> throwError $ DBError $ "protocol-error: unrecognized or invalid class '" ++ B.unpack class_name ++ "'"

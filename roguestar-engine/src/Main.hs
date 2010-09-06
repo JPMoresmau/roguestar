@@ -55,8 +55,7 @@ runByArgs "begin" = mainLoop initial_db
 
 runByArgs "over" = putStrLn "over"
 
-runByArgs "debug" = forM_ all_logs $ \s ->
-    updateGlobalLogger s (setLevel DEBUG)
+runByArgs "debug" = updateGlobalLogger rootLoggerName (setLevel DEBUG)
 
 runByArgs "help" =
     do putStrLn "Commands:"
