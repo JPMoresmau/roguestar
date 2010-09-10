@@ -191,6 +191,9 @@ move_action = stateLinkedAction player_turn_states "move"
 down_action :: (B.ByteString,Action)
 down_action = stateLinkedAction player_turn_states "down"
 
+up_action :: (B.ByteString,Action)
+up_action = stateLinkedAction player_turn_states "up"
+
 jump_action :: (B.ByteString,Action)
 jump_action = stateLinkedAction player_turn_states "jump"
 
@@ -348,11 +351,11 @@ all_actions = [continue_action,quit_action,reroll_action,
                zoom_in_action,zoom_out_action,sky_on_action,sky_off_action,
                quality_bad,quality_poor,quality_good,quality_super] ++
               select_race_actions ++
-	      select_base_class_actions ++
+              select_base_class_actions ++
               direction_actions ++
               make_what_actions ++
-	      [move_action,down_action,turn_action,fire_action,jump_action,
-               attack_action,clear_terrain_action,activate_action,
+              [move_action,down_action,up_action,turn_action,fire_action,
+               jump_action,attack_action,clear_terrain_action,activate_action,
                make_begin_action,make_end_action]
 
 -- | Find an action with the given name.

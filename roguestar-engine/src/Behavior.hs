@@ -33,6 +33,7 @@ data Behavior =
     Step Facing
   | TurnInPlace Facing
   | StepDown
+  | StepUp
   | Jump Facing
   | Pickup ToolRef
   | Wield ToolRef
@@ -80,6 +81,11 @@ dbBehave (Step face) creature_ref =
 
 dbBehave StepDown creature_ref =
     do (move_from,move_to) <- dbMove stepDown creature_ref
+       when (move_from /= move_to) $
+           dbAdvanceTime creature_ref =<< fullActionTime creature_ref
+
+dbBehave StepUp creature_ref =
+    do (move_from,move_to) <- dbMove stepUp creature_ref
        when (move_from /= move_to) $
            dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 

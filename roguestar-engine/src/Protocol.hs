@@ -619,6 +619,9 @@ dbDispatchAction ["activate"] = dbRequiresPlayerTurnState $ dbPerformPlayerTurn 
 dbDispatchAction ["down"] =
     dbRequiresPlayerTurnState $ dbPerformPlayerTurn StepDown
 
+dbDispatchAction ["up"] =
+    dbRequiresPlayerTurnState $ dbPerformPlayerTurn StepUp
+
 dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (B.unpack $ B.unwords unrecognized) ++ "`")
 
 dbSelectPlayerRace :: B.ByteString -> DB ()

@@ -4,6 +4,7 @@ module Travel
     (stepCreature,
      turnCreature,
      stepDown,
+     stepUp,
      TeleportJumpOutcome,
      resolveTeleportJump,
      executeTeleportJump)
@@ -62,6 +63,24 @@ stepDown l =
            Just l' -> return l'
            Nothing ->
                do logDB log_travel WARNING "stepDown: couldn't find destination"
+                  return l
+
+stepUp :: (DBReadable db) => Location CreatureRef () ->
+                             db (Location CreatureRef ())
+stepUp l =
+    do m_new_location <- runMaybeT $
+           do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
+              let face = fromMaybe Here $ extractParent l
+              (p' :: PlaneRef) <- MaybeT $ liftM extractParent $ dbWhere p
+              pos' <- lift $ pickRandomClearSite 10 0 0 pos (== Downstairs) p'
+              return $ generalizeParent $ toStanding
+                  (Standing { standing_plane = p',
+                              standing_position = pos',
+                              standing_facing = face }) l
+       case m_new_location of
+           Just l' -> return l'
+           Nothing ->
+               do logDB log_travel WARNING "stepUp: couldn't find destination"
                   return l
 
 --------------------------------------------------------------------------------
