@@ -25,14 +25,21 @@ import Creature
 import CreatureData
 import Logging
 
-walkCreature :: (DBReadable db) => Facing -> (Integer,Integer) ->
-                                     Location CreatureRef () -> db (Location CreatureRef ())
+walkCreature :: (DBReadable db) => Facing ->
+                                   (Integer,Integer) ->
+                                   Location CreatureRef () ->
+                                   db (Location CreatureRef ())
 walkCreature face (x',y') l = liftM (fromMaybe l) $ runMaybeT $
     do (plane_ref,Position (x,y)) <- MaybeT $ return $ extractParent l
        let standing = Standing { standing_plane = plane_ref,
                                  standing_position = Position (x+x',y+y'),
                                  standing_facing = face }
-       flip unless (fail "") =<< (lift $ isTerrainPassable plane_ref (child l) $ standing_position standing)
+       is_passable <- lift $ isTerrainPassable plane_ref
+                                               (child l)
+                                               (standing_position standing)
+       when (not is_passable) $
+           do lift $ logDB log_travel WARNING $ "Terrain not passable."
+              fail ""
        return $ generalizeParent $ toStanding standing l
 
 stepCreature :: (DBReadable db) => Facing -> Location CreatureRef () -> db (Location CreatureRef ())
@@ -47,9 +54,12 @@ turnCreature face = walkCreature face (0,0)
 
 stepDown :: (DBReadable db) => Location CreatureRef () ->
                            db (Location CreatureRef ())
-stepDown l =
-    do m_new_location <- runMaybeT $
+stepDown l = liftM (fromMaybe l) $ runMaybeT $
            do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
+              terrain_type <- lift $ terrainAt p pos
+              when (terrain_type /= Downstairs) $
+                  do lift $ logDB log_travel WARNING $ "Not standing on downstairs."
+                     fail ""
               lift $ logDB log_travel DEBUG $ "Stepping down from: " ++ show (p,pos)
               let face = fromMaybe Here $ extractParent l
               p' <- MaybeT $ getBeneath p
@@ -59,17 +69,15 @@ stepDown l =
                   (Standing { standing_plane = p',
                               standing_position = pos',
                               standing_facing = face }) l
-       case m_new_location of
-           Just l' -> return l'
-           Nothing ->
-               do logDB log_travel WARNING "stepDown: couldn't find destination"
-                  return l
 
 stepUp :: (DBReadable db) => Location CreatureRef () ->
                              db (Location CreatureRef ())
-stepUp l =
-    do m_new_location <- runMaybeT $
+stepUp l = liftM (fromMaybe l) $ runMaybeT $
            do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
+              terrain_type <- lift $ terrainAt p pos
+              when (terrain_type /= Upstairs) $
+                  do lift $ logDB log_travel WARNING $ "Not standing on upstairs."
+                     fail ""
               let face = fromMaybe Here $ extractParent l
               (p' :: PlaneRef) <- MaybeT $ liftM extractParent $ dbWhere p
               pos' <- lift $ pickRandomClearSite 10 0 0 pos (== Downstairs) p'
@@ -77,11 +85,6 @@ stepUp l =
                   (Standing { standing_plane = p',
                               standing_position = pos',
                               standing_facing = face }) l
-       case m_new_location of
-           Just l' -> return l'
-           Nothing ->
-               do logDB log_travel WARNING "stepUp: couldn't find destination"
-                  return l
 
 --------------------------------------------------------------------------------
 --      Teleportation/Jumping
