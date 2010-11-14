@@ -30,9 +30,9 @@ type MessageHandler e m a b = MaybeArrow (FRP e (EventSwitch m)) a b
 
 -- | Print messages about game events.
 eventMessager :: (FRPModel m) => EventHandler e m () ()
-eventMessager = proc () -> 
-    do eventStateHeader (not . (`elem` recognized_events)) -< () 
-       blockContinue -< True 
+eventMessager = proc () ->
+    do eventStateHeader (not . (`elem` recognized_events)) -< ()
+       blockContinue -< True
 
 -- | A handler for messages from a specific event state, such as \"attack-event\".
 -- Parameters are:

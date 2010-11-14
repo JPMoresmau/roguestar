@@ -3,8 +3,9 @@
 module Travel
     (stepCreature,
      turnCreature,
-     stepDown,
-     stepUp,
+     ClimbOutcome,
+     resolveClimb,
+     executeClimb,
      TeleportJumpOutcome,
      resolveTeleportJump,
      executeTeleportJump)
@@ -24,6 +25,7 @@ import Data.List (minimumBy)
 import Creature
 import CreatureData
 import Logging
+import TravelData
 
 walkCreature :: (DBReadable db) => Facing ->
                                    (Integer,Integer) ->
@@ -52,39 +54,45 @@ turnCreature face = walkCreature face (0,0)
 --      Travel between planes.
 --------------------------------------------------------------------------------
 
-stepDown :: (DBReadable db) => Location CreatureRef () ->
-                           db (Location CreatureRef ())
-stepDown l = liftM (fromMaybe l) $ runMaybeT $
-           do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
-              terrain_type <- lift $ terrainAt p pos
-              when (terrain_type /= Downstairs) $
-                  do lift $ logDB log_travel WARNING $ "Not standing on downstairs."
-                     fail ""
-              lift $ logDB log_travel DEBUG $ "Stepping down from: " ++ show (p,pos)
-              let face = fromMaybe Here $ extractParent l
-              p' <- MaybeT $ getBeneath p
-              lift $ logDB log_travel DEBUG $ "Stepping down to: " ++ show p'
-              pos' <- lift $ pickRandomClearSite 10 0 0 pos (== Upstairs) p'
-              return $ generalizeParent $ toStanding
-                  (Standing { standing_plane = p',
-                              standing_position = pos',
-                              standing_facing = face }) l
+data ClimbOutcome =
+    ClimbGood ClimbDirection CreatureRef Standing
+  | ClimbFailed
 
-stepUp :: (DBReadable db) => Location CreatureRef () ->
-                             db (Location CreatureRef ())
-stepUp l = liftM (fromMaybe l) $ runMaybeT $
-           do ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
-              terrain_type <- lift $ terrainAt p pos
-              when (terrain_type /= Upstairs) $
-                  do lift $ logDB log_travel WARNING $ "Not standing on upstairs."
-                     fail ""
-              let face = fromMaybe Here $ extractParent l
-              (p' :: PlaneRef) <- MaybeT $ liftM extractParent $ dbWhere p
-              pos' <- lift $ pickRandomClearSite 10 0 0 pos (== Downstairs) p'
-              return $ generalizeParent $ toStanding
-                  (Standing { standing_plane = p',
-                              standing_position = pos',
-                              standing_facing = face }) l
+-- |
+-- Climb up or down between Planes.
+--
+resolveClimb :: (DBReadable db) => CreatureRef ->
+                                   ClimbDirection ->
+                                   db ClimbOutcome
+resolveClimb creature_ref direction = liftM (fromMaybe ClimbFailed) $ runMaybeT $
+    do l <- lift $ dbWhere creature_ref
+       ((p,pos) :: (PlaneRef,Position)) <- MaybeT $ return $ extractParent l
+       terrain_type <- lift $ terrainAt p pos
+       let (expected_starting_terrain, expected_landing_terrain) = case direction of
+               ClimbUp -> (Upstairs,Downstairs)
+               ClimbDown -> (Downstairs,Upstairs)
+       when (terrain_type /= expected_starting_terrain) $
+           do lift $ logDB log_travel WARNING $ "Not standing on correct stairway."
+              fail ""
+       lift $ logDB log_travel DEBUG $ "Stepping " ++ show direction ++ " from: " ++ show (p,pos)
+       let face = fromMaybe Here $ extractParent l
+       p' <- MaybeT $ case direction of
+                 ClimbDown -> getBeneath p
+                 ClimbUp -> liftM extractParent $ dbWhere p
+       lift $ logDB log_travel DEBUG $ "Stepping " ++ show direction ++ " to: " ++ show p'
+       pos' <- lift $ pickRandomClearSite 10 0 0 pos (== expected_landing_terrain) p'
+       return $ ClimbGood direction creature_ref $
+           Standing { standing_plane = p',
+                      standing_position = pos',
+                      standing_facing = face }
+
+-- | Execute a resolved climb attempt.
+executeClimb :: ClimbOutcome -> DB ()
+executeClimb ClimbFailed = return ()
+executeClimb (ClimbGood direction creature_ref standing_location) =
+    do _ <- dbMove (return . toStanding standing_location) creature_ref
+       dbPushSnapshot $ ClimbEvent direction creature_ref
+       return ()
 
 --------------------------------------------------------------------------------
 --      Teleportation/Jumping
@@ -120,7 +128,7 @@ resolveTeleportJump creature_ref face = liftM (fromMaybe TeleportJumpFailed) $ r
 -- | Execute a resolved teleport jump.
 executeTeleportJump :: TeleportJumpOutcome -> DB ()
 executeTeleportJump TeleportJumpFailed = return ()
-executeTeleportJump (TeleportJumpGood creature_ref standing_location) = 
+executeTeleportJump (TeleportJumpGood creature_ref standing_location) =
     do _ <- dbMove (return . toStanding standing_location) creature_ref
        dbPushSnapshot $ TeleportEvent creature_ref
        return ()

@@ -196,15 +196,16 @@ sortByRO f xs =
          do y <- f x
             return (x,y)
 
-atomic :: (forall m. DBReadable m => m (DB a)) -> DB a
-atomic transaction =
-    do db_a <- ro transaction
-       (a,s) <- dbSimulate $
-           do a <- db_a
+-- | Run action synthesized from a read-only action (prepare-execute pattern).
+atomic :: (x -> DB ()) -> (forall m. DBReadable m => m x) -> DB x
+atomic action ro_action =
+    do x <- ro ro_action
+       s <- dbSimulate $
+           do action x
               s <- get
-              return (a,s)
+              return s
        put s
-       return a
+       return x
 
 -- |
 -- Generates an initial DB state.

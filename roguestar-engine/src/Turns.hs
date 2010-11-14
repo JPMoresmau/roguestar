@@ -76,8 +76,8 @@ dbPerform1PlanarAITurn plane_ref =
        dbAdvanceTime plane_ref (1%planar_turn_frequency)
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
-dbPerform1CreatureAITurn creature_ref =
-    atomic $ liftM (flip dbBehave creature_ref) $ P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
+dbPerform1CreatureAITurn creature_ref = liftM (const ()) $ atomic (flip dbBehave creature_ref) $
+    P.runPerception creature_ref $ liftM (fromMaybe Vanish) $ runMaybeT $
         do player <- MaybeT $ liftM listToMaybe $ filterM (liftM (== Player) . P.getCreatureFaction . child) =<< P.visibleObjects (return . const True)
            (rand_x :: Integer) <- lift $ getRandomR (1,100)
            rand_face <- lift $ pickM [minBound..maxBound]

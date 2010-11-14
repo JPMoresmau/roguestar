@@ -15,6 +15,7 @@ import Control.Monad.Error
 import Combat
 import Activate
 import Travel
+import TravelData
 import Creature
 import CreatureData
 import Plane
@@ -80,17 +81,17 @@ dbBehave (Step face) creature_ref =
            () | otherwise -> move2ActionTime creature_ref
 
 dbBehave StepDown creature_ref =
-    do (move_from,move_to) <- dbMove stepDown creature_ref
-       when (move_from /= move_to) $
-           dbAdvanceTime creature_ref =<< fullActionTime creature_ref
+    do _ <- atomic executeClimb $ resolveClimb creature_ref ClimbDown
+       -- FIXME: should be conditional
+       dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 dbBehave StepUp creature_ref =
-    do (move_from,move_to) <- dbMove stepUp creature_ref
-       when (move_from /= move_to) $
-           dbAdvanceTime creature_ref =<< fullActionTime creature_ref
+    do _ <- atomic executeClimb $ resolveClimb creature_ref ClimbUp
+       -- FIXME: should be conditional
+       dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 dbBehave (Jump face) creature_ref =
-    do atomic $ liftM executeTeleportJump $ resolveTeleportJump creature_ref face
+    do _ <- atomic executeTeleportJump $ resolveTeleportJump creature_ref face
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
 
 dbBehave (TurnInPlace face) creature_ref =
@@ -126,14 +127,14 @@ dbBehave (Drop tool_ref) creature_ref =
 dbBehave (Fire face) creature_ref =
     do _ <- dbMove (turnCreature face) creature_ref
        ranged_attack_model <- rangedAttackModel creature_ref
-       atomic $ liftM executeAttack $ resolveAttack ranged_attack_model face
+       _ <- atomic executeAttack $ resolveAttack ranged_attack_model face
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 dbBehave (Attack face) creature_ref =
     do _ <- dbMove (turnCreature face) creature_ref
        melee_attack_model <- meleeAttackModel creature_ref
-       atomic $ liftM executeAttack $ resolveAttack melee_attack_model face
+       _ <- atomic executeAttack $ resolveAttack melee_attack_model face
        dbAdvanceTime creature_ref =<< move1ActionTime creature_ref
        return ()
 
@@ -152,12 +153,12 @@ dbBehave Vanish creature_ref =
        return ()
 
 dbBehave Activate creature_ref =
-    do atomic $ liftM executeActivation $ resolveActivation creature_ref
+    do _ <- atomic executeActivation $ resolveActivation creature_ref
        dbAdvanceTime creature_ref =<< quickActionTime creature_ref
        return ()
 
 dbBehave (Make make_prep) creature_ref =
-    do atomic $ liftM executeMake $ resolveMake creature_ref make_prep
+    do _ <- atomic executeMake $ resolveMake creature_ref make_prep
        dbAdvanceTime creature_ref =<< fullActionTime creature_ref
        return ()
 

@@ -11,14 +11,15 @@ module PlayerState
 import DBData
 import CreatureData
 import MakeData
+import TravelData
 
-data PlayerState = 
+data PlayerState =
     RaceSelectionState
   | ClassSelectionState Creature
   | PlayerCreatureTurn CreatureRef CreatureTurnMode
   | SnapshotEvent SnapshotEvent
   | GameOver
-	     deriving (Read,Show)
+     deriving (Read,Show)
 
 data CreatureTurnMode =
     NormalMode
@@ -34,14 +35,14 @@ data CreatureTurnMode =
   | ClearTerrainMode
       deriving (Read,Show)
 
-data SnapshotEvent = 
+data SnapshotEvent =
     AttackEvent {
         attack_event_source_creature :: CreatureRef,
         attack_event_source_weapon :: Maybe ToolRef,
         attack_event_target_creature :: CreatureRef }
   | MissEvent {
         miss_event_creature :: CreatureRef,
-	miss_event_weapon :: Maybe ToolRef }
+        miss_event_weapon :: Maybe ToolRef }
   | KilledEvent {
         killed_event_creature :: CreatureRef }
   | WeaponOverheatsEvent {
@@ -61,6 +62,9 @@ data SnapshotEvent =
         sunder_event_target_tool :: ToolRef }
   | TeleportEvent {
         teleport_event_creature :: CreatureRef }
+  | ClimbEvent {
+        climb_event_direction :: ClimbDirection,
+        climb_event_creature :: CreatureRef }
   | HealEvent {
         heal_event_creature :: CreatureRef }
   | ExpendToolEvent {
@@ -69,7 +73,7 @@ data SnapshotEvent =
 
 -- | Get the 'Creature' acting in the given 'PlayerState'.
 creatureOf :: PlayerState -> Maybe CreatureRef
-creatureOf state = case state of	  
+creatureOf state = case state of
     PlayerCreatureTurn creature_ref _ -> Just creature_ref
     SnapshotEvent event -> subjectOf event
     GameOver -> Nothing
@@ -88,9 +92,10 @@ subjectOf event = case event of
     SunderEvent { sunder_event_source_creature = attacker_ref } -> Just attacker_ref
     TeleportEvent { teleport_event_creature = creature_ref } -> Just creature_ref
     HealEvent { heal_event_creature = creature_ref } -> Just creature_ref
+    ClimbEvent { climb_event_creature = creature_ref } -> Just creature_ref
     ExpendToolEvent {} -> Nothing
 
--- | Current index into the menu, if there is one. 
+-- | Current index into the menu, if there is one.
 menuIndex :: PlayerState -> Maybe Integer
 menuIndex state = fst $ modifyMenuIndex_ id state
 

@@ -239,6 +239,7 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (SunderEvent {}) -> "answer: state sunder-event"
                            SnapshotEvent (TeleportEvent {}) -> "answer: state teleport-event"
                            SnapshotEvent (HealEvent {}) -> "answer: state heal-event"
+                           SnapshotEvent (ClimbEvent {}) -> "answer: state climb-event"
                            SnapshotEvent (ExpendToolEvent {}) -> "answer: state expend-tool-event"
                            GameOver -> "answer: state game-over"
 

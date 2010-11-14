@@ -22,7 +22,18 @@ Flag GLUT
   Description:       Enable GLUT widget toolkit.
 
 Flag GTK
-  Description:       Enable GTL widget toolkit.
+  Description:       Enable GTK widget toolkit.
+
+Executable roguestar
+  main-is:             Main.hs
+  build-depends:       process, old-time, bytestring
+  ghc-options:         -threaded
+  if flag(GLUT)
+      cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
+  if flag(GTK)
+      cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
+  if !flag(GLUT) && !flag(GTK)
+      buildable:       False
 
 Executable roguestar-gl
   main-is:             Main.hs
@@ -58,7 +69,6 @@ Executable roguestar-gl
                        vector>=0.6.0.1 && < 0.7,
                        stm>=2.1.1.2 && < 2.2,
                        priority-sync>=0.2.1.0 && < 0.2.2
-
   if flag(GLUT)
       cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
       build-depends:   GLUT>=2.2.2.0 && < 2.3
@@ -70,15 +80,4 @@ Executable roguestar-gl
       buildable:       False
   ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
   ghc-prof-options:    -prof -auto-all
-
-Executable roguestar
-  main-is:             Main.hs
-  build-depends:       process, old-time, bytestring
-  ghc-options:         -threaded
-  if flag(GLUT)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
-  if flag(GTK)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
-  if !flag(GLUT) && !flag(GTK)
-      buildable:       False
 

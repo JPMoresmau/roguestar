@@ -149,14 +149,20 @@ centerCoordinates = proc () ->
 
 -- | A list of the states that require the screen to be blanked (made black), interrupting the planar visuals.
 blanking_states :: [B.ByteString]
-blanking_states = ["teleport-event"]
+blanking_states = ["teleport-event","climb-event"]
 
 -- | Display the blanked screen and print any blanking events.
 blankingDispatch :: (FRPModel m) => B.ByteString -> FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 blankingDispatch "teleport-event" = proc () ->
-    do mainStateHeader (`elem` blanking_states) -< () 
+    do mainStateHeader (== "teleport-event") -< ()
        clearPrintTextOnce -< ()
        printTextOnce -< Just (Event,"Whoosh!")
+       blockContinue <<< arr ((< 0.5) . toSeconds) <<< threadTime -< ()
+       returnA -< roguestarSceneLayerInfo mempty basic_camera
+blankingDispatch "climb-event" = proc () ->
+    do mainStateHeader (== "climb-event") -< ()
+       clearPrintTextOnce -< ()
+       printTextOnce -< Just (Event,"You climb through a network of underground tunnels . . .")
        blockContinue <<< arr ((< 0.5) . toSeconds) <<< threadTime -< ()
        returnA -< roguestarSceneLayerInfo mempty basic_camera
 blankingDispatch blanking_state = proc () ->
