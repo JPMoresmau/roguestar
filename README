@@ -22,70 +22,20 @@ Maintainer Scripts
 To facilitate maintenance, there is a `Makefile` that contains
 numerous convenient maintainer scripts.
 
-Unfortunately, cabal doesn't seem to be reliable enough when used
-with `--package-db` to consistantly get roguestar to build and install
-from scratch in a throwaway directory without touching the user's `~/.cabal`.
-
-Installing the libraries is a 3-phase process, corresponding to the numbers
-at the end of ACTION-libsN.  These phases must be run in order.  Usually
-you don't want to do this, just run 'make install-libs'.
-
-The makefile accepts the following actions:
-
 install-deps  [-e OPTS=cabal install opts]
-:             use cabal to install all dependencies not in the
+:             Use cabal to install all dependencies not in the
 :             haskell-platform.
 
 clean         [-e OPTS=cabal clean opts]
-:             restore everything to a pristine state
-
-clean-bin     [-e OPTS=cabal clean opts]
-:             clean the binaries
-
-config-libsN  [-e OPTS=cabal configure opts]
-:             (re)configure the libraries
-:             by default, uses --user
-
-config-bin    [-e OPTS=cabal configure opts]
-:             (re)configure the binaries
-:             by default, uses --user
-:             by default, the prefix is ./roguestar-local
-
-build-libsN   [-e OPTS=cabal build opts]
-:             build the libraries
-
-build-bin     [-e OPTS=cabal build opts]
-:             build the binaries
-
-copy-libsN    [-e OPTS=cabal copy/register opts]
-:             copy and register the libraries
-:             by default, they will end up in your ~/.cabal
-
-copy-bins     [-e OPTS=cabal copy opts]
-:             copy the binaries
-:             by default, they will end up in your ./roguestar-local
-
-install-libs  [-e OPTS=cabal install opts]
-:             install the libraries
-:             this uses cabal install, and overrides the configuration step
-:             by default, they will end up in your ~/.cabal
-:             by default, uses --reinstall
-
-install-bins  [-e OPTS=cabal install opts]
-:             install the binaries
-:             this uses cabal install, and overrides the configuration step
-:             by default, uses --reinstall
+:             Restore everything to a pristine state.
 
 install       [-e OPTS=cabal install opts]
-:             install everything
-:             this uses cabal install, and overrides the configuration step
+:             Install everything using cabal.
 
-from-scratch  (uses default opts)
-:             clean, configure, build, and copy the whole thing
+install       [-e OPTS=cabal install opts]
+:             Install everything using cabal, with -Wall on.
 
-from-libs     (uses default opts)
-:             rebuild and install the libs, clean, configure, build, and copy the binaries
-
-sdist         [-e OPTS=cabal sdist opts]
-:             perform a cabal sdist, and gather everything under roguestar-sdist
+sdist         -e "VERSION=0.5" [-e OPTS=cabal sdist opts]
+:             Perform a cabal sdist, and gather everything under roguestar-sdist.
+:             The version parameter is required and must reflect the version number in cabal.
 

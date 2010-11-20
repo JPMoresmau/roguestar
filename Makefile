@@ -24,6 +24,7 @@ clean:
 	(cd rsagl-demos && cabal clean ${OPTS})
 	(cd roguestar-engine && cabal clean ${OPTS})
 	(cd roguestar-gl && cabal clean ${OPTS})
+	rm -rf roguestar-sdist
 
 install:
 	(cd rsagl-math && cabal install --reinstall ${OPTS})

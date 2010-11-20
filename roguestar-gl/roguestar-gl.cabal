@@ -52,7 +52,8 @@ Executable roguestar-gl
                        Models.EnergySwords, Models.EnergyThings, Models.CyborgType4,
                        AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,
                        AnimationExtras, AnimationCreatures, AnimationBuildings, MaybeArrow,
-                       EventUtils, Sky, Config, Processes, MainGLUT, MainGTK
+                       EventUtils, Sky, Config, Processes, MainGLUT, MainGTK, DrawString,
+                       Initialization
   build-depends:       base>=4&&<5,
                        rsagl==0.5,
                        rsagl-math==0.5,

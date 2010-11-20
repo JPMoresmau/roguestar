@@ -58,10 +58,10 @@ other-modules: TravelData VisibilityData Stats FactionData Behavior
                GridRayCaster BeginGame SpeciesData TimeCoordinate DB
                AttributeGeneration CreatureAttribute Building BuildingData Town
                Random PlayerState MakeData DBErrorFlag Construction Make Activate
-               Contact DeviceActivation WorkCluster Planet PlanetData
+               Contact DeviceActivation WorkCluster Planet PlanetData Logging
 ghc-prof-options: -prof -auto-all
 ghc-shared-options: -prof -auto-all
-ghc-options: -Wall -threaded -fno-warn-type-defaults
+ghc-options: -threaded -fno-warn-type-defaults
 hugs-options:
 nhc98-options:
 jhc-options:
