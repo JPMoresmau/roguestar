@@ -12,13 +12,17 @@ import Data.Maybe
 import Data.Ord
 import Town
 import Data.List
+import Data.ByteString.Char8 as B
+import FactionData
 
 makePlanet :: (PlaneLocation l) => l -> PlanetInfo -> DB PlaneRef
 makePlanet plane_location planet_info =
     do seed <- getRandom
        seed_down <- getRandom
+       planet_name <- liftM (`fromMaybe` planet_info_name planet_info) $
+                          randomPlanetName PanGalacticTreatyOrganization
        plane_ref <- dbNewPlane
-          (planet_info_name planet_info)
+          planet_name
           (TerrainGenerationData {
                tg_smootheness = 3,
                tg_biome = planet_info_biome planet_info,
@@ -29,7 +33,7 @@ makePlanet plane_location planet_info =
            do p <- rationalRoll r
               return $ if p then Just b else Nothing
        _ <- createTown plane_ref town
-       _ <- makeDungeons (Beneath plane_ref) 0 planet_info
+       _ <- makeDungeons planet_name (Beneath plane_ref) 0 planet_info
        return plane_ref
 
 makePlanets :: (PlaneLocation l) => l -> [PlanetInfo]  -> DB PlaneRef
@@ -40,16 +44,17 @@ makePlanets l (planet_info:rest) =
        return plane_ref
 
 makeDungeons :: (PlaneLocation l) =>
+                B.ByteString ->
                 l ->
                 Integer ->
                 PlanetInfo ->
                 DB PlaneRef
-makeDungeons plane_location i planet_info =
+makeDungeons planet_name plane_location i planet_info =
     do let n = planet_info_depth planet_info
        seed_up <- getRandom
        seed_down <- getRandom
        plane_ref <- dbNewPlane
-           Nothing
+           planet_name
            (TerrainGenerationData {
                tg_smootheness = 2,
                tg_biome = planet_info_dungeon planet_info,
@@ -58,7 +63,7 @@ makeDungeons plane_location i planet_info =
                    if i < n then [stairsDown seed_down i] else [] })
            plane_location
        when (i < n) $
-           do _ <- makeDungeons (Beneath plane_ref) (succ i) planet_info
+           do _ <- makeDungeons planet_name (Beneath plane_ref) (succ i) planet_info
               return ()
        return plane_ref
 

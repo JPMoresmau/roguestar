@@ -64,7 +64,7 @@ startingEquipmentBySpecies Reptilian = [sphere Oxygen]
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =
-    do dbNewPlane (Just "belhaven") (TerrainGenerationData {
+    do dbNewPlane "belhaven" (TerrainGenerationData {
            tg_smootheness = 3,
 	   tg_biome = homeBiome $ creature_species creature,
 	   tg_placements = [] }) TheUniverse
