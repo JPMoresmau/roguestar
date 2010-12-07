@@ -32,7 +32,7 @@ clean         [-e OPTS=cabal clean opts]
 install       [-e OPTS=cabal install opts]
 :             Install everything using cabal.
 
-install       [-e OPTS=cabal install opts]
+dev           [-e OPTS=cabal install opts]
 :             Install everything using cabal, with -Wall on.
 
 sdist         -e "VERSION=0.5" [-e OPTS=cabal sdist opts]
