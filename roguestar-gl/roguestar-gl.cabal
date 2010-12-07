@@ -1,5 +1,5 @@
 name:                roguestar-gl
-version:             0.4.0.2
+version:             0.4.0.3
 license:             OtherLicense
 license-file:        LICENSE
 author:              Christopher Lane Hinson <lane@downstairspeople.org>
@@ -24,8 +24,8 @@ build-depends:       base>=4&&<5,
                      filepath>=1.1.0.3 && < 1.2,
                      random>=1.0.0.2 && < 1.1,
                      bytestring>=0.9.1.5 && < 0.10,
-                     statistics>=0.5.1.0 && < 0.6,
-                     vector>=0.6.0.1 && < 0.7,
+                     vector>=0.7.0.1 && < 0.8,
+                     statistics>=0.8.0.4 && < 0.9,
                      stm>=2.1.1.2 && < 2.2,
                      priority-sync>=0.2.1.0 && < 0.2.2
 
@@ -50,7 +50,6 @@ other-modules:       Quality, ProtocolTypes, VisibleObject,
                      AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,
                      AnimationExtras, AnimationCreatures, AnimationBuildings, MaybeArrow,
                      EventUtils, Sky, Config
-
 ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
 ghc-prof-options:    -prof -auto-all
 
