@@ -29,15 +29,18 @@ data TextType = Event -- ^ message related to an event in the game
 data StatusField =
     PlanetName
   | CompassHeading
+  | DungeonDepth
         deriving (Eq,Ord)
 
 -- | Message to print when a piece of status information changes.
 onChange :: StatusField -> B.ByteString -> B.ByteString
 onChange PlanetName s = "Welcome to " `B.append` s `B.append` "."
 onChange CompassHeading s = "Your compass is now pointing " `B.append` s `B.append` "."
+onChange DungeonDepth s = "You are now on dungeon level: " `B.append` s `B.append` "."
 
 -- | Continuous status messages.
 whileActive :: StatusField -> B.ByteString -> B.ByteString
 whileActive PlanetName s =     "Planet:  " `B.append` s
 whileActive CompassHeading s = "Compass: " `B.append` s
+whileActive DungeonDepth s =   "Depth:   " `B.append` s
 

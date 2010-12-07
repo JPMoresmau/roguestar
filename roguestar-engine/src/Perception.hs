@@ -15,7 +15,8 @@ module Perception
      Perception.getCreatureFaction,
      whereAmI,
      localBiome,
-     compass)
+     compass,
+     depth)
     where
 
 import Control.Monad.Reader
@@ -32,6 +33,7 @@ import Position
 import TerrainData
 import BuildingData
 import Building
+import Plane
 
 newtype (DBReadable db) => DBPerception db a = DBPerception { fromPerception :: (ReaderT CreatureRef db a) }
 
@@ -103,4 +105,9 @@ compass =
                   filterM (liftM (`elem` signalling_building_types) . buildingType . child) =<< 
                                dbGetContents plane
               return $ maybe Here (faceAt pos . parent) $ listToMaybe buildings
-       
+
+depth :: (DBReadable db) => DBPerception db Integer
+depth =
+    do plane <- whatPlaneAmIOn
+       liftDB $ planeDepth plane
+

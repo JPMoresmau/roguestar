@@ -52,6 +52,8 @@ mainDispatch = proc () ->
        statusA -< fmap ((,) PlanetName) $ case m_planet_name of
            Just "nothing" -> Nothing
            x -> x
+       m_dungeon_depth <- sticky isJust Nothing <<< driverGetAnswerA -< "dungeon-depth"
+       statusA -< fmap ((,) DungeonDepth) m_dungeon_depth
        m_compass <- sticky isJust Nothing <<< driverGetAnswerA -< "compass"
        statusA -< fmap ((,) CompassHeading) $ case m_compass of
            Just "nothing" -> Nothing

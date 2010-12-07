@@ -461,6 +461,12 @@ dbDispatchQuery ["compass"] =
          Nothing -> return "answer: compass nothing"
          Just player_ref -> Perception.runPerception player_ref $ liftM (("answer: compass " `B.append`) . B.pack . show) Perception.compass
 
+dbDispatchQuery ["dungeon-depth"] =
+    do m_player_ref <- getCurrentCreature Player
+       case m_player_ref of
+         Nothing -> return "answer: compass nothing"
+         Just player_ref -> Perception.runPerception player_ref $ liftM (("answer: dungeon-depth " `B.append`) . B.pack . show) Perception.depth
+
 dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" `B.append` B.unwords unrecognized `B.append` "`"
 
 -----------------------------------------------------

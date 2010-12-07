@@ -3,6 +3,7 @@ module Plane
     (dbNewPlane,
      planetName,
      randomPlanetName,
+     planeDepth,
      dbGetCurrentPlane,
      dbDistanceBetweenSquared,
      pickRandomClearSite_withTimeout,
@@ -46,6 +47,13 @@ randomPlanetName :: (DBReadable db) => Faction -> db B.ByteString
 randomPlanetName faction =
     do planet_number <- getRandomR (1000 :: Integer,9999)
        return $ factionPrefix faction `B.append` "-" `B.append` B.pack (show planet_number)
+
+planeDepth :: (DBReadable db) => PlaneRef -> db Integer
+planeDepth this_plane =
+    do l <- dbWhere this_plane
+       case extractParent l of
+           Just (Beneath above) -> liftM succ $ planeDepth above
+           Nothing -> return 0
 
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
