@@ -2,10 +2,7 @@ module Statistics
     (Statistics,newStatistics,runStatistics)
     where
 
-import qualified Data.Vector.Unboxed as V
-import Statistics.Sample as S
 import Data.List as L
-import Statistics.Quantile
 import Control.Concurrent
 import RSAGL.FRP.Time
 import System.IO
@@ -15,6 +12,7 @@ import Control.Monad
 import RSAGL.Math.Types
 import Text.Printf
 import Control.Exception
+import Data.Maybe
 
 {-# NOINLINE error_pump #-}
 error_pump :: Chan String
@@ -24,56 +22,64 @@ error_pump = unsafePerformIO $
                 do hPutStrLn stderr =<< readChan pump
        return pump
 
+data StatisticsBlock = StatisticsBlock {
+    statistics_max :: !RSdouble,
+    statistics_min :: !RSdouble,
+    -- The running average.
+    statistics_total :: !RSdouble,
+    statistics_count :: !Integer }
+
+empty_stats :: StatisticsBlock
+empty_stats = StatisticsBlock {
+    statistics_max = 0.0,
+    statistics_min = 0.0,
+    statistics_total = 0.0,
+    statistics_count = 0 }
+
+contributeSample :: RSdouble -> Maybe StatisticsBlock -> Maybe StatisticsBlock
+contributeSample v Nothing = Just $ StatisticsBlock {
+    statistics_max = v,
+    statistics_min = v,
+    statistics_total = v,
+    statistics_count = 1 }
+contributeSample v (Just stats) = Just $ stats {
+    statistics_max = statistics_max stats `max` v,
+    statistics_min = statistics_min stats `min` v,
+    statistics_total = v + statistics_total stats,
+    statistics_count = succ $ statistics_count stats }
+
 data Statistics = Statistics {
-    statistics_sample :: MVar [Double],
-    statistics_max :: MVar Double,
-    statistics_avg :: MVar Double,
-    statistics_time :: MVar Time,  -- time since last flushing of statistics
+    -- time since last flushing of statistics
+    statistics_block :: MVar (Time,Maybe StatisticsBlock),
     statistics_name :: String }
 
 newStatistics :: String -> IO Statistics
 newStatistics name =
-    do sample <- newMVar []
-       t <- newMVar =<< getTime
-       s_max <- newMVar 0
-       s_avg <- newMVar 1000
+    do t <- getTime
+       new_block <- newMVar (t,Nothing)
        return $ Statistics {
-           statistics_sample = sample,
-           statistics_max = s_max,
-           statistics_avg = s_avg,
-           statistics_time = t,
+           statistics_block = new_block,
            statistics_name = name }
 
 runStatistics :: Statistics -> IO a -> IO a
-runStatistics stats action =
+runStatistics stats_object action =
     do t_start <- getTime
        a <- action
        t_end <- getTime
        let t_diff = f2f $ toSeconds $ t_end `sub` t_start
-       modifyMVar_ (statistics_sample stats) $ return . (t_diff :)
-       modifyMVar_ (statistics_max stats) $ return . (max t_diff)
-       modifyMVar_ (statistics_avg stats) $ return . (\t -> (99*t + t_diff)/100)
-       _ <- evaluate =<< readMVar (statistics_max stats)
-       _ <- evaluate =<< readMVar (statistics_avg stats)
-       modifyMVar_ (statistics_time stats) $ \t ->
-           do let should_report = (toSeconds (t_end `sub` t) > 30)
-              when should_report $ liftM (const ()) $ forkIO $
-                  do modifyMVar_ (statistics_sample stats) $ \x ->
-                         do let sv = V.fromList $ take (60*30) x :: Sample
-                            let f = printf "%.4f" . (*60) :: Double -> String
-                            writeChan error_pump $ "\nSTATISTICS " ++ statistics_name stats ++
-                                                   "\nMEAN       " ++ f (mean sv) ++
-                                                   "\nSTD DEV    " ++ f (stdDev sv) ++
-                                                   "\nKURTOSIS   " ++ f (kurtosis sv) ++
-                                                   "\nQUARTILES  " ++ (concat $ intersperse " | " $ map f $
-				[continuousBy medianUnbiased 0 4 sv,
-                                 continuousBy medianUnbiased 1 4 sv,
-                                 continuousBy medianUnbiased 2 4 sv,
-                                 continuousBy medianUnbiased 3 4 sv,
-                                 continuousBy medianUnbiased 4 4 sv])
-                            writeChan error_pump =<< liftM ((statistics_name stats ++ " lifetime maximum ") ++) (liftM f $ readMVar $ statistics_max stats)
-                            writeChan error_pump =<< liftM ((statistics_name stats ++ " floating average ") ++) (liftM f $ readMVar $ statistics_avg stats)
-                            return []
-              return $ if should_report then t_end else t
+       modifyMVar_ (statistics_block stats_object) $ \(t,m_stats) ->
+           do let should_report = toSeconds (t_end `sub` t) > 60 && isJust m_stats
+                  stats = fromMaybe empty_stats m_stats
+              when should_report $
+                  do let f = printf "%.4f" . (f2f :: RSdouble -> Double) :: RSdouble -> String
+                     writeChan error_pump $ "\nSTATISTICS            " ++ statistics_name stats_object ++
+                                            "\nMEAN                  " ++ f (statistics_total stats / fromInteger (statistics_count stats)) ++
+                                            "\nMAX                   " ++ f (statistics_max stats) ++
+                                            "\nMIN                   " ++ f (statistics_min stats) ++
+                                            "\nN                     " ++ show (statistics_count stats) ++
+                                            "\n% TIME                " ++ f (statistics_total stats / toSeconds (t_end `sub` t) * 100.0) ++
+                                            "\nTHROUGHPUT            " ++ f (fromInteger (statistics_count stats) / statistics_total stats) ++
+                                            "\nEVENTS PER SECOND     " ++ f (fromInteger (statistics_count stats) / toSeconds (t_end `sub` t))
+              seq stats $ return $ if should_report then (t_end,Nothing) else (t,contributeSample t_diff m_stats)
        return a
 
