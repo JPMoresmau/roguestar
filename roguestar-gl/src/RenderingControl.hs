@@ -91,7 +91,7 @@ planar_states = ["player-turn","move","turn","jump","attack","fire","clear-terra
 planarGameplayDispatch :: (FRPModel m) => FRP e (RSwitch Disabled () () SceneLayerInfo m) () SceneLayerInfo
 planarGameplayDispatch = proc () ->
     do -- setup/get infos
-       mainStateHeader (`elem` planar_states) -< () 
+       mainStateHeader (`elem` planar_states) -< ()
        clearPrintTextOnce -< ()
        frp1Context eventMessager -< ()
        -- terrain threads
@@ -99,14 +99,14 @@ planarGameplayDispatch = proc () ->
        -- building threads
        frpContext (allowAnonymous forbidDuplicates) [(Nothing,visibleObjectThreadLauncher buildingAvatar)] -< ()
        -- creature threads
-       ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<< 
-           frpContext (allowAnonymous forbidDuplicates) 
+       ctos <- arr (catMaybes . map (uncurry $ liftA2 (,))) <<<
+           frpContext (allowAnonymous forbidDuplicates)
               [(Nothing,visibleObjectThreadLauncher creatureAvatar)] -< ()
        -- tool threads
        frpContext (allowAnonymous forbidDuplicates) [(Nothing,visibleObjectThreadLauncher toolAvatar)] -< 
            ToolThreadInput {
                tti_wield_points = Map.fromList $ map (\(uid,cto) -> (uid,cto_wield_point cto)) ctos }
-       -- camera/lighting stuff, including sky sphere 
+       -- camera/lighting stuff, including sky sphere
        sky_info <- getSkyInfo -< ()
        sky -< sky_info
        m_lookat <- whenJust (approachA 1.0 (perSecond 3.0)) <<< sticky isJust Nothing <<<

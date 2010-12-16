@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, PatternGuards #-}
 
 module Models.Sky
     (SkyInfo(..),default_sky,
@@ -23,8 +23,8 @@ import RSAGL.Color
 import RSAGL.Color.RSAGLColors
 import Scene
 import Data.Monoid
-import RSAGL.Math.Types
 import qualified Data.ByteString as B
+import Data.Maybe
 
 data SkyInfo = SkyInfo {
     sky_info_biome :: B.ByteString,
@@ -53,13 +53,15 @@ default_sky = SkyInfo {
     sky_info_solar_kelvins = 5800 }
 
 default_sun :: SunInfo
-default_sun = sunInfoOf default_sky
+default_sun = fromMaybe (error "Nothing: default_sun") $ sunInfoOf default_sky
 
 -- | generates a 'SunInfo' from a 'SkyInfo'
-sunInfoOf :: SkyInfo -> SunInfo
-sunInfoOf sky_info = SunInfo {
-    sun_info_size_adjustment = abs (sky_info_degrees_latitude sky_info) + (fst $ biomeAtmosphere $ sky_info_biome sky_info),
-    sun_info_kelvins = sky_info_solar_kelvins sky_info }
+sunInfoOf :: SkyInfo -> Maybe SunInfo
+sunInfoOf sky_info =
+    do temperature_adjustment <- fst $ biomeAtmosphere $ sky_info_biome sky_info
+       return $ SunInfo {
+            sun_info_size_adjustment = abs (sky_info_degrees_latitude sky_info) + temperature_adjustment,
+            sun_info_kelvins = sky_info_solar_kelvins sky_info }
 
 medium_atmosphere :: Atmosphere
 medium_atmosphere = [
@@ -81,22 +83,35 @@ thick_atmosphere = [
 arid_atmosphere :: Atmosphere
 arid_atmosphere = [
     AtmosphereLayer Air 0.05 2.5e-3,
-    AtmosphereLayer (Dust $ maroon) 0.1 1.0e-3 ]
+    AtmosphereLayer (Dust maroon) 0.1 1.0e-3 ]
 
-biomeAtmosphere :: B.ByteString -> (Integer,Atmosphere)
-biomeAtmosphere "rockbiome" = (0,arid_atmosphere)
-biomeAtmosphere "icyrockbiome" = (-100,thin_atmosphere)
-biomeAtmosphere "grasslandbiome" = (35,medium_atmosphere)
-biomeAtmosphere "tundrabiome" = (-75,thin_atmosphere)
-biomeAtmosphere "desertbiome" = (100,arid_atmosphere)
-biomeAtmosphere "oceanbiome" = (5,medium_atmosphere)
-biomeAtmosphere "mountainbiome" = (-15,thin_atmosphere)
-biomeAtmosphere "swampbiome" = (35,thick_atmosphere)
-biomeAtmosphere _ = (0,[])
+hot_pink_atmosphere :: Atmosphere
+hot_pink_atmosphere = [
+    AtmosphereLayer (Fog hot_pink) 0.1 1.0e-3]
+
+-- Answers a temperature adjustment and a atmospheric model, for rendering the sun and sky.
+-- If there is no temperature adjustment, there will be no sun, and likewise if there
+-- is no atmosphere model, there will be no (rendered) atmosphere.
+biomeAtmosphere :: B.ByteString -> (Maybe Integer,Maybe Atmosphere)
+biomeAtmosphere "shallowdungeon" = (Nothing,Nothing)
+biomeAtmosphere "deepdungeon" = (Nothing,Nothing)
+biomeAtmosphere "frozendungeon" = (Nothing,Nothing)
+biomeAtmosphere "abyssaldungeon" = (Nothing,Nothing)
+biomeAtmosphere "infernaldungeon" = (Nothing,Nothing)
+biomeAtmosphere "rockbiome" = (Just 0,Just arid_atmosphere)
+biomeAtmosphere "icyrockbiome" = (Just (-100),Just thin_atmosphere)
+biomeAtmosphere "grasslandbiome" = (Just 35,Just medium_atmosphere)
+biomeAtmosphere "tundrabiome" = (Just (-75),Just thin_atmosphere)
+biomeAtmosphere "desertbiome" = (Just 100,Just arid_atmosphere)
+biomeAtmosphere "oceanbiome" = (Just 5,Just medium_atmosphere)
+biomeAtmosphere "mountainbiome" = (Just (-15),Just thin_atmosphere)
+biomeAtmosphere "swampbiome" = (Just 35,Just thick_atmosphere)
+biomeAtmosphere "nothing" = (Nothing,Nothing)
+biomeAtmosphere _ = (Nothing,Just hot_pink_atmosphere)
 
 -- | 'sunVectorOf' indicates vector pointing at the sun.
 sunVector :: SkyInfo -> Vector3D
-sunVector sky_info = 
+sunVector sky_info =
     rotate (Vector3D 1 0 0) (fromDegrees $ (realToFrac $ sky_info_degrees_latitude sky_info) +
                                              (cosine $ fromDegrees $ realToFrac $ sky_info_degrees_orbital sky_info) * 
 					     (realToFrac $ sky_info_degrees_axial_tilt sky_info)) $
@@ -123,18 +138,19 @@ sunSize sun_info = base_star_size * (5800^2 / (realToFrac $ sun_info_kelvins sun
 
 -- | 'makeSky' generates a sky sphere.
 makeSky :: SkyInfo -> Modeling ()
-makeSky sky_info = model $
-    do hilly_silhouette 
+makeSky sky_info | Just atmo <- snd $ biomeAtmosphere $ sky_info_biome sky_info = model $
+    do hilly_silhouette
        model $
            do let v = sunVector sky_info
               skyHemisphere origin_point_3d (Vector3D 0 1 0) 5.0
               affine $ scale (Vector3D 2 1 2)
               material $ atmosphereScatteringMaterial
-                  (snd $ biomeAtmosphere $ sky_info_biome sky_info)
+                  atmo
                   [(v,adjustColor channel_value maximize $
                           blackBodyRGB $ realToFrac $
                               sky_info_solar_kelvins sky_info)]
                   (dynamicSkyFilter 0.05 0.5)
+makeSky _ = return ()
 
 -- | Implements absorbtion of light sources passing through the sky sphere.
 -- In particular, this turns off all lights inside 'scene_layer_sky_sphere'.
@@ -148,7 +164,7 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
 	() | entering_layer == scene_layer_clouds -> sunFade (fromDegrees 5) v ls
 	() | entering_layer == scene_layer_near_sky -> sunFade (fromDegrees 2) v ls
 	() | otherwise -> sunFade (fromDegrees 0) v ls
-  where absorbtion v = filterRGB $ (absorbtionFilter . absorbtionFilter) $ atmosphereAbsorbtion (snd $ biomeAtmosphere $ sky_info_biome sky_info) (Point3D 0 1 0) v
+  where absorbtion v = filterRGB $ (absorbtionFilter . absorbtionFilter) $ atmosphereAbsorbtion (fromMaybe mempty $ snd $ biomeAtmosphere $ sky_info_biome sky_info) (Point3D 0 1 0) v
 	direction (PointLight { lightsource_position = p }) = vectorToFrom p origin_point_3d
 	direction (DirectionalLight { lightsource_direction = d }) = d
 	direction NoLight = Vector3D 0 1 0
@@ -158,30 +174,39 @@ skyAbsorbtionFilter sky_info = LightSourceLayerTransform $ \entering_layer origi
 sunlightFadeFactor :: Angle -> Vector3D -> RSdouble
 sunlightFadeFactor tolerance v = max 0 $ lerpBetweenClamped (85,toDegrees $ angleBetween v (Vector3D 0 1 0),95+toDegrees tolerance) (1.0,0.0)
 
--- | Information about the lighting environment.  All values are between 0 and 1, indicating a relative scale compared to the normal, full brightness.
+-- | Information about the lighting environment.  All values are between 0 and 1, indicating a
+-- relative scale compared to the normal, full brightness.
 data LightingConfiguration = LightingConfiguration {
-    -- | Apparent brightness of the sun.  This will fade to zero along the horizon and equal zero at night.
-    lighting_sunlight, 
-    -- | Apparent brightness of ambient sky radiation.  This will fade to black more slowly than 'lighting_sunlight', lingering after the sun has set.
-    lighting_skylight, 
-    -- | Apparent brightness of the nightlight.  This is a blue light with heavy ambient component that simulates human night vision.
-    lighting_nightlight, 
-    -- | Brightness of artificial lights.  Typically all artificial lights intended for nighttime illumination should be scaled based on this value.
+    -- | Apparent brightness of the sun.  This will fade to zero along the horizon and equal zero at
+    -- night.
+    lighting_sunlight,
+    -- | Apparent brightness of ambient sky radiation.  This will fade to black more slowly than
+    -- 'lighting_sunlight', lingering after the sun has set.
+    lighting_skylight,
+    -- | Apparent brightness of the nightlight.  This is a blue light with heavy ambient component
+    -- that simulates human night vision.
+    lighting_nightlight,
+    -- | Brightness of artificial lights.  Typically all artificial lights intended for nighttime
+    -- illumination should be scaled based on this value.
     lighting_artificial :: RSdouble }
 
 lightingConfiguration :: SkyInfo -> LightingConfiguration
 lightingConfiguration sky_info = result
-    where result = LightingConfiguration {
-                       lighting_sunlight = sunlightFadeFactor (fromDegrees 0) (sunVector sky_info),
-		       lighting_skylight = sunlightFadeFactor (fromDegrees 10) (sunVector sky_info),
+    where sunlight_intensity = linear_value $ viewChannel channel_luminance $
+              maybe blackbody sunColor $ sunInfoOf sky_info
+          result = LightingConfiguration {
+                       lighting_sunlight = sunlightFadeFactor (fromDegrees 0) (sunVector sky_info) * sunlight_intensity,
+		       lighting_skylight = sunlightFadeFactor (fromDegrees 10) (sunVector sky_info) * sunlight_intensity,
 		       lighting_nightlight = max 0 $ 1.0 - lighting_sunlight result - lighting_skylight result,
 		       lighting_artificial = min 1 $ max 0 $ 1.0 - lighting_sunlight result - (lighting_nightlight result/4) + (1000 / realToFrac (sky_info_solar_kelvins sky_info))^3 }
 
 -- | Get the color of the ambient sky radiation by sampling a very small number vectors into the sky.
 ambientSkyRadiation :: SkyInfo -> RGB
+ambientSkyRadiation sky_info | Nothing <- snd $ biomeAtmosphere $ sky_info_biome sky_info = blackbody
+ambientSkyRadiation sky_info | Nothing <- fst $ biomeAtmosphere $ sky_info_biome sky_info = blackbody
 ambientSkyRadiation sky_info = abstractAverage $ map (atmosphereScattering atmosphere [sun_info] (Point3D 0 1 0)) test_vectors
-    where atmosphere = snd $ biomeAtmosphere $ sky_info_biome sky_info
-          sun_info = (sunVector sky_info,sunColor $ sunInfoOf sky_info)
+    where atmosphere = fromMaybe mempty $ snd $ biomeAtmosphere $ sky_info_biome sky_info
+          sun_info = (sunVector sky_info,maybe blackbody sunColor $ sunInfoOf sky_info)
 	  test_vectors = map vectorNormalize $ 
 	      do x <- [1,0,-1]
 	         y <- [1,0,-1]

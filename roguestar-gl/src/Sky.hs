@@ -20,7 +20,6 @@ import RSAGL.Math
 import RSAGL.FRP
 import Data.Maybe
 import Control.Arrow
-import RSAGL.Modeling
 import RSAGL.Color
 import RSAGL.Color.RSAGLColors
 import RSAGL.Animation
@@ -44,7 +43,7 @@ generateSkyInfo random_id m_biome = fst $ flip runRand (mkStdGen $ fromInteger $
         degrees_latitude <- getRandomR(-90,90)
         degrees_axial_tilt <- getRandomR (0,90)
         degrees_orbital <- getRandomR (0,360)
-        return $ default_sky { sky_info_biome = fromMaybe "" m_biome,
+        return $ default_sky { sky_info_biome = fromMaybe "nothing" m_biome,
                                sky_info_solar_kelvins = temperature,
                                sky_info_degrees_after_midnight = degrees_after_midnight,
                                sky_info_degrees_latitude = degrees_latitude,
@@ -85,19 +84,19 @@ sky = proc sky_info ->
 sun :: (FRPModel m,StateOf m ~ AnimationState,
         InputOutputOf m ~ Enabled) => FRP e m SkyInfo ()
 sun = proc sky_info ->
-    do libraryA -< (scene_layer_distant,SunDisc $ sunInfoOf sky_info)
+    do libraryA -< (scene_layer_distant,maybe NullModel SunDisc $ sunInfoOf sky_info)
        lighting_configuration <- Sky.lightingConfiguration -< sky_info
        sky_on <- readGlobal global_sky_on -< ()
        let sunlight_intensity = lighting_sunlight lighting_configuration
-       accumulateSceneA -< (scene_layer_distant,lightSource $ case () of
-            () | sunlight_intensity > 0.05 && sky_on ->
+       accumulateSceneA -< (scene_layer_distant,lightSource $ case sunInfoOf sky_info of
+            Just sun_info | sunlight_intensity > 0.05 && sky_on ->
                      PointLight {
                          lightsource_position = Point3D 0 (-10) 0,
                          lightsource_radius = measure origin_point_3d
                                                       (Point3D 0 (-10) 0),
-                         lightsource_color = sunColor $ sunInfoOf sky_info,
+                         lightsource_color = sunColor sun_info,
                          lightsource_ambient = blackbody}
-            () | otherwise -> NoLight)
+            _ | otherwise -> NoLight)
 
 lightingConfiguration :: (FRPModel m) => FRP e m SkyInfo LightingConfiguration
 lightingConfiguration = proc sky_info ->
@@ -105,4 +104,5 @@ lightingConfiguration = proc sky_info ->
        artificial <- approachA 1.0 (perSecond 1.0) -< lighting_artificial $ Models.Sky.lightingConfiguration sky_info
        returnA -< (Models.Sky.lightingConfiguration sky_info) {
            lighting_nightlight = nightlight,
-	   lighting_artificial = artificial }
+           lighting_artificial = artificial }
+

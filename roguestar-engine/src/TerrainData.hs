@@ -34,13 +34,13 @@ data Biome = ShallowDungeon
            | RockBiome
            | IcyRockBiome
            | GrasslandBiome
-	   | ForestBiome
+           | ForestBiome
            | TundraBiome
            | DesertBiome
            | OceanBiome
            | MountainBiome
-	   | SwampBiome
-	     deriving (Read,Show,Eq,Ord,Enum,Bounded)
+           | SwampBiome
+             deriving (Read,Show,Eq,Ord,Enum,Bounded)
 
 -- |
 -- All static terrain elements are members of TerrainGrid
@@ -62,18 +62,18 @@ data TerrainPatch = RockFace
                   | Water
                   | DeepWater
                   | Ice
-		  | Lava
-		  | Glass -- what sand becomes when struck by intense heat
-		  | RecreantFactory
+                  | Lava
+                  | Glass -- what sand becomes when struck by intense heat
+                  | RecreantFactory
                   | Upstairs
                   | Downstairs
                     deriving (Read,Show,Eq,Ord)
 
 data TerrainGenerationData = TerrainGenerationData
-			   { tg_smootheness :: Integer,
-			     tg_biome :: Biome,
-			     tg_placements :: [TerrainPlacement] }
-			   deriving (Read,Show)
+                           { tg_smootheness :: Integer,
+                             tg_biome :: Biome,
+                             tg_placements :: [TerrainPlacement] }
+                           deriving (Read,Show)
 
 data TerrainPlacement = TerrainPlacement {
     placement_sources :: [(Rational,TerrainPatch)],
@@ -85,20 +85,20 @@ placeTerrain :: TerrainPlacement -> TerrainGrid -> TerrainGrid
 placeTerrain terrain_placement =
     arbitraryReplaceGrid (placement_sources terrain_placement)
                          (placement_replacements terrain_placement)
-			 (placement_seed terrain_placement)
+                         (placement_seed terrain_placement)
 
 recreantFactories :: Integer -> TerrainPlacement
 recreantFactories seed = TerrainPlacement {
-    placement_sources = 
+    placement_sources =
         [(1%25,Ice),
          (1%100,Sand),
          (1%25,Desert),
          (1%50,Dirt),
          (1%10,Glass),
-	 (1%200,Grass),
+         (1%200,Grass),
          (1%1000,Forest),
          (1%25,RockyGround)],
-    placement_replacements = 
+    placement_replacements =
         [(1,RecreantFactory)],
     placement_seed = seed }
 
