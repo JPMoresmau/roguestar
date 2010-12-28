@@ -19,6 +19,7 @@ import Data.Set as Set
 import Data.Maybe
 import System.IO
 import Tables
+import Statistics
 import RSAGL.FRP.Time
 import Control.Applicative
 import Control.Monad.Reader

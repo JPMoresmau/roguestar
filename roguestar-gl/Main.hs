@@ -10,7 +10,7 @@ import System.FilePath
 import System.IO
 import Control.Monad
 import Paths_roguestar_gl
-import GHC.Environment
+import System.Environment
 import System.Time
 import qualified Data.ByteString as B
 import Data.ByteString.Char8 ()
@@ -71,7 +71,7 @@ main =
                arg_verbose = False,
                arg_engine = [],
                arg_client = [] }
-       raw_args <- getFullArgs
+       raw_args <- getArgs
        let (opts_list,_,errs) = getOpt (ReturnInOrder $ \s args -> args {
                    arg_engine = arg_engine args ++ [s],
                    arg_client = arg_client args ++ [s] })
@@ -84,9 +84,9 @@ main =
        when (not $ null errs) $
            do mapM_ putStrLn errs
               exitWith ExitSuccess
-       let n_rts_string = if arg_single_threaded args then [] else ["-N"]
+       let n_rts_string = if arg_single_threaded args then [] else ["-N", "-A100m"]
        let gl_args =
-               ["+RTS", "-G4"] ++
+               ["+RTS"] ++
                n_rts_string ++
                ["-RTS"] ++
                arg_client args

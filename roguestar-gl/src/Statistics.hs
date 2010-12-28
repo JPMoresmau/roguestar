@@ -1,5 +1,7 @@
 module Statistics
-    (Statistics,newStatistics,runStatistics)
+    (Statistics,newStatistics,runStatistics,
+     animation_query,
+     animation_post_exec)
     where
 
 import Data.List as L
@@ -13,6 +15,14 @@ import RSAGL.Math.Types
 import Text.Printf
 import Control.Exception
 import Data.Maybe
+
+{-# NOINLINE animation_query #-}
+animation_query :: Statistics
+animation_query = unsafePerformIO $ newStatistics "animation-query"
+
+{-# NOINLINE animation_post_exec #-}
+animation_post_exec :: Statistics
+animation_post_exec = unsafePerformIO $ newStatistics "animation-post-exec"
 
 {-# NOINLINE error_pump #-}
 error_pump :: Chan String

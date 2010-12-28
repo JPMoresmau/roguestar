@@ -43,7 +43,7 @@ sceneLoop init_vars = liftM (const ()) $ forkIO $ forever $
                    exitWith $ ExitFailure 1
            else return ()
 
--- | Update aspect ration, when it changes.
+-- | Update aspect ratio, when it changes.
 reshape :: Size -> IO ()
 reshape (Size width height) =
     do mat_mode <- get matrixMode

@@ -63,6 +63,7 @@ import Strings
 import Globals
 import PrintText
 import PrintTextData
+import Statistics
 import Control.Concurrent.STM
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
@@ -132,7 +133,7 @@ runRoguestarAnimationObject lib globals driver_object print_text_object
                animstate_suspended_stm_action = return () }
        (result_scene_layer_info,result_animstate) <-
            updateFRPProgram Nothing ((),anim_state) rso
-       atomically $
+       runStatistics animation_post_exec $ atomically $
            do when (not $ animstate_block_continue result_animstate) $
                   executeContinueAction $
                       ActionInput globals driver_object print_text_object
@@ -152,7 +153,7 @@ driverGetAnswerA :: (StateOf m ~ AnimationState,
 driverGetAnswerA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,query_) ->
-           atomically $ getAnswer driver_object_ query_) -<
+           runStatistics animation_query $ atomically $ getAnswer driver_object_ query_) -<
                (driver_object,query)
 
 -- | Request a data table from the engine.  This will return 'Nothing' until the entire table arrives, which may never happen.
@@ -162,7 +163,7 @@ driverGetTableA :: (StateOf m ~ AnimationState,
 driverGetTableA = proc query ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
        ioAction (\(driver_object_,(the_table_name,the_table_id)) ->
-                 atomically $
+                 runStatistics animation_query $ atomically $
                      getTable driver_object_ the_table_name the_table_id) -<
                          (driver_object,query)
 
@@ -206,7 +207,7 @@ donesA :: (StateOf m ~ AnimationState,
           FRP e m () Integer
 donesA = proc () ->
     do driver_object <- arr animstate_driver_object <<< fetch -< ()
-       ioAction (atomically . driverDones) -< driver_object
+       ioAction (runStatistics animation_query . atomically . driverDones) -< driver_object
 
 -- | Print a debugging message to 'stderr'.  This will print on every frame of animation.
 debugA :: (StateOf m ~ AnimationState,
@@ -231,9 +232,10 @@ actionNameToKeysA action_name = proc () ->
        let action_input = ActionInput (animstate_globals animstate)
                                       (thawDriver $ animstate_driver_object animstate)
                                       (animstate_print_text_object animstate)
-       ioAction id -< atomically (actionNameToKeys action_input
-                                                   common_keymap
-                                                   action_name)
+       ioAction id -< runStatistics animation_query $
+                          atomically (actionNameToKeys action_input
+                                                       common_keymap
+                                                       action_name)
 
 -- | Print a menu using 'printMenuItemA'
 printMenuA :: (FRPModel m, StateOf m ~ AnimationState,
@@ -320,5 +322,5 @@ readGlobal :: (StateOf m ~ AnimationState,
               (Globals -> TVar g) -> FRP e m () g
 readGlobal f = proc () ->
     do globals <- arr animstate_globals <<< fetch -< ()
-       ioAction (\globals_ -> atomically $ readTVar $ f globals_) -< globals
+       ioAction (\globals_ -> runStatistics animation_query $ atomically $ readTVar $ f globals_) -< globals
 

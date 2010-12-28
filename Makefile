@@ -37,6 +37,9 @@ install:
 dev:
 	${MAKE} install -e "OPTS=${CONFIG_OPTS}"
 
+prof:
+	${MAKE} install -e "OPTS=${CONFIG_OPTS} --enable-library-profiling --enable-executable-profiling"
+
 sdist:
 	(cd rsagl-math && cabal check && cabal sdist ${OPTS})
 	(cd rsagl-frp && cabal check && cabal sdist ${OPTS})
