@@ -16,6 +16,7 @@ import Plane
 import Position
 import TerrainData
 import Control.Monad.Error
+import CreatureData
 
 -- | The total occupied surface area of a building.
 buildingSize :: (DBReadable db) => BuildingRef -> db Integer
@@ -28,6 +29,9 @@ buildingType building_ref =
            Just (Constructed _ _ building_type) -> return building_type
            _ -> error "buildingSize: impossible case"
 
+deleteBuilding :: BuildingRef -> DB ()
+deleteBuilding = dbUnsafeDeleteObject (error "deleteBuilding: impossible case, buildings shouldn't contain anything.")
+
 -- | Activate the facing building, returns True iff any building was actually activated.
 activateFacingBuilding :: Facing -> CreatureRef -> DB Bool
 activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
@@ -38,7 +42,10 @@ activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
               activateBuilding building_type creature_ref building_ref
 
 activateBuilding :: BuildingType -> CreatureRef -> BuildingRef -> DB Bool
-activateBuilding Monolith _ _ = return False
+activateBuilding (Node _) creature_ref building_ref =
+    do dbModCreature (\c -> c { creature_points = succ $ creature_points c }) creature_ref
+       deleteBuilding building_ref
+       return True
 activateBuilding Portal creature_ref building_ref =
     do m_creature_position :: Maybe (PlaneRef,Position) <- liftM extractParent $ dbWhere creature_ref
        m_portal_position :: Maybe (PlaneRef,Position) <- liftM extractParent $ dbWhere building_ref
@@ -73,6 +80,4 @@ portalCreatureTo offset creature_ref plane_ref =
        position <- pickRandomClearSite 1 0 0 ideal_position (not . (`elem` impassable_terrains)) plane_ref
        dbPushSnapshot $ TeleportEvent creature_ref
        dbMove (return . toStanding (Standing plane_ref position Here)) creature_ref
-       
-       
 

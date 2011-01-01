@@ -48,6 +48,8 @@ data SimpleModel =
   | CyborgType4HyperspaceStabilizer
     -- Buildings
   | Monolith
+  | PlanetaryAnchorCore
+  | PlanetaryAnchorFlange
   | Portal
       deriving (Eq,Ord,Show,Enum,Bounded)
 

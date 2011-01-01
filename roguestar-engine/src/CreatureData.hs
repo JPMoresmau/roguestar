@@ -1,5 +1,5 @@
 
-module CreatureData 
+module CreatureData
     (Creature(..),
      CreatureGender(..),
      CreatureAptitude(..),
@@ -30,11 +30,12 @@ data Creature = Creature { creature_aptitude :: Map.Map CreatureAptitude Integer
                            creature_levels :: Map.Map CharacterClass Integer,
                            creature_favored_classes :: Set.Set CharacterClass,
                            creature_gender :: CreatureGender,
-			   creature_species :: Species,
-			   creature_random_id :: Integer, -- random number attached to the creature, not unique
-			   creature_damage :: Integer,
-			   creature_faction :: Faction }
-		deriving (Read,Show)
+                           creature_species :: Species,
+                           creature_random_id :: Integer, -- random number attached to the creature, not unique
+                           creature_damage :: Integer,
+                           creature_faction :: Faction,
+                           creature_points :: Integer }
+                                deriving (Read,Show)
 
 -- | Creature having no attributes and undefined 'creature_species', 'creature_random_id', and 'creature_faction'
 --
@@ -49,11 +50,13 @@ empty_creature = Creature {
     creature_species = error "empty_creature: undefined creature_species",
     creature_random_id = error "empty_creature: undefined creature_random_id",
     creature_damage = 0,
-    creature_faction = error "empty_creature: undefined creature_faction" }
+    creature_faction = error "empty_creature: undefined creature_faction",
+    creature_points = 0 }
 
 data CreatureGender = Male | Female | Neuter deriving (Eq,Read,Show)
 
--- | Endomorphisms over a 'Creature'.  These are types that contribute some feature to a 'Creature', so that 'Creature's can be defined concisely by those properties.
+-- | Endomorphisms over a 'Creature'.  These are types that contribute some feature to a 'Creature',
+-- so that 'Creature's can be defined concisely by those properties.
 class CreatureEndo a where
     applyToCreature :: a -> Creature -> Creature
 
@@ -72,7 +75,7 @@ instance CreatureEndo CreatureGender where
     applyToCreature g c = c { creature_gender = g }
 
 -- | The seven aptitudes.
-data CreatureAptitude = 
+data CreatureAptitude =
      Strength
    | Speed
    | Constitution

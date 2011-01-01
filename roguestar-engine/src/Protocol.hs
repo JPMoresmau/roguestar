@@ -393,7 +393,7 @@ dbDispatchQuery ["object-details",uid] = ro $
          buildingToTableData (ref,Building) = objectTableWrapper ref $
              do building_type <- buildingType ref
                 return $ "object-type building\n" `B.append`
-                         "building-type " `B.append` B.pack (show building_type) `B.append` "\n"
+                         "building-type " `B.append` B.pack (showBuilding building_type) `B.append` "\n"
 
 dbDispatchQuery ["player-stats","0"] = dbRequiresPlayerCenteredState dbQueryPlayerStats
 

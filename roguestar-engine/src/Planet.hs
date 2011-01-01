@@ -14,6 +14,7 @@ import Town
 import Data.List
 import Data.ByteString.Char8 as B
 import FactionData
+import BuildingData
 
 makePlanet :: (PlaneLocation l) => l -> PlanetInfo -> DB PlaneRef
 makePlanet plane_location planet_info =
@@ -33,7 +34,7 @@ makePlanet plane_location planet_info =
            do p <- rationalRoll r
               return $ if p then Just b else Nothing
        _ <- createTown plane_ref town
-       _ <- makeDungeons planet_name (Beneath plane_ref) 0 planet_info
+       _ <- makeDungeons planet_name (Beneath plane_ref) 1 planet_info
        return plane_ref
 
 makePlanets :: (PlaneLocation l) => l -> [PlanetInfo]  -> DB PlaneRef
@@ -62,6 +63,9 @@ makeDungeons planet_name plane_location i planet_info =
                    [stairsUp seed_up i] ++
                    if i < n then [stairsDown seed_down i] else [] })
            plane_location
+       when (i == n) $
+           do _ <- createTown plane_ref [Node $ planet_info_node_type planet_info]
+              return ()
        when (i < n) $
            do _ <- makeDungeons planet_name (Beneath plane_ref) (succ i) planet_info
               return ()

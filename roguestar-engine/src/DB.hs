@@ -333,7 +333,9 @@ dbAddBuilding :: (BuildingLocation l) => Building -> l -> DB BuildingRef
 dbAddBuilding = dbAddObjectComposable BuildingRef dbPutBuilding buildingLocation
 
 -- |
--- This deletes an object, but leaves any of it's contents dangling.
+-- This deletes an object, which will cause future references to the same object
+-- to fail.  Accepts a function to move all of the objects nested within the
+-- object being deleted.
 --
 dbUnsafeDeleteObject :: (ReferenceType e) =>
         (forall m. DBReadable m =>

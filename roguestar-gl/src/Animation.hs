@@ -201,7 +201,7 @@ statusA = proc status_data ->
                    animstate_status_lines animstate }
            Nothing -> animstate
 
--- | Number of dones.  (A done is a message from the engine that an change has occured in the game world.)
+-- | Number of dones.  (A done is a message from the engine that a change has occured in the game world.)
 donesA :: (StateOf m ~ AnimationState,
            InputOutputOf m ~ Enabled) =>
           FRP e m () Integer

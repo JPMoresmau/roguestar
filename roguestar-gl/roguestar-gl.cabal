@@ -47,7 +47,7 @@ Executable roguestar-gl
                        Models.Library, Models.MachineParts, Models.LibraryData, Models.Caduceator,
                        Models.Tree, Models.Encephalon, Models.PhaseWeapons, RenderingControl,
                        Keymaps.BuiltinKeymaps, Keymaps.CommonKeymap, Keymaps.NumpadKeymap,
-                       Keymaps.Keymaps, Keymaps.VIKeymap, AnimationBuildings, Models.Monolith,
+                       Keymaps.Keymaps, Keymaps.VIKeymap, AnimationBuildings, Models.Node,
                        Models.Stargate, Statistics, Globals, Models.Sky, Scene, Models.Spheres,
                        Models.EnergySwords, Models.EnergyThings, Models.CyborgType4,
                        AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,

@@ -79,7 +79,7 @@ dbBeginGame creature character_class =
        plane_ref <- dbCreateStartingPlane creature
        landing_site <- pickRandomClearSite 200 30 2 (Position (0,0)) (not . (`elem` difficult_terrains)) plane_ref
        creature_ref <- dbAddCreature first_level_creature (Standing plane_ref landing_site Here)
-       _ <- createTown plane_ref [Portal,Monolith]
+       _ <- createTown plane_ref [Portal,Node Monolith]
        let starting_equip = startingEquipmentBySpecies (creature_species creature) ++ startingEquipmentByClass character_class
        forM_ starting_equip $ \tool -> dbAddTool tool (Inventory creature_ref)
        forM_ [0..10] $ \_ -> do tool_position <- pickRandomClearSite 200 1 2 landing_site (not . (`elem` difficult_terrains)) plane_ref

@@ -139,7 +139,7 @@ data Location e t =
    | InTheUniverse PlaneRef
    | IsSubsequent PlaneRef Subsequent
    | IsBeneath PlaneRef Beneath
-    deriving (Read,Show,Eq,Ord)
+    deriving (Read,Show,Eq)
 
 unsafeLocation :: Location a b -> Location c d
 unsafeLocation (IsStanding a b) = IsStanding a b

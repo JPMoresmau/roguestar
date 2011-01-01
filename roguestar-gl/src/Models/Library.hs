@@ -35,7 +35,7 @@ import Models.CyborgType4
 import Models.EnergyThings
 import Models.EnergySwords
 import Models.Spheres
-import Models.Monolith
+import Models.Node
 import Models.Stargate
 
 -- |
@@ -80,6 +80,8 @@ toModel (SimpleModel CyborgType4HyperspaceStabilizer) =
 toModel (EnergyThing EnergyCylinder c) = energyCylinder c
 toModel (EnergyThing EnergySword c) = energySword c 3
 toModel (SimpleModel Monolith) = monolith
+toModel (SimpleModel PlanetaryAnchorCore) = planetary_anchor_core
+toModel (SimpleModel PlanetaryAnchorFlange) = planetary_anchor_flange
 toModel (SimpleModel Portal) = portal
 
 -- |

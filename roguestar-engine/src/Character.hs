@@ -18,7 +18,7 @@ data CharacterClassData = CharacterClassData {
     character_class_attributes :: CreatureAttribute }
 
 getEligableCharacterClassesComposable :: [CharacterClass] -> Creature -> [CharacterClass]
-getEligableCharacterClassesComposable allowed_classes creature = 
+getEligableCharacterClassesComposable allowed_classes creature =
     filter (\x -> character_class_prerequisite (classInfo x) creature || isFavoredClass x creature) allowed_classes
 
 getEligableCharacterClasses :: Creature -> [CharacterClass]
@@ -40,7 +40,7 @@ mustHave score min_score creature = (rawScore score creature) >= min_score
 -- function).  The prerequisite(s) restrict what 'Creatures' can advance in the 'CharacterClass'.
 --
 -- The second parameter is the list of 'CreatureAttribute's that a Creature gains when it levels in the 
--- 'CharacterClass'.  
+-- 'CharacterClass'.
 --
 characterClass :: Prerequisite -> CreatureAttribute -> CharacterClassData
 characterClass prereqs attribs = CharacterClassData prereqs attribs

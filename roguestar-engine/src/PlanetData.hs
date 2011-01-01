@@ -28,7 +28,8 @@ data PlanetInfo = PlanetInfo {
     planet_info_depth :: Integer,
     planet_info_biome :: Biome,
     planet_info_dungeon :: Biome,
-    planet_info_town :: [(Rational,BuildingType)] }
+    planet_info_town :: [(Rational,BuildingType)],
+    planet_info_node_type :: NodeType }
         deriving (Read,Show)
 
 pgto :: Integer -> B.ByteString -> Biome -> PlanetInfo
@@ -41,9 +42,11 @@ pgto x name biome = PlanetInfo {
     planet_info_biome = biome,
     planet_info_dungeon = case () of
         () | biome == OceanBiome -> AbyssalDungeon
+        () | biome == SwampBiome -> AbyssalDungeon
         () | x == 1 -> ShallowDungeon
         () -> DeepDungeon,
-    planet_info_town = [(1,Portal)] }
+    planet_info_town = [(1,Portal)],
+    planet_info_node_type = Anchor }
 
 addTown :: PlanetInfo -> [(Rational,BuildingType)] -> PlanetInfo
 addTown planet_info town = planet_info { planet_info_town = planet_info_town planet_info ++ town }
@@ -63,7 +66,7 @@ pgto_planets = [
     pgto 2 "pungo" ForestBiome,
     pgto 2 "neuse" ForestBiome,
     pgto 2 "crabtree" SwampBiome,
-    pgto 2 "eno" SwampBiome `addTown` [(1%20,Monolith)],
+    pgto 2 "eno" SwampBiome `addTown` [(1%20,Node Monolith)],
     pgto 2 "yadkin" SwampBiome,
     pgto 2 "catawba" ForestBiome,
     pgto 2 "pasquotank" ForestBiome,

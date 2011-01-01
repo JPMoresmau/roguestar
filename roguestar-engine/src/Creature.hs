@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 
-module Creature 
+module Creature
     (generateInitialPlayerCreature,
      newCreature,
      Roll(..),
@@ -44,7 +44,7 @@ generateCreature faction species = generateAttributes faction species $ mconcat 
 -- database's DBClassSelectionState.
 --
 generateInitialPlayerCreature :: Species -> DB ()
-generateInitialPlayerCreature species = 
+generateInitialPlayerCreature species =
     do newc <- generateCreature Player species
        dbSetStartingRace species
        setPlayerState (ClassSelectionState newc)
@@ -53,7 +53,7 @@ generateInitialPlayerCreature species =
 -- Generates a new Creature from the specified Species and adds it to the database.
 --
 newCreature :: (CreatureLocation l) => Faction -> Species -> l -> DB CreatureRef
-newCreature faction species loc = 
+newCreature faction species loc =
     do creature <- generateCreature faction species
        dbAddCreature creature loc
 
@@ -62,7 +62,7 @@ data RollComponents = RollComponents {
     component_other_situation_bonus :: Integer,
     component_terrain_affinity_bonus :: Integer }
 
-data Roll = Roll { 
+data Roll = Roll {
     roll_ideal :: Integer,
     roll_actual :: Integer,
     roll_ideal_components :: RollComponents,
@@ -140,4 +140,4 @@ sweepDead ref =
     do worst_to_best_critters <- sortByRO getCreatureHealth =<< getDead ref
        flip mapM_ worst_to_best_critters $ \creature_ref ->
            do dbPushSnapshot (KilledEvent creature_ref)
-	      deleteCreature creature_ref
+              deleteCreature creature_ref

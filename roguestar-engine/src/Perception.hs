@@ -97,7 +97,7 @@ localBiome =
 
 compass :: (DBReadable db) => DBPerception db Facing
 compass =
-    do let signalling_building_types = [Portal,Monolith]
+    do let signalling_building_types = [Portal] ++ map Node all_nodes
        (_,pos) <- whereAmI
        plane <- whatPlaneAmIOn
        liftDB $
