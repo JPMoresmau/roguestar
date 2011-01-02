@@ -18,30 +18,30 @@ homepage:            http://roguestar.downstairspeople.org/
 build-type:          Simple
 tested-with:         GHC==6.12.1
 
-Flag GLUT
-  Description:       Enable GLUT widget toolkit.
+--Flag GLUT
+--  Description:       Enable GLUT widget toolkit.
 
-Flag GTK
-  Description:       Enable GTK widget toolkit.
+--Flag GTK
+--  Description:       Enable GTK widget toolkit.
 
 Executable roguestar
   main-is:             Main.hs
   build-depends:       process, old-time, bytestring
   ghc-options:         -threaded
-  if flag(GLUT)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
-  if flag(GTK)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
-  if !flag(GLUT) && !flag(GTK)
-      buildable:       False
+  --if flag(GLUT)
+  cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
+  --if flag(GTK)
+  --    cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
+  --if !flag(GLUT) && !flag(GTK)
+  --    buildable:       False
 
-Executable roguestar-gl
-  main-is:             Main.hs
+Library
   hs-source-dirs:      src
+  exposed-modules:     Processes, Initialization, DrawString, Config, KeyStroke, PrintText
   other-modules:       Quality, ProtocolTypes, VisibleObject,
                        Strings, WordGenerator, Driver,
                        PrintTextData, Animation,
-                       Actions, Limbs, Tables, PrintText, CommandLine,
+                       Actions, Limbs, Tables, CommandLine,
                        Models.Androsynth, Models.QuestionMark, Models.Terrain, Models.RecreantFactory,
                        Models.Recreant, Models.Ascendant, Models.Materials, Models.Reptilian,
                        Models.Library, Models.MachineParts, Models.LibraryData, Models.Caduceator,
@@ -52,8 +52,7 @@ Executable roguestar-gl
                        Models.EnergySwords, Models.EnergyThings, Models.CyborgType4,
                        AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,
                        AnimationExtras, AnimationCreatures, AnimationBuildings, MaybeArrow,
-                       EventUtils, Sky, Config, Processes, MainGLUT, MainGTK, DrawString,
-                       Initialization
+                       EventUtils, Sky
   build-depends:       base>=4&&<5,
                        rsagl==0.5,
                        rsagl-math==0.5,
@@ -68,15 +67,15 @@ Executable roguestar-gl
                        bytestring>=0.9.1.5 && < 0.10,
                        stm>=2.1.1.2 && < 2.2,
                        priority-sync>=0.2.1.0 && < 0.2.2
-  if flag(GLUT)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
-      build-depends:   GLUT>=2.2.2.0 && < 2.3
-  if flag(GTK)
-      cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
-      build-depends:   gtk>=0.11.0 && < 0.12,
-                       gtkglext>=0.11.0&& < 0.12
-  if !flag(GLUT) && !flag(GTK)
-      buildable:       False
+  --if flag(GLUT)
+  cpp-options: -D__ROGUESTAR_SUPPORTS_GLUT__
+  build-depends:   GLUT>=2.2.2.0 && < 2.3
+  --if flag(GTK)
+  --    cpp-options: -D__ROGUESTAR_SUPPORTS_GTK__
+  --    build-depends:   gtk>=0.11.0 && < 0.12,
+  --                     gtkglext>=0.11.0&& < 0.12
+  --if !flag(GLUT) && !flag(GTK)
+  --    buildable:       False
   ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
   ghc-prof-options:    -prof -auto-all
 
