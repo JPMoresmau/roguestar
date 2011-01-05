@@ -1,5 +1,5 @@
-module MainGTK
-    (mainGTK)
+module Main
+    (main)
     where
 
 import Graphics.UI.Gtk as Gtk
@@ -19,8 +19,8 @@ import PrintText
 import KeyStroke
 import Data.Char
 
-mainGTK :: IO ()
-mainGTK =
+main :: IO ()
+main =
     do prog_name <- getProgName
        args <- getArgs
        initGUI

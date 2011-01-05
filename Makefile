@@ -5,17 +5,17 @@ warning:
 
 install-deps:
 	cabal --version
-	cabal install Vec ${OPTS}
-	cabal install MaybeT ${OPTS}
-	cabal install MonadRandom ${OPTS}
-	cabal install data-inttrie ${OPTS}
-	cabal install data-memocombinators ${OPTS}
-	cabal install PSQueue ${OPTS}
-	cabal install vector ${OPTS}
-	cabal install statistics ${OPTS}
-	cabal install priority-sync ${OPTS}
-	cabal install Vec-OpenGLRaw ${OPTS}
-	cabal install hslogger ${OPTS}
+	cabal install --reinstall Vec ${OPTS}
+	cabal install --reinstall MaybeT ${OPTS}
+	cabal install --reinstall MonadRandom ${OPTS}
+	cabal install --reinstall data-inttrie ${OPTS}
+	cabal install --reinstall data-memocombinators ${OPTS}
+	cabal install --reinstall PSQueue ${OPTS}
+	cabal install --reinstall vector ${OPTS}
+	cabal install --reinstall statistics ${OPTS}
+	cabal install --reinstall priority-sync ${OPTS}
+	cabal install --reinstall Vec-OpenGLRaw ${OPTS}
+	cabal install --reinstall hslogger ${OPTS}
 
 clean:
 	(cd rsagl-math && cabal clean ${OPTS})
@@ -24,6 +24,9 @@ clean:
 	(cd rsagl-demos && cabal clean ${OPTS})
 	(cd roguestar-engine && cabal clean ${OPTS})
 	(cd roguestar-gl && cabal clean ${OPTS})
+	(cd roguestar-glut && cabal clean ${OPTS})
+	(cd roguestar-gtk && cabal clean ${OPTS})
+	(cd roguestar && cabal clean ${OPTS})
 	rm -rf roguestar-sdist
 
 install:
@@ -33,6 +36,9 @@ install:
 	(cd rsagl-demos && cabal install --reinstall ${OPTS})
 	(cd roguestar-engine && cabal install --reinstall ${OPTS})
 	(cd roguestar-gl && cabal install --reinstall ${OPTS})
+	(cd roguestar-glut && cabal install --reinstall ${OPTS})
+	(cd roguestar-gtk && cabal install --reinstall ${OPTS})
+	(cd roguestar && cabal install --reinstall ${OPTS})
 
 dev:
 	${MAKE} install -e "OPTS=${CONFIG_OPTS}"
@@ -47,6 +53,9 @@ sdist:
 	(cd rsagl-demos && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-engine && cabal check && cabal sdist ${OPTS})
 	(cd roguestar-gl && cabal check && cabal sdist ${OPTS})
+	(cd roguestar-glut && cabal check && cabal sdist ${OPTS})
+	(cd roguestar-gtk && cabal check && cabal sdist ${OPTS})
+	(cd roguestar && cabal check && cabal sdist ${OPTS})
 	mkdir -p ./roguestar-sdist
 	cp rsagl-math/dist/*.tar.gz ./roguestar-sdist
 	cp rsagl-frp/dist/*.tar.gz ./roguestar-sdist
@@ -54,8 +63,14 @@ sdist:
 	cp rsagl-demos/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-engine/dist/*.tar.gz ./roguestar-sdist
 	cp roguestar-gl/dist/*.tar.gz ./roguestar-sdist
+	cp roguestar-glut/dist/*.tar.gz ./roguestar-sdist
+	cp roguestar-gtk/dist/*.tar.gz ./roguestar-sdist
+	cp roguestar/dist/*.tar.gz ./roguestar-sdist
 	(cd roguestar-sdist && tar xzf roguestar-engine-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf roguestar-gl-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf roguestar-glut-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf roguestar-gtk-${VERSION}.tar.gz)
+	(cd roguestar-sdist && tar xzf roguestar-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-math-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-frp-${VERSION}.tar.gz)
 	(cd roguestar-sdist && tar xzf rsagl-${VERSION}.tar.gz)
@@ -66,5 +81,8 @@ sdist:
 	(cd roguestar-sdist/rsagl-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/rsagl-demos-${VERSION} && cabal configure && cabal install)
 	(cd roguestar-sdist/roguestar-gl-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/roguestar-glut-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/roguestar-gtk-${VERSION} && cabal configure && cabal install)
+	(cd roguestar-sdist/roguestar-${VERSION} && cabal configure && cabal install)
 	ls roguestar-sdist
 

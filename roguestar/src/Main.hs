@@ -9,12 +9,13 @@ import Control.Concurrent
 import System.FilePath
 import System.IO
 import Control.Monad
-import Paths_roguestar_gl
+import Paths_roguestar
 import System.Environment
 import System.Time
 import qualified Data.ByteString as B
 import Data.ByteString.Char8 ()
 import GHC.Exts (IsString(..))
+import System.Directory
 
 data Args = Args {
     arg_echo_protocol :: Bool,
@@ -97,7 +98,7 @@ main =
                arg_engine args ++
                ["version","over","begin"]
        let roguestar_engine_bin = arg_prefix args `combine` "roguestar-engine"
-       let roguestar_gl_bin = arg_prefix args `combine` "roguestar-gl"
+       roguestar_gl_bin <- findRoguestarGL args
        when (arg_verbose args) $
            putStrLn $ "starting process: " ++
                       roguestar_engine_bin ++ " " ++
@@ -137,11 +138,21 @@ main =
               case roguestar_engine_exit of
                   ExitFailure x -> putStrLn $ "roguestar-engine terminated unexpectedly (" ++ show x ++  ")"
                   _ -> return ()
-	      return ()
+              return ()
        roguestar_gl_exit <- waitForProcess roguestar_gl
        case roguestar_gl_exit of
            ExitFailure x -> putStrLn $ "roguestar-gl terminated unexpectedly (" ++ show x ++ ")"
-           _ -> return ()       
+           _ -> return ()
+
+findRoguestarGL :: Args -> IO FilePath
+findRoguestarGL args =
+    do let roguestar_glut = arg_prefix args `combine` "roguestar-glut"
+       let roguestar_gtk = arg_prefix args `combine` "roguestar-gtk"
+       does_roguestar_glut_exist <- doesFileExist roguestar_glut
+       does_roguestar_gtk_exist <- doesFileExist roguestar_gtk
+       return $ case () of
+           () | does_roguestar_gtk_exist -> roguestar_gtk
+           () | does_roguestar_glut_exist -> roguestar_glut
 
 data Destination = DHandle Handle | DChan (Chan B.ByteString) | DChanTime (Chan B.ByteString)
 

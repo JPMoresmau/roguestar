@@ -30,7 +30,7 @@ main =
        let (width,height) = default_window_size
        initialWindowSize $= Size width height
        initialDisplayMode $= display_mode
-       window <- createWindow window_name
+       window <- createWindow (window_name ++ " (GLUT client)")
        displayCallback $= theDisplayCallback init_vars
        perWindowKeyRepeat $= PerWindowKeyRepeatOff
        keyboardMouseCallback $=
