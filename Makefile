@@ -29,15 +29,33 @@ clean:
 	(cd roguestar && cabal clean ${OPTS})
 	rm -rf roguestar-sdist
 
-install:
+install: roguestar roguestar-gtk roguestar-glut roguestar-engine rsagl-demos
+
+rsagl-math:
 	(cd rsagl-math && cabal install --reinstall ${OPTS})
+
+rsagl-frp: rsagl-math
 	(cd rsagl-frp && cabal install --reinstall ${OPTS})
+
+rsagl: rsagl-frp rsagl-math
 	(cd rsagl && cabal install --reinstall ${OPTS})
+
+rsagl-demos: rsagl
 	(cd rsagl-demos && cabal install --reinstall ${OPTS})
+
+roguestar-engine:
 	(cd roguestar-engine && cabal install --reinstall ${OPTS})
+
+roguestar-gl: rsagl
 	(cd roguestar-gl && cabal install --reinstall ${OPTS})
+
+roguestar-glut: roguestar-gl
 	(cd roguestar-glut && cabal install --reinstall ${OPTS})
+
+roguestar-gtk: roguestar-gl
 	(cd roguestar-gtk && cabal install --reinstall ${OPTS})
+
+roguestar:
 	(cd roguestar && cabal install --reinstall ${OPTS})
 
 dev:
@@ -86,3 +104,4 @@ sdist:
 	(cd roguestar-sdist/roguestar-${VERSION} && cabal configure && cabal install)
 	ls roguestar-sdist
 
+.PHONY: rsagl-math rsagl-frp rsagl rsagl-demos roguestar-engine roguestar-gl roguestar-glut roguestar-gtk roguestar

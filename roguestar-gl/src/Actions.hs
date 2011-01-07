@@ -27,9 +27,6 @@ import Quality
 import Data.Char
 import qualified Data.ByteString.Char8 as B
 
--- |
--- Input to an action.
---
 data ActionInput = ActionInput {
     action_globals :: Globals,
     action_driver_object :: DriverObject,
@@ -60,7 +57,7 @@ isGo _ = False
  ----------------------------------------------------------}
 
 actionValid :: ActionInput -> Action -> STM ActionValidity
-actionValid action_input action = 
+actionValid action_input action =
     do result <- runErrorT $ action action_input
        return $ either Hold (const Go) result
 
@@ -90,7 +87,7 @@ executeContinueAction action_input =
 -- or the action will not be allowed to execute.
 --
 -- For example: selectTableAction ("people","0","name") "select-person-to-call-state" "call-with-telephone" "carl"
--- 
+--
 -- \> game query state
 -- answer: state select-person-to-call-state
 -- \> game query people
@@ -101,14 +98,14 @@ executeContinueAction action_input =
 -- bob
 -- end-table
 -- \> game action call-with-telephone Carl
--- 
+--
 -- In this case the action executes because the state is actually select-person-to-call-state and Carl
 -- is actually listed under the "name" header of the "people" table.
 --
 -- In practice this function is used for things like the race-selection-state and the class-selection-state
 -- where we select from a predifined list of possible choices, but the engine further restricts the choices.
 -- Each possible choice is it's own action that will only return action_valid if it is listed in the appropriate
--- table from the engine. 
+-- table from the engine.
 --
 selectTableAction :: (B.ByteString,B.ByteString,B.ByteString) -> B.ByteString -> B.ByteString -> B.ByteString -> Action
 selectTableAction (the_table_name,the_table_id,the_table_header) allowed_state action_name action_param = stateGuard [allowed_state] $
@@ -131,7 +128,7 @@ stateGuard allowed_states actionM action_input =
 -- The action name is passed directly to the engine.
 --
 stateLinkedAction :: [B.ByteString] -> B.ByteString -> (B.ByteString,Action)
-stateLinkedAction allowed_state action_name = 
+stateLinkedAction allowed_state action_name =
     (action_name,
      stateGuard allowed_state $ \action_input ->
          return $ driverAction (action_driver_object action_input) [action_name])
@@ -182,7 +179,7 @@ select_menu_action = stateLinkedAction selectable_menu_states "select-menu"
 
 normal_action :: (B.ByteString,Action)
 normal_action = ("normal",
-    stateGuard (menu_states ++ player_turn_states) $ \action_input -> 
+    stateGuard (menu_states ++ player_turn_states) $ \action_input ->
         return $ driverAction (action_driver_object action_input) ["normal"])
 
 move_action :: (B.ByteString,Action)
