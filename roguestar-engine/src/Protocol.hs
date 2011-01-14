@@ -133,7 +133,7 @@ dbOldestSnapshotOnly =
 -- otherwise returns an error message.
 --
 dbRequiresRaceSelectionState :: (DBReadable db) => db a -> db a
-dbRequiresRaceSelectionState action = 
+dbRequiresRaceSelectionState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
@@ -145,7 +145,7 @@ dbRequiresRaceSelectionState action =
 -- otherwise returns an error message.
 --
 dbRequiresClassSelectionState :: (DBReadable db) => (Creature -> db a) -> db a
-dbRequiresClassSelectionState action = 
+dbRequiresClassSelectionState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
@@ -164,9 +164,9 @@ dbRequiresPlayerCenteredState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
-		  ClassSelectionState creature -> action creature
-		  PlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
-		  _ -> throwError $ DBError $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
+                  ClassSelectionState creature -> action creature
+                  PlayerCreatureTurn creature_ref _ -> action =<< dbGetCreature creature_ref
+                  _ -> throwError $ DBError $ "protocol-error: not in player-centered state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action that works during any creature's turn in a planar environment.

@@ -14,6 +14,7 @@ data CharacterClass = Barbarian
                     | Pirate
                     | Scout
                     | Shepherd
+                    | StarChild
                     | Thief
                     | Warrior
                     deriving (Eq,Enum,Bounded,Read,Show,Ord)

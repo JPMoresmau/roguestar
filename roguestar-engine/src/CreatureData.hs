@@ -11,6 +11,7 @@ module CreatureData
      creatureGender,
      creatureAbilityScore,
      isFavoredClass,
+     bumpCharacter,
      empty_creature)
     where
 
@@ -23,6 +24,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import SpeciesData
 import TerrainData
+import qualified Data.Map as Map
 
 data Creature = Creature { creature_aptitude :: Map.Map CreatureAptitude Integer,
                            creature_ability :: Map.Map CreatureAbility Integer,
@@ -180,4 +182,23 @@ creatureGender = creature_gender
 --
 isFavoredClass :: CharacterClass -> Creature -> Bool
 isFavoredClass character_class creature = character_class `Set.member` (creature_favored_classes creature)
+
+-- |
+-- Answers the estimated fitness (powerfulness) of the Creature.
+--
+creatureFitness :: Creature -> Integer
+creatureFitness c = sum $ (Map.elems $ creature_aptitude c) ++ (Map.elems $ creature_ability c)
+
+-- |
+-- Increases the character score by the set amount.
+-- If the score is high enough that the character can advance to the next level,
+-- this function will apply that advancement.
+--
+bumpCharacter :: Integer -> Creature -> Creature
+bumpCharacter n c = if fitness_gain >= bumped_score
+                        then new_creature { creature_points = bumped_score - fitness_gain }
+                        else c { creature_points = bumped_score }
+    where bumped_score = creature_points c + n
+          fitness_gain = creatureFitness new_creature - creatureFitness c
+          new_creature = applyToCreature (Map.keys $ creature_levels c) c
 

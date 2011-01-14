@@ -17,6 +17,7 @@ import Position
 import TerrainData
 import Control.Monad.Error
 import CreatureData
+import NodeData
 
 -- | The total occupied surface area of a building.
 buildingSize :: (DBReadable db) => BuildingRef -> db Integer
@@ -42,8 +43,8 @@ activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
               activateBuilding building_type creature_ref building_ref
 
 activateBuilding :: BuildingType -> CreatureRef -> BuildingRef -> DB Bool
-activateBuilding (Node _) creature_ref building_ref =
-    do dbModCreature (\c -> c { creature_points = succ $ creature_points c }) creature_ref
+activateBuilding (Node n) creature_ref building_ref =
+    do dbModCreature (applyToCreature n) creature_ref
        deleteBuilding building_ref
        return True
 activateBuilding Portal creature_ref building_ref =

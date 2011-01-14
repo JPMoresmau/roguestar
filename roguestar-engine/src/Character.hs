@@ -53,7 +53,7 @@ classInfo :: CharacterClass -> CharacterClassData
 -------------------------------------------------------------------------------
 --
 --  Base Classes
--- 
+--
 --  These are base classes: these classes have very low prerequisites,
 --  with the intention that characters can choose them at the beginning
 --  of a game.  They also contain extra information about the character's
@@ -93,4 +93,15 @@ classInfo Thief = characterClass (mustHave Perception 20) $
 
 classInfo Warrior = characterClass (prerequisites [mustHave Strength 15,mustHave Speed 15]) $
 		    AttackSkill Melee & DefenseSkill Melee & Constitution & Strength & Speed & Mindfulness & Tactical
+
+-------------------------------------------------------------------------------
+--
+--  Special Classes
+--
+--  These are special character classes that are gained by taking specific actions.
+--
+-------------------------------------------------------------------------------
+
+classInfo StarChild = characterClass (prerequisites []) $
+                      Intellect & Indifferent
 
