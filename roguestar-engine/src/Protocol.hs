@@ -45,7 +45,7 @@ import Behavior hiding (dbBehave)
 import DBPrivate (Reference(ToolRef))
 
 mainLoop :: DB_BaseType -> IO ()
-mainLoop db_init = 
+mainLoop db_init =
     do db_var <- newMVar db_init
        input_chan <- newChan
        output_chan <- newChan
@@ -215,9 +215,9 @@ dbDispatchQuery :: (DBReadable db) => [B.ByteString] -> db B.ByteString
 dbDispatchQuery ["state"] = 
     do state <- playerState
        return $ case state of
-			   RaceSelectionState -> "answer: state race-selection"
-			   ClassSelectionState {} -> "answer: state class-selection"
-			   PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
+                           RaceSelectionState -> "answer: state race-selection"
+                           ClassSelectionState {} -> "answer: state class-selection"
+                           PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
                            PlayerCreatureTurn _ MoveMode -> "answer: state move"
                            PlayerCreatureTurn _ (PickupMode {}) -> "answer: state pickup"
                            PlayerCreatureTurn _ (DropMode {}) -> "answer: state drop"
@@ -241,6 +241,7 @@ dbDispatchQuery ["state"] =
                            SnapshotEvent (HealEvent {}) -> "answer: state heal-event"
                            SnapshotEvent (ClimbEvent {}) -> "answer: state climb-event"
                            SnapshotEvent (ExpendToolEvent {}) -> "answer: state expend-tool-event"
+                           SnapshotEvent (BumpEvent {}) -> "answer: state bump-event"
                            GameOver -> "answer: state game-over"
 
 dbDispatchQuery ["action-count"] =
@@ -307,10 +308,22 @@ dbDispatchQuery ["who-event"] =
            SnapshotEvent event -> "answer: who-event " `B.append` fromMaybe "0" (fmap (B.pack . show . toUID) $ subjectOf event)
            _ -> "answer: who-event 0"
 
+dbDispatchQuery ["new-level"] =
+    do state <- playerState
+       return $ case state of
+           SnapshotEvent event -> "answer: new-level " `B.append` maybe "nothing" (B.pack . show) (bump_event_new_level event)
+           _ -> "answer: new-level nothing"
+
+dbDispatchQuery ["new-character-class"] =
+    do state <- playerState
+       return $ case state of
+           SnapshotEvent event -> "answer: new-character-class " `B.append` maybe "nothing" (B.pack . show) (bump_event_new_class event)
+           _ -> "answer: new-character-class nothing"
+
 dbDispatchQuery ["player-races","0"] =
     return ("begin-table player-races 0 name\n" `B.append`
-	    B.unlines (map B.pack player_race_names) `B.append`
-	    "end-table")
+            B.unlines (map B.pack player_race_names) `B.append`
+            "end-table")
 
 dbDispatchQuery ["visible-terrain","0"] =
     do maybe_plane_ref <- dbGetCurrentPlane
@@ -502,7 +515,7 @@ dbDispatchAction ["normal"] =
     dbRequiresPlayerTurnState $ \creature_ref -> (setPlayerState $ PlayerCreatureTurn creature_ref NormalMode)
 
 dbDispatchAction ["normal",direction] | Just face <- stringToFacing direction =
-    dbRequiresPlayerTurnState $ \creature_ref -> 
+    dbRequiresPlayerTurnState $ \creature_ref ->
         do behavior <- facingBehavior creature_ref face
            dbPerformPlayerTurn behavior creature_ref
 

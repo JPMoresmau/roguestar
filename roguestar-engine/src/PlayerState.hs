@@ -10,6 +10,7 @@ module PlayerState
 
 import DBData
 import CreatureData
+import CharacterData
 import MakeData
 import TravelData
 
@@ -69,6 +70,10 @@ data SnapshotEvent =
         heal_event_creature :: CreatureRef }
   | ExpendToolEvent {
         expend_tool_event_tool :: ToolRef }
+  | BumpEvent {
+        bump_event_creature :: CreatureRef,
+        bump_event_new_level :: Maybe Integer,
+        bump_event_new_class :: Maybe CharacterClass }
             deriving (Read,Show)
 
 -- | Get the 'Creature' acting in the given 'PlayerState'.
@@ -93,6 +98,7 @@ subjectOf event = case event of
     TeleportEvent { teleport_event_creature = creature_ref } -> Just creature_ref
     HealEvent { heal_event_creature = creature_ref } -> Just creature_ref
     ClimbEvent { climb_event_creature = creature_ref } -> Just creature_ref
+    BumpEvent { bump_event_creature = creature_ref } -> Just creature_ref
     ExpendToolEvent {} -> Nothing
 
 -- | Current index into the menu, if there is one.

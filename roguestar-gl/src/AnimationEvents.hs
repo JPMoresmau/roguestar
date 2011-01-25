@@ -151,7 +151,7 @@ recognized_events = map fst (messages :: [(B.ByteString,EventHandler e () () ())
 
 messages :: (FRPModel m) => [(B.ByteString,EventHandler e m () ())]
 messages = [
-    messageState "attack-event" $ proc () -> 
+    messageState "attack-event" $ proc () ->
         do weapon_used <- answer "weapon-used" -< ()
            continueWith -< if weapon_used == "0"
                                then unarmedAttack
@@ -209,6 +209,15 @@ messages = [
                player_hp_string),
     messageState "expend-tool-event" $ proc () ->
         do returnA -< (Update,"That object has been used up."),
+    messageState "bump-event" $ proc () ->
+        do new_level <- answer "new-level" -< ()
+           new_class <- answer "new-character-class" -< ()
+           returnA -< (Event,
+               case (new_level,new_class) of
+                   ("nothing","nothing") -> "You feel one step closer to your goal."
+                   ("nothing","starchild") -> "It's full of stars."
+                   (_,"nothing") -> "Welcome to level " `B.append` new_level `B.append` "."
+                   (_,_) -> "Roguestar is confused by this bump event."),
     messagePrompt "attack" "Attack.  Direction:",
     messagePrompt "fire"   "Fire.  Direction:",
     messagePrompt "move"   "Walk.  Direction:",

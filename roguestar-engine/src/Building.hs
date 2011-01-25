@@ -18,6 +18,7 @@ import TerrainData
 import Control.Monad.Error
 import CreatureData
 import NodeData
+import CharacterAdvancement
 
 -- | The total occupied surface area of a building.
 buildingSize :: (DBReadable db) => BuildingRef -> db Integer
@@ -44,8 +45,7 @@ activateFacingBuilding face creature_ref = liftM (fromMaybe False) $ runMaybeT $
 
 activateBuilding :: BuildingType -> CreatureRef -> BuildingRef -> DB Bool
 activateBuilding (Node n) creature_ref building_ref =
-    do dbModCreature (applyToCreature n) creature_ref
-       deleteBuilding building_ref
+    do captureNode n creature_ref building_ref
        return True
 activateBuilding Portal creature_ref building_ref =
     do m_creature_position :: Maybe (PlaneRef,Position) <- liftM extractParent $ dbWhere creature_ref
@@ -81,4 +81,15 @@ portalCreatureTo offset creature_ref plane_ref =
        position <- pickRandomClearSite 1 0 0 ideal_position (not . (`elem` impassable_terrains)) plane_ref
        dbPushSnapshot $ TeleportEvent creature_ref
        dbMove (return . toStanding (Standing plane_ref position Here)) creature_ref
+
+captureNode :: NodeType -> CreatureRef -> BuildingRef -> DB ()
+captureNode n creature_ref building_ref =
+    do c <- dbGetCreature creature_ref
+       let result = bumpCharacter (nodeEffect n) c
+       dbModCreature (const $ character_new result) creature_ref
+       deleteBuilding building_ref
+       dbPushSnapshot $ BumpEvent {
+           bump_event_creature = creature_ref,
+           bump_event_new_level = newCharacterLevel result,
+           bump_event_new_class = newCharacterClass result }
 

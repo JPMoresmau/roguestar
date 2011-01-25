@@ -1,23 +1,13 @@
 module NodeData
-    ()
+    (nodeEffect)
     where
 
 import BuildingData
 import CreatureData
 import CharacterData
+import CharacterAdvancement
 
-data NodeEffect =
-    ClassBonus CharacterClass
-  | PointBonus Integer
-
-nodeEffect :: NodeType -> NodeEffect
-nodeEffect Anchor = PointBonus 1
-nodeEffect Monolith = ClassBonus StarChild
-
-instance CreatureEndo NodeEffect where
-    applyToCreature (PointBonus bonus) c = bumpCharacter bonus c
-    applyToCreature (ClassBonus bonus) c = applyToCreature bonus c
-
-instance CreatureEndo NodeType where
-    applyToCreature n c = applyToCreature (nodeEffect n) c
+nodeEffect :: NodeType -> CharacterBumpRequest
+nodeEffect Anchor = AwardCharacter 1
+nodeEffect Monolith = ForceCharacter StarChild
 
