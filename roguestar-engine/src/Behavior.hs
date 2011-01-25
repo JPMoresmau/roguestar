@@ -66,9 +66,9 @@ facingBehavior creature_ref face =
                   case t of
                       _ | not (null who) -> return $ Attack face
                       _ | not (null what) -> return $ ActivateBuilding face
-                      Forest -> return $ TurnInPlace face
-                      DeepForest -> return $ TurnInPlace face
-                      RockFace -> return $ TurnInPlace face
+                      Forest -> return $ ClearTerrain face
+                      DeepForest -> return $ ClearTerrain face
+                      RockFace -> return $ ClearTerrain face
                       _ -> return $ Step face
 
 dbBehave :: Behavior -> CreatureRef -> DB ()
