@@ -109,14 +109,15 @@ dbGetCurrentPlane = liftM (fmap parent) $ maybe (return Nothing) getPlanarPositi
 -- only appropriate terrain (as defined by a predicate) within terrain_clear squares.
 -- Distance is chessboard distance.
 --
--- This function will expand the search radius liberally if encounters the slightest
+-- This function will gradually expand the search radius if encounters the slightest
 -- difficulty finding a qualifying position.  The search radius parameter is strictly advisory.
 --
 -- This function can take an optional timeout parameter (pickRandomClearSite_withTimeout).  When used
 -- without a timeout parameter, it may not terminate.  The only possible cause of non-termination is that no
--- site satisfies the terrain predicate.
+-- site satisfies the terrain predicate.  However, if satisfactory sites are sufficiently rare,
+-- extreme slowness is likely.
 --
--- The timeout value should be a small integer greater or equal to one, since this function is exponential in the timeout value.
+-- The timeout value should be a small integer greater or equal to one, since this function becomes slow with large timeout values.
 --
 pickRandomClearSite :: (DBReadable db) =>
     Integer -> Integer -> Integer ->
@@ -163,7 +164,7 @@ pickRandomClearSite_withTimeout timeout search_radius object_clear terrain_clear
                   return $ Just result
            Nothing -> pickRandomClearSite_withTimeout
                           (fmap (subtract 1) timeout)
-                          (search_radius*2 + 1)
+                          (search_radius + 1)
                           object_clear
                           (max 0 $ terrain_clear - 1)
                           (Position (start_x,start_y))

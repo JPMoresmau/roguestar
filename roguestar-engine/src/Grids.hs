@@ -31,8 +31,8 @@ seededGrid n = SeededGrid n
 
 seededLookup :: SeededGrid -> (Integer,Integer) -> Integer
 seededLookup (SeededGrid n) (x,y) = toInteger $ fst $ next $ mkRNG $
-        (fst $ next $ mkRNG (fromInteger $ x `mod` max_int)) +
-        (fst $ next $ mkRNG (fromInteger $ y `mod` max_int)) +
+        (fst $ next $ mkRNG (fromInteger $ (x*809) `mod` max_int)) +
+        (fst $ next $ mkRNG (fromInteger $ (y*233) `mod` max_int)) +
         (fromInteger $ n `mod` max_int)
     where max_int = toInteger (maxBound :: Int)
 
@@ -56,19 +56,19 @@ data Grid a = CompletelyRandomGrid {
 
 gridAt :: (Ord a) => Grid a -> (Integer,Integer) -> a
 gridAt (CompletelyRandomGrid seeded weights) at = fst $ weightedPick weights (mkRNG $ seededLookup seeded at)
-gridAt (InterpolatedGrid seeded interpolation_map grid) at@(x,y) = 
+gridAt (InterpolatedGrid seeded interpolation_map grid) at@(x,y) =
     let here = gridAt grid (x `div` 2,y `div` 2)
-	there = gridAt grid (x `div` 2 + 1,y `div` 2 + 1)
-	there_x = gridAt grid (x `div` 2 + 1,y `div` 2)
-	there_y = gridAt grid (x `div` 2,y `div` 2 + 1)
-	interpolate a1 a2 = fst $ weightedPick (interpolation_map ! (a1,a2)) (mkRNG $ seededLookup seeded at)
-	in case (even x,even y) of
-				(True,True) -> here
-				(True,False) -> (interpolate here there_y)
-				(False,True) -> (interpolate here there_x)
-				(False,False) -> (interpolate here there)
+        there = gridAt grid (x `div` 2 + 1,y `div` 2 + 1)
+        there_x = gridAt grid (x `div` 2 + 1,y `div` 2)
+        there_y = gridAt grid (x `div` 2,y `div` 2 + 1)
+        interpolate a1 a2 = fst $ weightedPick (interpolation_map ! (a1,a2)) (mkRNG $ seededLookup seeded at)
+        in case (even x,even y) of
+                                (True,True) -> here
+                                (True,False) -> (interpolate here there_y)
+                                (False,True) -> (interpolate here there_x)
+                                (False,False) -> (interpolate here there)
 
-gridAt (ArbitraryReplacementGrid seeded sources replacements grid) at = 
+gridAt (ArbitraryReplacementGrid seeded sources replacements grid) at =
     case fmap fst $ find ((== here) . snd) sources of
          Just frequency | (seededLookup seeded at `mod` denominator frequency < numerator frequency) ->
 	     fst $ weightedPick replacements (mkRNG $ seededLookup seeded at)

@@ -105,8 +105,10 @@ recreantFactories seed = TerrainPlacement {
 stairsUp :: Integer -> Integer -> TerrainPlacement
 stairsUp seed depth = TerrainPlacement {
     placement_sources =
-        [(1%(30+15*depth),RockyGround),
-         (1%(30+25*depth),Ice)],
+        [(1%(15+3*depth),RockyGround),
+         (1%(25+5*depth),Ice),
+         (1%(50+10*depth),Water),
+         (1%(75+15*depth),RockFace)],
     placement_replacements =
         [(1,Upstairs)],
     placement_seed = seed }
@@ -114,12 +116,9 @@ stairsUp seed depth = TerrainPlacement {
 stairsDown :: Integer -> Integer -> TerrainPlacement
 stairsDown seed depth = TerrainPlacement {
     placement_sources =
-        [(1%(30+15*depth),RockyGround),
-         (1%(30+25*depth),Ice),
-         (1%100,Grass),
-         (1%200,Dirt),
-         (1%50,Forest),
-         (1%500,Glass)],
+        [(1%(15+3*depth),RockyGround),
+         (1%(25+5*depth),Ice),
+         (1%(75+15*depth),RockFace)],
     placement_replacements =
         [(1,Downstairs)],
     placement_seed = seed }
@@ -185,8 +184,8 @@ baseTerrainPatches = nub $ List.map snd $ concatMap terrainFrequencies [minBound
 
 terrainInterpMap :: Map (TerrainPatch,TerrainPatch) [(Integer,TerrainPatch)]
 terrainInterpMap = let terrain_patch_pairs = [(a,b) | a <- baseTerrainPatches, b <- baseTerrainPatches]
-		       interps = List.map terrainInterpFn terrain_patch_pairs
-		       in fromList (zip terrain_patch_pairs interps)
+                       interps = List.map terrainInterpFn terrain_patch_pairs
+                       in fromList (zip terrain_patch_pairs interps)
 
 type TerrainGrid = Grid TerrainPatch
 
