@@ -5,7 +5,6 @@ module Initialization
      Initialization(..))
     where
 
-import System.IO
 import PrintText
 import Data.Maybe
 import Control.Monad

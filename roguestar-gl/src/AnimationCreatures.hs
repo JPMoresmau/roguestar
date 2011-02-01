@@ -8,6 +8,7 @@ import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Animation
 import RSAGL.Color.RSAGLColors
+import RSAGL.Color
 import Animation
 import Control.Arrow
 import Data.Maybe
@@ -29,10 +30,11 @@ creatureAvatar = proc () ->
        returnA -< Nothing
   where switchTo "encephalon" = encephalonAvatar
         switchTo "recreant" = recreantAvatar
-	switchTo "androsynth" = androsynthAvatar
-	switchTo "ascendant" = ascendantAvatar
-	switchTo "caduceator" = caduceatorAvatar
-	switchTo "reptilian" = reptilianAvatar
+        switchTo "androsynth" = androsynthAvatar
+        switchTo "ascendant" = ascendantAvatar
+        switchTo "caduceator" = caduceatorAvatar
+        switchTo "reptilian" = reptilianAvatar
+        switchTo "dustvortex" = dustVortexAvatar
         switchTo _ = questionMarkAvatar
 
 genericCreatureAvatar :: (FRPModel m) => FRP e (CreatureAvatarSwitch m) () CreatureThreadOutput -> CreatureAvatar e m
@@ -69,38 +71,48 @@ androsynthAvatar = genericCreatureAvatar $ proc () ->
 
 glower :: (FRPModel m, FRPModes m ~ RoguestarModes,
            ThreadIDOf m ~ Maybe Integer) =>
-          Point3D -> Vector3D -> FRP e m () ()
-glower p_init v_init = proc () ->
+          LibraryModel -> Point3D -> FRP e m () ()
+glower library_model p_init = proc () ->
     do local_origin <- exportToA root_coordinate_system -< origin_point_3d
-       transformA
-           (accelerationModel fps120 (p_init,perSecond $ v_init) 
-                 (proc () -> 
-	             do a <- derivative <<< derivative <<< exportToA root_coordinate_system -< origin_point_3d
-	 	        returnA -< concatForces [quadraticTrap 10 p_init,
-	                                         drag 1.0,
-			    		         \_ _ _ -> scalarMultiply (-1) a,
-						 \_ _ _ -> perSecond $ perSecond v_init,
-						 \_ p _ -> perSecond $ perSecond $ vectorNormalize $
-						               vectorToFrom origin_point_3d p `crossProduct` v_init]) 
-	         (proc (_,()) -> libraryPointAtCamera -< (scene_layer_local,AscendantGlow))) -< 
-	             (translateToFrom local_origin origin_point_3d $ root_coordinate_system,())
+       transformA (accelerationModel fps120 (p_init,zero)
+           (proc () ->
+               do a <- derivative <<< derivative <<< exportToA root_coordinate_system -< origin_point_3d
+                  returnA -< concatForces [quadraticTrap 10 p_init,
+                                           drag 1.0,
+                                           \_ _ _ -> scalarMultiply (-1) a,
+                                           \_ p _ -> perSecond $ perSecond $ vectorNormalize $
+                                                         vectorToFrom p_init p `crossProduct` (Vector3D 0 1 0)]) 
+           (proc (_,()) -> libraryPointAtCamera -< (scene_layer_local,library_model))) -<
+               (translateToFrom local_origin origin_point_3d $ root_coordinate_system,())
 
-ascendantAvatar :: (FRPModel m) => CreatureAvatar e m
-ascendantAvatar = genericCreatureAvatar $ proc () ->
-    do glower (Point3D 0 0.5 0) zero -< ()
-       glower (Point3D 0 0.5 0.35) (Vector3D 0 0 (-1)) -< ()
-       glower (Point3D 0 0.5 (-0.35)) (Vector3D 0 0 1) -< ()
-       glower (Point3D 0.35 0.5 0) (Vector3D (-1) 0 0) -< ()
-       glower (Point3D (-0.35) 0.5 0) (Vector3D 1 0 0) -< ()
+particleAvatar :: (FRPModel m) => LibraryModel -> (Maybe RGB) -> CreatureAvatar e m
+particleAvatar library_model m_color = genericCreatureAvatar $ proc () ->
+    do glower library_model (Point3D 0 0.8 0.8) -< ()
+       glower library_model (Point3D 0 0.15 (-0.15)) -< ()
+       glower library_model (Point3D 0.21 0.21 0) -< ()
+       glower library_model (Point3D (-0.26) 0.26 0) -< ()
+       glower library_model (Point3D 0 0.3 0.3) -< ()
+       glower library_model (Point3D 0 0.33 (-0.33)) -< ()
+       glower library_model (Point3D 0.35 0.35 0) -< ()
+       glower library_model (Point3D (-0.36) 0.36 0) -< ()
        accumulateSceneA -< (scene_layer_local,
-                            lightSource $ PointLight (Point3D 0 0.5 0)
-                                                     (measure (Point3D 0 0.5 0) (Point3D 0 0 0))
-						     light_blue
-						     light_blue)
+                            lightSource $
+           case m_color of
+               Just color -> PointLight (Point3D 0 0.5 0)
+                                        (measure (Point3D 0 0.5 0) (Point3D 0 0 0))
+                                        color
+                                        color
+               Nothing -> NoLight)
        t <- threadTime -< ()
        wield_point <- exportCoordinateSystem -< translate (rotateY (fromRotations $ t `cyclical'` (fromSeconds 3)) $ Vector3D 0.25 0.5 0)
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
+
+ascendantAvatar :: (FRPModel m) => CreatureAvatar e m
+ascendantAvatar = particleAvatar (SimpleModel AscendantGlow) $ Just light_blue
+
+dustVortexAvatar :: (FRPModel m) => CreatureAvatar e m
+dustVortexAvatar = particleAvatar (SimpleModel DustPuff) Nothing
 
 caduceatorAvatar :: (FRPModel m) => CreatureAvatar e m
 caduceatorAvatar = genericCreatureAvatar $ proc () ->

@@ -43,7 +43,6 @@ import RSAGL.Scene hiding (std_scene_layer_hud,
                            std_scene_layer_local,
                            std_scene_layer_infinite)
 import RSAGL.Animation
-import RSAGL.FRP.RecombinantState
 import Control.Monad.State
 import Control.Arrow
 import Control.Arrow.Operations
@@ -61,7 +60,6 @@ import Data.List
 import Data.Ord
 import Strings
 import Globals
-import PrintText
 import PrintTextData
 import Statistics
 import Control.Concurrent.STM

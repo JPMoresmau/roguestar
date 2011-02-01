@@ -21,6 +21,7 @@ data SimpleModel =
   | Recreant
   | Androsynth
   | AscendantGlow
+  | DustPuff
   | Caduceator
   | Reptilian
     -- Tools

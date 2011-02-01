@@ -16,7 +16,6 @@ import Plane
 import Position
 import TerrainData
 import Control.Monad.Error
-import CreatureData
 import NodeData
 import CharacterAdvancement
 

@@ -9,6 +9,7 @@ data Species =
    | Androsynth
    | Ascendant
    | Caduceator
+   | DustVortex
    | Encephalon
    | Goliath
    | Hellion

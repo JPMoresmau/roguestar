@@ -388,9 +388,9 @@ ioAction :: (InputOutputOf m ~ Enabled) => (j -> IO p) -> FRP e m j p
 ioAction action = frpxOf $ \_ j -> lift $ action j
 
 -- | Send tagged information.
-outgoingBy :: (j -> j -> Bool) ->
+outgoingBy :: (j -> j -> Bool)
               -- ^ Equality predicate as described in 'newTransmitterBy'.
-              FRP e m j (Message j)
+           -> FRP e m j (Message j)
 outgoingBy f = FRP $ \_ -> FactoryArrow $
     do t <- newTransmitterBy f
        return $ Kleisli $ lift . transmit t

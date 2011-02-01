@@ -25,7 +25,7 @@ import Models.Tree
 import Models.Encephalon
 import Models.Recreant
 import Models.Androsynth
-import Models.Ascendant
+import Models.Glows
 import Models.Caduceator
 import Models.Reptilian
 import Models.PhaseWeapons
@@ -55,6 +55,7 @@ toModel (SimpleModel Androsynth) = androsynth
 toModel (SimpleModel Caduceator) = caduceator
 toModel (SimpleModel Reptilian) = reptilian
 toModel (SimpleModel AscendantGlow) = ascendant_glow
+toModel (SimpleModel DustPuff) = dust_puff
 toModel (SimpleModel PhasePistol) = phase_pistol
 toModel (SimpleModel Phaser) = phaser
 toModel (SimpleModel PhaseRifle) = phase_rifle

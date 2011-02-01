@@ -14,7 +14,6 @@ import Control.Arrow
 import RSAGL.Scene
 import RSAGL.FRP
 import EventUtils
-import RSAGL.Math.Types
 
 -- | Animate an arbitrary articulated joint.
 libraryJointAnimation :: (FRPModel m, FRPModes m ~ RoguestarModes) =>

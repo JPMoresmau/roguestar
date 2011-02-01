@@ -61,19 +61,33 @@ dbFinishPlanarAITurns plane_ref =
 planar_turn_frequency :: Integer
 planar_turn_frequency = 100
 
+monster_spawns :: [(TerrainPatch,Species)]
+monster_spawns = [(RecreantFactory,Recreant), (Dirt,DustVortex)]
+
 dbPerform1PlanarAITurn :: PlaneRef -> DB ()
-dbPerform1PlanarAITurn plane_ref = 
+dbPerform1PlanarAITurn plane_ref =
     do creature_locations <- dbGetContents plane_ref
        player_locations <- filterRO (liftM (== Player) . getCreatureFaction . child) creature_locations
-       native_locations <- filterRO (liftM (/= Player) . getCreatureFaction . child) creature_locations
-       should_randomly_generate_monster <- liftM (<= 10) $ linearRoll planar_turn_frequency
-       when (length native_locations < length player_locations * 2 && should_randomly_generate_monster) $
-           do p <- pickM $ map parent player_locations
-	      m_spawn_position <- pickRandomClearSite_withTimeout (Just 2) 7 0 0 p (== RecreantFactory) plane_ref
-	      maybe (return () )
-                    (\spawn_position -> newCreature Pirates Recreant (Standing plane_ref spawn_position Here) >> return ()) $ 
-                    m_spawn_position
+       num_npcs <- liftM length $ filterRO (liftM (/= Player) . getCreatureFaction . child) creature_locations
+       when (num_npcs < length player_locations * 2) $
+           do (terrain_type,species) <- pickM monster_spawns
+              _ <- spawnNPC terrain_type species plane_ref $ map parent $ player_locations
+              return ()
        dbAdvanceTime plane_ref (1%planar_turn_frequency)
+
+-- |
+-- Spawn a non-player creature on the specified terrain type (or fail if not finding that terrain type)
+-- and of the specified species, on the specified plane, near one of the specified positions
+-- (presumably the list of positions of all player characters).
+spawnNPC :: TerrainPatch -> Species -> PlaneRef -> [Position] -> DB Bool
+spawnNPC terrain_type species plane_ref player_locations =
+    do p <- pickM player_locations
+       m_spawn_position <- pickRandomClearSite_withTimeout (Just 2) 7 0 0 p (== terrain_type) plane_ref
+       case m_spawn_position of
+           Nothing -> return False
+           Just spawn_position ->
+               do _ <- newCreature Pirates species (Standing plane_ref spawn_position Here)
+                  return True
 
 dbPerform1CreatureAITurn :: CreatureRef -> DB ()
 dbPerform1CreatureAITurn creature_ref = liftM (const ()) $ atomic (flip dbBehave creature_ref) $

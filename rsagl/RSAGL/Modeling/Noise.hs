@@ -8,9 +8,9 @@ import Data.Array.Unboxed
 import Data.Fixed
 import RSAGL.Math.Types
 
--- | Turbulence function.
+-- | Turbulence function.  Accepts an amplitude, which determines
+-- how intense turbulence will be.  'perlinTurbulence 0 == id'
 perlinTurbulence :: RSdouble ->
-                    -- ^ Amplitude of the turbulence function.
                     Point3D ->
                     Point3D
 perlinTurbulence s (Point3D x y z) = Point3D (x + s*perlinNoise x') (y + s*perlinNoise y') (z + s*perlinNoise z')

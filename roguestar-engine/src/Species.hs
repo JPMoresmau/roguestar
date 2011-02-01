@@ -16,7 +16,7 @@ import TerrainData
 player_race_names :: [String]
 player_race_names = map (map toLower . show) player_species
 
-data SpeciesData = SpeciesData { 
+data SpeciesData = SpeciesData {
         species_recurring_attributes :: CreatureAttribute,
         species_starting_attributes :: [CreatureAttributeGenerator] }
 
@@ -36,7 +36,7 @@ speciesInfo Anachronid = SpeciesData (Speed & Mindfulness & SpotSkill) [
     gender 0.8
         [aptitudeBlock 1 10 [Speed,Mindfulness],
          attributeStatic 2 SpotSkill]
-        [aptitudeBlock 10 25 [Speed,Mindfulness],         
+        [aptitudeBlock 10 25 [Speed,Mindfulness],
          attributeStatic 15 SpotSkill,
          surpriseAptitudes],
     attributeStatic 1 $ FavoredClass Barbarian,
@@ -44,7 +44,7 @@ speciesInfo Anachronid = SpeciesData (Speed & Mindfulness & SpotSkill) [
 
 speciesInfo Androsynth = SpeciesData (Strength & Intellect) [
     aptitudeBlock 12 17 [Strength,Intellect],
-    attributeStatic 1 $ FavoredClass Engineer] 
+    attributeStatic 1 $ FavoredClass Engineer]
 
 speciesInfo Ascendant = SpeciesData (Strength & Mindfulness) [
     gender 0.45 [] [],
@@ -59,6 +59,11 @@ speciesInfo Caduceator = SpeciesData (Strength & Charisma) [
     aptitudeBlock 5 15 [Strength,Charisma],
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Consular]
+
+speciesInfo DustVortex = SpeciesData (Speed & Mindfulness) [
+    aptitudeBlock 3 5 [Speed,Mindfulness],
+    attributeStatic 10 JumpSkill,
+    attributeStatic 1 $ FavoredClass Barbarian]
 
 speciesInfo Encephalon = SpeciesData (Constitution & Intellect) [
     gender 0.95 [] [],
