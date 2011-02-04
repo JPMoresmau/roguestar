@@ -24,6 +24,7 @@ module RSAGL.FRP.FRP
      nullaryThreadIdentity,
      frpContext,
      frp1Context,
+     frpFix,
      whenJust,
      ioInit,
      ioAction,
@@ -37,6 +38,7 @@ module RSAGL.FRP.FRP
 import Prelude hiding ((.),id)
 import RSAGL.FRP.FactoryArrow
 import Control.Monad.Cont
+import Control.Monad.Fix
 import RSAGL.FRP.Time
 import RSAGL.FRP.FRPModel
 import Control.Concurrent.MVar
@@ -58,7 +60,7 @@ import System.Random
 {--------------------------------------------------------------------------------}
 
 -- | State information for a currently-executed FRP program.
-data FRPState i o = FRPState { 
+data FRPState i o = FRPState {
                                -- | Ending time of the current frame, and the frame-local time horizon.
                                frpstate_absolute_time :: Time,
                                -- | Delta to the ending time of the previous frame.
@@ -79,7 +81,7 @@ data FRPInit s t i o = FRPInit {
 type FRPProgram s i o = FRPInit s () i o
 
 -- | A switchable automata with timewise numerical methods.
-newtype FRP e m j p = FRP (FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) -> 
+newtype FRP e m j p = FRP (FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) ->
                           FactoryArrow IO (ContT (Maybe (SwitchOutputOf m)) IO) j p)
 
 instance Functor (FRP e m j) where
@@ -110,17 +112,17 @@ newFRP1Program :: (forall e. FRP e (FRP1 s i o) i o) -> IO (FRPProgram s i o)
 newFRP1Program thread = unsafeFRPProgram (error "newFRP1Program: impossible, tried to access the spawned_threads pool from a single threaded FRPProgram.") () thread
 
 -- | Construct a multi-threaded FRPProgram.
-newFRPProgram :: (RecombinantState s,Eq t) => 
-                 ThreadIdentityRule t -> 
-                 (forall e. [(t,FRP e (FRPX t s i o) i o)]) -> 
+newFRPProgram :: (RecombinantState s,Eq t) =>
+                 ThreadIdentityRule t ->
+                 (forall e. [(t,FRP e (FRPX t s i o) i o)]) ->
                  IO (FRPProgram s i [(t,o)])
 newFRPProgram rule seed_threads = newFRP1Program $ frpContext rule seed_threads
 
 -- | Construct an FRPProgram from a single seed thread.  This program will spawn threads
 -- into the specified MVar.
-unsafeFRPProgram :: MVar [FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m)] -> 
-                    ThreadIDOf m -> 
-                    FRP e m (SwitchInputOf m) (SwitchOutputOf m) -> 
+unsafeFRPProgram :: MVar [FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m)] ->
+                    ThreadIDOf m ->
+                    FRP e m (SwitchInputOf m) (SwitchOutputOf m) ->
                     IO (FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m))
 unsafeFRPProgram spawned_threads t frpx =
     do frpstate_ref <- newIORef $ error "Tried to use uninitialized FRPState variable."
@@ -208,15 +210,15 @@ deltaTime :: FRP e m () Time
 deltaTime = frpxOf $ \frpinit () -> lift $ do liftM frpstate_delta_time $ getFRPState frpinit
 
 -- | Replace the 'frpinit_current_switch' value of the currently running thread with a newly constructed switch.
-replaceSwitch :: FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) -> FRP e m (SwitchInputOf m) (SwitchOutputOf m) -> 
+replaceSwitch :: FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) -> FRP e m (SwitchInputOf m) (SwitchOutputOf m) ->
                  ContT (Maybe (SwitchOutputOf m)) IO (SwitchInputOf m -> ContT (Maybe (SwitchOutputOf m)) IO (Maybe (SwitchOutputOf m)))
 replaceSwitch frpinit switch =
     do newSwitch <- lift $ constructSwitch frpinit switch
        lift $ writeIORef (frp_current_switch frpinit) newSwitch
        return newSwitch
 
-constructSwitch :: FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) -> 
-                   FRP e m (SwitchInputOf m) (SwitchOutputOf m) -> 
+constructSwitch :: FRPInit (StateOf m) (ThreadIDOf m) (SwitchInputOf m) (SwitchOutputOf m) ->
+                   FRP e m (SwitchInputOf m) (SwitchOutputOf m) ->
                    IO (SwitchInputOf m -> ContT (Maybe (SwitchOutputOf m)) IO (Maybe (SwitchOutputOf m)))
 constructSwitch frp_init (FRP f) =
     do (Kleisli current_switch) <- runFactory $ f frp_init
@@ -312,19 +314,19 @@ threadResults = map (\t -> (frp_thread_identity $ thread_object t,thread_output 
 -- | A complex function that embeds a thread group inside another running thread.  If the parent thread terminates
 -- or switches, the embedded thread group is instantly lost.
 --
--- 'threadGroup' accepts two paremters:
+-- 'unsafeThreadGroup' accepts some paremters:
 -- * A transformation from the current state to the nested state.
 -- * A state-append function, which takes the original state as the first parameter, and one of the threaded results as the second parameter.
 --   This will be run repeatedly to accumulate the output state.
 -- * A multithreading algorithm.  The simplest implementation is sequence_.
 -- * A list of seed threads with their associated thread identities.
 unsafeThreadGroup :: forall e m n.
-                     (FRPModel m,FRPModel n,Unwrap n ~ m) => 
-                     (StateOf m -> StateOf n) -> 
-                     (StateOf m -> StateOf n -> StateOf m) -> 
-                     ThreadIdentityRule (ThreadIDOf n) -> 
-                     ([IO ()] -> IO ()) -> 
-                     [(ThreadIDOf n,FRP e n (SwitchInputOf n) (SwitchOutputOf n))] -> 
+                     (FRPModel m,FRPModel n,Unwrap n ~ m) =>
+                     (StateOf m -> StateOf n) ->
+                     (StateOf m -> StateOf n -> StateOf m) ->
+                     ThreadIdentityRule (ThreadIDOf n) ->
+                     ([IO ()] -> IO ()) ->
+                     [(ThreadIDOf n,FRP e n (SwitchInputOf n) (SwitchOutputOf n))] ->
                      FRP e m (SwitchInputOf n) (ThreadGroup (StateOf n) (ThreadIDOf n) (SwitchInputOf n) (SwitchOutputOf n))
 unsafeThreadGroup sclone sappend rule multithread seed_threads = FRP $ \frp_init -> FactoryArrow $
     do threads <- newEmptyMVar
@@ -343,8 +345,8 @@ unsafeThreadGroup sclone sappend rule multithread seed_threads = FRP $ \frp_init
                          return $
                              do o <- m_o
                                 return $ ThreadResult o t
-                  results <- liftM (results_this_pass++) (if null threads_this_pass 
-                                                          then return [] 
+                  results <- liftM (results_this_pass++) (if null threads_this_pass
+                                                          then return []
                                                           else runThreads (nub $ map frp_thread_identity threads_this_pass ++ already_running_threads) j)
                   modifyMVar_ threads (return . ((map thread_object results_this_pass)++))
                   return results
@@ -355,7 +357,7 @@ unsafeThreadGroup sclone sappend rule multithread seed_threads = FRP $ \frp_init
                   thread_group = threads }
 
 -- | Embed some threads inside another running thread, as 'threadGroup'.
-frpContext :: (RecombinantState s,s ~ StateOf m,FRPModel m,Eq t) => 
+frpContext :: (RecombinantState s,s ~ StateOf m,FRPModel m,Eq t) =>
               ThreadIdentityRule t -> [(t,FRP e (FRPContext t j p m) j p)] -> FRP e m j [(t,p)]
 frpContext rule seed_threads = arr threadResults . unsafeThreadGroup clone recombine rule sequence_ seed_threads
 
@@ -366,6 +368,25 @@ frp1Context thread = proc i ->
        returnA -< case threadResults os of
            [(_,o)] -> o
            _ -> error "frp1Context: unexpected non-singular result."
+
+-- |
+-- Value recusion (see fix).
+--
+frpFix :: (FRPModel m) => FRP e (FRP1Context (j,x) (p,x) m) (j,x) (p,x) -> FRP e m j p
+frpFix thread = FRP $ \frp_init -> FactoryArrow $
+        do empty_thread_group <- newMVar []
+           nested_frp_init <- unsafeFRPProgram empty_thread_group (frp_thread_identity frp_init) thread
+           return $ Kleisli $ \i -> lift $
+               do s <- getProgramState frp_init
+                  absolute_time <- liftM frpstate_absolute_time $ getFRPState frp_init
+                  liftM fst $ mfix $ \(_,x) ->
+                      do result <- unsafeRunFRPProgram absolute_time ((i,x),s) nested_frp_init
+                         case result of
+                             Just ((o,x'),s') ->
+                                 do putProgramState frp_init s'
+                                    return (o,x')
+                             Nothing ->
+                                 do error "frpFix: unexpected non-singualr result."
 
 -- | Run a computation only when the input is defined.
 whenJust :: (FRPModel m) => (forall x y. FRP e (FRP1Context x y m) j p) -> FRP e m (Maybe j) (Maybe p)

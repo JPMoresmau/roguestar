@@ -32,7 +32,7 @@ instance (Monad m,MonadFix n) => ArrowLoop (FactoryArrow m n) where
 instance (Monad m) => ArrowApply (FactoryArrow m m) where
     app = factoryApp id
 
--- | Implements ArrowApply for any FactoryArrow capable of it, 
+-- | Implements ArrowApply for any FactoryArrow capable of it,
 -- but this requires a way to lift operations in m into n.
 factoryApp :: (Monad m,Monad n) => (forall a. m a -> n a) -> FactoryArrow m n (FactoryArrow m n i o,i) o
 factoryApp liftM2N = FactoryArrow $ return $ Kleisli $ \(FactoryArrow m,i) ->
