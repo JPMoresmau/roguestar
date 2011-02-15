@@ -71,30 +71,61 @@ androsynthAvatar = genericCreatureAvatar $ proc () ->
 
 glower :: (FRPModel m, FRPModes m ~ RoguestarModes,
            ThreadIDOf m ~ Maybe Integer) =>
-          LibraryModel -> Point3D -> FRP e m () ()
-glower library_model p_init = proc () ->
+          LibraryModel -> FRP e m (Point3D, Rate Vector3D, Acceleration Vector3D) ()
+glower library_model = proc (p,_,_) ->
     do local_origin <- exportToA root_coordinate_system -< origin_point_3d
-       transformA (accelerationModel fps120 (p_init,zero)
-           (proc () ->
-               do a <- derivative <<< derivative <<< exportToA root_coordinate_system -< origin_point_3d
-                  returnA -< concatForces [quadraticTrap 10 p_init,
-                                           drag 1.0,
-                                           \_ _ _ -> scalarMultiply (-1) a,
-                                           \_ p _ -> perSecond $ perSecond $ vectorNormalize $
-                                                         vectorToFrom p_init p `crossProduct` (Vector3D 0 1 0)]) 
-           (proc (_,()) -> libraryPointAtCamera -< (scene_layer_local,library_model))) -<
-               (translateToFrom local_origin origin_point_3d $ root_coordinate_system,())
+       transformA libraryPointAtCamera -<
+           (translateToFrom p origin_point_3d $ -- use absolute positioning
+                translateToFrom local_origin origin_point_3d $
+                    root_coordinate_system,
+            (scene_layer_local,library_model))
+       returnA -< ()
+
+starting_particles :: [(Point3D,Rate Vector3D)]
+starting_particles = [
+    (Point3D 0 0.8 0.8,zero),
+    (Point3D 0 0.15 (-0.15),zero),
+    (Point3D 0.21 0.21 0,zero),
+    (Point3D (-0.26) 0.26 0,zero),
+    (Point3D 0 0.3 0.3,zero),
+    (Point3D 0 0.33 (-0.33),zero),
+    (Point3D 0.35 0.35 0,zero),
+    (Point3D (-0.36) 0.36 0,zero)]
 
 particleAvatar :: (FRPModel m) => LibraryModel -> (Maybe RGB) -> CreatureAvatar e m
 particleAvatar library_model m_color = genericCreatureAvatar $ proc () ->
-    do glower library_model (Point3D 0 0.8 0.8) -< ()
-       glower library_model (Point3D 0 0.15 (-0.15)) -< ()
-       glower library_model (Point3D 0.21 0.21 0) -< ()
-       glower library_model (Point3D (-0.26) 0.26 0) -< ()
-       glower library_model (Point3D 0 0.3 0.3) -< ()
-       glower library_model (Point3D 0 0.33 (-0.33)) -< ()
-       glower library_model (Point3D 0.35 0.35 0) -< ()
-       glower library_model (Point3D (-0.36) 0.36 0) -< ()
+    do a <- inertia root_coordinate_system origin_point_3d -< ()
+       particles <- particleSystem fps120 starting_particles -<
+           \particles ->
+               concatForces
+                   -- Bind the entire system to the origin of the local coordinate system.
+                   [quadraticTrap 10 origin_point_3d,
+                   -- Damp down runaway behavior.
+                   drag 1.0,
+                   -- apply inertia.
+                   \_ _ _ -> a,
+                   -- Repulse points that get too close.
+                   concatForces $ map (\cloud_point ->
+                       constrainForce (\_ p _ -> distanceBetween p cloud_point > 0.001)
+                                      (scalarMultiply (-1) $ inverseSquareLaw 0.5 cloud_point))
+                       (map fst particles),
+                   -- Attract points that wonder too far away.
+                   concatForces $ map (quadraticTrap 10 . fst) particles,
+                   -- Swirl points around the y axis.
+                   \_ p _ -> perSecond $ perSecond $ vectorNormalize $
+                       vectorToFrom origin_point_3d p `crossProduct` (Vector3D 0 1 0),
+                   -- Bounce off the ground.
+                   constrainForce (\ _ (Point3D _ y _) _ -> y <= 0) $
+                       \_ (Point3D _ y _) _ -> perSecond $ perSecond $ Vector3D 0 (-100*y) 0
+                   ]
+       glower library_model -< particles !! 0
+       glower library_model -< particles !! 1
+       glower library_model -< particles !! 2
+       glower library_model -< particles !! 3
+       glower library_model -< particles !! 4
+       glower library_model -< particles !! 5
+       glower library_model -< particles !! 6
+       glower library_model -< particles !! 7
        accumulateSceneA -< (scene_layer_local,
                             lightSource $
            case m_color of
@@ -105,8 +136,8 @@ particleAvatar library_model m_color = genericCreatureAvatar $ proc () ->
                Nothing -> NoLight)
        t <- threadTime -< ()
        wield_point <- exportCoordinateSystem -< translate (rotateY (fromRotations $ t `cyclical'` (fromSeconds 3)) $ Vector3D 0.25 0.5 0)
-       returnA -< CreatureThreadOutput {
-           cto_wield_point = wield_point }
+       returnA -< (CreatureThreadOutput {
+           cto_wield_point = wield_point })
 
 ascendantAvatar :: (FRPModel m) => CreatureAvatar e m
 ascendantAvatar = particleAvatar (SimpleModel AscendantGlow) $ Just light_blue

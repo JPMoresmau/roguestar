@@ -10,7 +10,8 @@ module RSAGL.Animation.AnimationExtras
      drag,
      concatForces,
      constrainForce,
-     accelerationModel)
+     singleParticle,
+     particleSystem)
     where
 
 import RSAGL.Math.Vector
@@ -26,6 +27,7 @@ import RSAGL.Modeling.Model
 import RSAGL.Scene.WrappedAffine
 import Control.Monad
 import RSAGL.Math.Types
+import Debug.Trace
 
 -- | Answers a continuous rotation.
 rotationA :: Vector3D -> Rate Angle -> FRP e m ignored AffineTransformation
@@ -63,8 +65,12 @@ type ForceFunction = Time -> Point3D -> Rate Vector3D -> Acceleration Vector3D
 -- | An energy-conserving force function describing gravitational attraction.
 -- Accepts the intensity and singularity of the vector field.
 inverseSquareLaw :: RSdouble -> Point3D -> ForceFunction
-inverseSquareLaw g attractor _ p _ = perSecond $ perSecond $ vectorScaleTo (g * (recip $ vectorLengthSquared v)) v
-    where v = vectorToFrom attractor p
+inverseSquareLaw g attractor _ p _ =
+        if l > 0
+        then perSecond $ perSecond $ vectorScaleTo (g * recip l) v
+        else zero
+    where l = vectorLengthSquared v
+          v = vectorToFrom attractor p
 
 -- | An energy-conserving force function that increases in
 -- intensity with distance.
@@ -89,11 +95,19 @@ constrainForce predicate f t p v = if predicate t p v
     else zero
 
 -- | Apply a varying force function to a particle.
-accelerationModel :: (CoordinateSystemClass s,StateOf m ~ s) =>
-                     Frequency -> PV -> FRP e m j ForceFunction ->
-                     FRP e m (PVA,j) p -> FRP e m j p
-accelerationModel f pv forceA actionA = proc j ->
-    do (p,v) <- integralRK4' f (flip translate) pv <<< forceA -< j
+singleParticle :: (CoordinateSystemClass s,StateOf m ~ s) =>
+                  Frequency -> PV -> FRP e m ForceFunction PVA
+singleParticle f pv = proc force_function ->
+    do (p,v) <- integralRK4' f (flip translate) pv -< force_function
        a <- derivative -< v
-       transformA actionA -< (affineOf $ translate (vectorToFrom p origin_point_3d),((p,v,a),j))
+       returnA -< (p,v,a)
+
+-- | Apply a varying force function to a system of particles.
+particleSystem :: (CoordinateSystemClass s,StateOf m ~ s) =>
+                  Frequency -> [PV] -> FRP e m ([PV] -> ForceFunction) [PVA]
+particleSystem f particles = proc force_function ->
+    do (ps',vs') <- integralRK4' f (zipWith $ flip translate) (second pack $ unzip particles) -<
+           \t ps vs -> packa $ zipWith (force_function (zip ps (unpack vs)) t) ps (unpack vs)
+       as' <- derivative -< vs'
+       returnA -< zip3 ps' (unpack vs') (unpacka as')
 

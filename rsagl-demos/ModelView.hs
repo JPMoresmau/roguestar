@@ -32,13 +32,18 @@ number_of_frames :: Integer
 number_of_frames = 6000
 --number_of_frames = 60
 
+plotMoon :: (FRPModel m) => FRP e (SimpleSwitch k () (SceneAccumulator IO) i o m) (IO BakedModel) (CSN Point3D)
+plotMoon = proc baked_model ->
+    do accumulateSceneA -< (std_scene_layer_infinite+2,sceneObject baked_model)
+       exportA -< origin_point_3d
+
 moon_orbital_animation :: (FRPModel m) => FRP e (SimpleSwitch k () (SceneAccumulator IO) i o m) (IO BakedModel) (CSN Point3D)
-moon_orbital_animation =
-    accelerationModel (perSecond 60)
-                      (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18)
-                      (arr $ const $ inverseSquareLaw 1.0 origin_point_3d)
-                      (proc (_,im) -> do rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) accumulateSceneA -< (std_scene_layer_infinite+2,sceneObject im)
-                                         exportA -< origin_point_3d)
+moon_orbital_animation = proc baked_model ->
+    do let force = inverseSquareLaw 1.0 origin_point_3d
+       (p,_,_) <- singleParticle (perSecond 60)
+           (Point3D (-6) 0 0,perSecond $ Vector3D 0.0 0.14 0.18) -< force
+       transformA (rotateA (Vector3D 0 1 0) (perSecond $ fromDegrees 20) plotMoon) -<
+           (Affine $ translate $ vectorToFrom p origin_point_3d, baked_model)
 
 walking_orb_animation :: (FRPModel m) =>
                          BakedModel ->

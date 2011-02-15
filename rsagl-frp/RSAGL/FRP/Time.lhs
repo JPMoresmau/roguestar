@@ -21,6 +21,10 @@ module RSAGL.FRP.Time
      day,
      month,
      year,
+     pack,
+     unpack,
+     packa,
+     unpacka,
      fromSeconds,
      toSeconds,
      getTime,
@@ -114,9 +118,21 @@ toSeconds :: Time -> RSdouble
 toSeconds (Time t) = fromInteger t / time_resolution
 
 getTime :: IO Time
-getTime = 
+getTime =
     do (TOD secs picos) <- getClockTime
        return $ Time $ secs * time_resolution + (picos * time_resolution) `div` 1000000000000
+
+pack :: [Rate a] -> Rate [a]
+pack = Rate . map (\(Rate a) -> a)
+
+unpack :: Rate [a] -> [Rate a]
+unpack (Rate as) = map perSecond as
+
+unpacka :: Acceleration [a] -> [Acceleration a]
+unpacka (Rate (Rate as)) = map (Rate . Rate) as
+
+packa :: [Acceleration a] -> Acceleration [a]
+packa = Rate . Rate . map (\(Rate (Rate a)) -> a)
 \end{code}
 
 \subsection{Modulo Division for Time}

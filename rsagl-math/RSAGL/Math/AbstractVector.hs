@@ -139,6 +139,17 @@ instance (AbstractMagnitude a,AbstractMagnitude b) => AbstractMagnitude (a,b) wh
 
 instance (AbstractVector a,AbstractVector b) => AbstractVector (a,b)
 
+-- Functions
+
+instance (AbstractAdd a a') => AbstractAdd ((->) x a) ((->) x a') where
+    add a b = \x -> a x `add` b x
+
+instance (AbstractSubtract a a') => AbstractSubtract ((->) x a) ((->) x a') where
+    sub a b = \x -> a x `sub` b x
+
+instance (AbstractScale a) => AbstractScale ((->) x a) where
+    scalarMultiply d f = scalarMultiply d . f
+
 -- RSfloat
 
 instance AbstractAdd RSfloat RSfloat where
@@ -179,11 +190,22 @@ instance AbstractZero RSdouble where
 
 -- Lists
 
+instance (AbstractZero a) => AbstractZero [a] where
+    zero = repeat zero
+
+instance (AbstractAdd a b) => AbstractAdd [a] [b] where
+    add = zipWith add
+
+instance (AbstractSubtract a b) => AbstractSubtract [a] [b] where
+    sub = zipWith sub
+
 instance (AbstractScale a) => AbstractScale [a] where
     scalarMultiply d = map (scalarMultiply d)
 
 instance (AbstractMagnitude a) => AbstractMagnitude [a] where
     magnitude = sqrt . sum . map ((^2) . magnitude)
+
+instance (AbstractVector a) => AbstractVector [a] where
 
 -- Generic functions.
 

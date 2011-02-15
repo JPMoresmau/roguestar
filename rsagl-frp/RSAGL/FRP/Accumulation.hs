@@ -56,7 +56,7 @@ accumulateNumerical frequency accumF initial_value = proc i ->
 integralRK4 :: (AbstractVector v) => Frequency -> (p -> v -> p) -> p -> FRP e m (Time -> p -> Rate v) p
 integralRK4 f addPV = accumulateNumerical f (\diffF p abs_t delta_t -> integrateRK4 addPV diffF p (abs_t `sub` delta_t) abs_t)
 
-integralRK4' :: (AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) -> 
+integralRK4' :: (AbstractVector v) => Frequency -> (p -> v -> p) -> (p,Rate v) ->
                 FRP e m (Time -> p -> Rate v -> Acceleration v) (p,Rate v)
 integralRK4' f addPV = accumulateNumerical f (\diffF p abs_t delta_t -> integrateRK4' addPV diffF p (abs_t `sub` delta_t) abs_t)
 

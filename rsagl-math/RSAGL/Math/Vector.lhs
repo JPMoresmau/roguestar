@@ -294,5 +294,5 @@ orthos :: Vector3D -> (Vector3D,Vector3D)
 orthos v@(Vector3D x y z) | abs y >= abs x && abs z >= abs x = fixOrtho2 v (Vector3D (abs x + abs y + abs z) y z)
 orthos v@(Vector3D x y z) | abs x >= abs y && abs z >= abs y = fixOrtho2 v (Vector3D x (abs x + abs y + abs z) z)
 orthos v@(Vector3D x y z) | abs x >= abs z && abs y >= abs z = fixOrtho2 v (Vector3D x y (abs x + abs y + abs z))
-orthos _ = error "orthos: NaN"
+orthos v = error $ "orthos: (" ++ show v ++ ")"
 \end{code}

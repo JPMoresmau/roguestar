@@ -379,12 +379,12 @@ frpFix thread = FRP $ \frp_init -> FactoryArrow $
            return $ Kleisli $ \i -> lift $
                do s <- getProgramState frp_init
                   absolute_time <- liftM frpstate_absolute_time $ getFRPState frp_init
-                  liftM fst $ mfix $ \(_,x) ->
-                      do result <- unsafeRunFRPProgram absolute_time ((i,x),s) nested_frp_init
+                  liftM fst $ mfix $ \ox ->
+                      do result <- unsafeRunFRPProgram absolute_time ((i,snd ox),s) nested_frp_init
                          case result of
-                             Just ((o,x'),s') ->
+                             Just (ox',s') ->
                                  do putProgramState frp_init s'
-                                    return (o,x')
+                                    return ox'
                              Nothing ->
                                  do error "frpFix: unexpected non-singualr result."
 
