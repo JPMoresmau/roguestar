@@ -11,7 +11,10 @@ module RSAGL.Animation.AnimationExtras
      concatForces,
      constrainForce,
      singleParticle,
-     particleSystem)
+     particleSystem,
+     PV,
+     PVA,
+     ForceFunction)
     where
 
 import RSAGL.Math.Vector

@@ -8,18 +8,15 @@ import RSAGL.FRP
 import RSAGL.Math
 import RSAGL.Animation
 import RSAGL.Color.RSAGLColors
-import RSAGL.Color
 import Animation
 import Control.Arrow
-import Data.Maybe
 import Models.LibraryData
 import VisibleObject
 import Limbs
 import Scene
 import AnimationExtras
-
-type CreatureAvatarSwitch m = AvatarSwitch () (Maybe CreatureThreadOutput) m
-type CreatureAvatar e m = FRP e (AvatarSwitch () (Maybe CreatureThreadOutput) m) () (Maybe CreatureThreadOutput)
+import AnimationVortex
+import CreatureData
 
 -- | Avatar for any creature that automatically switches to the appropriate species-specific avatar thread.
 creatureAvatar :: (FRPModel m) => CreatureAvatar e m
@@ -37,17 +34,10 @@ creatureAvatar = proc () ->
         switchTo "dustvortex" = dustVortexAvatar
         switchTo _ = questionMarkAvatar
 
-genericCreatureAvatar :: (FRPModel m) => FRP e (CreatureAvatarSwitch m) () CreatureThreadOutput -> CreatureAvatar e m
-genericCreatureAvatar creatureA = proc () ->
-    do visibleObjectHeader -< ()
-       m_orientation <- objectIdealOrientation ThisObject -< ()
-       switchTerminate -< if isNothing m_orientation then (Just $ genericCreatureAvatar creatureA,Nothing) else (Nothing,Nothing)
-       arr Just <<< transformA creatureA -< (fromMaybe (error "genericCreatureAvatar: fromMaybe") m_orientation,())
-
 encephalonAvatar :: (FRPModel m) => CreatureAvatar e m
 encephalonAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Encephalon)
-       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<< 
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms MachineArmUpper MachineArmLower (Vector3D 0.66 0.66 0) (Point3D 0.145 0.145 0) 0.33 (Point3D 0.35 0.066 0.133) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
@@ -69,81 +59,22 @@ androsynthAvatar = genericCreatureAvatar $ proc () ->
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
 
-glower :: (FRPModel m, FRPModes m ~ RoguestarModes,
-           ThreadIDOf m ~ Maybe Integer) =>
-          LibraryModel -> FRP e m (Point3D, Rate Vector3D, Acceleration Vector3D) ()
-glower library_model = proc (p,_,_) ->
-    do local_origin <- exportToA root_coordinate_system -< origin_point_3d
-       transformA libraryPointAtCamera -<
-           (translateToFrom p origin_point_3d $ -- use absolute positioning
-                translateToFrom local_origin origin_point_3d $
-                    root_coordinate_system,
-            (scene_layer_local,library_model))
-       returnA -< ()
-
-starting_particles :: [(Point3D,Rate Vector3D)]
-starting_particles = [
-    (Point3D 0 0.8 0.8,zero),
-    (Point3D 0 0.15 (-0.15),zero),
-    (Point3D 0.21 0.21 0,zero),
-    (Point3D (-0.26) 0.26 0,zero),
-    (Point3D 0 0.3 0.3,zero),
-    (Point3D 0 0.33 (-0.33),zero),
-    (Point3D 0.35 0.35 0,zero),
-    (Point3D (-0.36) 0.36 0,zero)]
-
-particleAvatar :: (FRPModel m) => LibraryModel -> (Maybe RGB) -> CreatureAvatar e m
-particleAvatar library_model m_color = genericCreatureAvatar $ proc () ->
-    do a <- inertia root_coordinate_system origin_point_3d -< ()
-       particles <- particleSystem fps120 starting_particles -<
-           \particles ->
-               concatForces
-                   -- Bind the entire system to the origin of the local coordinate system.
-                   [quadraticTrap 10 origin_point_3d,
-                   -- Damp down runaway behavior.
-                   drag 1.0,
-                   -- apply inertia.
-                   \_ _ _ -> a,
-                   -- Repulse points that get too close.
-                   concatForces $ map (\cloud_point ->
-                       constrainForce (\_ p _ -> distanceBetween p cloud_point > 0.001)
-                                      (scalarMultiply (-1) $ inverseSquareLaw 0.5 cloud_point))
-                       (map fst particles),
-                   -- Attract points that wonder too far away.
-                   concatForces $ map (quadraticTrap 10 . fst) particles,
-                   -- Swirl points around the y axis.
-                   \_ p _ -> perSecond $ perSecond $ vectorNormalize $
-                       vectorToFrom origin_point_3d p `crossProduct` (Vector3D 0 1 0),
-                   -- Bounce off the ground.
-                   constrainForce (\ _ (Point3D _ y _) _ -> y <= 0) $
-                       \_ (Point3D _ y _) _ -> perSecond $ perSecond $ Vector3D 0 (-100*y) 0
-                   ]
-       glower library_model -< particles !! 0
-       glower library_model -< particles !! 1
-       glower library_model -< particles !! 2
-       glower library_model -< particles !! 3
-       glower library_model -< particles !! 4
-       glower library_model -< particles !! 5
-       glower library_model -< particles !! 6
-       glower library_model -< particles !! 7
-       accumulateSceneA -< (scene_layer_local,
-                            lightSource $
-           case m_color of
-               Just color -> PointLight (Point3D 0 0.5 0)
-                                        (measure (Point3D 0 0.5 0) (Point3D 0 0 0))
-                                        color
-                                        color
-               Nothing -> NoLight)
-       t <- threadTime -< ()
-       wield_point <- exportCoordinateSystem -< translate (rotateY (fromRotations $ t `cyclical'` (fromSeconds 3)) $ Vector3D 0.25 0.5 0)
-       returnA -< (CreatureThreadOutput {
-           cto_wield_point = wield_point })
-
 ascendantAvatar :: (FRPModel m) => CreatureAvatar e m
-ascendantAvatar = particleAvatar (SimpleModel AscendantGlow) $ Just light_blue
+ascendantAvatar = particleAvatar vortex 12 (SimpleModel AscendantGlow) $ Just light_blue
+
+dust_vortex :: Vortex
+dust_vortex = vortex {
+    vortex_rotation = \x -> if x > 0.001 then recip x else 0,
+    vortex_binding = 0,
+    vortex_containment = 0.0,
+    vortex_base_angle = fromDegrees 45,
+    vortex_repulsion = 0.4,
+    vortex_height = -0.1,
+    vortex_gravity = 15,
+    vortex_base_force = 120 }
 
 dustVortexAvatar :: (FRPModel m) => CreatureAvatar e m
-dustVortexAvatar = particleAvatar (SimpleModel DustPuff) Nothing
+dustVortexAvatar = particleAvatar dust_vortex 12 (SimpleModel DustPuff) Nothing
 
 caduceatorAvatar :: (FRPModel m) => CreatureAvatar e m
 caduceatorAvatar = genericCreatureAvatar $ proc () ->

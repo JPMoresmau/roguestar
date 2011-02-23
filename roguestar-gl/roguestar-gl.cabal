@@ -35,7 +35,8 @@ Library
                        Models.EnergySwords, Models.EnergyThings, Models.CyborgType4,
                        AnimationEvents, AnimationMenus, AnimationTerrain, AnimationTools,
                        AnimationExtras, AnimationCreatures, AnimationBuildings, MaybeArrow,
-                       EventUtils, Sky, Paths_roguestar_gl
+                       EventUtils, Sky, CreatureData, AnimationVortex,
+                       Paths_roguestar_gl
   build-depends:       base>=4&&<5,
                        GLUT>=2.2 && < 2.3,
                        rsagl==0.5,
