@@ -1,7 +1,8 @@
 {-# LANGUAGE Arrows, OverloadedStrings, TypeFamilies #-}
 
 module Limbs
-    (bothArms,
+    (bothEyeStalks,
+     bothArms,
      bothLegs)
     where
 
@@ -16,6 +17,8 @@ import RSAGL.FRP
 import EventUtils
 
 -- | Animate an arbitrary articulated joint.
+-- This scales the pieces of the joint, so that we can re-use the same model for
+-- differently-lengthed appendages.
 libraryJointAnimation :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
                          RSdouble -> LibraryModel ->
                          LibraryModel -> FRP e m Joint ()
@@ -30,8 +33,35 @@ arm :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
        FRP e m (Point3D,Point3D) Joint
 arm arm_upper arm_lower bend_vector maximum_length = proc (shoulder_point,hand_point) ->
     do let joint_info = joint bend_vector shoulder_point maximum_length hand_point
-       libraryJointAnimation maximum_length arm_upper arm_lower -< joint_info 
+       libraryJointAnimation maximum_length arm_upper arm_lower -< joint_info
        returnA -< joint_info
+
+eyeStalk :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
+       LibraryModel -> LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D ->
+       FRP e m () ()
+eyeStalk stalk_upper stalk_lower eyeball bend_vector root_point maximum_length eyeball_point = proc () ->
+    do a <- inertia root_coordinate_system eyeball_point -< ()
+       (googly_eye,_,_) <- singleParticle fps120 (eyeball_point, zero) -< concatForces [
+           \_ _ _ -> a,
+           drag 20,
+           quadraticTrap ((*2000) $ recip $ distanceBetween eyeball_point $ swapX eyeball_point) eyeball_point]
+       let joint_info = joint bend_vector root_point maximum_length googly_eye
+       libraryJointAnimation maximum_length stalk_upper stalk_lower -< joint_info
+       transformA libraryA -< (Affine $ transformation $ joint_arm_hand joint_info,
+                               (std_scene_layer_local,eyeball))
+       returnA -< ()
+
+bothEyeStalks :: (FRPModel m, FRPModes m ~ RoguestarModes) =>
+       LibraryModel -> LibraryModel -> LibraryModel -> Vector3D -> Point3D -> RSdouble -> Point3D ->
+       FRP e m () ()
+bothEyeStalks stalk_upper stalk_lower eyeball bend_vector root_point maximum_length eyeball_point = proc () ->
+    do eyeStalk stalk_upper stalk_lower eyeball
+                bend_vector root_point maximum_length eyeball_point -< ()
+       eyeStalk stalk_upper stalk_lower eyeball
+                (swapX bend_vector)
+                (swapX root_point)
+                maximum_length
+                (swapX eyeball_point) -< ()
 
 -- | Animate a right arm.  This animation is aware of what tool the current
 -- creature (based on thread ID) is holding and raises the arm forward
@@ -122,7 +152,7 @@ bothLegs leg_upper
                  (libraryJointAnimation maximum_length
                                         (toLibraryModel leg_upper)
                                         (toLibraryModel leg_lower)),
-             leg bend_vector
+             leg (swapX bend_vector)
                  (swapX hip_anchor)
                  maximum_length
                  (swapX foot_rest)

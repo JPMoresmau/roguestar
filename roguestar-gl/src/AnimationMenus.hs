@@ -43,7 +43,7 @@ menuRaceSelection = proc s ->
        requestPrintTextMode -< Unlimited
        clearPrintTextA -< Just ()
        printMenuA select_race_action_names -< ()
-       printTextA -< Just (Query,"Select a Race:")
+       printTextA -< Just (Query,"Select a Species:")
        returnA -< result
 
 menuClassSelection :: (FRPModel m) => MenuHandler e m

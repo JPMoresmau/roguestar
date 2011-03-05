@@ -27,6 +27,7 @@ Library
                        Actions, Limbs, Tables, CommandLine,
                        Models.Androsynth, Models.QuestionMark, Models.Terrain, Models.RecreantFactory,
                        Models.Recreant, Models.Glows, Models.Materials, Models.Reptilian,
+                       Models.Hellion,
                        Models.Library, Models.MachineParts, Models.LibraryData, Models.Caduceator,
                        Models.Tree, Models.Encephalon, Models.PhaseWeapons, RenderingControl,
                        Keymaps.BuiltinKeymaps, Keymaps.CommonKeymap, Keymaps.NumpadKeymap,

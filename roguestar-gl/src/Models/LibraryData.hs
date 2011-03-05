@@ -24,6 +24,7 @@ data SimpleModel =
   | DustPuff
   | Caduceator
   | Reptilian
+  | Hellion
     -- Tools
   | PhasePistol
   | Phaser
@@ -40,7 +41,10 @@ data SimpleModel =
   | ReptilianLegLower
   | ReptilianArmUpper
   | ReptilianArmLower
+  | HellionAppendage
   | ThinLimb
+    -- Other bodyparts
+  | HellionEye
     -- Space Ship Parts
   | CyborgType4Dome
   | CyborgType4Base

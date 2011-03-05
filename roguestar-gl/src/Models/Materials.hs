@@ -16,6 +16,7 @@ module Models.Materials
      reptilian_skin,
      reptilian_pigment,
      reptilian_specular,
+     hellion_skin,
      -- | Material by Energy Type
      energyColor,
      energyMaterial)
@@ -86,7 +87,7 @@ cyborg_metal :: MaterialM attr ()
 cyborg_metal = metallic $ pure beige
 
 cyborg_glow :: MaterialM attr ()
-cyborg_glow = 
+cyborg_glow =
     do pigment $ pure blackbody
        emissive $ pure $ scalarMultiply 1.0 pale_green
 
@@ -111,6 +112,13 @@ reptilian_skin :: Modeling ()
 reptilian_skin = material $
     do pigment $ reptilian_pigment
        specular 5.0 $ reptilian_specular
+
+-- Hellion Skin
+
+hellion_skin :: Modeling ()
+hellion_skin = material $
+    do pigment $ pattern (cloudy 75 0.1) [(0.0,pure sea_green),(1.0,pure lime)]
+       specular 5.0 $ scalarMultiply (1/5) pure white
 
 -- Encephalon Skins
 

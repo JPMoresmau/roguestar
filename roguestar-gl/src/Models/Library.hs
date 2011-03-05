@@ -28,6 +28,7 @@ import Models.Androsynth
 import Models.Glows
 import Models.Caduceator
 import Models.Reptilian
+import Models.Hellion
 import Models.PhaseWeapons
 import Models.MachineParts
 import Models.Sky
@@ -54,6 +55,7 @@ toModel (SimpleModel Recreant) = recreant
 toModel (SimpleModel Androsynth) = androsynth
 toModel (SimpleModel Caduceator) = caduceator
 toModel (SimpleModel Reptilian) = reptilian
+toModel (SimpleModel Hellion) = hellion
 toModel (SimpleModel AscendantGlow) = ascendant_glow
 toModel (SimpleModel DustPuff) = dust_puff
 toModel (SimpleModel PhasePistol) = phase_pistol
@@ -70,6 +72,8 @@ toModel (SimpleModel ReptilianLegLower) = reptilian_leg_lower
 toModel (SimpleModel ReptilianLegUpper) = reptilian_leg_upper
 toModel (SimpleModel ReptilianArmLower) = reptilian_arm_lower
 toModel (SimpleModel ReptilianArmUpper) = reptilian_arm_upper
+toModel (SimpleModel HellionAppendage) = hellion_appendage
+toModel (SimpleModel HellionEye) = hellion_eye
 toModel (SimpleModel ThinLimb) = thin_limb
 toModel (SimpleModel CyborgType4Dome) = cyborg_type_4_dome
 toModel (SimpleModel CyborgType4Base) = cyborg_type_4_base

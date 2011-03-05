@@ -6,7 +6,6 @@ module Initialization
     where
 
 import PrintText
-import Data.Maybe
 import Control.Monad
 import Actions
 import Keymaps.Keymaps

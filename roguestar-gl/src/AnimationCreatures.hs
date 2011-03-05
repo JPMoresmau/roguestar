@@ -31,6 +31,7 @@ creatureAvatar = proc () ->
         switchTo "ascendant" = ascendantAvatar
         switchTo "caduceator" = caduceatorAvatar
         switchTo "reptilian" = reptilianAvatar
+        switchTo "hellion" = hellionAvatar
         switchTo "dustvortex" = dustVortexAvatar
         switchTo _ = questionMarkAvatar
 
@@ -92,4 +93,21 @@ reptilianAvatar = genericCreatureAvatar $ proc () ->
            bothArms ReptilianArmUpper ReptilianArmLower (Vector3D 1.0 0.0 1.0) (Point3D (0.05) 0.35 (-0.1)) 0.25 (Point3D 0.07 0.25 0.12) -< ()
        returnA -< CreatureThreadOutput {
            cto_wield_point = wield_point }
+
+hellionAvatar :: (FRPModel m) => CreatureAvatar e m
+hellionAvatar = genericCreatureAvatar $ proc () ->
+    do libraryA -< (scene_layer_local,Hellion)
+       bothEyeStalks (SimpleModel HellionAppendage)
+                     (SimpleModel HellionAppendage)
+                     (SimpleModel HellionEye)
+                     (Vector3D (0.1) 0 (-1))
+                     (Point3D 0.06 0.55 0)
+                     1.2
+                     (Point3D 0.2 0.8 0.05) -< ()
+       bothLegs HellionAppendage HellionAppendage (Vector3D 0.5 0 (-1)) (Point3D 0.05 0.55 0) 0.8 (Point3D 0.05 0 0) -< ()
+       wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
+           bothArms HellionAppendage HellionAppendage (Vector3D 1.0 0.0 (-0.5)) (Point3D 0.1 0.6 0) 0.4 (Point3D 0.3 0.25 0.3) -< ()
+       returnA -< CreatureThreadOutput {
+           cto_wield_point = wield_point }
+
 
