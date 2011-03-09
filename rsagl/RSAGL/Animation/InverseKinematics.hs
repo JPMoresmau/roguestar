@@ -5,6 +5,7 @@
 
 module RSAGL.Animation.InverseKinematics
     (leg,
+     LegStyle(..),
      Leg,
      jointAnimation,
      legs,
@@ -35,7 +36,7 @@ import RSAGL.Math.Types
 
 -- foot works by reading two odometers, one for forward movement and another for
 -- sideways movement.  This is like spinning the wheel by a magical odometer
--- instead of spinning the odometer by the wheel.
+-- instead of spinning the odometer by the wheel.  (INVERSE kinematics!)
 --
 -- 'pre_stepage' is the total odometer reading for all travel in both
 -- directions.  'stepage_adjustment' is the amount by which we need to increase
@@ -49,10 +50,10 @@ foot :: (CoordinateSystemClass s,s ~ StateOf m) =>
         FRP e m Bool (CSN Point3D,Bool)
 foot forward_radius side_radius lift_radius = proc emergency_footdown ->
        -- total forward travel of the foot:
-    do fwd_total_stepage <- arr (* recip forward_radius) <<<
+    do fwd_total_stepage <- arr (* recip (2*forward_radius)) <<<
            odometer root_coordinate_system (Vector3D 0 0 1) -< ()
        -- total sideways travel of the foot
-       side_total_stepage <- arr (* recip side_radius) <<<
+       side_total_stepage <- arr (* recip (2*side_radius)) <<<
            odometer root_coordinate_system (Vector3D 1 0 0) -< ()
        -- total travel of the foot
        let pre_stepage = sqrt $ fwd_total_stepage^2 + side_total_stepage^2
@@ -72,7 +73,7 @@ foot forward_radius side_radius lift_radius = proc emergency_footdown ->
        let stepage_offset = if cyclic_stepage > 1
                                 then 1.5 - cyclic_stepage
                                 else cyclic_stepage - 0.5
-       let step_vector = scale (Vector3D side_radius 0 forward_radius) $
+       let step_vector = scale (Vector3D (2*side_radius) 0 (2*forward_radius)) $
                              vectorScaleTo stepage_offset $
                                  Vector3D side_total_stepage 0 fwd_total_stepage
        foot_position <- importA <<<
@@ -81,6 +82,8 @@ foot forward_radius side_radius lift_radius = proc emergency_footdown ->
        csn_foot_position <- exportA -<
            translate (Vector3D 0 foot_lift 0) foot_position
        returnA -< (csn_foot_position,cyclic_stepage > 1)
+
+data LegStyle = Upright | Insectoid
 
 -- | A description of a leg.
 data Leg e m = Leg (FRP e m [Bool] [Bool])
@@ -95,6 +98,7 @@ instance (CoordinateSystemClass s,StateOf m ~ s) =>
 -- more information on how some of these parameters
 -- are interpreted.
 --
+-- * style - See LegStyle.
 -- * bend - The bend vector of the articulated joint
 -- * base - the base or shoulder or fixed point of the joint
 -- * len - the total length of the articulation
@@ -104,13 +108,14 @@ instance (CoordinateSystemClass s,StateOf m ~ s) =>
 --         as it walks.
 -- * animation - an animation to display the joint
 leg :: (CoordinateSystemClass s,StateOf m ~ s) =>
+       LegStyle ->
        Vector3D ->
        Point3D ->
        RSdouble ->
        Point3D ->
        (FRP e m Joint ()) ->
        Leg e m
-leg bend base len end animation = Leg $ proc feet_that_are_down ->
+leg style bend base len end animation = Leg $ proc feet_that_are_down ->
     do let declare_emergency_foot_down =
                length (filter id feet_that_are_down) <
                length (filter not feet_that_are_down) &&
@@ -122,7 +127,13 @@ leg bend base len end animation = Leg $ proc feet_that_are_down ->
        animation -< joint bend base len p
        returnA -< (foot_is_down || declare_emergency_foot_down) :
                   feet_that_are_down
-  where foot_radius = sqrt (len^2 - (distanceBetween base end)^2) / 2
+  where insectoid_style = sqrt (len^2 - foot_ideal_distance_squared) / 4
+        upright_style = case (base,end) of
+            (Point3D _ base_y _,Point3D _ end_y _) -> sqrt $ len^2 - (base_y - end_y)^2
+        foot_ideal_distance_squared = distanceBetweenSquared base end
+        foot_radius = case style of
+            Insectoid -> insectoid_style
+            Upright -> upright_style
 
 -- | Combines a group of legs into a group that will try to keep at least half
 -- of the legs on the ground at all times.

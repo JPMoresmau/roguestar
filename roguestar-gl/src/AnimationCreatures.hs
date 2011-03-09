@@ -54,7 +54,7 @@ recreantAvatar = genericCreatureAvatar $ floatBobbing 0.25 0.4 $ proc () ->
 androsynthAvatar :: (FRPModel m) => CreatureAvatar e m
 androsynthAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Androsynth)
-       bothLegs ThinLimb ThinLimb (Vector3D 0 0 1) (Point3D (0.07) 0.5 (-0.08)) 0.7 (Point3D 0.07 0 0.0) -< ()
+       bothLegs ThinLimb ThinLimb Upright (Vector3D 0 0 1) (Point3D (0.07) 0.5 (-0.08)) 0.55 (Point3D 0.07 0 0.0) -< ()
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms ThinLimb ThinLimb (Vector3D (1.0) (-1.0) (-1.0)) (Point3D 0.05 0.65 0.0) 0.45 (Point3D 0.15 0.34 0.1) -< ()
        returnA -< CreatureThreadOutput {
@@ -88,7 +88,7 @@ caduceatorAvatar = genericCreatureAvatar $ proc () ->
 reptilianAvatar :: (FRPModel m) => CreatureAvatar e m
 reptilianAvatar = genericCreatureAvatar $ proc () ->
     do libraryA -< (scene_layer_local,Reptilian)
-       bothLegs ReptilianLegUpper ReptilianLegLower (Vector3D 0 0 1) (Point3D (0.05) 0.25 (-0.1)) 0.29 (Point3D 0.07 0 0.0) -< ()
+       bothLegs ReptilianLegUpper ReptilianLegLower Upright (Vector3D 0 0 1) (Point3D (0.05) 0.25 (-0.1)) 0.29 (Point3D 0.07 0 0.0) -< ()
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms ReptilianArmUpper ReptilianArmLower (Vector3D 1.0 0.0 1.0) (Point3D (0.05) 0.35 (-0.1)) 0.25 (Point3D 0.07 0.25 0.12) -< ()
        returnA -< CreatureThreadOutput {
@@ -104,7 +104,7 @@ hellionAvatar = genericCreatureAvatar $ proc () ->
                      (Point3D 0.06 0.55 0)
                      1.2
                      (Point3D 0.2 0.8 0.05) -< ()
-       bothLegs HellionAppendage HellionAppendage (Vector3D 0.5 0 (-1)) (Point3D 0.05 0.55 0) 0.8 (Point3D 0.05 0 0) -< ()
+       bothLegs HellionAppendage HellionAppendage Upright (Vector3D 0.5 0 (-1)) (Point3D 0.05 0.55 0) 0.8 (Point3D 0.05 0 0) -< ()
        wield_point <- exportCoordinateSystem <<< arr (joint_arm_hand . snd) <<<
            bothArms HellionAppendage HellionAppendage (Vector3D 1.0 0.0 (-0.5)) (Point3D 0.1 0.6 0) 0.4 (Point3D 0.3 0.25 0.3) -< ()
        returnA -< CreatureThreadOutput {

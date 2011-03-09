@@ -75,7 +75,8 @@ walking_orb_animation qo_orb qo_glow_orb qo_orb_upper_leg qo_orb_lower_leg =
                               sceneObject $ return qo_orb_lower_leg)
         orb_legs = legs $
             rotationGroup (Vector3D 0 1 0) 25 $
-                leg (Vector3D 0 1 1)
+                leg Insectoid
+                    (Vector3D 0 1 1)
                     (Point3D 0 0.5 0.5)
                     2
                     (Point3D 0 0 1.8) $

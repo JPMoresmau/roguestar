@@ -134,6 +134,7 @@ bothLegs :: (FRPModel m,
              LibraryModelSource lm2) =>
     lm1 ->
     lm2 ->
+    LegStyle ->
     Vector3D ->
     Point3D ->
     RSdouble ->
@@ -141,18 +142,21 @@ bothLegs :: (FRPModel m,
     FRP e m () ()
 bothLegs leg_upper
          leg_lower
+         style
          bend_vector
          hip_anchor
          maximum_length
          foot_rest = proc () ->
-    do legs [leg bend_vector
+    do legs [leg style
+                 bend_vector
                  hip_anchor
                  maximum_length
                  foot_rest
                  (libraryJointAnimation maximum_length
                                         (toLibraryModel leg_upper)
                                         (toLibraryModel leg_lower)),
-             leg (swapX bend_vector)
+             leg style
+                 (swapX bend_vector)
                  (swapX hip_anchor)
                  maximum_length
                  (swapX foot_rest)
