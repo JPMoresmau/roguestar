@@ -30,6 +30,7 @@ hrstring "cha" =   "Charisma     "
 hrstring "mind" =  "Mindfulness  "
 hrstring "maxhp" = "Health       "
 hrstring "forceadept" = "force adept"
+hrstring "dustvortex" = "dust vortex"
 hrstring x = B.map (\c -> if c == '_' then ' ' else c) x
 
 

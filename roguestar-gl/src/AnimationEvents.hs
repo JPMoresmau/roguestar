@@ -71,7 +71,7 @@ timeout duration default_value handler = (>>>) (extract handler) $ MaybeArrow $ 
        returnA -< m_o
 
 -- | As 'driverGetAnswerA'
-answer :: B.ByteString -> MessageHandler e m () B.ByteString 
+answer :: B.ByteString -> MessageHandler e m () B.ByteString
 answer s = liftConst s driverGetAnswerA
 
 -- | As 'driverGetTableA' that gets one element of the 'object-details' table.
@@ -89,10 +89,11 @@ nameOf :: (FRPModel m) => B.ByteString -> MessageHandler e m () Noun
 nameOf who = proc () ->
     do who_id <- answer who -< ()
        who_player <- answer "who-player" -< ()
+       species_name <- detail "species" -< who_id
        liftJust debugOnce <<< maybeA -< if who_player == "0" then Just "nameOf: I don't know who you are . . ." else Nothing
        returnA -< case () of
            () | who_id == who_player -> You
-           () | otherwise -> Singular who_id "recreant"
+           () | otherwise -> Singular who_id $ hrstring species_name
 
 data Noun = X | You | Singular { _noun_id, _noun_word :: B.ByteString } deriving (Eq)
 
