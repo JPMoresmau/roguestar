@@ -23,14 +23,14 @@ import Position
 import Control.Applicative
 
 dbGetSeersForFaction :: (DBReadable db) => Faction -> PlaneRef -> db [CreatureRef]
-dbGetSeersForFaction faction plane_ref = 
+dbGetSeersForFaction faction plane_ref =
     filterM (filterByFaction faction) =<< dbGetContents plane_ref
 
 -- |
 -- Returns a list of all terrain patches that are visible to any creature belonging
 -- to the specified faction on the specified plane.
 --
-dbGetVisibleTerrainForFaction :: (DBReadable db) => Faction -> PlaneRef -> 
+dbGetVisibleTerrainForFaction :: (DBReadable db) => Faction -> PlaneRef ->
                                                     db [(TerrainPatch,Position)]
 dbGetVisibleTerrainForFaction faction plane_ref =
     do critters <- dbGetSeersForFaction faction plane_ref
@@ -95,8 +95,15 @@ dbGetOpposedSpotCheck creature_ref object_ref =
        hide <- dbGetHideCheck object_ref
        return $ round $ (spot%1) * opposedLinearPowerRatio spot hide
 
+planarLightingBonus :: (DBReadable db) => PlaneRef -> db Integer
+planarLightingBonus = liftM (\x -> max 0 $ 17 - x*5) . planeDepth
+
 dbGetSpotCheck :: (DBReadable db) => CreatureRef -> db Integer
-dbGetSpotCheck creature_ref = liftM (creatureAbilityScore SpotSkill) $ dbGetCreature creature_ref
+dbGetSpotCheck creature_ref =
+    do (m_plane_ref :: Maybe PlaneRef) <- liftM (fmap parent) $ getPlanarPosition creature_ref
+       bonus <- maybe (return 0) planarLightingBonus $ m_plane_ref
+       ability_score <- liftM (creatureAbilityScore SpotSkill) $ dbGetCreature creature_ref
+       return $ ability_score + bonus
 
 dbGetHideCheck :: (DBReadable db) => Reference a -> db Integer
 dbGetHideCheck ref | Just creature_ref <- coerceReferenceTyped _creature ref = liftM (creatureAbilityScore HideSkill) $ dbGetCreature creature_ref

@@ -58,6 +58,7 @@ planeDepth this_plane =
 -- |
 -- If this object is anywhere on a plane (such as carried by a creature who is on the plane),
 -- returns the position of this object on that plane.
+-- TODO: this function seems generic enough that it should be moved and renamed.
 --
 getPlanarPosition :: (DBReadable db,ReferenceType a,LocationParent p) =>
                      Reference a -> db (Maybe (Location (Reference ()) p))
