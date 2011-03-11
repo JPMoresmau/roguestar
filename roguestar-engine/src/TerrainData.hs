@@ -118,7 +118,9 @@ stairsDown seed depth = TerrainPlacement {
     placement_sources =
         [(1%(15+3*depth),RockyGround),
          (1%(25+5*depth),Ice),
-         (1%(75+15*depth),RockFace)],
+         (1%(75+15*depth),RockFace),
+         (1%(40+10*depth),Dirt),
+         (1%60,Grass)],
     placement_replacements =
         [(1,Downstairs)],
     placement_seed = seed }
@@ -156,6 +158,7 @@ terrainFrequencies SwampBiome = [(40,Forest),(50,Water),(5,Sand),(5,Grass)]
 terrainInterpFn :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
 terrainInterpFn (a,b) = [(1,a),(1,b)] ++ (terrainInterpRule (a,b)) ++ (terrainInterpRule (b,a))
 
+-- Notice, in terrainInterpFn, we always throw in both terrain patches with a weight of 1.
 terrainInterpRule :: (TerrainPatch,TerrainPatch) -> [(Integer,TerrainPatch)]
 terrainInterpRule (RockFace,RockFace) = []
 terrainInterpRule (RockFace,RockyGround) = [(3,RockFace),(1,Rubble),(3,RockyGround)]
@@ -164,12 +167,12 @@ terrainInterpRule (Rubble,x) = [(1,Rubble),(2,Sand),(2,Dirt),(5,x)]
 terrainInterpRule (DeepWater,DeepWater) = []
 terrainInterpRule (DeepWater,Water) = [(3,DeepWater)]
 terrainInterpRule (DeepWater,_) = [(3,Water)]
-terrainInterpRule (DeepForest,DeepForest) = []
-terrainInterpRule (DeepForest,Forest) = [(3,DeepForest)]
-terrainInterpRule (DeepForest,_) = [(5,Forest)]
+terrainInterpRule (DeepForest,DeepForest) = [(1,Grass)]
+terrainInterpRule (DeepForest,Forest) = [(2,Grass)]
+terrainInterpRule (DeepForest,_) = [(1,Forest)]
 terrainInterpRule (Forest,DeepForest) = []
-terrainInterpRule (Forest,Forest) = []
-terrainInterpRule (Forest,_) = [(1,Grass)]
+terrainInterpRule (Forest,Forest) = [(3,Grass)]
+terrainInterpRule (Forest,_) = [(3,Grass)]
 terrainInterpRule (Water,Water) = [(20,Water),(1,Sand)]
 terrainInterpRule (Water,DeepWater) = []
 terrainInterpRule (Water,_) = [(1,Sand)]
