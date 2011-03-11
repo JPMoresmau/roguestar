@@ -28,12 +28,11 @@ x & y = CreatureAttribute $ Endo $ applyToCreature x . applyToCreature y
 type CreatureAttributeGenerator = AttributeGenerator CreatureAttribute
 
 -- |
--- Generate a ratio of males to females with any gender dimorphism.
--- 'gender (1%3) [attributeStatic 5 Speed] [attributeStatic 5 Mindfulness]' generates a
--- creature with a 1:2 male:female ratio, faster males, and more mindful females.
+-- Generate a ratio of males to females.
 --
-gender :: Rational -> [CreatureAttributeGenerator] -> [CreatureAttributeGenerator] -> CreatureAttributeGenerator
-gender r male_dimorphism female_dimorphism = AG.attributeChoice r (CreatureAttribute.attributeStatic 1 Male:male_dimorphism) (CreatureAttribute.attributeStatic 1 Female:female_dimorphism)
+gender :: Rational -> CreatureAttributeGenerator
+gender r = AG.attributeChoice r [CreatureAttribute.attributeStatic 1 Male]
+                                [CreatureAttribute.attributeStatic 1 Female]
 
 attributeStatic :: (CreatureEndo a) => Integer -> a -> CreatureAttributeGenerator
 attributeStatic n a = AG.attributeStatic n (CreatureAttribute $ Endo $ applyToCreature a)

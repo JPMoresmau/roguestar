@@ -34,6 +34,7 @@ homeBiome Myrmidon = DesertBiome
 homeBiome Perennial = GrasslandBiome
 homeBiome Recreant = TundraBiome
 homeBiome Reptilian = ForestBiome
+homeBiome DustVortex = DesertBiome
 
 startingEquipmentByClass :: CharacterClass -> [Tool]
 startingEquipmentByClass Barbarian = [kinetic_fleuret]
@@ -47,6 +48,7 @@ startingEquipmentByClass Scout = [phase_pistol]
 startingEquipmentByClass Shepherd = [sphere Wood]
 startingEquipmentByClass Thief = [sphere Platinum]
 startingEquipmentByClass Warrior = [phaser,kinetic_fleuret]
+startingEquipmentByClass StarChild = [sphere Diamond]
 
 startingEquipmentBySpecies :: Species -> [Tool]
 startingEquipmentBySpecies Anachronid = [sphere Radon]
@@ -61,6 +63,7 @@ startingEquipmentBySpecies Myrmidon = [sphere Krypton]
 startingEquipmentBySpecies Perennial = [sphere Wood]
 startingEquipmentBySpecies Recreant = [sphere Malignite]
 startingEquipmentBySpecies Reptilian = [sphere Oxygen]
+startingEquipmentBySpecies DustVortex = []
 
 dbCreateStartingPlane :: Creature -> DB PlaneRef
 dbCreateStartingPlane creature =

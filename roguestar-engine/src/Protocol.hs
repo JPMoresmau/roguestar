@@ -132,13 +132,13 @@ dbOldestSnapshotOnly =
 -- Perform an action assuming the database is in the DBRaceSelectionState,
 -- otherwise returns an error message.
 --
-dbRequiresRaceSelectionState :: (DBReadable db) => db a -> db a
-dbRequiresRaceSelectionState action =
+dbRequiresSpeciesSelectionState :: (DBReadable db) => db a -> db a
+dbRequiresSpeciesSelectionState action =
     do dbOldestSnapshotOnly
        state <- playerState
        case state of
-           RaceSelectionState -> action
-           _ -> throwError $ DBError $ "protocol-error: not in race selection state (" ++ show state ++ ")"
+           SpeciesSelectionState -> action
+           _ -> throwError $ DBError $ "protocol-error: not in species selection state (" ++ show state ++ ")"
 
 -- |
 -- Perform an action assuming the database is in the DBClassSelectionState,
@@ -215,7 +215,7 @@ dbDispatchQuery :: (DBReadable db) => [B.ByteString] -> db B.ByteString
 dbDispatchQuery ["state"] = 
     do state <- playerState
        return $ case state of
-                           RaceSelectionState -> "answer: state race-selection"
+                           SpeciesSelectionState -> "answer: state species-selection"
                            ClassSelectionState {} -> "answer: state class-selection"
                            PlayerCreatureTurn _ NormalMode -> "answer: state player-turn"
                            PlayerCreatureTurn _ MoveMode -> "answer: state move"
@@ -320,9 +320,9 @@ dbDispatchQuery ["new-character-class"] =
            SnapshotEvent event -> "answer: new-character-class " `B.append` maybe "nothing" (B.pack . show) (bump_event_new_class event)
            _ -> "answer: new-character-class nothing"
 
-dbDispatchQuery ["player-races","0"] =
-    return ("begin-table player-races 0 name\n" `B.append`
-            B.unlines (map B.pack player_race_names) `B.append`
+dbDispatchQuery ["player-species","0"] =
+    return ("begin-table player-species 0 name\n" `B.append`
+            B.unlines (map B.pack player_species_names) `B.append`
             "end-table")
 
 dbDispatchQuery ["visible-terrain","0"] =
@@ -489,11 +489,11 @@ dbDispatchQuery unrecognized = return $ "protocol-error: unrecognized query `" `
 dbDispatchAction :: [B.ByteString] -> DB ()
 dbDispatchAction ["continue"] = dbPopOldestSnapshot
 
-dbDispatchAction ["select-race",race_name] = 
-    dbRequiresRaceSelectionState $ dbSelectPlayerRace race_name
+dbDispatchAction ["select-species",species_name] =
+    dbRequiresSpeciesSelectionState $ dbSelectPlayerRace species_name
 
 dbDispatchAction ["reroll"] =
-    dbRequiresClassSelectionState $ dbRerollRace
+    dbRequiresClassSelectionState $ dbRerollSpecies
 
 dbDispatchAction ["select-class",class_name] =
     dbRequiresClassSelectionState $ dbSelectPlayerClass class_name
@@ -645,9 +645,9 @@ dbDispatchAction ["up"] =
 dbDispatchAction unrecognized = throwError $ DBError $ ("protocol-error: unrecognized action `" ++ (B.unpack $ B.unwords unrecognized) ++ "`")
 
 dbSelectPlayerRace :: B.ByteString -> DB ()
-dbSelectPlayerRace race_name =
-    case find (\s -> B.map toLower (B.pack $ show s) == race_name) player_species of
-        Nothing -> throwError $ DBError $ "protocol-error: unrecognized race '" ++ B.unpack race_name ++ "'"
+dbSelectPlayerRace species_name =
+    case find (\s -> B.map toLower (B.pack $ show s) == species_name) player_species of
+        Nothing -> throwError $ DBError $ "protocol-error: unrecognized species '" ++ B.unpack species_name ++ "'"
         Just species -> generateInitialPlayerCreature species
 
 dbSelectPlayerClass :: B.ByteString -> Creature -> DB ()
@@ -657,9 +657,9 @@ dbSelectPlayerClass class_name creature =
 	       Nothing -> throwError $ DBError $ "protocol-error: unrecognized or invalid class '" ++ B.unpack class_name ++ "'"
 	       Just the_class -> dbBeginGame creature the_class
 
-dbRerollRace :: Creature -> DB ()
-dbRerollRace _ = do starting_race <- dbGetStartingRace
-		    generateInitialPlayerCreature $ fromJust starting_race
+dbRerollSpecies :: Creature -> DB ()
+dbRerollSpecies _ = do starting_species <- dbGetStartingSpecies
+                       generateInitialPlayerCreature $ fromJust starting_species
 
 dbQueryPlayerStats :: (DBReadable db) => Creature -> db B.ByteString
 dbQueryPlayerStats creature = return $ playerStatsTable creature

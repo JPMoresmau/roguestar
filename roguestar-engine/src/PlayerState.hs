@@ -15,7 +15,7 @@ import MakeData
 import TravelData
 
 data PlayerState =
-    RaceSelectionState
+    SpeciesSelectionState
   | ClassSelectionState Creature
   | PlayerCreatureTurn CreatureRef CreatureTurnMode
   | SnapshotEvent SnapshotEvent
@@ -83,7 +83,7 @@ creatureOf state = case state of
     SnapshotEvent event -> subjectOf event
     GameOver -> Nothing
     ClassSelectionState {} -> Nothing
-    RaceSelectionState {} -> Nothing
+    SpeciesSelectionState {} -> Nothing
 
 -- | Get the subject creature of a 'SnapshotEvent', that is, the creature taking action.
 subjectOf :: SnapshotEvent -> Maybe CreatureRef

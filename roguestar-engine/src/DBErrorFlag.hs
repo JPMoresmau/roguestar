@@ -6,7 +6,7 @@ data ErrorFlag =
     BuildingApproachWrongAngle -- some buildings (like stargates) are sensitive to the angle of approach
   | NothingAtFeet              -- tried to pick something up, but there is nothing at your feet
   | NothingInInventory         -- tried to perform an inventory action, but your inventory is empty
-  | NotStanding                -- the player is not standing on anything (e.g. race selection state)
+  | NotStanding                -- the player is not standing on anything (e.g. species selection state)
   | NoStargateAddress          -- tried to move through the stargate network, but there was no destination
   | NoToolWielded              -- tried to perform an action that requires a wielded tool
   | ToolIs_NotAtFeet           -- tried to pick something up, but it isn't at your feet

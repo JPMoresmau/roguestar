@@ -11,7 +11,7 @@ import Data.Monoid
 import Control.Monad
 
 -- | Description of the random data to be generated.
-data AttributeGenerator a = 
+data AttributeGenerator a =
       AttributeAlways {
           attribute_actual :: a,
           attribute_min_max :: (Integer,Integer) }

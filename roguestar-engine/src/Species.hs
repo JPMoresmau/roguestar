@@ -1,6 +1,6 @@
 
 module Species
-    (player_race_names,
+    (player_species_names,
      SpeciesData(..),
      speciesInfo)
     where
@@ -13,8 +13,8 @@ import CreatureAttribute
 import Data.Monoid
 import TerrainData
 
-player_race_names :: [String]
-player_race_names = map (map toLower . show) player_species
+player_species_names :: [String]
+player_species_names = map (map toLower . show) player_species
 
 data SpeciesData = SpeciesData {
         species_recurring_attributes :: CreatureAttribute,
@@ -33,12 +33,10 @@ surpriseAptitudes = mconcat $ map (\a -> attributeChoice 0.05 [attributeMinMax (
 speciesInfo :: Species -> SpeciesData
 
 speciesInfo Anachronid = SpeciesData (Speed & Mindfulness & SpotSkill) [
-    gender 0.8
-        [aptitudeBlock 1 10 [Speed,Mindfulness],
-         attributeStatic 2 SpotSkill]
-        [aptitudeBlock 10 25 [Speed,Mindfulness],
-         attributeStatic 15 SpotSkill,
-         surpriseAptitudes],
+    gender 0.0,
+    aptitudeBlock 10 25 [Speed,Mindfulness],
+    attributeStatic 15 SpotSkill,
+    surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Barbarian,
     attributeStatic 1 $ FavoredClass Pirate]
 
@@ -47,7 +45,7 @@ speciesInfo Androsynth = SpeciesData (Strength & Intellect) [
     attributeStatic 1 $ FavoredClass Engineer]
 
 speciesInfo Ascendant = SpeciesData (Strength & Mindfulness) [
-    gender 0.45 [] [],
+    gender 0.5,
     aptitudeBlock 5 15 [Strength,Mindfulness],
     surpriseAptitudes,
     attributeStatic 10 JumpSkill,
@@ -55,7 +53,7 @@ speciesInfo Ascendant = SpeciesData (Strength & Mindfulness) [
     attributeStatic 1 $ FavoredClass ForceAdept]
 
 speciesInfo Caduceator = SpeciesData (Strength & Charisma) [
-    gender 0.6 [] [],
+    gender 0.5,
     aptitudeBlock 5 15 [Strength,Charisma],
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Consular]
@@ -66,12 +64,12 @@ speciesInfo DustVortex = SpeciesData (Speed & Mindfulness) [
     attributeStatic 1 $ FavoredClass Barbarian]
 
 speciesInfo Encephalon = SpeciesData (Constitution & Intellect) [
-    gender 0.95 [] [],
+    gender 0.5,
     aptitudeBlock 3 20 [Constitution,Intellect],
     attributeStatic 1 $ FavoredClass Engineer]
 
 speciesInfo Hellion = SpeciesData (Strength & Perception) [
-    gender 0.5 [] [],
+    gender 0.5,
     aptitudeBlock 5 15 [Strength,Perception],
     surpriseAptitudes,
     attributeStatic 5 $ HideSkill,
@@ -81,7 +79,7 @@ speciesInfo Hellion = SpeciesData (Strength & Perception) [
     attributeStatic 1 $ FavoredClass Pirate]
 
 speciesInfo Goliath = SpeciesData (Constitution & Perception) [
-    gender 0.55 [] [],
+    gender 0.5,
     aptitudeBlock 3 20 [Constitution,Perception],
     surpriseAptitudes,
     attributeStatic 4 $ DamageReductionTrait Melee,
@@ -92,14 +90,14 @@ speciesInfo Goliath = SpeciesData (Constitution & Perception) [
     attributeStatic 1 $ FavoredClass Scout]
 
 speciesInfo Kraken = SpeciesData (Constitution & Charisma) [
-    gender 0.5 [] [],
+    gender 0.5,
     aptitudeBlock 3 20 [Constitution,Charisma],
     attributeStatic 1 $ TerrainAffinity Water,
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Consular]
 
 speciesInfo Myrmidon = SpeciesData (Speed & Intellect) [
-    gender 0.0 [] [],
+    gender 0.0,
     aptitudeBlock 5 15 [Speed,Intellect],
     surpriseAptitudes,
     attributeStatic 1 $ FavoredClass Barbarian,
@@ -127,7 +125,7 @@ speciesInfo Recreant = SpeciesData (Speed & Perception) [
     attributeStatic 1 $ FavoredClass Scout]
 
 speciesInfo Reptilian = SpeciesData (Speed & Charisma) [
-    gender 0.35 [] [],
+    gender 0.5,
     aptitudeBlock 5 15 [Speed,Charisma],
     surpriseAptitudes,
     attributeStatic 5 $ AttackSkill Unarmed,

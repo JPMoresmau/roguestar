@@ -13,8 +13,6 @@ import Data.Version
 import Paths_roguestar_engine
 import Data.List (intersperse)
 import System.Log.Logger
-import Logging
-import Control.Monad
 
 roguestar_version_number :: String
 roguestar_version_number = concat $

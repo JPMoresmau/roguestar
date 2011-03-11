@@ -6,7 +6,7 @@ module Actions
     (takeUserInputAction,
      getValidActions,
      ActionInput(..),
-     select_race_action_names,
+     select_species_action_names,
      select_base_class_action_names,
      make_what_action_names,
      executeContinueAction,
@@ -102,7 +102,7 @@ executeContinueAction action_input =
 -- In this case the action executes because the state is actually select-person-to-call-state and Carl
 -- is actually listed under the "name" header of the "people" table.
 --
--- In practice this function is used for things like the race-selection-state and the class-selection-state
+-- In practice this function is used for things like the species-selection-state and the class-selection-state
 -- where we select from a predifined list of possible choices, but the engine further restricts the choices.
 -- Each possible choice is it's own action that will only return action_valid if it is listed in the appropriate
 -- table from the engine.
@@ -149,7 +149,7 @@ player_turn_states :: [B.ByteString]
 player_turn_states = ["player-turn","move","attack","fire","jump","turn","clear-terrain"]
 
 menu_states :: [B.ByteString]
-menu_states = ["race-selection","class-selection","pickup","drop","wield","make","make-finished","make-what"]
+menu_states = ["species-selection","class-selection","pickup","drop","wield","make","make-finished","make-what"]
 
 selectable_menu_states :: [B.ByteString]
 selectable_menu_states = if all (`elem` menu_states) states then states else error "selectable_menu_states: inconsistent with menu_states"
@@ -241,9 +241,9 @@ make_what_actions = map makeWhatAction make_what_action_names
 make_end_action :: (B.ByteString,Action)
 make_end_action = stateLinkedAction ["make-finished"] "make-end"
 
-selectRaceAction :: B.ByteString -> (B.ByteString,Action)
-selectRaceAction s =
-    (s,selectTableAction ("player-races","0","name") "race-selection" "select-race" s)
+selectSpeciesAction :: B.ByteString -> (B.ByteString,Action)
+selectSpeciesAction s =
+    (s,selectTableAction ("player-species","0","name") "species-selection" "select-species" s)
 
 selectBaseClassAction :: B.ByteString -> (B.ByteString,Action)
 selectBaseClassAction s =
@@ -307,22 +307,22 @@ quality_super = setQualityAction Super
     Lists of Known Actions
  ----------------------------------------------------------}
 
-select_race_action_names :: [B.ByteString]
-select_race_action_names = [--"anachronid",
-			    "androsynth",
-			    "ascendant",
-			    "caduceator",
-			    "encephalon",
-			    --"goliath",
-			    "hellion",
-			    --"kraken",
-			    --"myrmidon",
-			    --"perennial",
-			    "recreant",
-			    "reptilian"]
+select_species_action_names :: [B.ByteString]
+select_species_action_names = [--"anachronid",
+			       "androsynth",
+			       "ascendant",
+			       "caduceator",
+			       "encephalon",
+			       --"goliath",
+			       "hellion",
+			       --"kraken",
+			       --"myrmidon",
+			       --"perennial",
+			       "recreant",
+			       "reptilian"]
 
-select_race_actions :: [(B.ByteString,Action)]
-select_race_actions = map selectRaceAction select_race_action_names
+select_species_actions :: [(B.ByteString,Action)]
+select_species_actions = map selectSpeciesAction select_species_action_names
 
 select_base_class_action_names :: [B.ByteString]
 select_base_class_action_names = ["barbarian",
@@ -347,7 +347,7 @@ all_actions = [continue_action,quit_action,reroll_action,
                next_action,prev_action,normal_action,select_menu_action,
                zoom_in_action,zoom_out_action,sky_on_action,sky_off_action,
                quality_bad,quality_poor,quality_good,quality_super] ++
-              select_race_actions ++
+              select_species_actions ++
               select_base_class_actions ++
               direction_actions ++
               make_what_actions ++

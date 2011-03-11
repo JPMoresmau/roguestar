@@ -39,8 +39,8 @@ module DB
      dbGetAncestors,
      dbWhere,
      dbGetContents,
-     dbSetStartingRace,
-     dbGetStartingRace,
+     dbSetStartingSpecies,
+     dbGetStartingSpecies,
      ro, atomic,
      logDB,
      mapRO, filterRO, sortByRO,
@@ -89,7 +89,7 @@ data DB_History = DB_History {
 
 data DB_BaseType = DB_BaseType { db_player_state :: PlayerState,
                                  db_next_object_ref :: Integer,
-                                 db_starting_race :: Maybe Species,
+                                 db_starting_species :: Maybe Species,
                                  db_creatures :: Map CreatureRef Creature,
                                  db_planes :: Map PlaneRef Plane,
                                  db_tools :: Map ToolRef Tool,
@@ -212,9 +212,9 @@ atomic action ro_action =
 --
 initial_db :: DB_BaseType
 initial_db = DB_BaseType {
-    db_player_state = RaceSelectionState,
+    db_player_state = SpeciesSelectionState,
     db_next_object_ref = 0,
-    db_starting_race = Nothing,
+    db_starting_species = Nothing,
     db_creatures = Map.fromList [],
     db_planes = Map.fromList [],
     db_tools = Map.fromList [],
@@ -568,16 +568,16 @@ dbNextTurn refs =
                                       Map.lookup (generalizeReference r) (db_time_coordinates db))) refs)
 
 -- |
--- Answers the starting race.
+-- Answers the starting species.
 --
-dbGetStartingRace :: DB (Maybe Species)
-dbGetStartingRace = do gets db_starting_race
+dbGetStartingSpecies :: DB (Maybe Species)
+dbGetStartingSpecies = do gets db_starting_species
 
 -- |
--- Sets the starting race.
+-- Sets the starting species.
 --
-dbSetStartingRace :: Species -> DB ()
-dbSetStartingRace the_species = modify (\db -> db { db_starting_race = Just the_species })
+dbSetStartingSpecies :: Species -> DB ()
+dbSetStartingSpecies the_species = modify (\db -> db { db_starting_species = Just the_species })
 
 -- |
 -- Takes a snapshot of a SnapshotEvent in progress.

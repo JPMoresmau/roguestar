@@ -24,7 +24,7 @@ type MenuHandler e m = FRP e (MenuSwitch m) () SceneLayerInfo
 -- Header for menu states.  This will automatically switch away to an approprate menu if the provided state predicate does not match.
 menuStateHeader :: (FRPModel m) => (B.ByteString -> Bool) -> MenuHandler e m
 menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
-  where switchTo "race-selection" = menuRaceSelection
+  where switchTo "species-selection" = menuSpeciesSelection
         switchTo "class-selection" = menuClassSelection
         switchTo "pickup" = toolMenuSelection
         switchTo "drop" = toolMenuSelection
@@ -37,12 +37,12 @@ menuStateHeader f = genericStateHeader switchTo f >>> arr (const $ roguestarScen
 menuDispatch :: (FRPModel m) => MenuHandler e m
 menuDispatch = menuStateHeader (const False) >>> arr (const $ roguestarSceneLayerInfo mempty basic_camera)
 
-menuRaceSelection :: (FRPModel m) => MenuHandler e m
-menuRaceSelection = proc s -> 
-    do result <- menuStateHeader (== "race-selection") -< s
+menuSpeciesSelection :: (FRPModel m) => MenuHandler e m
+menuSpeciesSelection = proc s ->
+    do result <- menuStateHeader (== "species-selection") -< s
        requestPrintTextMode -< Unlimited
        clearPrintTextA -< Just ()
-       printMenuA select_race_action_names -< ()
+       printMenuA select_species_action_names -< ()
        printTextA -< Just (Query,"Select a Species:")
        returnA -< result
 
