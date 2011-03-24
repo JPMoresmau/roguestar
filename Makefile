@@ -3,20 +3,6 @@ CONFIG_OPTS=--ghc-option=-Wall
 warning:
 	@echo "See README."
 
-install-deps:
-	cabal --version
-	cabal install --reinstall Vec ${OPTS}
-	cabal install --reinstall MaybeT ${OPTS}
-	cabal install --reinstall MonadRandom ${OPTS}
-	cabal install --reinstall data-inttrie ${OPTS}
-	cabal install --reinstall data-memocombinators ${OPTS}
-	cabal install --reinstall PSQueue ${OPTS}
-	cabal install --reinstall vector ${OPTS}
-	cabal install --reinstall statistics ${OPTS}
-	cabal install --reinstall priority-sync ${OPTS}
-	cabal install --reinstall Vec-OpenGLRaw ${OPTS}
-	cabal install --reinstall hslogger ${OPTS}
-
 clean:
 	(cd rsagl-math && cabal clean ${OPTS})
 	(cd rsagl-frp && cabal clean ${OPTS})
@@ -28,6 +14,17 @@ clean:
 	(cd roguestar-gtk && cabal clean ${OPTS})
 	(cd roguestar && cabal clean ${OPTS})
 	rm -rf roguestar-sdist
+
+config:
+	(cd rsagl-math && cabal configure ${OPTS})
+	(cd rsagl-frp && cabal configure ${OPTS})
+	(cd rsagl && cabal configure ${OPTS})
+	(cd rsagl-demos && cabal configure ${OPTS})
+	(cd roguestar-engine && cabal configure ${OPTS})
+	(cd roguestar-gl && cabal configure ${OPTS})
+	(cd roguestar-glut && cabal configure ${OPTS})
+	(cd roguestar-gtk && cabal configure ${OPTS})
+	(cd roguestar && cabal configure ${OPTS})
 
 install: roguestar roguestar-gtk roguestar-glut roguestar-engine rsagl-demos
 
@@ -104,4 +101,4 @@ sdist:
 	(cd roguestar-sdist/roguestar-${VERSION} && cabal configure && cabal install)
 	ls roguestar-sdist
 
-.PHONY: rsagl-math rsagl-frp rsagl rsagl-demos roguestar-engine roguestar-gl roguestar-glut roguestar-gtk roguestar
+.PHONY: rsagl-math rsagl-frp rsagl rsagl-demos roguestar-engine roguestar-gl roguestar-glut roguestar-gtk roguestar config

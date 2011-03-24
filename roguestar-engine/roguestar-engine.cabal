@@ -38,7 +38,7 @@ other-modules: TravelData VisibilityData Stats FactionData Behavior
                AttributeGeneration CreatureAttribute Building BuildingData Town
                Random PlayerState MakeData DBErrorFlag Construction Make Activate
                Contact DeviceActivation WorkCluster Planet PlanetData Logging
-               NodeData
+               NodeData CharacterAdvancement
 ghc-prof-options: -prof -auto-all
 ghc-shared-options: -prof -auto-all
 ghc-options: -threaded -fno-warn-type-defaults
