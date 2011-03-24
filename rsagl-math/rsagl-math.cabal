@@ -13,8 +13,6 @@ description:         RSAGL, the RogueStar Animation and Graphics Library,
                      to other projects that might benefit from it.  This
                      package includes mathematical algorithms to support
                      the project.
-                     .
-                     The git repository is available at <http://www.downstairspeople.org/git/roguestar.git>.
 cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 

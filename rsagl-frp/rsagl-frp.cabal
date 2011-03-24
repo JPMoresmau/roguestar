@@ -14,8 +14,6 @@ description:         RSAGL, the RogueStar Animation and Graphics Library,
                      .
                      This package implements the RSAGL functional reactive
                      programming architecture.
-                     .
-                     The git repository is available at <http://www.downstairspeople.org/git/roguestar.git>.
 cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 

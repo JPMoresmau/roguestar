@@ -13,8 +13,6 @@ description:         RSAGL, the RogueStar Animation and Graphics Library,
                      to other projects that might benefit from it.  It includes
                      mathematical utilities, a 3D modeling language based on
                      parametric surfaces, and an arrow-based FRP framework.
-                     .
-                     The git repository is available at <http://www.downstairspeople.org/git/rsagl.git>.
 cabal-version:       >= 1.2
 homepage:            http://roguestar.downstairspeople.org/
 

@@ -7,12 +7,8 @@ author:              Christopher Lane Hinson <lane@downstairspeople.org>
 maintainer:          Christopher Lane Hinson <lane@downstairspeople.org>
 
 category:            Game
-synopsis:            Sci-fi roguelike (turn-based, chessboard-tiled, role playing) game
-description:         Roguestar is a science fiction themed roguelike (turn-based,
-                     chessboard-tiled, role playing) game written in Haskell.  Roguestar uses
-                     OpenGL for graphics.  This is still a very early release.
-                     .
-                     The git repository is available at <http://www.downstairspeople.org/git/roguestar-gl.git>.
+synopsis:            Sci-fi roguelike game.  Client library.
+description:         Roguestar-glut and roguestar-gtk depend on this library for the bulk of their functionality.
 homepage:            http://roguestar.downstairspeople.org/
 
 build-type:          Simple

@@ -14,13 +14,8 @@ build-depends: hslogger >=1.1.0 && <1.2,
                old-time >=1.0.0.3 && <1.1, array >=0.3.0.0 && <0.3.1,
                containers >=0.3.0.0 && <0.3.1, base >=4 && <5
 homepage: http://roguestar.downstairspeople.org/
-synopsis: Sci-fi roguelike (turn-based, chessboard-tiled, role playing) game
-description: Roguestar is a science fiction themed roguelike (turn-based,
-             chessboard-tiled, role playing) game written in Haskell. This package
-             provides the core game engine; you'll probably want to also install the
-             OpenGL client.
-             .
-             The git repository is available at <http://www.downstairspeople.org/git/roguestar-engine.git>.
+synopsis: Sci-fi roguelike game.  Backend.
+description: Requires roguestar and roguestar-glut.
 category: Game
 author: Christopher Lane Hinson
 tested-with: GHC ==6.12.1
