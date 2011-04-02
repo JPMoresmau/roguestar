@@ -1,5 +1,5 @@
 name:                roguestar
-version:             0.5
+version:             0.6.0.0
 cabal-version:       >=1.2
 license:             OtherLicense
 license-file:        LICENSE

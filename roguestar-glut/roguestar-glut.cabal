@@ -1,5 +1,5 @@
 name:                roguestar-glut
-version:             0.5
+version:             0.6.0.0
 cabal-version:       >=1.2
 license:             OtherLicense
 license-file:        LICENSE
@@ -18,9 +18,9 @@ Executable roguestar-glut
   main-is:             Main.hs
   hs-source-dirs:      src
   build-depends:       base>=4&&<5,
-                       roguestar-gl==0.5,
+                       roguestar-gl==0.6.0.0,
                        GLUT>=2.2.2.0 && < 2.3,
-                       rsagl==0.5
+                       rsagl==0.6.0.0
   ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
   ghc-prof-options:    -prof -auto-all
 

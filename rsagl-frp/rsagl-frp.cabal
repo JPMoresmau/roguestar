@@ -1,5 +1,5 @@
 name:                rsagl-frp
-version:             0.5
+version:             0.6.0.0
 license:             BSD3
 license-file:        LICENSE
 author:              Christopher Lane Hinson
@@ -35,7 +35,7 @@ Library
     ghc-prof-options:    -prof -auto-all
 
     build-depends:       base>=4 && <5,
-                         rsagl-math==0.5,
+                         rsagl-math==0.6.0.0,
                          random>= 1.0.0.2 && < 1.1,
                          old-time>= 1.0.0.3 && < 1.1,
                          array>= 0.3.0.0 && < 0.4,

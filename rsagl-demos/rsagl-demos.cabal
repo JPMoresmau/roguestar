@@ -1,5 +1,5 @@
 name:                rsagl-demos
-version:             0.5
+version:             0.6.0.0
 license:             BSD3
 license-file:        LICENSE
 author:              Christopher Lane Hinson
@@ -27,7 +27,9 @@ Executable _rsagl_modelview
                          mtl,
                          OpenGL>=2.4.0.1&&<2.5,
                          GLUT>=2.2.2.0&&<2.3,
-                         rsagl-math==0.5, rsagl-frp==0.5, rsagl==0.5
+                         rsagl-math==0.6.0.0,
+                         rsagl-frp==0.6.0.0,
+                         rsagl==0.6.0.0
 
 Executable _rsagl_tests
     main-is:             Tests.hs
@@ -39,7 +41,7 @@ Executable _rsagl_tests
                          containers,
                          parallel,
                          QuickCheck,
-                         rsagl-math==0.5,
-                         rsagl-frp==0.5,
-                         rsagl==0.5
+                         rsagl-math==0.6.0.0,
+                         rsagl-frp==0.6.0.0,
+                         rsagl==0.6.0.0
 
