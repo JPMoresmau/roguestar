@@ -41,7 +41,7 @@ validKeyMap action_input raw_keymap =
        return $ filter (\x -> snd x `elem` valid_actions) raw_keymap
 
 -- | 'filterKeySequence' transforms a key sequence, providing services such as:
--- * blanking the input buffer is there is no possible completion
+-- * blanking the input buffer if there is no possible completion and
 -- * performing tab complation
 filterKeySequence :: ActionInput -> Keymap -> K.KeyString -> STM K.KeyString
 filterKeySequence _ _ key_sequence |

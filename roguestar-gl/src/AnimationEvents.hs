@@ -253,7 +253,7 @@ armedAttack = alternateMessage "attack-event" $ proc () ->
 
 -- | Generates a string for the hit points of a creature, if that information is available.
 playerHPString :: (FRPModel m) => MessageHandler e m Noun B.ByteString
-playerHPString = timeout (fromSeconds 0.1) "" $ proc noun ->
+playerHPString = timeout (fromSeconds 1.0) "" $ proc noun ->
     do uid <- nounToUID -< noun
        hp <- detail "hp" -< uid
        maxhp <- detail "maxhp" -< uid
