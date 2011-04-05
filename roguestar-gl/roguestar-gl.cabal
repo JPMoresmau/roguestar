@@ -39,16 +39,16 @@ Library
                        rsagl==0.5,
                        rsagl-math==0.5,
                        rsagl-frp==0.5,
-                       containers>=0.3.0.0 && < 0.4,
+                       containers>=0.3.0.0,
                        arrows>=0.4.1.2 && < 0.5,
-                       mtl>=1.1.0.2 && < 1.2,
+                       mtl>=1.1.0.2,
                        MonadRandom>=0.1.4 && < 1.2,
                        OpenGL>=2.4.0.1 && < 2.5,
-                       filepath>=1.1.0.3 && < 1.2,
+                       filepath>=1.1.0.3,
                        random>=1.0.0.2 && < 1.1,
                        bytestring>=0.9.1.5 && < 0.10,
-                       stm>=2.1.1.2 && < 2.2,
+                       stm>=2.1.1.2,
                        priority-sync>=0.2.1.0 && < 0.2.2
-  ghc-options:         -fno-warn-type-defaults -fexcess-precision
+  ghc-options:         -fno-warn-type-defaults -fexcess-precision  -rtsopts=all
   ghc-prof-options:    -prof -auto-all
 

@@ -352,11 +352,11 @@ dbDispatchQuery ["object-details",uid] = ro $
   do maybe_plane_ref <- dbGetCurrentPlane
      (visibles :: [Reference ()]) <- maybe
          (return [])
-         (flip dbGetVisibleObjectsForFaction Player $ \ref ->
+         (dbGetVisibleObjectsForFaction (\ref ->
               do let f = (== uid) . B.pack . show . toUID
                  let m_wielder = coerceReference ref
                  m_wield <- maybe (return Nothing) dbGetWielded m_wielder
-                 return $ maybe False f m_wield || f ref)
+                 return $ maybe False f m_wield || f ref) Player)
          maybe_plane_ref
      let creature_refs = mapMaybe (coerceReferenceTyped _creature) visibles
      wielded <- liftM catMaybes $ mapM dbGetWielded creature_refs

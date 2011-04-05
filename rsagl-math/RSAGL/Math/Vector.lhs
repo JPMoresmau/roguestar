@@ -40,6 +40,7 @@ module RSAGL.Math.Vector
      orthos)
     where
 
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import RSAGL.Math.Angle
 import System.Random

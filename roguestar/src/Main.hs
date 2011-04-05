@@ -16,6 +16,7 @@ import qualified Data.ByteString as B
 import Data.ByteString.Char8 ()
 import GHC.Exts (IsString(..))
 import System.Directory
+import System.Info
 
 data Args = Args {
     arg_echo_protocol :: Bool,
@@ -97,7 +98,7 @@ main =
                ["-RTS"] ++
                arg_engine args ++
                ["version","over","begin"]
-       let roguestar_engine_bin = arg_prefix args `combine` "roguestar-engine"
+       let roguestar_engine_bin = arg_prefix args `combine` (makeExe "roguestar-engine")
        roguestar_gl_bin <- findRoguestarGL args
        when (arg_verbose args) $
            putStrLn $ "starting process: " ++
@@ -146,14 +147,20 @@ main =
 
 findRoguestarGL :: Args -> IO FilePath
 findRoguestarGL args =
-    do let roguestar_glut = arg_prefix args `combine` "roguestar-glut"
-       let roguestar_gtk = arg_prefix args `combine` "roguestar-gtk"
+    do let roguestar_glut = arg_prefix args `combine` (makeExe "roguestar-glut")
+       let roguestar_gtk = arg_prefix args `combine` (makeExe "roguestar-gtk")
        does_roguestar_glut_exist <- doesFileExist roguestar_glut
        does_roguestar_gtk_exist <- doesFileExist roguestar_gtk
        return $ case () of
            () | does_roguestar_gtk_exist -> roguestar_gtk
            () | does_roguestar_glut_exist -> roguestar_glut
 
+           
+makeExe s= if elem os ["mingw32","cygwin32","win32"]
+	then s ++ ".exe"
+	else s
+
+           
 data Destination = DHandle Handle | DChan (Chan B.ByteString) | DChanTime (Chan B.ByteString)
 
 send :: Destination -> B.ByteString -> IO ()

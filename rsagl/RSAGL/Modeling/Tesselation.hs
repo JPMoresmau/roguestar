@@ -16,6 +16,7 @@ import RSAGL.Auxiliary.Auxiliary
 import RSAGL.Math.Affine
 import RSAGL.Math.BoundingBox
 import Data.List
+import Control.DeepSeq
 import Control.Parallel.Strategies hiding (r0)
 import Control.Arrow
 import Graphics.Rendering.OpenGL.GL.BeginEnd

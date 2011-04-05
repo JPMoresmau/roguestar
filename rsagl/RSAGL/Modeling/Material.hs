@@ -17,6 +17,7 @@ import Control.Applicative
 import RSAGL.Color
 import RSAGL.Math.Curve
 import RSAGL.Auxiliary.ApplicativeWrapper
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL hiding (RGB,RGBA,Alpha)
 import RSAGL.Math.Types

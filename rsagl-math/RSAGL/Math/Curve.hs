@@ -47,6 +47,7 @@ import RSAGL.Math.Angle
 import RSAGL.Math.Affine
 import Data.List
 import Data.Maybe
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import Control.Applicative
 import RSAGL.Math.AbstractVector

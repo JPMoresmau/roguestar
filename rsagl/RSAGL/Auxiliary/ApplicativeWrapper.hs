@@ -11,6 +11,7 @@ module RSAGL.Auxiliary.ApplicativeWrapper
 
 import Control.Applicative
 import Data.Maybe
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import RSAGL.Math.AbstractVector
 

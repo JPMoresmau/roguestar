@@ -56,14 +56,15 @@ Library
                          random>= 1.0.0.2 && < 1.1,
                          array>= 0.3.0.0 && < 0.4,
                          arrows>= 0.4.1.2 && < 0.5,
-                         containers>= 0.3.0.0 && < 0.4,
-                         parallel>= 2.2.0.1 && < 2.3,
-                         mtl>= 1.1.0.2 && < 1.2,
+                         containers>= 0.3.0.0,
+                         parallel>= 2.2.0.1,
+                         mtl>= 1.1.0.2 ,
                          OpenGL>= 2.4.0.1 && < 2.5,
                          OpenGLRaw>= 1.1.0.1 && < 1.2,
                          parsec>=3.1.0 && < 3.2,
                          Vec>=0.9.8 && < 0.10,
                          Vec-OpenGLRaw>=0.2.0.0 && < 0.3,
-                         stm>= 2.1.1.2 && < 2.2,
-                         data-memocombinators>= 0.4.0 && < 0.5
+                         stm>= 2.1.1.2,
+                         data-memocombinators>= 0.4.0 && < 0.5,
+                         deepseq>=1.1
 

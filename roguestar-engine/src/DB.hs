@@ -192,9 +192,9 @@ mapRO f xs = liftM (`using` parList rwhnf) $ mapM (dbSimulate . f) xs
 
 sortByRO :: (DBReadable db,Ord b) => (forall m. DBReadable m => a -> m b) -> [a] -> db [a]
 sortByRO f xs =
-    liftM (List.map fst . sortBy (comparing snd)) $ flip mapRO xs $ \x ->
+    liftM (List.map fst . sortBy (comparing snd)) $ mapRO (\x ->
          do y <- f x
-            return (x,y)
+            return (x,y)) xs
 
 -- | Run action synthesized from a read-only action (prepare-execute pattern).
 atomic :: (x -> DB ()) -> (forall m. DBReadable m => m x) -> DB x

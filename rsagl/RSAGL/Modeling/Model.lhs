@@ -71,6 +71,7 @@ import Data.List as List
 import Data.Maybe
 import qualified Control.Monad.State as State
 import Data.Monoid
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import Graphics.Rendering.OpenGL.GL hiding (translate,rotate,scale,specular)
 import RSAGL.Modeling.OpenGLPrimitives

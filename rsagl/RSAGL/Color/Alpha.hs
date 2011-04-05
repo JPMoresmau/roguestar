@@ -6,6 +6,7 @@ module RSAGL.Color.Alpha
 import RSAGL.Math.Types
 import RSAGL.Color.Auxiliary
 import RSAGL.Math.AbstractVector
+import Control.DeepSeq
 import Control.Parallel.Strategies
 import Control.Applicative
 import RSAGL.Color.ColorSpace

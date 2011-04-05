@@ -17,6 +17,7 @@ import RSAGL.Color.ColorSpace
 import RSAGL.Color.Auxiliary
 import RSAGL.Math.Vector
 import RSAGL.Math.AbstractVector
+import Control.DeepSeq
 import Control.Parallel.Strategies
 
 -- | A color in the red-green-blue color space.
