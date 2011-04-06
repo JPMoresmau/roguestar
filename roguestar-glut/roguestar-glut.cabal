@@ -21,6 +21,9 @@ Executable roguestar-glut
                        roguestar-gl==0.5,
                        GLUT>=2.2.2.0 && < 2.3,
                        rsagl==0.5
-  ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision  -rtsopts=all
+  if impl(ghc >= 7.0)
+    ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision -rtsopts=all
+  else
+    ghc-options:         -threaded -fno-warn-type-defaults -fexcess-precision
   ghc-prof-options:    -prof -auto-all
 
